@@ -1,0 +1,156 @@
+﻿<UserControl x:Class="Comfizen.FilterableComboBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             mc:Ignorable="d" 
+             d:DesignHeight="30" d:DesignWidth="300"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Comfizen"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    
+    <UserControl.Resources>
+        <local:StringToIsNotNullOrEmptyConverter x:Key="StringToIsNotNullOrEmptyConverter"/>
+    </UserControl.Resources>
+    
+    <Grid>
+        <!-- ToggleButton и основная часть остаются без изменений -->
+        <ToggleButton x:Name="DropDownToggle"
+                      IsChecked="{Binding IsOpen, ElementName=ItemPopup, Mode=TwoWay}"
+                      Focusable="False">
+            <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <Border x:Name="BackgroundBorder" 
+                                Background="{StaticResource SecondaryBackground}" 
+                                BorderBrush="{StaticResource TertiaryBackground}" 
+                                BorderThickness="1" />
+                        <TextBox x:Name="SelectorTextBox"
+                                 Text="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 IsHitTestVisible="False" 
+                                 Focusable="True" 
+                                 VerticalAlignment="Center"
+                                 Padding="5,5,25,5"/>
+                        <TextBlock Text="{Binding PlaceholderText, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="5,0" IsHitTestVisible="False" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding Text, ElementName=SelectorTextBox}" Value=""/>
+                                                <Condition Binding="{Binding IsKeyboardFocusWithin, ElementName=SelectorTextBox}" Value="False"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Path x:Name="arrow" 
+                              Data="F1 M 0,0 L 2.5,2.5 L 5,0 Z" 
+                              Fill="{StaticResource TextBrush}" 
+                              HorizontalAlignment="Right" 
+                              VerticalAlignment="Center"
+                              Margin="0,0,8,0"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="BackgroundBorder" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="arrow" Property="Data" Value="F1 M 0,2.5 L 2.5,0 L 5,2.5 Z" />
+                        </Trigger>
+                        <DataTrigger Binding="{Binding IsValueValid, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="False">
+                            <Setter TargetName="BackgroundBorder" Property="BorderBrush" Value="{StaticResource ErrorBrush}"/>
+                            <Setter TargetName="BackgroundBorder" Property="BorderThickness" Value="1.5"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </ToggleButton.Template>
+        </ToggleButton>
+        
+        <Popup x:Name="ItemPopup"
+               PlacementTarget="{Binding ElementName=DropDownToggle}"
+               StaysOpen="False"
+               Opened="ItemPopup_Opened" 
+               Width="{Binding ActualWidth, ElementName=DropDownToggle}">
+            <Border Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" Margin="0,1,0,0">
+                <DockPanel MaxHeight="300">
+                    <!-- ========================================================== -->
+                    <!--     НАЧАЛО ИЗМЕНЕНИЯ: Grid для TextBox и кнопки очистки   -->
+                    <!-- ========================================================== -->
+                    <Grid DockPanel.Dock="Top" Margin="5">
+                        <TextBox x:Name="FilterTextBox"
+                                 Text="{Binding SearchFilter, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
+                                 Padding="5,5,25,5"
+                                 PreviewKeyDown="FilterTextBox_PreviewKeyDown"/>
+                        
+                        <Button Content="✕" ToolTip="Очистить поиск"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0"
+                                Command="{Binding ClearSearchCommand, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource OverlayIconButton}">
+                                    <!-- ========================================================== -->
+                                    <!--     НАЧАЛО ИЗМЕНЕНИЯ: Исправленный триггер видимости       -->
+                                    <!-- ========================================================== -->
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=FilterTextBox, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                    <!-- ========================================================== -->
+                                    <!--     КОНЕЦ ИЗМЕНЕНИЯ                                        -->
+                                    <!-- ========================================================== -->
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+                    <!-- ========================================================== -->
+                    <!--     КОНЕЦ ИЗМЕНЕНИЯ                                        -->
+                    <!-- ========================================================== -->
+                    <ListBox x:Name="ItemListBox"
+                             ItemsSource="{Binding FilteredItems, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                             PreviewMouseLeftButtonUp="ItemListBox_PreviewMouseLeftButtonUp"
+                             PreviewKeyDown="ItemListBox_PreviewKeyDown"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             Background="{StaticResource SecondaryBackground}"
+                             BorderThickness="0">
+                        
+                        <ListBox.Resources>
+                            <DataTemplate DataType="{x:Type local:WorkflowListHeader}">
+                                <TextBlock Text="{Binding Title}" FontWeight="Bold" Margin="2,5,2,2"
+                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                            </DataTemplate>
+                            <DataTemplate DataType="{x:Type sys:String}">
+                                <TextBlock Text="{Binding Converter={StaticResource FileNameTrimmerConverter}}"/>
+                            </DataTemplate>
+                        </ListBox.Resources>
+
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="5,3"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding ., Converter={StaticResource IsHeaderConverter}}" Value="True">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                        <Setter Property="Focusable" Value="False"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

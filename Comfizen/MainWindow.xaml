@@ -1,0 +1,557 @@
+﻿<Window x:Class="Comfizen.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        xmlns:local="clr-namespace:Comfizen"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:ffme="clr-namespace:FFmpeg;assembly=ffme.windows"
+        xmlns:ffme1="clr-namespace:Unosquare.FFME;assembly=ffme.win"
+        mc:Ignorable="d"
+        Title="Comfizen v1.0" Height="600" Width="1000"
+        WindowStartupLocation="CenterScreen"
+        MinWidth="800" MinHeight="500"
+        Background="{StaticResource PrimaryBackground}"
+        Foreground="{StaticResource TextBrush}"
+        Style="{StaticResource CustomWindowStyle}"
+        KeyDown="MainWindow_OnKeyDown">
+    <Window.DataContext>
+        <local:MainViewModel/>
+    </Window.DataContext>
+
+    <Grid>
+            
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition x:Name="ConsoleRow" Height="200">
+                <RowDefinition.Style>
+                    <Style TargetType="RowDefinition">
+                        <Setter Property="MaxHeight" Value="0"/>
+                        <Setter Property="MinHeight" Value="0"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsConsoleVisible}" Value="True">
+                                <Setter Property="MaxHeight" Value="10000"/> 
+                                <Setter Property="MinHeight" Value="40"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </RowDefinition.Style>
+            </RowDefinition>
+        </Grid.RowDefinitions>
+        
+        <Border Grid.Row="0" Background="{StaticResource SecondaryBackground}" Margin="5,5,5,0" CornerRadius="5,5,0,0">
+            <DockPanel Margin="8">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="10,0,0,0">
+                    <Button Content="&#xE70F;" Style="{StaticResource IconButton}" Command="{Binding EditWorkflowCommand}" ToolTip="{local:Translate Toolbar_EditWorkflow}"/>
+                    <Button Content="&#xE710;" Style="{StaticResource IconButton}" Command="{Binding OpenConstructorCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_NewWorkflow}"/>
+                    <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Command="{Binding ClearSessionCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ResetSession}"/>
+                    <Button Content="&#xE74E;" Style="{StaticResource IconButton}" Command="{Binding SaveChangesToWorkflowCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_SaveChanges}"/>
+                    <Button Content="&#xE78C;" Style="{StaticResource IconButton}" Command="{Binding ExportCurrentStateCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ExportState}"/>
+                    <Button Content="&#xE72C;" Style="{StaticResource IconButton}" Command="{Binding RefreshModelsCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_RefreshModels}"/>
+                    <Button Content="&#xE75F;" Style="{StaticResource IconButton}" Command="{Binding ToggleConsoleCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ToggleConsole}"/>
+                    <Button Content="&#xE713;" Style="{StaticResource IconButton}" Command="{Binding OpenSettingsCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_Settings}"/>
+                </StackPanel>
+
+                <local:FilterableComboBox
+                    ItemsSource="{Binding WorkflowDisplayList}"
+                    SelectedItem="{Binding SelectedWorkflow, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FileNameTrimmerConverter}}"
+                    SearchFilter="{Binding WorkflowSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    ItemSelected="FilterableComboBox_ItemSelected"
+                    PlaceholderText="{local:Translate FilterableComboBox_Placeholder}"/>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <TabControl ItemsSource="{Binding OpenTabs}" SelectedItem="{Binding SelectedTab, Mode=TwoWay}" Margin="5,0,5,5" Background="Transparent" BorderThickness="0">
+                <TabControl.Style>
+                    <Style TargetType="TabControl">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding OpenTabs.Count}" Value="0">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabControl.Style>
+                <TabControl.ItemContainerStyle>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                        <Setter Property="Background" Value="{StaticResource SecondaryBackground}"/>
+                        <Setter Property="Padding" Value="8,5"/>
+                        <Setter Property="AllowDrop" Value="True"/>
+                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown"/>
+                        <EventSetter Event="Drop" Handler="TabItem_Drop"/>
+                        <EventSetter Event="MouseMove" Handler="TabItem_MouseMove"/>
+                        <EventSetter Event="PreviewMouseUp" Handler="TabItem_PreviewMouseUp"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TabItem">
+                                    <Border x:Name="Border" BorderThickness="0,0,0,2" BorderBrush="Transparent" Background="{TemplateBinding Background}" Margin="0,0,2,0">
+                                        <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                            <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                                            <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TabControl.ItemContainerStyle>
+                <TabControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
+                            <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                    Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource IconButton}" Width="20" Height="20" Margin="8,0,0,0" FontSize="10"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+                <TabControl.ContentTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.2*" MinWidth="350"/>
+                                <ColumnDefinition Width="5" />
+                                <ColumnDefinition Width="2*" MinWidth="400" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,0,5">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <StackPanel.Resources>
+                                    <DataTemplate DataType="{x:Type local:GlobalSettingsViewModel}">
+                                        <Expander Header="{Binding Header}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" BorderBrush="Orange" Margin="5">
+                                            <Grid Margin="5">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{local:Translate Tab_WildcardSeed}"/>
+                                                    <TextBlock Text="💡" VerticalAlignment="Center" Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                </StackPanel>
+
+                                                <Grid Grid.Column="1">
+                                                    <TextBox Text="{Binding WildcardSeed, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                                             Padding="5,5,28,5" />
+                                                    <ToggleButton IsChecked="{Binding IsSeedLocked, Mode=TwoWay}"
+                                                                  Style="{StaticResource LockToggleButtonStyle}"
+                                                                  HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                </Grid>
+                                            </Grid>
+                                        </Expander>
+                                    </DataTemplate>
+                                </StackPanel.Resources>
+                                
+                                <ContentControl Content="{Binding WorkflowInputsController.GlobalSettings}"
+                                                Visibility="{Binding WorkflowInputsController.GlobalSettings.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                
+                                <ItemsControl ItemsSource="{Binding WorkflowInputsController.InputGroups}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
+                                            <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5">
+                                                <ItemsControl ItemsSource="{Binding Fields}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <DataTemplate.Resources>
+                                                                <ControlTemplate x:Key="NormalFieldLayoutTemplate" TargetType="ContentControl">
+                                                                    <Grid Margin="0,4">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="Auto" MinWidth="120"/>
+                                                                            <ColumnDefinition Width="*" />
+                                                                        </Grid.ColumnDefinitions>
+
+                                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/>
+                                                                            <TextBlock Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
+                                                                                <TextBlock.Style>
+                                                                                    <Style TargetType="TextBlock">
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding Type}" Value="Seed"><Setter Property="Text" Value="🎲"/></DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding Type}" Value="WildcardSupportPrompt"><Setter Property="Text" Value="💡"/></DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </TextBlock.Style>
+                                                                            </TextBlock>
+                                                                        </StackPanel>
+                                                                        
+                                                                        <ContentPresenter Grid.Column="1"
+                                                                                            Content="{Binding}"
+                                                                                            ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
+                                                                    </Grid>
+                                                                </ControlTemplate>
+                                                                
+                                                                <ControlTemplate x:Key="InpaintLayoutTemplate" TargetType="ContentControl">
+                                                                    <ContentPresenter Content="{Binding}"
+                                                                                      ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
+                                                                </ControlTemplate>
+                                                            </DataTemplate.Resources>
+
+                                                            <ContentControl Content="{Binding}">
+                                                                <ContentControl.Style>
+                                                                    <Style TargetType="ContentControl">
+                                                                        <Setter Property="Template" Value="{StaticResource NormalFieldLayoutTemplate}"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Converter={StaticResource IsInpaintViewModelConverter}}" Value="True">
+                                                                                <Setter Property="Template" Value="{StaticResource InpaintLayoutTemplate}"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </ContentControl.Style>
+                                                            </ContentControl>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Expander>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+
+                            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                            <Grid Grid.Column="2">
+                                <Border Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,5,0">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Top" Padding="8" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,0,0,1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                <TextBox Text="{Binding ImageProcessing.SearchFilterText, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" ToolTip="{local:Translate Tab_GallerySearchPlaceholder}"/>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{local:Translate Tab_GalleryFilterType}" Margin="0,0,5,0"/>
+                                                    <RadioButton Content="{local:Translate Tab_GalleryFilterAll}" GroupName="FileType" IsChecked="{Binding ImageProcessing.SelectedFileTypeFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:FileTypeFilter.All}}"/>
+                                                    <RadioButton Content="{local:Translate Tab_GalleryFilterImages}" GroupName="FileType" Margin="5,0,0,0" IsChecked="{Binding ImageProcessing.SelectedFileTypeFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:FileTypeFilter.Images}}"/>
+                                                    <RadioButton Content="{local:Translate Tab_GalleryFilterVideo}" GroupName="FileType" Margin="5,0,0,0" IsChecked="{Binding ImageProcessing.SelectedFileTypeFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:FileTypeFilter.Video}}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{local:Translate Tab_GallerySort}" Margin="0,0,5,0"/>
+                                                    <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:SortOption}}}" SelectedItem="{Binding ImageProcessing.SelectedSortOption}" Width="120"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                        
+                                        <Border DockPanel.Dock="Bottom" Padding="8" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,1,0,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{local:Translate Tab_GalleryThumbnailSize}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <Slider x:Name="ThumbnailSizeSlider" Minimum="64" Maximum="256" Value="128" Width="100"/>
+                                            </StackPanel>
+                                        </Border>
+                                        
+                                        <Grid>
+                                            <ListView x:Name="lvOutputs" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                      ItemsSource="{Binding ImageProcessing.FilteredImageOutputs}"
+                                                      Background="Transparent" BorderThickness="0"
+                                                      SelectionMode="Extended"
+                                                      SelectionChanged="LvOutputs_SelectionChanged">
+                                                <ListView.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" Margin="5"/></ItemsPanelTemplate></ListView.ItemsPanel>
+                                                <ListView.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border x:Name="ItemBorder" CornerRadius="3" Margin="5" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1"
+                                                                Width="{Binding ElementName=ThumbnailSizeSlider, Path=Value}"
+                                                                Height="{Binding ElementName=ThumbnailSizeSlider, Path=Value}">
+                                                            <Grid>
+                                                                <Border Background="Transparent"/>
+                                                                <Image x:Name="ImgDisplay" Source="{Binding Image}" Visibility="Visible" Stretch="Uniform" />
+                                                                <ffme1:MediaElement x:Name="VidDisplay" Visibility="Collapsed"
+                                                                                    LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True"
+                                                                                    Loaded="MediaElement_Loaded"
+                                                                                    Unloaded="MediaElement_Unloaded"
+                                                                                    LoopingBehavior="Play"/>
+                                                                <Border x:Name="NameOverlay" VerticalAlignment="Bottom" Background="#B22D2D30" Padding="5,2" CornerRadius="0,0,2,2" Opacity="0" IsHitTestVisible="False">
+                                                                    <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=ItemBorder}" Value="True"><DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2"/></Storyboard></BeginStoryboard></DataTrigger.EnterActions><DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/></Storyboard></BeginStoryboard></DataTrigger.ExitActions></DataTrigger></Style.Triggers></Style></Border.Style>
+                                                                    <TextBlock Text="{Binding FileName}" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                                </Border>
+                                                                <Button x:Name="DeleteButton" Content="&#xE74D;" Style="{StaticResource IconButton}"
+                                                                        HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                                        Width="24" Height="24" Margin="2"
+                                                                        ToolTip="{local:Translate Tab_DeleteFile}"
+                                                                        Command="{Binding DataContext.ImageProcessing.DeleteImageCommand, ElementName=lvOutputs}"
+                                                                        CommandParameter="{Binding}"
+                                                                        Visibility="Collapsed"/>
+                                                            </Grid>
+                                                        </Border>
+                                                        <DataTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding Type}" Value="Video"><Setter TargetName="VidDisplay" Property="Visibility" Value="Visible"/><Setter TargetName="ImgDisplay" Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=ItemBorder}" Value="True"><Setter TargetName="DeleteButton" Property="Visibility" Value="Visible"/></DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
+                                                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="2"/>
+                                                            </DataTrigger>
+                                                        </DataTemplate.Triggers>
+                                                    </DataTemplate>
+                                                </ListView.ItemTemplate>
+                                                <ListView.ItemContainerStyle>
+                                                    <Style TargetType="{x:Type ListViewItem}">
+                                                        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListViewItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter>
+                                                        <EventSetter Event="MouseLeftButtonUp" Handler="ListViewItem_MouseLeftButtonUp"/>
+                                                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown"/>
+                                                        <EventSetter Event="MouseMove" Handler="ListViewItem_MouseMove"/>
+                                                    </Style>
+                                                </ListView.ItemContainerStyle>
+                                            </ListView>
+                                            
+                                            <Border CornerRadius="5" Background="#DD3F3F46" Padding="10" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0">
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                                        <TextBlock Text="🎲" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0" ToolTip="{local:Translate Tab_SeedControl}"/>
+                                                        <ComboBox x:Name="SeedControlComboBox" ItemsSource="{Binding DataContext.SeedControlEnumValues, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding WorkflowInputsController.SelectedSeedControl}" MinWidth="100"/>
+                                                    </StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                        <Button Grid.Column="0" Content="{local:Translate Tab_Queue}" Background="{StaticResource SuccessBrush}" Command="{Binding DataContext.QueueCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                        <xctk:IntegerUpDown x:Name="QueueSizeUpDown" Grid.Column="1" Margin="5,0,0,0" Value="{Binding DataContext.QueueSize, RelativeSource={RelativeSource AncestorType=Window}}" Minimum="1" Maximum="{Binding DataContext.MaxQueueSize, RelativeSource={RelativeSource AncestorType=Window}}" Spinned="QueueSizeUpDown_OnSpinned" Width="60"/>
+                                                        <Button Grid.Column="2" Content="&#xE74D;" Style="{StaticResource IconButton}" Background="{StaticResource ErrorBrush}" Command="{Binding DataContext.ClearQueueCommand, RelativeSource={RelativeSource AncestorType=Window}}" Margin="5,0,0,0" ToolTip="{local:Translate Tab_ClearQueue}"/>
+                                                    </Grid>
+                                                    <StackPanel Visibility="{Binding DataContext.TotalTasks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource TaskCountToVisibilityConverter}}" Margin="0,5,0,0">
+                                                        <ProgressBar Value="{Binding DataContext.CurrentProgress, RelativeSource={RelativeSource AncestorType=Window}}" Maximum="100" Height="5" />
+                                                        <TextBlock HorizontalAlignment="Right" Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}">
+                                                            <TextBlock.Text>
+                                                                <MultiBinding Converter="{StaticResource MultiBindingStringFormatConverter}">
+                                                                    <Binding Path="[Tab_CompletedTasks]" Source="{x:Static local:LocalizationService.Instance}" Mode="OneWay"/>
+                                                                    <Binding Path="DataContext.CompletedTasks" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                    <Binding Path="DataContext.TotalTasks" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                </MultiBinding>
+                                                            </TextBlock.Text>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            
+                                            <Border Background="#DD3F3F46" CornerRadius="5" Padding="10"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,10"
+                                                    Visibility="{Binding ImageProcessing.SelectedItemsCount, Converter={StaticResource MultiSelectCountToVisibilityConverter}}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock VerticalAlignment="Center" Margin="0,0,10,0">
+                                                        <Run Text="{local:Translate Tab_SelectedItems}"/>
+                                                        <Run Text="{Binding ImageProcessing.SelectedItemsCount}"/>
+                                                    </TextBlock>
+                                                    <Button Content="{local:Translate Tab_DeleteSelected}" Background="{StaticResource ErrorBrush}"
+                                                            Command="{Binding ImageProcessing.DeleteSelectedImagesCommand}"
+                                                            CommandParameter="{Binding ElementName=lvOutputs, Path=SelectedItems}"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Command="{Binding ImageProcessing.ClearOutputsCommand}" Background="{StaticResource ErrorBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,10" ToolTip="{local:Translate Tab_ClearResults}"/>
+                                        </Grid>
+                                    </DockPanel>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
+
+            <Border Background="{StaticResource PrimaryBackground}" Margin="5,0,5,5">
+                 <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding OpenTabs.Count}" Value="0">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{local:Translate Tab_NoWorkflowSelected}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="16"/>
+            </Border>
+        </Grid>
+        
+        <GridSplitter Grid.Row="2"
+                      Height="5"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Center" 
+                      Background="{StaticResource TertiaryBackground}"
+                      ResizeDirection="Rows"
+                      ResizeBehavior="PreviousAndNext"
+                      Visibility="{Binding IsConsoleVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        
+        <Border Grid.Row="3" 
+                Background="{StaticResource SecondaryBackground}"
+                Margin="5,0,5,5"
+                BorderBrush="{StaticResource TertiaryBackground}"
+                BorderThickness="0,1,0,0"
+                Visibility="{Binding IsConsoleVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Padding="8,5" Background="{StaticResource TertiaryBackground}">
+                    <Grid>
+                        <TextBlock Text="{local:Translate Console_Title}" FontWeight="Bold" HorizontalAlignment="Left"/>
+                        <Button Content="&#xE74D;" Style="{StaticResource IconButton}" 
+                                Command="{Binding ClearConsoleCommand}"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" 
+                                Width="24" Height="24"
+                                ToolTip="{local:Translate Console_Clear}"/>
+                    </Grid>
+                </Border>
+                <Grid>
+                    <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Padding="15" Margin="10"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ConsoleLogMessages.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" MaxWidth="500">
+                            <Run Text="{local:Translate Console_Instructions}"/>
+                        </TextBlock>
+                    </Border>
+
+                    <ScrollViewer x:Name="ConsoleScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ScrollViewer.Style>
+                            <Style TargetType="ScrollViewer">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ConsoleLogMessages.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ScrollViewer.Style>
+                        <ListBox ItemsSource="{Binding ConsoleLogMessages}" Background="Transparent" BorderThickness="0" Margin="5"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <ContentPresenter/>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:LogMessage}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Timestamp, StringFormat='HH:mm:ss'}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0"/>
+                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Warning">
+                                                            <Setter Property="Foreground" Value="Orange"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Error">
+                                                            <Setter Property="Foreground" Value="{StaticResource ErrorBrush}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Critical">
+                                                            <Setter Property="Foreground" Value="{StaticResource ErrorBrush}"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </Grid>
+            </DockPanel>
+        </Border>
+        
+        <Grid x:Name="FullScreenViewer" Grid.Row="0" Grid.RowSpan="4" Background="#D8000000"
+              Visibility="{Binding SelectedTab.FullScreen.IsFullScreenOpen, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"
+              MouseLeftButtonDown="FullScreenViewer_MouseLeftButtonDown"
+              IsVisibleChanged="FullScreenViewer_IsVisibleChanged"
+              SizeChanged="FullScreenViewer_SizeChanged">
+            <Grid.Resources>
+                <Style x:Key="OverlayButton" TargetType="Button"><Setter Property="Background" Value="#80000000"/> <Setter Property="Foreground" Value="White"/> <Setter Property="BorderThickness" Value="0"/> <Setter Property="FontSize" Value="24"/> <Setter Property="FontWeight" Value="Bold"/> <Setter Property="Width" Value="50"/> <Setter Property="Height" Value="50"/> <Setter Property="Cursor" Value="Hand"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="25"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#A0000000"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.3"/></Trigger></Style.Triggers></Style>
+                <Style x:Key="ToolbarButton" TargetType="Button">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="FontSize" Value="20"/>
+                    <Setter Property="Margin" Value="10,0"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter>
+                    <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#A0000000"/></Trigger></Style.Triggers>
+                </Style>
+            </Grid.Resources>
+            <Viewbox><Image Source="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Image}" Stretch="Uniform"><Image.Style><Style TargetType="Image"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Type}" Value="Video"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Image.Style></Image></Viewbox>
+            <ffme1:MediaElement x:Name="FullScreenMediaElement"
+                               Stretch="Uniform" LoadedBehavior="Manual"
+                               UnloadedBehavior="Stop" IsMuted="False"
+                               LoopingBehavior="Play"
+                               DataContext="{Binding SelectedTab.FullScreen.CurrentFullScreenImage}"
+                               DataContextChanged="FullScreenMediaElement_DataContextChanged"
+                               MediaOpened="FullScreenMediaElement_MediaOpened"
+                               PositionChanged="FullScreenMediaElement_PositionChanged">
+                <ffme1:MediaElement.Style>
+                    <Style TargetType="ffme1:MediaElement">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers><DataTrigger Binding="{Binding Type}" Value="Video"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    </Style>
+                </ffme1:MediaElement.Style>
+            </ffme1:MediaElement>
+            <Border HorizontalAlignment="Center" VerticalAlignment="Center" Background="#A0000000" CornerRadius="10" Padding="20,10" IsHitTestVisible="False">
+                <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Setter Property="Opacity" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding SelectedTab.FullScreen.ShowSaveConfirmation}" Value="True"><Setter Property="Visibility" Value="Visible"/><DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.3"/></Storyboard></BeginStoryboard></DataTrigger.EnterActions><DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/></Storyboard></BeginStoryboard></DataTrigger.ExitActions></DataTrigger></Style.Triggers></Style></Border.Style>
+                <TextBlock Text="{Binding SelectedTab.FullScreen.SaveConfirmationText}" Foreground="White" FontSize="18"/>
+            </Border>
+            <Grid x:Name="ControlsOverlay">
+                <Grid.Style><Style TargetType="Grid"><Setter Property="Opacity" Value="1"/><Setter Property="IsHitTestVisible" Value="True"/><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=SafeZone}" Value="True"><DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/><BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="IsHitTestVisible"><DiscreteBooleanKeyFrame KeyTime="0:0:0.3" Value="False"/></BooleanAnimationUsingKeyFrames></Storyboard></BeginStoryboard></DataTrigger.EnterActions><DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2"/><BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="IsHitTestVisible"><DiscreteBooleanKeyFrame KeyTime="0:0:0" Value="True"/></BooleanAnimationUsingKeyFrames></Storyboard></BeginStoryboard></DataTrigger.ExitActions></DataTrigger></Style.Triggers></Style></Grid.Style>
+                <Button Content="✕" Style="{StaticResource OverlayButton}" Command="{Binding SelectedTab.FullScreen.CloseFullScreenCommand}"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20" Width="40" Height="40" FontSize="20"
+                        ToolTip="{x:Static local:Hotkeys.CloseFullscreenTooltip}"/>
+                <Button Content="‹" Style="{StaticResource OverlayButton}" Command="{Binding SelectedTab.FullScreen.MovePreviousCommand}"
+                        HorizontalAlignment="Left" VerticalAlignment="Center" Margin="20,0"
+                        ToolTip="{x:Static local:Hotkeys.MovePreviousTooltip}"/>
+                <Button Content="›" Style="{StaticResource OverlayButton}" Command="{Binding SelectedTab.FullScreen.MoveNextCommand}"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="20,0"
+                        ToolTip="{x:Static local:Hotkeys.MoveNextTooltip}"/>
+                <Border Background="#A0000000" VerticalAlignment="Bottom" CornerRadius="10,10,0,0" HorizontalAlignment="Center" Margin="0,0,0,20">
+                    <DockPanel LastChildFill="True">
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,5">
+                            <Button Content="💾"
+                                    ToolTip="{x:Static local:Hotkeys.SaveImageTooltip}"
+                                    Style="{StaticResource ToolbarButton}"
+                                    Command="{Binding SelectedTab.FullScreen.SaveCurrentImageCommand}"/>
+                        </StackPanel>
+                        
+                        <Grid Margin="10,5" MinWidth="400"
+                              Visibility="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Type, ConverterParameter=Video, Converter={StaticResource EnumToBooleanConverter}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <TextBlock x:Name="CurrentTimeTextBlock" Grid.Column="0" Text="00:00" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Center"/>
+                            
+                            <Slider x:Name="PositionSlider" Grid.Column="1" VerticalAlignment="Center"
+                                    Style="{StaticResource VideoSliderStyle}"
+                                    IsMoveToPointEnabled="True"
+                                    ValueChanged="PositionSlider_ValueChanged"
+                                    PreviewMouseLeftButtonUp="PositionSlider_PreviewMouseLeftButtonUp"
+                                    Thumb.DragStarted="PositionSlider_DragStarted"
+                                    Thumb.DragCompleted="PositionSlider_DragCompleted"/>
+
+                            <TextBlock x:Name="DurationTextBlock" Grid.Column="2" Text="00:00" Margin="10,0,0,0" Foreground="White" VerticalAlignment="Center"/>
+                        </Grid>
+                    </DockPanel>
+                </Border>
+            </Grid>
+            <Border x:Name="SafeZone" Background="Transparent" Margin="120, 80, 120, 100"/>
+        </Grid>
+    </Grid>
+</Window>
