@@ -1,6 +1,6 @@
 # ComfyUI API Prompt Client
 
-**ComfyUI API Prompt Client** is a powerful Windows desktop application that revolutionizes the way you interact with ComfyUI. It allows you to transform any complex `API Workflow` into a simple, intuitive, and fully customizable user interface.
+**Comfizen** is a powerful Windows desktop application that revolutionizes the way you interact with ComfyUI. It allows you to transform any complex `API Workflow` into a simple, intuitive, and fully customizable user interface.
 
 Forget about constantly navigating a tangled node graph. Extract only the most essential parameters—prompts, models, seeds, sampler settings—into convenient groups, add sliders and dropdowns, and work with your generations like a professional tool.
 
