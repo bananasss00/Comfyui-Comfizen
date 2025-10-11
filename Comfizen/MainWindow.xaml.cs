@@ -380,8 +380,8 @@ namespace Comfizen
             if (e.LeftButton == MouseButtonState.Pressed && sender is TabItem sourceTab)
             {
                 Point position = e.GetPosition(null);
-                if (Math.Abs(position.X - _galleryDragStartPoint.Value.X) > SystemParameters.MinimumHorizontalDragDistance ||
-                    Math.Abs(position.Y - _galleryDragStartPoint.Value.Y) > SystemParameters.MinimumVerticalDragDistance)
+                if (Math.Abs(position.X - _tabDragStartPoint.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(position.Y - _tabDragStartPoint.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
                     if (sourceTab.DataContext is WorkflowTabViewModel draggedTabVM)
                     {
