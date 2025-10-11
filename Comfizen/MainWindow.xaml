@@ -528,16 +528,25 @@
                                     Command="{Binding SelectedTab.FullScreen.SaveCurrentImageCommand}"/>
                         </StackPanel>
                         
-                        <Grid Margin="10,5" MinWidth="400"
-                              Visibility="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Type, ConverterParameter=Video, Converter={StaticResource EnumToBooleanConverter}}">
+                        <Grid Margin="10,5" MinWidth="400">
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Type}" Value="{x:Static local:FileType.Video}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            
+    
                             <TextBlock x:Name="CurrentTimeTextBlock" Grid.Column="0" Text="00:00" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Center"/>
-                            
+    
                             <Slider x:Name="PositionSlider" Grid.Column="1" VerticalAlignment="Center"
                                     Style="{StaticResource VideoSliderStyle}"
                                     IsMoveToPointEnabled="True"
