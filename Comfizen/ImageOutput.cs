@@ -135,7 +135,38 @@ namespace Comfizen
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public event PropertyChangedEventHandler? PropertyChanged;
-
+        
+        private string _resolution;
+        public string Resolution
+        {
+            get
+            {
+                if (_resolution == null)
+                {
+                    if (Type == FileType.Image && ImageBytes != null)
+                    {
+                        try
+                        {
+                            using var ms = new MemoryStream(ImageBytes);
+                            var frame = BitmapFrame.Create(ms, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+                            _resolution = $"{frame.PixelWidth}x{frame.PixelHeight}";
+                        }
+                        catch { _resolution = string.Empty; }
+                    }
+                    else
+                    {
+                        _resolution = string.Empty;
+                    }
+                }
+                return _resolution;
+            }
+            set
+            {
+                _resolution = value;
+                // PropertyChanged.Fody автоматически вызовет уведомление об изменении
+            }
+        }
+        
         public FileType Type => VideoExtensions.Any(ext => FileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
             ? FileType.Video
             : FileType.Image;

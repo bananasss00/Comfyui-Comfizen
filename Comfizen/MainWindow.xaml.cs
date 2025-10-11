@@ -249,6 +249,11 @@ namespace Comfizen
         
         private void FullScreenMediaElement_MediaOpened(object sender, Unosquare.FFME.Common.MediaOpenedEventArgs e)
         {
+            if (FullScreenMediaElement.DataContext is ImageOutput io)
+            {
+                io.Resolution = $"{FullScreenMediaElement.NaturalVideoWidth}x{FullScreenMediaElement.NaturalVideoHeight}";
+            }
+
             if (FullScreenMediaElement.NaturalDuration.HasValue)
             {
                 var totalDuration = FullScreenMediaElement.NaturalDuration.Value;

@@ -487,6 +487,26 @@
                     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter>
                     <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#A0000000"/></Trigger></Style.Triggers>
                 </Style>
+                <Style x:Key="FullScreenSaveButton" TargetType="Button">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="FontSize" Value="24"/>
+                    <Setter Property="Padding" Value="8"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Opacity" Value="0.8"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
             </Grid.Resources>
             <Viewbox><Image Source="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Image}" Stretch="Uniform"><Image.Style><Style TargetType="Image"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Type}" Value="Video"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Image.Style></Image></Viewbox>
             <ffme1:MediaElement x:Name="FullScreenMediaElement"
@@ -508,27 +528,61 @@
                 <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Setter Property="Opacity" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding SelectedTab.FullScreen.ShowSaveConfirmation}" Value="True"><Setter Property="Visibility" Value="Visible"/><DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.3"/></Storyboard></BeginStoryboard></DataTrigger.EnterActions><DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/></Storyboard></BeginStoryboard></DataTrigger.ExitActions></DataTrigger></Style.Triggers></Style></Border.Style>
                 <TextBlock Text="{Binding SelectedTab.FullScreen.SaveConfirmationText}" Foreground="White" FontSize="18"/>
             </Border>
+                
             <Grid x:Name="ControlsOverlay">
-                <Grid.Style><Style TargetType="Grid"><Setter Property="Opacity" Value="1"/><Setter Property="IsHitTestVisible" Value="True"/><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=SafeZone}" Value="True"><DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/><BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="IsHitTestVisible"><DiscreteBooleanKeyFrame KeyTime="0:0:0.3" Value="False"/></BooleanAnimationUsingKeyFrames></Storyboard></BeginStoryboard></DataTrigger.EnterActions><DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2"/><BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="IsHitTestVisible"><DiscreteBooleanKeyFrame KeyTime="0:0:0" Value="True"/></BooleanAnimationUsingKeyFrames></Storyboard></BeginStoryboard></DataTrigger.ExitActions></DataTrigger></Style.Triggers></Style></Grid.Style>
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="IsHitTestVisible" Value="True"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=SafeZone}" Value="True">
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/>
+                                            <BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="IsHitTestVisible">
+                                                <DiscreteBooleanKeyFrame KeyTime="0:0:0.3" Value="False"/>
+                                            </BooleanAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2"/>
+                                            <BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="IsHitTestVisible">
+                                                <DiscreteBooleanKeyFrame KeyTime="0:0:0" Value="True"/>
+                                            </BooleanAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.ExitActions>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+                
+                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20" Background="#A0000000" CornerRadius="5" Padding="8,4">
+                    <TextBlock Text="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Resolution}" Foreground="White" FontSize="14" />
+                </Border>
+
                 <Button Content="✕" Style="{StaticResource OverlayButton}" Command="{Binding SelectedTab.FullScreen.CloseFullScreenCommand}"
                         HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20" Width="40" Height="40" FontSize="20"
                         ToolTip="{x:Static local:Hotkeys.CloseFullscreenTooltip}"/>
+                        
                 <Button Content="‹" Style="{StaticResource OverlayButton}" Command="{Binding SelectedTab.FullScreen.MovePreviousCommand}"
                         HorizontalAlignment="Left" VerticalAlignment="Center" Margin="20,0"
                         ToolTip="{x:Static local:Hotkeys.MovePreviousTooltip}"/>
+                        
                 <Button Content="›" Style="{StaticResource OverlayButton}" Command="{Binding SelectedTab.FullScreen.MoveNextCommand}"
                         HorizontalAlignment="Right" VerticalAlignment="Center" Margin="20,0"
                         ToolTip="{x:Static local:Hotkeys.MoveNextTooltip}"/>
-                <Border Background="#A0000000" VerticalAlignment="Bottom" CornerRadius="10,10,0,0" HorizontalAlignment="Center" Margin="0,0,0,20">
-                    <DockPanel LastChildFill="True">
-                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,5">
-                            <Button Content="💾"
-                                    ToolTip="{x:Static local:Hotkeys.SaveImageTooltip}"
-                                    Style="{StaticResource ToolbarButton}"
-                                    Command="{Binding SelectedTab.FullScreen.SaveCurrentImageCommand}"/>
-                        </StackPanel>
-                        
-                        <Grid Margin="10,5" MinWidth="400">
+                <Border VerticalAlignment="Bottom"
+                        HorizontalAlignment="Center"
+                        Margin="0,0,0,20"
+                        Background="#A0000000"
+                        CornerRadius="10">
+                    <StackPanel Orientation="Vertical">
+                        <Grid Margin="10,5,10,0" MinWidth="400">
                             <Grid.Style>
                                 <Style TargetType="Grid">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -544,9 +598,9 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-    
+                            
                             <TextBlock x:Name="CurrentTimeTextBlock" Grid.Column="0" Text="00:00" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Center"/>
-    
+                            
                             <Slider x:Name="PositionSlider" Grid.Column="1" VerticalAlignment="Center"
                                     Style="{StaticResource VideoSliderStyle}"
                                     IsMoveToPointEnabled="True"
@@ -557,7 +611,13 @@
 
                             <TextBlock x:Name="DurationTextBlock" Grid.Column="2" Text="00:00" Margin="10,0,0,0" Foreground="White" VerticalAlignment="Center"/>
                         </Grid>
-                    </DockPanel>
+                        <Button Content="💾"
+                                ToolTip="{x:Static local:Hotkeys.SaveImageTooltip}"
+                                Style="{StaticResource FullScreenSaveButton}"
+                                Command="{Binding SelectedTab.FullScreen.SaveCurrentImageCommand}"
+                                HorizontalAlignment="Center"
+                                Margin="5"/>
+                    </StackPanel>
                 </Border>
             </Grid>
             <Border x:Name="SafeZone" Background="Transparent" Margin="120, 80, 120, 100"/>
