@@ -387,10 +387,87 @@
                                                         <ComboBox x:Name="SeedControlComboBox" ItemsSource="{Binding DataContext.SeedControlEnumValues, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding WorkflowInputsController.SelectedSeedControl}" MinWidth="100"/>
                                                     </StackPanel>
                                                     <Grid>
-                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                                        <Button Grid.Column="0" Content="{local:Translate Tab_Queue}" Background="{StaticResource SuccessBrush}" Command="{Binding DataContext.QueueCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                                        <xctk:IntegerUpDown x:Name="QueueSizeUpDown" Grid.Column="1" Margin="5,0,0,0" Value="{Binding DataContext.QueueSize, RelativeSource={RelativeSource AncestorType=Window}}" Minimum="1" Maximum="{Binding DataContext.MaxQueueSize, RelativeSource={RelativeSource AncestorType=Window}}" Spinned="QueueSizeUpDown_OnSpinned" Width="60"/>
-                                                        <Button Grid.Column="2" Content="&#xE74D;" Style="{StaticResource IconButton}" Background="{StaticResource ErrorBrush}" Command="{Binding DataContext.ClearQueueCommand, RelativeSource={RelativeSource AncestorType=Window}}" Margin="5,0,0,0" ToolTip="{local:Translate Tab_ClearQueue}"/>
+                                                        <Grid.ColumnDefinitions>
+                                                            <!-- The main button takes available space -->
+                                                            <ColumnDefinition Width="*"/>
+                                                            <!-- The other controls are sized automatically -->
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Column 0: The new combined Queue + Infinite button -->
+                                                        <Border Grid.Column="0" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Height="30">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- Main Queue Button -->
+                                                                <Button Grid.Column="0"
+                                                                        Content="{local:Translate Tab_Queue}"
+                                                                        Background="{StaticResource SuccessBrush}"
+                                                                        Command="{Binding DataContext.QueueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                        BorderThickness="0"
+                                                                        Padding="10,0">
+                                                                    <Button.Template>
+                                                                        <ControlTemplate TargetType="Button">
+                                                                            <!-- Custom template to make it fit seamlessly in the border -->
+                                                                            <Border Background="{TemplateBinding Background}" CornerRadius="3,0,0,3">
+                                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                            </Border>
+                                                                        </ControlTemplate>
+                                                                    </Button.Template>
+                                                                </Button>
+                                                                
+                                                                <!-- Separator Line -->
+                                                                <Border Grid.Column="1" Width="1" Background="{StaticResource TertiaryBackground}" />
+
+                                                                <!-- Infinite Queue Toggle Button -->
+                                                                <ToggleButton Grid.Column="1" Margin="1,0,0,0"
+                                                                              Content="&#xE8EE;" 
+                                                                              FontFamily="Segoe MDL2 Assets"
+                                                                              Style="{StaticResource IconToggleButton}"
+                                                                              ToolTip="{local:Translate Tab_ToggleInfiniteQueue}"
+                                                                              IsChecked="{Binding DataContext.IsInfiniteQueueEnabled, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                                                              Width="30">
+                                                                    <!-- The Command property has been removed from this ToggleButton -->
+                                                                    <ToggleButton.Template>
+                                                                        <ControlTemplate TargetType="ToggleButton">
+                                                                            <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="0,3,3,0">
+                                                                                <TextBlock Text="{TemplateBinding Content}" FontFamily="{TemplateBinding FontFamily}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{TemplateBinding Foreground}"/>
+                                                                            </Border>
+                                                                            <ControlTemplate.Triggers>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter TargetName="Bg" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                                                                </Trigger>
+                                                                                <Trigger Property="IsChecked" Value="True">
+                                                                                    <Setter TargetName="Bg" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                                </Trigger>
+                                                                            </ControlTemplate.Triggers>
+                                                                        </ControlTemplate>
+                                                                    </ToggleButton.Template>
+                                                                </ToggleButton>
+                                                            </Grid>
+                                                        </Border>
+
+                                                        <!-- Column 1: Queue Size -->
+                                                        <xctk:IntegerUpDown Grid.Column="1" Margin="5,0,0,0"
+                                                                            Value="{Binding DataContext.QueueSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                            Minimum="1"
+                                                                            Maximum="{Binding DataContext.MaxQueueSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                            Spinned="QueueSizeUpDown_OnSpinned"
+                                                                            Width="60"/>
+
+                                                        <!-- Column 2: Clear/Stop Button -->
+                                                        <Button Grid.Column="2"
+                                                                Content="&#xE74D;"
+                                                                Style="{StaticResource IconButton}"
+                                                                Background="{StaticResource ErrorBrush}"
+                                                                Command="{Binding DataContext.ClearQueueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                Margin="5,0,0,0"
+                                                                ToolTip="{local:Translate Tab_ClearQueue}"/>
                                                     </Grid>
                                                     <StackPanel Visibility="{Binding DataContext.TotalTasks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource TaskCountToVisibilityConverter}}" Margin="0,5,0,0">
                                                         <ProgressBar Value="{Binding DataContext.CurrentProgress, RelativeSource={RelativeSource AncestorType=Window}}" Maximum="100" Height="5" />

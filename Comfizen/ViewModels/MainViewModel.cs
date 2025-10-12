@@ -143,7 +143,12 @@ namespace Comfizen
         public ICommand OpenWildcardBrowserCommand { get; }
         
         public event PropertyChangedEventHandler? PropertyChanged;
+        
+        public bool IsInfiniteQueueEnabled { get; set; } = false;
 
+        // Command to specifically toggle the infinite mode from the UI
+        public ICommand ToggleInfiniteQueueCommand { get; }
+        
         public MainViewModel()
         {
             _settingsService = new SettingsService();
@@ -219,6 +224,8 @@ namespace Comfizen
                     fieldVm.Value += viewModel.SelectedWildcardTag;
                 }
             });
+            
+            ToggleInfiniteQueueCommand = new RelayCommand(_ => IsInfiniteQueueEnabled = !IsInfiniteQueueEnabled);
             
             UpdateWorkflows(true);
             UpdateWorkflowDisplayList();
@@ -412,7 +419,11 @@ namespace Comfizen
             InterruptCommand.Execute(null);
             _promptsQueue.Clear();
             _canceledTasks = true;
+            
+            IsInfiniteQueueEnabled = false; 
+
             CompletedTasks = TotalTasks = 0;
+            CurrentProgress = 0;
         }, canExecute: x => TotalTasks > 0);
 
         private SemaphoreSlim _queueSemaphore = new(1, 1);
@@ -420,59 +431,82 @@ namespace Comfizen
         private async Task Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
-
-            _canceledTasks = false;
-            var prompts = CreatePromptTasks().ToList();
-            foreach (var prompt in prompts)
-            {
-                _promptsQueue.Enqueue(prompt);
-            }
-
-            TotalTasks += prompts.Count;
-
+        
             await _queueSemaphore.WaitAsync();
             try
             {
+                // If the queue is empty, add a new batch.
+                // This allows the initial click and subsequent infinite loops to work the same way.
+                if (_promptsQueue.IsEmpty)
+                {
+                    _canceledTasks = false;
+                    var prompts = CreatePromptTasks().ToList();
+                    foreach (var prompt in prompts)
+                    {
+                        _promptsQueue.Enqueue(prompt);
+                    }
+                    TotalTasks += prompts.Count;
+                }
+        
                 while (_promptsQueue.TryDequeue(out string prompt))
                 {
+                    // If the user cancelled, stop processing immediately.
+                    if (_canceledTasks)
+                    {
+                        _promptsQueue.Clear();
+                        TotalTasks = CompletedTasks = 0;
+                        CurrentProgress = 0;
+                        IsInfiniteQueueEnabled = false; // Ensure loop stops
+                        break;
+                    }
+        
                     try
                     {
                         await foreach (var io in _comfyuiModel.QueuePrompt(prompt))
                         {
                             SelectedTab.ImageProcessing.ImageOutputs.Insert(0, io);
                         }
-
+        
                         if (!_canceledTasks)
                         {
                             CompletedTasks++;
                             CurrentProgress = (CompletedTasks * 100) / TotalTasks;
-
+        
+                            // When a batch is complete
                             if (TotalTasks == CompletedTasks)
                             {
                                 CompletedTasks = TotalTasks = 0;
+                                CurrentProgress = 0;
                             }
                         }
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"[Connection Error] Failed to queue prompt: {ex.Message}");
-            
                         MessageBox.Show(
-                            LocalizationService.Instance["MainVM_ConnectionErrorMessage"], 
-                            LocalizationService.Instance["MainVM_ConnectionErrorTitle"], 
-                            MessageBoxButton.OK, 
-                            MessageBoxImage.Error);
+                            LocalizationService.Instance["MainVM_ConnectionErrorMessage"],
+                            LocalizationService.Instance["MainVM_ConnectionErrorTitle"],
+                            MessageBoxButton.OK, MessageBoxImage.Error);
                         
+                        // On error, stop everything
                         _promptsQueue.Clear();
-                        TotalTasks = 0;
-                        CompletedTasks = 0;
-                        break; 
+                        TotalTasks = CompletedTasks = 0;
+                        CurrentProgress = 0;
+                        IsInfiniteQueueEnabled = false; // Turn off infinite mode
+                        break;
                     }
                 }
             }
             finally
             {
                 _queueSemaphore.Release();
+        
+                // After the batch is finished, check if infinite mode is enabled and wasn't cancelled.
+                if (IsInfiniteQueueEnabled && !_canceledTasks)
+                {
+                    await Task.Delay(100); // Small delay to prevent tight loops on error
+                    _ = Queue(null); // Re-trigger the queue process
+                }
             }
         }
 

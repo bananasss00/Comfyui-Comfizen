@@ -14,6 +14,7 @@
   "Tab_SeedControl": "Управление Seed",
   "Tab_Queue": "В очередь",
   "Tab_ClearQueue": "Очистить очередь",
+  "Tab_ToggleInfiniteQueue": "Включить бесконечную очередь (добавлять новую пачку задач после завершения текущей)",
   "Tab_CompletedTasks": "Завершено: {0}/{1}",
   "Tab_SelectedItems": "Выделено:",
   "Tab_DeleteSelected": "Удалить выделенное",
