@@ -162,25 +162,91 @@
                                 <ItemsControl ItemsSource="{Binding WorkflowInputsController.InputGroups}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
-                                            <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5"
-                                                      Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}">
-                                                <ItemsControl ItemsSource="{Binding Fields}">
+                                            <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5">
+                                                <Expander.Template>
+                                                    <ControlTemplate TargetType="Expander">
+                                                        <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" 
+                                                                Background="Transparent">
+                                                            <DockPanel>
+                                                                <ToggleButton DockPanel.Dock="Top" 
+                                                                              IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}" 
+                                                                              OverridesDefaultStyle="True" 
+                                                                              Content="{TemplateBinding Header}" 
+                                                                              ContentTemplate="{TemplateBinding HeaderTemplate}">
+                                                                    <ToggleButton.Template>
+                                                                        <ControlTemplate TargetType="ToggleButton">
+                                                                            <Grid>
+                                                                                <Border Background="{StaticResource TertiaryBackground}"
+                                                                                        CornerRadius="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource ExpanderCornerRadiusConverter}}" />
+
+                                                                                <Border CornerRadius="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource ExpanderCornerRadiusConverter}}"
+                                                                                        Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}">
+                                                                                    <Border.Style>
+                                                                                        <Style TargetType="Border">
+                                                                                            <Setter Property="Opacity" Value="0.2" />
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}}" Value="{x:Null}">
+                                                                                                    <Setter Property="Opacity" Value="0" />
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </Border.Style>
+                                                                                </Border>
+
+                                                                                <Border Padding="8">
+                                                                                    <Grid>
+                                                                                        <Grid.ColumnDefinitions>
+                                                                                            <ColumnDefinition Width="Auto"/>
+                                                                                            <ColumnDefinition Width="*"/>
+                                                                                        </Grid.ColumnDefinitions>
+                                                                                        <TextBlock x:Name="Arrow" Grid.Column="0" Text="▶" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                                                        <ContentPresenter Grid.Column="1" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" RecognizesAccessKey="True"/>
+                                                                                    </Grid>
+                                                                                </Border>
+                                                                            </Grid>
+                                                                            <ControlTemplate.Triggers>
+                                                                                <Trigger Property="IsChecked" Value="True">
+                                                                                    <Setter TargetName="Arrow" Property="Text" Value="▼"/>
+                                                                                </Trigger>
+                                                                            </ControlTemplate.Triggers>
+                                                                        </ControlTemplate>
+                                                                    </ToggleButton.Template>
+                                                                </ToggleButton>
+                                                                
+                                                                <Grid x:Name="ContentSite" DockPanel.Dock="Bottom" Visibility="Collapsed">
+                                                                     <Border Opacity="0.2"
+                                                                             Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}"/>
+                                                                     <ContentPresenter ContentSource="Content" Margin="8"/>
+                                                                </Grid>
+                                                            </DockPanel>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsExpanded" Value="True">
+                                                                <Setter TargetName="ContentSite" Property="Visibility" Value="Visible"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Expander.Template>
+
+                                                    <ItemsControl ItemsSource="{Binding Fields}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <DataTemplate.Resources>
                                                                 <ControlTemplate x:Key="NormalFieldLayoutTemplate" TargetType="ContentControl">
                                                                     <Grid Margin="0,4">
-                                                                        <Grid.Background>
-                                                                            <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
-                                                                                <Binding Path="HighlightColor"/>
-                                                                                <Binding Path="DataContext.HighlightColor" RelativeSource="{RelativeSource AncestorType=Expander}"/>
-                                                                            </MultiBinding>
-                                                                        </Grid.Background>
-                                                                        
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="Auto" MinWidth="120"/>
                                                                             <ColumnDefinition Width="*" />
                                                                         </Grid.ColumnDefinitions>
+                                                                        
+                                                                            
+                                                                        <Border Grid.ColumnSpan="2" Opacity="0.5">
+                                                                            <Border.Background>
+                                                                                <Binding Path="HighlightColor" Converter="{StaticResource HexToBrushConverter}"/>
+                                                                            </Border.Background>
+                                                                        </Border>
+
+
 
                                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,10,0" VerticalAlignment="Center">
                                                                             <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/>
@@ -223,6 +289,7 @@
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
+                                                
                                             </Expander>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

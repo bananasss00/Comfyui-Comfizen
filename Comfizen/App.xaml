@@ -23,6 +23,7 @@
         <local:HexToBrushConverter x:Key="HexToBrushConverter"/>
         <local:PriorityColorToBrushConverter x:Key="PriorityColorToBrushConverter"/>
         <local:MultiValueToArrayConverter x:Key="MultiValueToArrayConverter"/>
+        <local:ExpanderCornerRadiusConverter x:Key="ExpanderCornerRadiusConverter"/>
 
         <!-- Color Palette -->
         <SolidColorBrush x:Key="PrimaryBackground" Color="#FF2D2D30"/>

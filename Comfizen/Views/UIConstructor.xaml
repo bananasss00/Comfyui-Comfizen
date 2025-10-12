@@ -133,19 +133,20 @@
                 <Button DockPanel.Dock="Top" Content="{local:Translate UIConstructor_AddGroup}" Command="{Binding AddGroupCommand}" HorizontalAlignment="Left" Margin="0,0,0,10"/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemsSource="{Binding Workflow.Groups}">
+                            
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel AllowDrop="True" Drop="Group_Drop" DragEnter="Group_DragOver" DragLeave="Group_DragLeave" DragOver="Group_DragOver" Background="Transparent">
                                     <Border x:Name="GroupDropIndicatorBefore" Height="3" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1.5" Margin="0,2" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                    <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Margin="0,2"
-                                            Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}, FallbackValue=Transparent}">
+                                    
+                                    <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Margin="0,2">
                                         <DockPanel>
                                             <Border DockPanel.Dock="Top"
                                                     CornerRadius="3,3,0,0" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown"
                                                     MouseRightButtonUp="ShowColorPickerPopup">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding HighlightColor}" Value="{x:Null}">
                                                                 <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
@@ -153,6 +154,11 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
+                                                 <Border.Background>
+                                                        <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
+                                                             <Binding Path="HighlightColor"/>
+                                                        </MultiBinding>
+                                                 </Border.Background>
                                                 <Grid>
                                                     <StackPanel Orientation="Horizontal" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}">
                                                         <TextBlock Text="{Binding Name}" FontWeight="Bold" MouseLeftButtonDown="GroupName_MouseLeftButtonDown"/>
@@ -161,78 +167,84 @@
                                                     <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                 </Grid>
                                             </Border>
-                                            <ItemsControl ItemsSource="{Binding Fields}" Padding="8">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <StackPanel AllowDrop="True" DragEnter="Field_DragOver" DragLeave="Field_DragLeave" DragOver="Field_DragOver" Drop="Field_Drop" Background="Transparent">
-                                                            <Border x:Name="DropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                                            <Border BorderBrush="#44FFFFFF" BorderThickness="0,0,0,1" Margin="0,2" Padding="5" 
-                                                                    MouseLeftButtonDown="GroupedField_MouseLeftButtonDown"
-                                                                    MouseRightButtonUp="ShowColorPickerPopup">
-                                                                <Border.Background>
-                                                                    <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
-                                                                        <Binding Path="HighlightColor"/>
-                                                                        <Binding Path="DataContext.HighlightColor" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
-                                                                    </MultiBinding>
-                                                                </Border.Background>
-                                                                <Grid>
-                                                                    <Grid.RowDefinitions>
-                                                                        <RowDefinition Height="Auto"/>
-                                                                        <RowDefinition Height="Auto"/>
-                                                                        <RowDefinition Height="Auto"/>
-                                                                    </Grid.RowDefinitions>
-                                                                    <Grid Grid.Row="0">
-                                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+
+                                            <Grid>
+                                                <Border Opacity="0.2"
+                                                        Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}"/>
+                                                <ItemsControl ItemsSource="{Binding Fields}" Padding="8">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel AllowDrop="True" DragEnter="Field_DragOver" DragLeave="Field_DragLeave" DragOver="Field_DragOver" Drop="Field_Drop" Background="Transparent">
+                                                                <Border x:Name="DropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                                                <Border BorderBrush="#44FFFFFF" BorderThickness="0,0,0,1" Margin="0,2" Padding="5" 
+                                                                        MouseLeftButtonDown="GroupedField_MouseLeftButtonDown"
+                                                                        MouseRightButtonUp="ShowColorPickerPopup">
+                                                                    <Grid>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
                                                                         
-                                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}">
-                                                                            <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}" MouseLeftButtonDown="FieldName_MouseLeftButtonDown"/>
+                                                                        <Border Grid.ColumnSpan="2" Opacity="0.5"
+                                                                                Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}"/>
+
+                                                                        <Grid Grid.Row="0">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                        
+                                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}">
+                                                                                <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}" MouseLeftButtonDown="FieldName_MouseLeftButtonDown"/>
+                                                                            </StackPanel>
+        
+                                                                            <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                            
+                                                                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                                <StackPanel Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                                                    <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="SliderInt"><Setter Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding Type}" Value="SliderFloat"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                                                                                    <TextBlock Text="Min:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding MinValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.1"/>
+                                                                                    <TextBlock Text="Max:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding MaxValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.1"/>
+                                                                                    <TextBlock Text="Step:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding StepValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.01"/>
+                                                                                </StackPanel>
+                                                                                <StackPanel Orientation="Horizontal" Margin="5,0,0,0" VerticalAlignment="Center">
+                                                                                    <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="SliderFloat"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                                                                                    <TextBlock Text="{local:Translate UIConstructor_Field_Precision}" VerticalAlignment="Center" Margin="5,0"/><xctk:IntegerUpDown Value="{Binding Precision, UpdateSourceTrigger=PropertyChanged}" Width="40" Minimum="0" Maximum="8"/>
+                                                                                </StackPanel>
+                                                                                <ComboBox ItemsSource="{Binding DataContext.FieldTypes, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Type, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="10,0,0,0" VerticalAlignment="Center" MouseLeftButtonDown="Control_StopsBubble_MouseLeftButtonDown"/>
+                                                                            </StackPanel>
+                                                                        </Grid>
+                                                                        <StackPanel Grid.Row="1" Margin="0,5,0,0">
+                                                                            <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="ComboBox"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                                                                            <TextBlock Text="{local:Translate UIConstructor_Field_Items}"/>
+                                                                            <TextBox Text="{Binding ComboBoxItems, Converter={StaticResource StringListConverter}, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="80"/>
                                                                         </StackPanel>
-                                                                        
-                                                                        <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                                        
-                                                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                                            <StackPanel Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
-                                                                                <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="SliderInt"><Setter Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding Type}" Value="SliderFloat"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
-                                                                                <TextBlock Text="Min:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding MinValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.1"/>
-                                                                                <TextBlock Text="Max:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding MaxValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.1"/>
-                                                                                <TextBlock Text="Step:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding StepValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.01"/>
-                                                                            </StackPanel>
-                                                                            <StackPanel Orientation="Horizontal" Margin="5,0,0,0" VerticalAlignment="Center">
-                                                                                <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="SliderFloat"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
-                                                                                <TextBlock Text="{local:Translate UIConstructor_Field_Precision}" VerticalAlignment="Center" Margin="5,0"/><xctk:IntegerUpDown Value="{Binding Precision, UpdateSourceTrigger=PropertyChanged}" Width="40" Minimum="0" Maximum="8"/>
-                                                                            </StackPanel>
-                                                                            <ComboBox ItemsSource="{Binding DataContext.FieldTypes, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Type, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="10,0,0,0" VerticalAlignment="Center" MouseLeftButtonDown="Control_StopsBubble_MouseLeftButtonDown"/>
+                                                                        <StackPanel Grid.Row="2" Margin="0,5,0,0">
+                                                                            <StackPanel.Style>
+                                                                                <Style TargetType="StackPanel">
+                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="Model">
+                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </StackPanel.Style>
+                                                                            <TextBlock Text="{local:Translate UIConstructor_Field_ModelSubtype}"/>
+                                                                            <local:FilterableComboBox ItemsSource="{Binding DataContext.ModelSubTypes, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                SelectedItem="{Binding ModelType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                PlaceholderText="{local:Translate UIConstructor_Field_SelectSubtype}"
+                                                                                Margin="0,2,0,0"/>
                                                                         </StackPanel>
                                                                     </Grid>
-                                                                    <StackPanel Grid.Row="1" Margin="0,5,0,0">
-                                                                        <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="ComboBox"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
-                                                                        <TextBlock Text="{local:Translate UIConstructor_Field_Items}"/>
-                                                                        <TextBox Text="{Binding ComboBoxItems, Converter={StaticResource StringListConverter}, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="80"/>
-                                                                    </StackPanel>
-                                                                    <StackPanel Grid.Row="2" Margin="0,5,0,0">
-                                                                        <StackPanel.Style>
-                                                                            <Style TargetType="StackPanel">
-                                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                                                <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding Type}" Value="Model">
-                                                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                                                    </DataTrigger>
-                                                                                </Style.Triggers>
-                                                                            </Style>
-                                                                        </StackPanel.Style>
-                                                                        <TextBlock Text="{local:Translate UIConstructor_Field_ModelSubtype}"/>
-                                                                        <local:FilterableComboBox ItemsSource="{Binding DataContext.ModelSubTypes, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                            SelectedItem="{Binding ModelType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                            PlaceholderText="{local:Translate UIConstructor_Field_SelectSubtype}"
-                                                                            Margin="0,2,0,0"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                             <Border x:Name="DropIndicatorAfter" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                                                </Border>
+                                                                 <Border x:Name="DropIndicatorAfter" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Grid>
                                         </DockPanel>
                                     </Border>
                                     <Border x:Name="GroupDropIndicatorAfter" Height="3" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1.5" Margin="0,2" Visibility="Collapsed" IsHitTestVisible="False"/>

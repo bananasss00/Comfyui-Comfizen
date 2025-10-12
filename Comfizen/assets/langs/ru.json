@@ -21,7 +21,7 @@
   "Tab_NoWorkflowSelected": "Выберите рабочий процесс, чтобы начать",
   "Console_Title": "Консоль ComfyUI",
   "Console_Clear": "Очистить консоль",
-  "Console_Instructions": "Для перехвата вывода из консоли ComfyUI, убедитесь, что в папку custom_nodes установлен кастомный узел WebSocketLogStreamer.py и сервер был перезапущен.",
+  "Console_Instructions": "Для перехвата вывода из консоли ComfyUI, убедитесь, что в папку custom_nodes установлен кастомный узел Comfyui-ConsoleBridgeNode.py и сервер был перезапущен.",
   "Fullscreen_Close": "Закрыть",
   "Fullscreen_Previous": "Предыдущее",
   "Fullscreen_Next": "Следующее",
