@@ -137,12 +137,22 @@
                             <DataTemplate>
                                 <StackPanel AllowDrop="True" Drop="Group_Drop" DragEnter="Group_DragOver" DragLeave="Group_DragLeave" DragOver="Group_DragOver" Background="Transparent">
                                     <Border x:Name="GroupDropIndicatorBefore" Height="3" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1.5" Margin="0,2" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                    <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Margin="0,2">
+                                    <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Margin="0,2"
+                                            Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}, FallbackValue=Transparent}">
                                         <DockPanel>
                                             <Border DockPanel.Dock="Top"
-                                                    Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}, FallbackValue={StaticResource TertiaryBackground}}"
                                                     CornerRadius="3,3,0,0" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown"
                                                     MouseRightButtonUp="ShowColorPickerPopup">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HighlightColor}" Value="{x:Null}">
+                                                                <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <Grid>
                                                     <StackPanel Orientation="Horizontal" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}">
                                                         <TextBlock Text="{Binding Name}" FontWeight="Bold" MouseLeftButtonDown="GroupName_MouseLeftButtonDown"/>
