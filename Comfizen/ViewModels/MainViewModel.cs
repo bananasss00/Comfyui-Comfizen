@@ -118,6 +118,7 @@ namespace Comfizen
         public ICommand OpenConstructorCommand { get; set; }
         public ICommand EditWorkflowCommand { get; set; } 
         public ICommand ExportCurrentStateCommand { get; }
+        public ICommand DeleteWorkflowCommand { get; }
         public ICommand OpenSettingsCommand { get; set; }
         public ICommand QueueCommand => new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
         public ICommand InterruptCommand { get; }
@@ -201,6 +202,7 @@ namespace Comfizen
                 o => SelectedTab != null && SelectedTab.Workflow.IsLoaded);
             
             ExportCurrentStateCommand = new RelayCommand(ExportCurrentState, o => SelectedTab?.Workflow.IsLoaded ?? false);
+            DeleteWorkflowCommand = new RelayCommand(DeleteSelectedWorkflow, _ => SelectedTab != null);
             
             OpenWildcardBrowserCommand = new RelayCommand(param =>
             {
@@ -650,6 +652,54 @@ namespace Comfizen
                 : null;
             
             _settingsService.SaveSettings(_settings);
+        }
+        
+        private void DeleteSelectedWorkflow(object obj)
+        {
+            var tabToDelete = SelectedTab;
+            if (tabToDelete == null) return;
+
+            var workflowName = tabToDelete.Header;
+            var filePath = tabToDelete.FilePath;
+
+            // Show a confirmation dialog before deleting
+            var message = string.Format(LocalizationService.Instance["MainVM_DeleteConfirmMessage"], workflowName);
+            var caption = LocalizationService.Instance["MainVM_DeleteConfirmTitle"];
+            var result = MessageBox.Show(message, caption, MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                // Close the tab first to release any potential file handles
+                CloseTab(tabToDelete);
+
+                // Delete the physical file
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+
+                // Remove the workflow from the recent list in settings
+                var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, filePath).Replace(Path.DirectorySeparatorChar, '/');
+                if (_settings.RecentWorkflows.Contains(relativePath))
+                {
+                    _settings.RecentWorkflows.Remove(relativePath);
+                    _settingsService.SaveSettings(_settings);
+                }
+            
+                // Refresh the list of available workflows in the UI
+                UpdateWorkflows();
+            }
+            catch (Exception ex)
+            {
+                var errorMsg = string.Format(LocalizationService.Instance["MainVM_DeleteErrorMessage"], ex.Message);
+                var errorCaption = LocalizationService.Instance["MainVM_DeleteErrorTitle"];
+                MessageBox.Show(errorMsg, errorCaption, MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         
         private void ClearSessionForCurrentWorkflow()
