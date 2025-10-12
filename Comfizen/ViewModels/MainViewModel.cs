@@ -120,7 +120,7 @@ namespace Comfizen
         public ICommand ExportCurrentStateCommand { get; }
         public ICommand DeleteWorkflowCommand { get; }
         public ICommand OpenSettingsCommand { get; set; }
-        public ICommand QueueCommand => new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
+        public ICommand QueueCommand { get; }
         public ICommand InterruptCommand { get; }
         public ICommand PasteImageCommand { get; }
         public ICommand CloseTabCommand { get; }
@@ -241,6 +241,7 @@ namespace Comfizen
                     UpdateWorkflowDisplayList();
                 }
             };
+            QueueCommand = new RelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
         }
         
         private async void OnWorkflowSaved(object sender, WorkflowSaveEventArgs e)
@@ -418,96 +419,128 @@ namespace Comfizen
         private bool _canceledTasks = false;
         public ICommand ClearQueueCommand => new RelayCommand(x =>
         {
-            InterruptCommand.Execute(null);
-            _promptsQueue.Clear();
             _canceledTasks = true;
-            
-            IsInfiniteQueueEnabled = false; 
+            InterruptCommand.Execute(null);
+            IsInfiniteQueueEnabled = false;
+        
+            lock (_processingLock)
+            {
+                if (!_isProcessing)
+                {
+                    _promptsQueue.Clear();
+                    TotalTasks = CompletedTasks = 0;
+                    CurrentProgress = 0;
+                }
+            }
+        }, canExecute: x => TotalTasks > 0 && CompletedTasks < TotalTasks);
 
-            CompletedTasks = TotalTasks = 0;
-            CurrentProgress = 0;
-        }, canExecute: x => TotalTasks > 0);
+        private readonly object _processingLock = new object();
+        private bool _isProcessing = false;
 
-        private SemaphoreSlim _queueSemaphore = new(1, 1);
-
-        private async Task Queue(object o)
+        private void Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
         
-            await _queueSemaphore.WaitAsync();
+            var prompts = CreatePromptTasks().ToList();
+            if (prompts.Count == 0) return;
+        
+            if (_canceledTasks || (_promptsQueue.IsEmpty && !_isProcessing))
+            {
+                CompletedTasks = 0;
+                TotalTasks = 0;
+                CurrentProgress = 0;
+            }
+            _canceledTasks = false;
+        
+            foreach (var prompt in prompts)
+            {
+                _promptsQueue.Enqueue(prompt);
+            }
+            TotalTasks += prompts.Count;
+        
+            lock (_processingLock)
+            {
+                if (!_isProcessing)
+                {
+                    _isProcessing = true;
+                    _ = Task.Run(ProcessQueueAsync);
+                }
+            }
+        }
+
+        private async Task ProcessQueueAsync()
+        {
             try
             {
-                // If the queue is empty, add a new batch.
-                // This allows the initial click and subsequent infinite loops to work the same way.
-                if (_promptsQueue.IsEmpty)
+                while (true)
                 {
-                    _canceledTasks = false;
-                    var prompts = CreatePromptTasks().ToList();
-                    foreach (var prompt in prompts)
-                    {
-                        _promptsQueue.Enqueue(prompt);
-                    }
-                    TotalTasks += prompts.Count;
-                }
+                    if (_canceledTasks) break;
         
-                while (_promptsQueue.TryDequeue(out string prompt))
-                {
-                    // If the user cancelled, stop processing immediately.
-                    if (_canceledTasks)
+                    if (_promptsQueue.TryDequeue(out string prompt))
                     {
-                        _promptsQueue.Clear();
-                        TotalTasks = CompletedTasks = 0;
-                        CurrentProgress = 0;
-                        IsInfiniteQueueEnabled = false; // Ensure loop stops
-                        break;
-                    }
-        
-                    try
-                    {
-                        await foreach (var io in _comfyuiModel.QueuePrompt(prompt))
+                        try
                         {
-                            SelectedTab.ImageProcessing.ImageOutputs.Insert(0, io);
-                        }
-        
-                        if (!_canceledTasks)
-                        {
-                            CompletedTasks++;
-                            CurrentProgress = (CompletedTasks * 100) / TotalTasks;
-        
-                            // When a batch is complete
-                            if (TotalTasks == CompletedTasks)
+                            await foreach (var io in _comfyuiModel.QueuePrompt(prompt))
                             {
-                                CompletedTasks = TotalTasks = 0;
-                                CurrentProgress = 0;
+                                if (_canceledTasks) break;
+                                Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    SelectedTab.ImageProcessing.ImageOutputs.Insert(0, io);
+                                });
                             }
+        
+                            if (_canceledTasks) break;
+        
+                            CompletedTasks++;
+                            CurrentProgress = (TotalTasks > 0) ? (CompletedTasks * 100) / TotalTasks : 0;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[Connection Error] Failed to queue prompt: {ex.Message}");
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                MessageBox.Show(
+                                    LocalizationService.Instance["MainVM_ConnectionErrorMessage"],
+                                    LocalizationService.Instance["MainVM_ConnectionErrorTitle"],
+                                    MessageBoxButton.OK, MessageBoxImage.Error);
+                            });
+                            
+                            _canceledTasks = true;
+                            break;
                         }
                     }
-                    catch (Exception ex)
+                    else // Очередь пуста
                     {
-                        System.Diagnostics.Debug.WriteLine($"[Connection Error] Failed to queue prompt: {ex.Message}");
-                        MessageBox.Show(
-                            LocalizationService.Instance["MainVM_ConnectionErrorMessage"],
-                            LocalizationService.Instance["MainVM_ConnectionErrorTitle"],
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                        
-                        // On error, stop everything
-                        _promptsQueue.Clear();
-                        TotalTasks = CompletedTasks = 0;
-                        CurrentProgress = 0;
-                        IsInfiniteQueueEnabled = false; // Turn off infinite mode
-                        break;
+                        if (IsInfiniteQueueEnabled && !_canceledTasks)
+                        {
+                            var prompts = CreatePromptTasks().ToList();
+                            foreach (var p in prompts)
+                            {
+                                _promptsQueue.Enqueue(p);
+                            }
+                            TotalTasks += prompts.Count;
+                            await Task.Delay(100);
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
                 }
             }
             finally
             {
-                _queueSemaphore.Release();
-        
-                // After the batch is finished, check if infinite mode is enabled and wasn't cancelled.
-                if (IsInfiniteQueueEnabled && !_canceledTasks)
+                lock (_processingLock)
                 {
-                    await Task.Delay(100); // Small delay to prevent tight loops on error
-                    _ = Queue(null); // Re-trigger the queue process
+                    _isProcessing = false;
+                }
+        
+                if (_canceledTasks)
+                {
+                    _promptsQueue.Clear();
+                    TotalTasks = CompletedTasks = 0;
+                    CurrentProgress = 0;
+                    IsInfiniteQueueEnabled = false;
                 }
             }
         }
