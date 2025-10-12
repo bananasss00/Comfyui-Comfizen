@@ -153,7 +153,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         foreach (var group in _workflow.Groups)
         {
-            var groupVm = new WorkflowGroupViewModel { Name = group.Name };
+            var groupVm = new WorkflowGroupViewModel 
+            { 
+                Name = group.Name, 
+                HighlightColor = group.HighlightColor 
+            };
             var processedFields = new HashSet<WorkflowField>(); // Отслеживаем уже обработанные поля
 
             for (int i = 0; i < group.Fields.Count; i++)

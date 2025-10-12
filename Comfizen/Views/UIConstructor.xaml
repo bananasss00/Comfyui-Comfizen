@@ -12,6 +12,68 @@
         Style="{StaticResource CustomWindowStyle}">
 
     <Window.Resources>
+        <Popup x:Key="ColorPickerPopup"
+               StaysOpen="False"
+               Placement="MousePoint"
+               AllowsTransparency="True">
+            <Border Background="{StaticResource SecondaryBackground}"
+                    BorderBrush="{StaticResource TertiaryBackground}"
+                    BorderThickness="1"
+                    CornerRadius="3"
+                    Padding="5">
+                <StackPanel>
+                    <ItemsControl ItemsSource="{Binding Path=DataContext.ColorPalette, Source={x:Reference RootGrid}}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel MaxWidth="128"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button ToolTip="{Binding Name}" Margin="2">
+                                    <Button.CommandParameter>
+                                        <MultiBinding Converter="{StaticResource MultiValueToArrayConverter}">
+                                            <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=Popup}"/>
+                                            <Binding Path="Hex"/>
+                                        </MultiBinding>
+                                    </Button.CommandParameter>
+                                    <Button.Command>
+                                        <Binding Path="DataContext.SetHighlightColorCommand" Source="{x:Reference RootGrid}"/>
+                                    </Button.Command>
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="ColorSwatch"
+                                                    Width="24" Height="24"
+                                                    CornerRadius="3"
+                                                    BorderBrush="Gray"
+                                                    BorderThickness="1"
+                                                    Background="{Binding Hex, Converter={StaticResource HexToBrushConverter}}"/>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="ColorSwatch" Property="BorderBrush" Value="White"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    
+                    <Separator Margin="0,5"/>
+                    
+                    <Button Content="{local:Translate UIConstructor_ClearColor}" Padding="5,3">
+                         <Button.CommandParameter>
+                              <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=Popup}"/>
+                         </Button.CommandParameter>
+                         <Button.Command>
+                             <Binding Path="DataContext.ClearHighlightColorCommand" Source="{x:Reference RootGrid}"/>
+                         </Button.Command>
+                    </Button>
+                </StackPanel>
+            </Border>
+        </Popup>
+
         <Style TargetType="TextBox" x:Key="InlineEditTextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <EventSetter Event="LostFocus" Handler="InlineTextBox_LostFocus"/>
             <EventSetter Event="KeyDown" Handler="InlineTextBox_KeyDown"/>
@@ -77,7 +139,10 @@
                                     <Border x:Name="GroupDropIndicatorBefore" Height="3" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1.5" Margin="0,2" Visibility="Collapsed" IsHitTestVisible="False"/>
                                     <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Margin="0,2">
                                         <DockPanel>
-                                            <Border DockPanel.Dock="Top" Background="{StaticResource TertiaryBackground}" CornerRadius="3,3,0,0" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown">
+                                            <Border DockPanel.Dock="Top"
+                                                    Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}, FallbackValue={StaticResource TertiaryBackground}}"
+                                                    CornerRadius="3,3,0,0" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown"
+                                                    MouseRightButtonUp="ShowColorPickerPopup">
                                                 <Grid>
                                                     <StackPanel Orientation="Horizontal" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}">
                                                         <TextBlock Text="{Binding Name}" FontWeight="Bold" MouseLeftButtonDown="GroupName_MouseLeftButtonDown"/>
@@ -91,7 +156,15 @@
                                                     <DataTemplate>
                                                         <StackPanel AllowDrop="True" DragEnter="Field_DragOver" DragLeave="Field_DragLeave" DragOver="Field_DragOver" Drop="Field_Drop" Background="Transparent">
                                                             <Border x:Name="DropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                                            <Border BorderBrush="#44FFFFFF" BorderThickness="0,0,0,1" Margin="0,2" Padding="5" MouseLeftButtonDown="GroupedField_MouseLeftButtonDown">
+                                                            <Border BorderBrush="#44FFFFFF" BorderThickness="0,0,0,1" Margin="0,2" Padding="5" 
+                                                                    MouseLeftButtonDown="GroupedField_MouseLeftButtonDown"
+                                                                    MouseRightButtonUp="ShowColorPickerPopup">
+                                                                <Border.Background>
+                                                                    <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
+                                                                        <Binding Path="HighlightColor"/>
+                                                                        <Binding Path="DataContext.HighlightColor" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                                    </MultiBinding>
+                                                                </Border.Background>
                                                                 <Grid>
                                                                     <Grid.RowDefinitions>
                                                                         <RowDefinition Height="Auto"/>

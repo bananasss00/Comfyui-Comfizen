@@ -14,6 +14,15 @@ using PropertyChanged;
 namespace Comfizen
 {
     /// <summary>
+    /// Helper class to represent a color in the palette.
+    /// </summary>
+    public class ColorInfo
+    {
+        public string Name { get; set; }
+        public string Hex { get; set; }
+    }
+    
+    /// <summary>
     /// ViewModel for the UIConstructor window.
     /// Handles the logic for creating and modifying workflow UI layouts.
     /// </summary>
@@ -41,6 +50,37 @@ namespace Comfizen
             RemoveGroupCommand = new RelayCommand(param => RemoveGroup(param as WorkflowGroup));
             RemoveFieldFromGroupCommand = new RelayCommand(param => RemoveField(param as WorkflowField));
             ToggleRenameCommand = new RelayCommand(ToggleRename);
+            
+            // Initialize the color palette
+            ColorPalette = new ObservableCollection<ColorInfo>
+            {
+                new ColorInfo { Name = "Blue", Hex = "#4A6A8C" },
+                new ColorInfo { Name = "Green", Hex = "#5A825A" },
+                new ColorInfo { Name = "Red", Hex = "#825A5A" },
+                new ColorInfo { Name = "Purple", Hex = "#5A5A82" },
+                new ColorInfo { Name = "Olive", Hex = "#82825A" },
+                new ColorInfo { Name = "Brown", Hex = "#8B5A2B" }
+            };
+
+            // Command to set the highlight color
+            SetHighlightColorCommand = new RelayCommand(param =>
+            {
+                if (param is object[] args && args.Length == 2)
+                {
+                    var target = args[0];
+                    var colorHex = args[1] as string;
+
+                    if (target is WorkflowGroup group) group.HighlightColor = colorHex;
+                    else if (target is WorkflowField field) field.HighlightColor = colorHex;
+                }
+            });
+
+            // Command to clear the highlight color
+            ClearHighlightColorCommand = new RelayCommand(param =>
+            {
+                if (param is WorkflowGroup group) group.HighlightColor = null;
+                else if (param is WorkflowField field) field.HighlightColor = null;
+            });
 
             PropertyChanged += (s, e) =>
             {
@@ -67,6 +107,9 @@ namespace Comfizen
         public ICommand RemoveGroupCommand { get; }
         public ICommand RemoveFieldFromGroupCommand { get; }
         public ICommand ToggleRenameCommand { get; }
+        public ICommand SetHighlightColorCommand { get; }
+        public ICommand ClearHighlightColorCommand { get; }
+        public ObservableCollection<ColorInfo> ColorPalette { get; }
 
         public string NewWorkflowName { get; set; }
         public string SearchFilter { get; set; }
@@ -569,6 +612,27 @@ namespace Comfizen
                     DragDrop.DoDragDrop(element, dragData, DragDropEffects.Move);
                 }
             }
+        }
+        
+        private void ShowColorPickerPopup(object sender, MouseButtonEventArgs e)
+        {
+            // Находим наш Popup в ресурсах окна
+            var popup = FindResource("ColorPickerPopup") as System.Windows.Controls.Primitives.Popup;
+            if (popup == null) return;
+
+            var clickedElement = sender as FrameworkElement;
+            if (clickedElement == null) return;
+
+            // Важно: передаем DataContext (нашу группу/поле) в Popup,
+            // чтобы работали привязки команд
+            popup.DataContext = clickedElement.DataContext;
+    
+            // Открываем Popup в текущей позиции мыши
+            popup.IsOpen = true;
+
+            // ОЧЕНЬ ВАЖНО: останавливаем событие, чтобы не появлялось стандартное
+            // контекстное меню и не срабатывали другие обработчики.
+            e.Handled = true;
         }
     }
 }

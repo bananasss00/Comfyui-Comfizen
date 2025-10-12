@@ -66,6 +66,11 @@ namespace Comfizen
         public bool IsExpanded { get; set; } = true;
         public ObservableCollection<InputFieldViewModel> Fields { get; set; } = new();
         
+        /// <summary>
+        /// The highlight color for the group in HEX format.
+        /// </summary>
+        public string HighlightColor { get; set; }
+        
         // Свойство для InpaintEditor
         public InpaintEditor InpaintEditorControl { get; set; }
         public bool HasInpaintEditor => InpaintEditorControl != null;
@@ -78,13 +83,18 @@ namespace Comfizen
     {
         public string Name { get; }
         public FieldType Type { get; protected set; }
-        // ИСПРАВЛЕНИЕ: Уровень доступа изменен с protected на public
         public JProperty Property { get; } 
+        
+        /// <summary>
+        /// The highlight color for the field in HEX format.
+        /// </summary>
+        public string HighlightColor { get; set; }
 
         protected InputFieldViewModel(WorkflowField field, JProperty property)
         {
             Name = field.Name;
             Property = property;
+            HighlightColor = field.HighlightColor;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

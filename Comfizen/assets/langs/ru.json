@@ -156,5 +156,7 @@
   "ComboBox_PlaceholderDefault": "Выберите или введите...",
   "Wildcard_Browse": "Обзор Wildcards",
   "WorkflowList_Recent": "Последние",
-  "WorkflowList_All": "Все"
+  "WorkflowList_All": "Все",
+  "UIConstructor_SetColor": "Задать цвет",
+  "UIConstructor_ClearColor": "Сбросить цвет"
 }

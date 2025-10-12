@@ -156,5 +156,7 @@
   "ComboBox_PlaceholderDefault": "Select or enter a value...",
   "Wildcard_Browse": "Browse Wildcards",
   "WorkflowList_Recent": "Recent",
-  "WorkflowList_All": "All"
+  "WorkflowList_All": "All",
+  "UIConstructor_SetColor": "Set Color",
+  "UIConstructor_ClearColor": "Clear Color"
 }

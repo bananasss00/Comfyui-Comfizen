@@ -16,7 +16,7 @@ namespace Comfizen
                 flag = b;
             }
 
-            // Инвертировать значение, если передан параметр "invert"
+            // Invert the value if the "invert" parameter is passed
             if (parameter != null && parameter.ToString().Equals("invert", StringComparison.OrdinalIgnoreCase))
             {
                 flag = !flag;

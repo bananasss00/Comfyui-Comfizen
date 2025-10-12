@@ -162,13 +162,21 @@
                                 <ItemsControl ItemsSource="{Binding WorkflowInputsController.InputGroups}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
-                                            <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5">
+                                            <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5"
+                                                      Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}">
                                                 <ItemsControl ItemsSource="{Binding Fields}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <DataTemplate.Resources>
                                                                 <ControlTemplate x:Key="NormalFieldLayoutTemplate" TargetType="ContentControl">
                                                                     <Grid Margin="0,4">
+                                                                        <Grid.Background>
+                                                                            <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
+                                                                                <Binding Path="HighlightColor"/>
+                                                                                <Binding Path="DataContext.HighlightColor" RelativeSource="{RelativeSource AncestorType=Expander}"/>
+                                                                            </MultiBinding>
+                                                                        </Grid.Background>
+                                                                        
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="Auto" MinWidth="120"/>
                                                                             <ColumnDefinition Width="*" />

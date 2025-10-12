@@ -20,6 +20,9 @@
         <local:BoolToGridLengthConverter x:Key="BoolToGridLengthConverter"/>
         <local:CultureInfoToNameConverter x:Key="CultureInfoToNameConverter"/>
         <local:MultiBindingStringFormatConverter x:Key="MultiBindingStringFormatConverter"/>
+        <local:HexToBrushConverter x:Key="HexToBrushConverter"/>
+        <local:PriorityColorToBrushConverter x:Key="PriorityColorToBrushConverter"/>
+        <local:MultiValueToArrayConverter x:Key="MultiValueToArrayConverter"/>
 
         <!-- Color Palette -->
         <SolidColorBrush x:Key="PrimaryBackground" Color="#FF2D2D30"/>
@@ -472,12 +475,14 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Expander">
-                        <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Background="#00000000">
+                        <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" 
+                                Background="{TemplateBinding Background}">
                             <DockPanel>
                                 <ToggleButton DockPanel.Dock="Top" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}" OverridesDefaultStyle="True" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}">
                                     <ToggleButton.Template>
                                         <ControlTemplate TargetType="ToggleButton">
-                                            <Border Padding="8" Background="{StaticResource TertiaryBackground}">
+                                            <!-- And the ToggleButton's background is transparent so the parent color shows through -->
+                                            <Border Padding="8" Background="Transparent">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>

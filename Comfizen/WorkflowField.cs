@@ -15,6 +15,12 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public bool IsSeedLocked { get; set; } = false;
         
+        /// <summary>
+        /// The highlight color for the field in HEX format (e.g., #RRGGBB).
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string HighlightColor { get; set; }
+        
         public double? MinValue { get; set; }
         public double? MaxValue { get; set; }
         public double? StepValue { get; set; }
