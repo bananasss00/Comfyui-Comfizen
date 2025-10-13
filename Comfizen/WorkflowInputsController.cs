@@ -48,7 +48,14 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public SeedControl SelectedSeedControl { get; set; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
-
+    
+    public string CreatePromptTask()
+    {
+        var prompt = _workflow.JsonClone();
+        ProcessSpecialFields(prompt);
+        return prompt.ToString();
+    }
+    
     public void ProcessSpecialFields(JToken prompt)
     {
         ApplyWildcards(prompt);

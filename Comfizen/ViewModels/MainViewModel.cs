@@ -150,6 +150,12 @@ namespace Comfizen
         // Command to specifically toggle the infinite mode from the UI
         public ICommand ToggleInfiniteQueueCommand { get; }
         
+        private class PromptTask
+        {
+            public string JsonPrompt { get; set; }
+            public WorkflowTabViewModel OriginTab { get; set; }
+        }
+        
         public MainViewModel()
         {
             _settingsService = new SettingsService();
@@ -415,7 +421,7 @@ namespace Comfizen
             }
         }
 
-        private ConcurrentQueue<string> _promptsQueue = new();
+        private ConcurrentQueue<PromptTask> _promptsQueue = new();
         private bool _canceledTasks = false;
         public ICommand ClearQueueCommand => new RelayCommand(x =>
         {
@@ -436,14 +442,26 @@ namespace Comfizen
 
         private readonly object _processingLock = new object();
         private bool _isProcessing = false;
-
+        
+        private IEnumerable<string> CreatePromptTasks(WorkflowTabViewModel tab)
+        {
+            for (int i = 0; i < QueueSize; i++)
+            {
+                var prompt = tab.Workflow.JsonClone();
+                tab.WorkflowInputsController.ProcessSpecialFields(prompt);
+                yield return prompt.ToString();
+            }
+            
+        }
         private void Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
         
-            var prompts = CreatePromptTasks().ToList();
+            var prompts = CreatePromptTasks(SelectedTab).ToList();
             if (prompts.Count == 0) return;
-        
+            
+            var originTab = SelectedTab; 
+            
             if (_canceledTasks || (_promptsQueue.IsEmpty && !_isProcessing))
             {
                 CompletedTasks = 0;
@@ -454,7 +472,7 @@ namespace Comfizen
         
             foreach (var prompt in prompts)
             {
-                _promptsQueue.Enqueue(prompt);
+                _promptsQueue.Enqueue(new PromptTask { JsonPrompt = prompt, OriginTab = originTab });
             }
             TotalTasks += prompts.Count;
         
@@ -470,25 +488,29 @@ namespace Comfizen
 
         private async Task ProcessQueueAsync()
         {
+            WorkflowTabViewModel lastTaskOriginTab = null; 
+            
             try
             {
                 while (true)
                 {
                     if (_canceledTasks) break;
         
-                    if (_promptsQueue.TryDequeue(out string prompt))
+                    if (_promptsQueue.TryDequeue(out var task))
                     {
+                        lastTaskOriginTab = task.OriginTab;
+                        
                         try
                         {
-                            await foreach (var io in _comfyuiModel.QueuePrompt(prompt))
+                            await foreach (var io in _comfyuiModel.QueuePrompt(task.JsonPrompt))
                             {
                                 if (_canceledTasks) break;
                                 Application.Current.Dispatcher.Invoke(() =>
                                 {
-                                    if (!SelectedTab.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == io.VisualHash))
+                                    if (!task.OriginTab.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == io.VisualHash))
                                     {
                                         // add unique content in to gallery
-                                        SelectedTab.ImageProcessing.ImageOutputs.Insert(0, io);
+                                        task.OriginTab.ImageProcessing.ImageOutputs.Insert(0, io);
                                     }
                                 });
                             }
@@ -513,14 +535,14 @@ namespace Comfizen
                             break;
                         }
                     }
-                    else // Очередь пуста
+                    else
                     {
-                        if (IsInfiniteQueueEnabled && !_canceledTasks)
+                        if (IsInfiniteQueueEnabled && !_canceledTasks && lastTaskOriginTab != null)
                         {
-                            var prompts = CreatePromptTasks().ToList();
+                            var prompts = CreatePromptTasks(lastTaskOriginTab).ToList();
                             foreach (var p in prompts)
                             {
-                                _promptsQueue.Enqueue(p);
+                                _promptsQueue.Enqueue(new PromptTask { JsonPrompt = p, OriginTab = lastTaskOriginTab });
                             }
                             TotalTasks += prompts.Count;
                             await Task.Delay(100);
@@ -546,16 +568,6 @@ namespace Comfizen
                     CurrentProgress = 0;
                     IsInfiniteQueueEnabled = false;
                 }
-            }
-        }
-
-        private IEnumerable<string> CreatePromptTasks()
-        {
-            for (int i = 0; i < QueueSize; i++)
-            {
-                var prompt = SelectedTab.Workflow.JsonClone();
-                SelectedTab.WorkflowInputsController.ProcessSpecialFields(prompt);
-                yield return prompt.ToString();
             }
         }
 
