@@ -55,6 +55,9 @@ namespace Comfizen
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            // Start the in-memory server for video playback.
+            InMemoryHttpServer.Instance.Start();
+            
             // 1. Load settings first.
             var settingsService = new SettingsService();
             var settings = settingsService.LoadSettings();

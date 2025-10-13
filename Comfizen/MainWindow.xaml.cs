@@ -12,8 +12,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using Unosquare.FFME;
-using Unosquare.FFME.Common;
 using Xceed.Wpf.Toolkit;
 
 namespace Comfizen
@@ -21,19 +19,13 @@ namespace Comfizen
     public partial class MainWindow : Window
     {
         private Point? _galleryDragStartPoint;
-        private CancellationTokenSource _playerCts;
         private Point _tabDragStartPoint;
         private bool _isUserInteractingWithSlider = false;
+        private DispatcherTimer _positionUpdateTimer;
         
         public MainWindow()
         {
             InitializeComponent();
-            // Unosquare.FFME.MediaElement.FFmpegMessageLogged += (s, e) =>
-            // {
-            //     string logMessage = $"[FFME::{e.MessageType}] {e.Message}";
-            //     System.Diagnostics.Debug.WriteLine(logMessage);
-            //     Logger.Log(logMessage);
-            // };
             
             this.Closing += MainWindow_Closing;
             
@@ -44,7 +36,17 @@ namespace Comfizen
             
             PositionSlider.AddHandler(PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(PositionSlider_PreviewMouseLeftButtonDown), true);
 
-            Unosquare.FFME.Library.FFmpegDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg");
+            _positionUpdateTimer = new DispatcherTimer();
+            _positionUpdateTimer.Interval = TimeSpan.FromMilliseconds(200);
+            _positionUpdateTimer.Tick += PositionUpdateTimer_Tick;
+        }
+
+        private void PositionUpdateTimer_Tick(object sender, EventArgs e)
+        {
+            if (!_isUserInteractingWithSlider && FullScreenMediaElement.NaturalDuration.HasTimeSpan)
+            {
+                PositionSlider.Value = FullScreenMediaElement.Position.TotalSeconds;
+            }
         }
         
         private void ConsoleLogMessages_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -144,34 +146,44 @@ namespace Comfizen
             {
                 viewModel.SaveStateOnClose();
             }
+            InMemoryHttpServer.Instance.Stop();
         }
         
-        private async void MediaElement_Loaded(object sender, RoutedEventArgs e)
+        private void MediaElement_Loaded(object sender, RoutedEventArgs e)
         {
-            if (sender is not Unosquare.FFME.MediaElement mediaElement) return;
+            if (sender is not MediaElement mediaElement) return;
             if (mediaElement.DataContext is not ImageOutput io || io.Type != FileType.Video) return;
 
             try
             {
-                var mediaStream = io.GetMediaStream();
-                if (mediaStream != null)
+                var videoUri = io.GetHttpUri();
+                if (videoUri != null)
                 {
-                    await mediaElement.Open(mediaStream);
-                    await mediaElement.Play();
+                    mediaElement.Source = videoUri;
+                    mediaElement.Play();
                 }
             }
             catch (Exception ex)
             {
-                Logger.Log(ex, $"FFME Load Error: {io.FileName}");
+                Logger.Log(ex, $"MediaElement Load Error: {io.FileName}");
             }
         }
 
-        private async void MediaElement_Unloaded(object sender, RoutedEventArgs e)
+        private void MediaElement_Unloaded(object sender, RoutedEventArgs e)
         {
-            if (sender is Unosquare.FFME.MediaElement mediaElement)
+            if (sender is MediaElement mediaElement)
             {
-                await mediaElement.Stop();
-                await mediaElement.Close();
+                mediaElement.Stop();
+                mediaElement.Close();
+            }
+        }
+        
+        private void MediaElement_MediaEnded(object sender, RoutedEventArgs e)
+        {
+            if (sender is MediaElement mediaElement)
+            {
+                mediaElement.Position = TimeSpan.Zero;
+                mediaElement.Play();
             }
         }
         
@@ -186,56 +198,33 @@ namespace Comfizen
             }
         }
         
-        private async Task UpdateFullScreenPlayerSource(ImageOutput item, CancellationToken token)
+        private void UpdateFullScreenPlayerSource(ImageOutput item)
         {
-            await FullScreenMediaElement.Stop();
-            await FullScreenMediaElement.Close();
-
-            if (token.IsCancellationRequested) return;
+            FullScreenMediaElement.Stop();
+            FullScreenMediaElement.Close();
+            _positionUpdateTimer?.Stop();
 
             if (item?.Type == FileType.Video)
             {
-                var mediaStream = item.GetMediaStream();
-                if (mediaStream != null)
+                try
                 {
-                    try
+                    var videoUri = item.GetHttpUri();
+                    if (videoUri != null)
                     {
-                        await FullScreenMediaElement.Open(mediaStream);
-                        
-                        if (token.IsCancellationRequested)
-                        {
-                            await FullScreenMediaElement.Close();
-                            return;
-                        }
-
-                        await FullScreenMediaElement.Play();
+                        FullScreenMediaElement.Source = videoUri;
+                        FullScreenMediaElement.Play();
                     }
-                    catch (Exception ex)
-                    {
-                        Logger.Log(ex, $"Filed open video ffme: {item?.FileName}");
-                        if (!token.IsCancellationRequested)
-                        {
-                            Logger.Log($"FFME FullScreen Error: {ex.Message}");
-                        }
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, $"Failed to open video: {item?.FileName}");
                 }
             }
         }
 
-        private async void RequestUpdatePlayerSource(ImageOutput newItem)
+        private void RequestUpdatePlayerSource(ImageOutput newItem)
         {
-            _playerCts?.Cancel();
-            _playerCts = new CancellationTokenSource();
-            var currentToken = _playerCts.Token;
-
-            try
-            {
-                await UpdateFullScreenPlayerSource(newItem, currentToken);
-            }
-            catch (OperationCanceledException)
-            {
-                System.Diagnostics.Debug.WriteLine("Player update task was cancelled.");
-            }
+            UpdateFullScreenPlayerSource(newItem);
         }
 
         private void FullScreenMediaElement_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -256,28 +245,34 @@ namespace Comfizen
             }
         }
         
-        private void FullScreenMediaElement_MediaOpened(object sender, Unosquare.FFME.Common.MediaOpenedEventArgs e)
+        private void FullScreenMediaElement_MediaOpened(object sender, RoutedEventArgs e)
         {
             if (FullScreenMediaElement.DataContext is ImageOutput io)
             {
                 io.Resolution = $"{FullScreenMediaElement.NaturalVideoWidth}x{FullScreenMediaElement.NaturalVideoHeight}";
             }
 
-            if (FullScreenMediaElement.NaturalDuration.HasValue)
+            if (FullScreenMediaElement.NaturalDuration.HasTimeSpan)
             {
-                var totalDuration = FullScreenMediaElement.NaturalDuration.Value;
+                var totalDuration = FullScreenMediaElement.NaturalDuration.TimeSpan;
                 DurationTextBlock.Text = FormatTimeSpan(totalDuration);
                 PositionSlider.Maximum = totalDuration.TotalSeconds;
+                _positionUpdateTimer?.Start();
+            }
+            else
+            {
+                DurationTextBlock.Text = "??:??";
+                PositionSlider.Maximum = 0;
             }
             UpdateVideoStretchMode();
         }
-
-        private void FullScreenMediaElement_PositionChanged(object sender, Unosquare.FFME.Common.PositionChangedEventArgs e)
+        
+        private void FullScreenMediaElement_MediaEnded(object sender, RoutedEventArgs e)
         {
-            if (!_isUserInteractingWithSlider)
+            if (sender is MediaElement mediaElement)
             {
-                PositionSlider.Value = e.Position.TotalSeconds;
-                CurrentTimeTextBlock.Text = FormatTimeSpan(e.Position);
+                mediaElement.Position = TimeSpan.Zero;
+                mediaElement.Play();
             }
         }
         
@@ -296,26 +291,21 @@ namespace Comfizen
             _isUserInteractingWithSlider = false;
         }
 
-        private async void PositionSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void PositionSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            await FullScreenMediaElement.Seek(TimeSpan.FromSeconds(PositionSlider.Value));
+            FullScreenMediaElement.Position = TimeSpan.FromSeconds(PositionSlider.Value);
             _isUserInteractingWithSlider = false;
         }
 
-        // --- НАЧАЛО ИЗМЕНЕНИЯ: Новая реализация события ValueChanged ---
-        private async void PositionSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        private void PositionSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            // Перематываем видео, только если пользователь взаимодействует со слайдером
+            var newPosition = TimeSpan.FromSeconds(e.NewValue);
+            CurrentTimeTextBlock.Text = FormatTimeSpan(newPosition);
             if (_isUserInteractingWithSlider)
             {
-                var newPosition = TimeSpan.FromSeconds(e.NewValue);
-                // Обновляем текстовое поле времени немедленно для лучшего отклика
-                CurrentTimeTextBlock.Text = FormatTimeSpan(newPosition);
-                // Отправляем команду на перемотку
-                await FullScreenMediaElement.Seek(newPosition);
+                FullScreenMediaElement.Position = newPosition;
             }
         }
-        // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
         private string FormatTimeSpan(TimeSpan ts)
         {

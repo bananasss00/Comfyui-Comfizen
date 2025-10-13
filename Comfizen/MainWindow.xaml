@@ -6,8 +6,6 @@
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         xmlns:local="clr-namespace:Comfizen"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
-        xmlns:ffme="clr-namespace:FFmpeg;assembly=ffme.windows"
-        xmlns:ffme1="clr-namespace:Unosquare.FFME;assembly=ffme.win"
         mc:Ignorable="d"
         Title="Comfizen v1.0" Height="600" Width="1000"
         WindowStartupLocation="CenterScreen"
@@ -115,7 +113,7 @@
                             <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
                                     Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=TabControl}}"
                                     CommandParameter="{Binding}"
-                                    Style="{StaticResource IconButton}" Width="20" Height="20" Margin="8,0,0,0" FontSize="10"/>
+                                    Style="{StaticResource IconButton}" Width="20" Height="20" Margin="8,0,0,0"/>
                         </StackPanel>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
@@ -343,11 +341,11 @@
                                                             <Grid>
                                                                 <Border Background="Transparent"/>
                                                                 <Image x:Name="ImgDisplay" Source="{Binding Image}" Visibility="Visible" Stretch="Uniform" />
-                                                                <ffme1:MediaElement x:Name="VidDisplay" Visibility="Collapsed"
-                                                                                    LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True"
-                                                                                    Loaded="MediaElement_Loaded"
-                                                                                    Unloaded="MediaElement_Unloaded"
-                                                                                    LoopingBehavior="Play"/>
+                                                                <MediaElement x:Name="VidDisplay" Visibility="Collapsed"
+                                                                              LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True"
+                                                                              Loaded="MediaElement_Loaded"
+                                                                              Unloaded="MediaElement_Unloaded"
+                                                                              MediaEnded="MediaElement_MediaEnded" Stretch="Uniform"/>
                                                                 <Border x:Name="NameOverlay" VerticalAlignment="Bottom" Background="#B22D2D30" Padding="5,2" CornerRadius="0,0,2,2" Opacity="0" IsHitTestVisible="False">
                                                                     <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=ItemBorder}" Value="True"><DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2"/></Storyboard></BeginStoryboard></DataTrigger.EnterActions><DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/></Storyboard></BeginStoryboard></DataTrigger.ExitActions></DataTrigger></Style.Triggers></Style></Border.Style>
                                                                     <TextBlock Text="{Binding FileName}" Foreground="White" TextTrimming="CharacterEllipsis"/>
@@ -662,21 +660,20 @@
                 </Style>
             </Grid.Resources>
             <Viewbox><Image Source="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Image}" Stretch="Uniform"><Image.Style><Style TargetType="Image"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding SelectedTab.FullScreen.CurrentFullScreenImage.Type}" Value="Video"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Image.Style></Image></Viewbox>
-            <ffme1:MediaElement x:Name="FullScreenMediaElement"
-                               Stretch="Uniform" LoadedBehavior="Manual"
-                               UnloadedBehavior="Stop" IsMuted="False"
-                               LoopingBehavior="Play"
-                               DataContext="{Binding SelectedTab.FullScreen.CurrentFullScreenImage}"
-                               DataContextChanged="FullScreenMediaElement_DataContextChanged"
-                               MediaOpened="FullScreenMediaElement_MediaOpened"
-                               PositionChanged="FullScreenMediaElement_PositionChanged">
-                <ffme1:MediaElement.Style>
-                    <Style TargetType="ffme1:MediaElement">
+            <MediaElement x:Name="FullScreenMediaElement"
+                          Stretch="Uniform" LoadedBehavior="Manual"
+                          UnloadedBehavior="Stop" IsMuted="False"
+                          DataContext="{Binding SelectedTab.FullScreen.CurrentFullScreenImage}"
+                          DataContextChanged="FullScreenMediaElement_DataContextChanged"
+                          MediaOpened="FullScreenMediaElement_MediaOpened"
+                          MediaEnded="FullScreenMediaElement_MediaEnded">
+                <MediaElement.Style>
+                    <Style TargetType="MediaElement">
                         <Setter Property="Visibility" Value="Collapsed"/>
                         <Style.Triggers><DataTrigger Binding="{Binding Type}" Value="Video"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
                     </Style>
-                </ffme1:MediaElement.Style>
-            </ffme1:MediaElement>
+                </MediaElement.Style>
+            </MediaElement>
             <Border HorizontalAlignment="Center" VerticalAlignment="Center" Background="#A0000000" CornerRadius="10" Padding="20,10" IsHitTestVisible="False">
                 <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Setter Property="Opacity" Value="0"/><Style.Triggers><DataTrigger Binding="{Binding SelectedTab.FullScreen.ShowSaveConfirmation}" Value="True"><Setter Property="Visibility" Value="Visible"/><DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.3"/></Storyboard></BeginStoryboard></DataTrigger.EnterActions><DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/></Storyboard></BeginStoryboard></DataTrigger.ExitActions></DataTrigger></Style.Triggers></Style></Border.Style>
                 <TextBlock Text="{Binding SelectedTab.FullScreen.SaveConfirmationText}" Foreground="White" FontSize="18"/>
