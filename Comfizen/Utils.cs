@@ -75,6 +75,23 @@ namespace Comfizen
                 return sb.ToString();
             }
         }
+        
+        public static string ComputePixelHash(byte[] imageBytes)
+        {
+            try
+            {
+                using var image = Image.Load(imageBytes);
+
+                using var memoryStream = new MemoryStream();
+                image.SaveAsBmp(memoryStream);
+
+                return ComputeMd5Hash(memoryStream.ToArray());
+            }
+            catch (Exception)
+            {
+                return ComputeMd5Hash(imageBytes);
+            }
+        }
 
         /// <summary>
         /// Конвертирует PNG в WebP, встраивая предоставленный workflow в EXIF-метаданные.

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -11,6 +12,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Unosquare.FFME;
+using Unosquare.FFME.Common;
 using Xceed.Wpf.Toolkit;
 
 namespace Comfizen
@@ -21,10 +24,17 @@ namespace Comfizen
         private CancellationTokenSource _playerCts;
         private Point _tabDragStartPoint;
         private bool _isUserInteractingWithSlider = false;
-
+        
         public MainWindow()
         {
             InitializeComponent();
+            // Unosquare.FFME.MediaElement.FFmpegMessageLogged += (s, e) =>
+            // {
+            //     string logMessage = $"[FFME::{e.MessageType}] {e.Message}";
+            //     System.Diagnostics.Debug.WriteLine(logMessage);
+            //     Logger.Log(logMessage);
+            // };
+            
             this.Closing += MainWindow_Closing;
             
             if (DataContext is MainViewModel vm && vm.ConsoleLogMessages is INotifyCollectionChanged collection)
@@ -139,22 +149,20 @@ namespace Comfizen
         private async void MediaElement_Loaded(object sender, RoutedEventArgs e)
         {
             if (sender is not Unosquare.FFME.MediaElement mediaElement) return;
+            if (mediaElement.DataContext is not ImageOutput io || io.Type != FileType.Video) return;
 
-            if (mediaElement.DataContext is ImageOutput io && io.Type == FileType.Video)
+            try
             {
                 var mediaStream = io.GetMediaStream();
                 if (mediaStream != null)
                 {
-                    try
-                    {
-                        await mediaElement.Open(mediaStream);
-                        await mediaElement.Play();
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"FFME Load Error: {ex.Message}");
-                    }
+                    await mediaElement.Open(mediaStream);
+                    await mediaElement.Play();
                 }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, $"FFME Load Error: {io.FileName}");
             }
         }
 
@@ -204,9 +212,10 @@ namespace Comfizen
                     }
                     catch (Exception ex)
                     {
+                        Logger.Log(ex, $"Filed open video ffme: {item?.FileName}");
                         if (!token.IsCancellationRequested)
                         {
-                            System.Diagnostics.Debug.WriteLine($"FFME FullScreen Error: {ex.Message}");
+                            Logger.Log($"FFME FullScreen Error: {ex.Message}");
                         }
                     }
                 }

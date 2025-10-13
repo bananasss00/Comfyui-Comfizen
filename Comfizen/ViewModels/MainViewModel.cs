@@ -485,7 +485,11 @@ namespace Comfizen
                                 if (_canceledTasks) break;
                                 Application.Current.Dispatcher.Invoke(() =>
                                 {
-                                    SelectedTab.ImageProcessing.ImageOutputs.Insert(0, io);
+                                    if (!SelectedTab.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == io.VisualHash))
+                                    {
+                                        // add unique content in to gallery
+                                        SelectedTab.ImageProcessing.ImageOutputs.Insert(0, io);
+                                    }
                                 });
                             }
         

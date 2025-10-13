@@ -127,12 +127,15 @@ namespace Comfizen
                     {
                         prompt = json;
                     }
-
-                    yield return new ImageOutput 
-                    { 
-                        ImageBytes = fileOutput.Data, 
+                    
+                    var isVideo = new[] { ".mp4", ".mov", ".avi", ".mkv", ".webm", ".gif" }
+                        .Any(ext => fileOutput.FileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
+                    yield return new ImageOutput
+                    {
+                        ImageBytes = fileOutput.Data,
                         FileName = fileOutput.FileName,
-                        Prompt = prompt
+                        Prompt = prompt,
+                        VisualHash = isVideo ? Utils.ComputeMd5Hash(fileOutput.Data) : Utils.ComputePixelHash(fileOutput.Data)
                     };
                 }
             }

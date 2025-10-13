@@ -133,6 +133,7 @@ namespace Comfizen
         public string FileName { get; set; }
         public string Prompt { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string VisualHash { get; set; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         
@@ -187,8 +188,16 @@ namespace Comfizen
         {
             if (Type != FileType.Video || ImageBytes == null)
                 return null;
-            
-            return new MemoryInputStream(ImageBytes);
+
+            try
+            {
+                return new MemoryInputStream(ImageBytes);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, $"Failed create MemoryInputStream: {FileName}");
+                return null;
+            }
         }
 
         private BitmapImage ByteArrayToImage(byte[] byteArrayIn)
