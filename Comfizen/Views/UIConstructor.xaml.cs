@@ -54,12 +54,25 @@ namespace Comfizen
             // Initialize the color palette
             ColorPalette = new ObservableCollection<ColorInfo>
             {
-                new ColorInfo { Name = "Blue", Hex = "#4A6A8C" },
-                new ColorInfo { Name = "Green", Hex = "#5A825A" },
+                // --- Warm Tones (Reds, Oranges, Browns) ---
                 new ColorInfo { Name = "Red", Hex = "#825A5A" },
-                new ColorInfo { Name = "Purple", Hex = "#5A5A82" },
+                new ColorInfo { Name = "Terracotta", Hex = "#A2604A" },
+                new ColorInfo { Name = "Brown", Hex = "#8B5A2B" },
+                new ColorInfo { Name = "Amber", Hex = "#A97D34" },
+
+                // --- Green Tones ---
                 new ColorInfo { Name = "Olive", Hex = "#82825A" },
-                new ColorInfo { Name = "Brown", Hex = "#8B5A2B" }
+                new ColorInfo { Name = "Green", Hex = "#5A825A" },
+                new ColorInfo { Name = "Teal", Hex = "#4A8C82" },
+
+                // --- Cool Tones (Blues, Purples) ---
+                new ColorInfo { Name = "Blue", Hex = "#4A6A8C" },
+                new ColorInfo { Name = "Indigo", Hex = "#4F5B93" },
+                new ColorInfo { Name = "Purple", Hex = "#5A5A82" },
+                new ColorInfo { Name = "Plum", Hex = "#825A7B" },
+    
+                // --- Neutral Tone ---
+                new ColorInfo { Name = "Slate", Hex = "#6C757D" }
             };
 
             // Command to set the highlight color
