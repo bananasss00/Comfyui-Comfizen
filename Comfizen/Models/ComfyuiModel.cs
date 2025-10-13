@@ -135,7 +135,8 @@ namespace Comfizen
                         ImageBytes = fileOutput.Data,
                         FileName = fileOutput.FileName,
                         Prompt = prompt,
-                        VisualHash = isVideo ? Utils.ComputeMd5Hash(fileOutput.Data) : Utils.ComputePixelHash(fileOutput.Data)
+                        VisualHash = isVideo ? Utils.ComputeMd5Hash(fileOutput.Data) : Utils.ComputePixelHash(fileOutput.Data),
+                        FilePath = fileOutput.FilePath
                     };
                 }
             }

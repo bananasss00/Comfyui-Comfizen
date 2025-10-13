@@ -507,7 +507,8 @@ namespace Comfizen
                                 if (_canceledTasks) break;
                                 Application.Current.Dispatcher.Invoke(() =>
                                 {
-                                    if (!task.OriginTab.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == io.VisualHash))
+                                    // if (!task.OriginTab.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == io.VisualHash))
+                                    if (!task.OriginTab.ImageProcessing.ImageOutputs.Any(existing => existing.FilePath == io.FilePath))
                                     {
                                         // add unique content in to gallery
                                         task.OriginTab.ImageProcessing.ImageOutputs.Insert(0, io);

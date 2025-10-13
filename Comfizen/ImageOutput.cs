@@ -26,6 +26,7 @@ namespace Comfizen
         public string Prompt { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public string VisualHash { get; set; }
+        public string FilePath { get; set; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         

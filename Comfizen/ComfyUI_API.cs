@@ -17,6 +17,7 @@ namespace Comfizen
     {
         public byte[] Data { get; set; }
         public string FileName { get; set; }
+        public string FilePath { get; set; }
     }
     
     public class ComfyUI_API
@@ -264,7 +265,8 @@ namespace Comfizen
                                     var fileData = await GetImageAsync(fileDict["filename"], fileDict["subfolder"], fileDict["type"]);
                                     if (fileData != null)
                                     {
-                                        filesOutput.Add(new FileOutput { Data = fileData, FileName = fileDict["filename"] });
+                                        var filePath = Path.Combine(fileDict["type"], fileDict["subfolder"], fileDict["filename"]);
+                                        filesOutput.Add(new FileOutput { Data = fileData, FileName = fileDict["filename"], FilePath = filePath });
                                     }
                                 }
                             }
