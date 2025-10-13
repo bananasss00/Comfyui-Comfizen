@@ -530,7 +530,8 @@
             <Grid>
                 <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                          AcceptsReturn="True" TextWrapping="Wrap" Padding="5,5,28,5"
-                         VerticalScrollBarVisibility="Auto" MaxHeight="100"/>
+                         VerticalScrollBarVisibility="Auto" MaxHeight="100"
+                         PreviewKeyDown="WildcardTextBox_PreviewKeyDown"/>
                 <Button Content="..." Style="{StaticResource OverlayIconButton}"
                         HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
                         ToolTip="{local:Translate Wildcard_Browse}"

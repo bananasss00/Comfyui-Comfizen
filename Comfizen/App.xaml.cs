@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -105,6 +107,148 @@ namespace Comfizen
                 {
                     viewModel.UpdateWithImageData(imageBytes);
                     e.Handled = true;
+                }
+            }
+        }
+
+        private void WildcardTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (sender is not TextBox textBox || textBox.DataContext is not TextFieldViewModel viewModel) return;
+
+            // --- Weighting Hotkey Logic ---
+            // Check if the hotkey is for weighting (Ctrl+Up/Down) and the field type is correct.
+            if (viewModel.Type == FieldType.WildcardSupportPrompt && Keyboard.Modifiers == ModifierKeys.Control &&
+                (e.Key == Key.Up || e.Key == Key.Down))
+            {
+                // Prevent the default cursor movement.
+                e.Handled = true;
+
+                var fullText = textBox.Text;
+                var selectionStart = textBox.SelectionStart;
+                var selectionLength = textBox.SelectionLength;
+                var selectedText = textBox.SelectedText;
+
+                var regex = new Regex(@"^\((.+):([\d\.]+)\)$", RegexOptions.Singleline);
+
+                // --- SCENARIO 1: Text is selected ---
+                if (selectionLength > 0)
+                {
+                    var match = regex.Match(selectedText);
+                    if (match.Success)
+                    {
+                        // Case 1a: The selection is already a valid (text:weight) block. Modify it.
+                        var baseText = match.Groups[1].Value;
+                        double.TryParse(match.Groups[2].Value, NumberStyles.Any, CultureInfo.InvariantCulture,
+                            out var currentWeight);
+
+                        var delta = e.Key == Key.Up ? 0.05 : -0.05;
+                        var newWeight = Math.Round(currentWeight + delta, 2);
+
+                        var replacementText = Math.Abs(newWeight - 1.0) < 0.01
+                            ? baseText
+                            : $"({baseText}:{newWeight.ToString("0.0#", CultureInfo.InvariantCulture)})";
+
+                        textBox.SelectedText = replacementText;
+                        textBox.Select(selectionStart, replacementText.Length); // Reselect the new block
+                    }
+                    else
+                    {
+                        // Case 1b: The selection is plain text. Create a new weight block.
+                        if (selectedText.Contains('(') || selectedText.Contains(')')) return;
+
+                        var initialWeight = e.Key == Key.Up ? 1.05 : 0.95;
+                        var replacementText =
+                            $"({selectedText}:{initialWeight.ToString("0.0#", CultureInfo.InvariantCulture)})";
+
+                        textBox.SelectedText = replacementText;
+                        textBox.Select(selectionStart, replacementText.Length); // Select the new block
+                    }
+                }
+                // --- SCENARIO 2: No text is selected, just a cursor ---
+                else
+                {
+                    var caretIndex = textBox.CaretIndex;
+                    int startParenIndex = -1, endParenIndex = -1;
+                    var balance = 0;
+
+                    for (var i = caretIndex - 1; i >= 0; i--)
+                        if (fullText[i] == ')') balance++;
+                        else if (fullText[i] == '(')
+                            if (--balance < 0)
+                            {
+                                startParenIndex = i;
+                                break;
+                            }
+
+                    if (startParenIndex != -1)
+                    {
+                        balance = 0;
+                        for (var i = startParenIndex; i < fullText.Length; i++)
+                            if (fullText[i] == '(') balance++;
+                            else if (fullText[i] == ')')
+                                if (--balance == 0)
+                                {
+                                    endParenIndex = i;
+                                    break;
+                                }
+                    }
+
+                    if (startParenIndex != -1 && endParenIndex != -1)
+                    {
+                        var blockText = fullText.Substring(startParenIndex, endParenIndex - startParenIndex + 1);
+                        var match = regex.Match(blockText);
+
+                        if (match.Success)
+                        {
+                            // Case 2a: The cursor is inside a valid weight block. Modify it.
+                            var baseText = match.Groups[1].Value;
+                            double.TryParse(match.Groups[2].Value, NumberStyles.Any, CultureInfo.InvariantCulture,
+                                out var currentWeight);
+
+                            var delta = e.Key == Key.Up ? 0.05 : -0.05;
+                            var newWeight = Math.Round(currentWeight + delta, 2);
+
+                            var replacementText = Math.Abs(newWeight - 1.0) < 0.01
+                                ? baseText
+                                : $"({baseText}:{newWeight.ToString("0.0#", CultureInfo.InvariantCulture)})";
+
+                            textBox.Select(startParenIndex, blockText.Length);
+                            textBox.SelectedText = replacementText;
+
+                            var newCaretIndex = replacementText.StartsWith("(")
+                                ? startParenIndex + replacementText.Length - 1
+                                : startParenIndex + replacementText.Length;
+                            textBox.CaretIndex = newCaretIndex;
+                            return; // Done
+                        }
+                    }
+
+                    // --- START: New Logic for Word Under Cursor ---
+                    // Case 2b: No surrounding block found. Find the word at the cursor.
+                    char[] separators = { ' ', '\n', '\r', '\t', ',', '(', ')' };
+
+                    // Find start of the word
+                    var wordStartIndex = caretIndex;
+                    while (wordStartIndex > 0 && Array.IndexOf(separators, fullText[wordStartIndex - 1]) == -1)
+                        wordStartIndex--;
+
+                    // Find end of the word
+                    var wordEndIndex = caretIndex;
+                    while (wordEndIndex < fullText.Length && Array.IndexOf(separators, fullText[wordEndIndex]) == -1)
+                        wordEndIndex++;
+
+                    if (wordStartIndex < wordEndIndex)
+                    {
+                        var currentWord = fullText.Substring(wordStartIndex, wordEndIndex - wordStartIndex);
+                        var initialWeight = e.Key == Key.Up ? 1.05 : 0.95;
+                        var replacementText =
+                            $"({currentWord}:{initialWeight.ToString("0.0#", CultureInfo.InvariantCulture)})";
+
+                        textBox.Select(wordStartIndex, currentWord.Length);
+                        textBox.SelectedText = replacementText;
+                        textBox.Select(wordStartIndex, replacementText.Length); // Select the new block
+                    }
+                    // --- END: New Logic for Word Under Cursor ---
                 }
             }
         }
