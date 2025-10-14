@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -540,12 +540,20 @@ namespace Comfizen
                     {
                         if (IsInfiniteQueueEnabled && !_canceledTasks && lastTaskOriginTab != null)
                         {
-                            var prompts = CreatePromptTasks(lastTaskOriginTab).ToList();
-                            foreach (var p in prompts)
+                            List<string> prompts = null;
+                            await Application.Current.Dispatcher.InvokeAsync(() =>
                             {
-                                _promptsQueue.Enqueue(new PromptTask { JsonPrompt = p, OriginTab = lastTaskOriginTab });
+                                prompts = CreatePromptTasks(lastTaskOriginTab).ToList();
+                            });
+
+                            if (prompts != null)
+                            {
+                                foreach (var p in prompts)
+                                {
+                                    _promptsQueue.Enqueue(new PromptTask { JsonPrompt = p, OriginTab = lastTaskOriginTab });
+                                }
+                                TotalTasks += prompts.Count;
                             }
-                            TotalTasks += prompts.Count;
                             await Task.Delay(100);
                         }
                         else
