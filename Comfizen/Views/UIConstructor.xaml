@@ -131,17 +131,20 @@
                     </Grid>
                 </Border>
                 <Button DockPanel.Dock="Top" Content="{local:Translate UIConstructor_AddGroup}" Command="{Binding AddGroupCommand}" HorizontalAlignment="Left" Margin="0,0,0,10"/>
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <!-- START OF CHANGES: Add Name and DragOver event to ScrollViewer -->
+                <ScrollViewer x:Name="GroupsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <!-- END OF CHANGES -->
                     <ItemsControl ItemsSource="{Binding Workflow.Groups}">
                             
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
+                                <!-- START OF CHANGES: Replace StackPanel with Expander -->
                                 <StackPanel AllowDrop="True" Drop="Group_Drop" DragEnter="Group_DragOver" DragLeave="Group_DragLeave" DragOver="Group_DragOver" Background="Transparent">
                                     <Border x:Name="GroupDropIndicatorBefore" Height="3" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1.5" Margin="0,2" Visibility="Collapsed" IsHitTestVisible="False"/>
                                     
-                                    <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Margin="0,2">
-                                        <DockPanel>
-                                            <Border DockPanel.Dock="Top"
+                                    <Expander IsExpanded="{Binding IsExpandedInDesigner, Mode=TwoWay}" Margin="0,2">
+                                        <Expander.Header>
+                                            <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1"
                                                     CornerRadius="3,3,0,0" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown"
                                                     MouseRightButtonUp="ShowColorPickerPopup">
                                                 <Border.Style>
@@ -167,7 +170,8 @@
                                                     <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                 </Grid>
                                             </Border>
-
+                                        </Expander.Header>
+                                        <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1,0,1,1" CornerRadius="0,0,3,3">
                                             <Grid>
                                                 <Border Opacity="0.2"
                                                         Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}"/>
@@ -245,10 +249,12 @@
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
                                             </Grid>
-                                        </DockPanel>
-                                    </Border>
+                                        </Border>
+                                    </Expander>
+
                                     <Border x:Name="GroupDropIndicatorAfter" Height="3" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1.5" Margin="0,2" Visibility="Collapsed" IsHitTestVisible="False"/>
                                 </StackPanel>
+                                <!-- END OF CHANGES -->
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

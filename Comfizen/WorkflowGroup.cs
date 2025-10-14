@@ -19,6 +19,15 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string HighlightColor { get; set; }
 
+        // --- START OF CHANGES ---
+        /// <summary>
+        /// Controls whether the group is expanded in the UI Constructor.
+        /// This property is not saved to the workflow JSON file.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsExpandedInDesigner { get; set; } = true;
+        // --- END OF CHANGES ---
+
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

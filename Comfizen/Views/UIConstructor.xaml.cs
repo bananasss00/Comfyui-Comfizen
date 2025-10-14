@@ -335,6 +335,27 @@ namespace Comfizen
             _viewModel = new UIConstructorView(workflowFileName);
             DataContext = _viewModel;
         }
+        
+        // --- START OF CHANGES: Unified Auto-scroll handler ---
+        private void HandleAutoScroll(DragEventArgs e)
+        {
+            const double scrollThreshold = 30.0;
+            const double scrollSpeed = 5.0; // Slower, more controlled speed
+
+            var scrollViewer = GroupsScrollViewer;
+            if (scrollViewer == null) return;
+
+            Point position = e.GetPosition(scrollViewer);
+
+            if (position.Y < scrollThreshold)
+            {
+                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - scrollSpeed);
+            }
+            else if (position.Y > scrollViewer.ActualHeight - scrollThreshold)
+            {
+                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + scrollSpeed);
+            }
+        }
 
         private void AvailableField_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -357,20 +378,20 @@ namespace Comfizen
 
         private void Group_DragOver(object sender, DragEventArgs e)
         {
+            HandleAutoScroll(e);
             HideFieldDropIndicator();
             HideGroupDropIndicator();
             e.Effects = DragDropEffects.None;
 
-            var dropTarget = sender as StackPanel;
-            if (dropTarget == null) return;
+            if (sender is not StackPanel dropTarget) return;
 
             if (e.Data.GetDataPresent(typeof(WorkflowGroup)))
             {
                 var position = e.GetPosition(dropTarget);
                 var indicator = position.Y < dropTarget.ActualHeight / 2
-                    ? dropTarget.FindName("GroupDropIndicatorBefore") as Border
-                    : dropTarget.FindName("GroupDropIndicatorAfter") as Border;
-
+                    ? FindVisualChild<Border>(dropTarget, "GroupDropIndicatorBefore")
+                    : FindVisualChild<Border>(dropTarget, "GroupDropIndicatorAfter");
+                
                 if (indicator != null)
                 {
                     indicator.Visibility = Visibility.Visible;
@@ -381,17 +402,19 @@ namespace Comfizen
             else if (e.Data.GetDataPresent(typeof(WorkflowField)) ||
                      e.Data.GetDataPresent(typeof(Tuple<WorkflowField, WorkflowGroup>)))
             {
-                if (dropTarget.FindName("GroupDropIndicatorBefore") is Border contentBorder)
+                var targetGroup = dropTarget.DataContext as WorkflowGroup;
+                if (targetGroup != null && targetGroup.Fields.Count == 0)
                 {
-                    var innerBorder = VisualTreeHelper.GetChild(contentBorder.Parent, 1) as Border;
-                    if (innerBorder != null)
+                    var expander = FindVisualChild<Expander>(dropTarget);
+                    if (expander?.Content is Border contentBorder)
                     {
-                        _currentGroupHighlight = innerBorder;
-                        innerBorder.Background = new SolidColorBrush(Color.FromArgb(50, 0, 122, 204));
+                        _currentGroupHighlight = contentBorder;
+                        contentBorder.Background = new SolidColorBrush(Color.FromArgb(50, 0, 122, 204));
                     }
                 }
                 e.Effects = DragDropEffects.Move;
             }
+            
             e.Handled = true;
         }
 
@@ -407,8 +430,7 @@ namespace Comfizen
 
         private void Group_Drop(object sender, DragEventArgs e)
         {
-            var dropTarget = sender as StackPanel;
-            if (dropTarget?.DataContext is not WorkflowGroup targetGroup || DataContext is not UIConstructorView viewModel)
+            if (sender is not StackPanel dropTarget || dropTarget.DataContext is not WorkflowGroup targetGroup || DataContext is not UIConstructorView viewModel)
             {
                 HideAllIndicators();
                 return;
@@ -418,13 +440,14 @@ namespace Comfizen
             {
                 var oldIndex = viewModel.Workflow.Groups.IndexOf(sourceGroup);
                 var targetIndex = viewModel.Workflow.Groups.IndexOf(targetGroup);
-
-                var indicatorAfter = dropTarget.FindName("GroupDropIndicatorAfter") as Border;
+                
+                var indicatorAfter = FindVisualChild<Border>(dropTarget, "GroupDropIndicatorAfter");
+                
                 if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible) targetIndex++;
+                
                 viewModel.MoveGroup(oldIndex, targetIndex);
             }
-            else if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup>
-                     draggedData)
+            else if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> draggedData)
             {
                 viewModel.MoveField(draggedData.Item1, draggedData.Item2, targetGroup);
             }
@@ -439,6 +462,8 @@ namespace Comfizen
 
         private void Field_DragOver(object sender, DragEventArgs e)
         {
+            HandleAutoScroll(e);
+
             if (e.Data.GetDataPresent(typeof(WorkflowGroup)))
             {
                 e.Effects = DragDropEffects.None;
@@ -448,14 +473,13 @@ namespace Comfizen
 
             HideFieldDropIndicator();
 
-            var element = sender as FrameworkElement;
-            if (element == null) return;
+            if (sender is not StackPanel element) return;
 
             var position = e.GetPosition(element);
-
+            
             var indicator = position.Y < element.ActualHeight / 2
-                ? (element as StackPanel).FindName("DropIndicatorBefore") as Border
-                : (element as StackPanel).FindName("DropIndicatorAfter") as Border;
+                ? FindVisualChild<Border>(element, "DropIndicatorBefore")
+                : FindVisualChild<Border>(element, "DropIndicatorAfter");
 
             if (indicator != null)
             {
@@ -475,9 +499,7 @@ namespace Comfizen
 
         private void Field_Drop(object sender, DragEventArgs e)
         {
-            var dropTargetElement = sender as StackPanel;
-            if (dropTargetElement?.DataContext is not WorkflowField targetField ||
-                DataContext is not UIConstructorView viewModel)
+            if (sender is not StackPanel dropTargetElement || dropTargetElement.DataContext is not WorkflowField targetField || DataContext is not UIConstructorView viewModel)
             {
                 HideAllIndicators();
                 return;
@@ -487,11 +509,12 @@ namespace Comfizen
             if (targetGroup == null) return;
 
             var targetIndex = targetGroup.Fields.IndexOf(targetField);
-            if (dropTargetElement.FindName("DropIndicatorAfter") is Border indicatorAfter &&
-                indicatorAfter.Visibility == Visibility.Visible) targetIndex++;
+            
+            var indicatorAfter = FindVisualChild<Border>(dropTargetElement, "DropIndicatorAfter");
 
-            if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup>
-                draggedData)
+            if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible) targetIndex++;
+
+            if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> draggedData)
                 viewModel.MoveField(draggedData.Item1, draggedData.Item2, targetGroup, targetIndex);
             else if (e.Data.GetData(typeof(WorkflowField)) is WorkflowField newField)
                 viewModel.AddFieldToGroupAtIndex(newField, targetGroup, targetIndex);
@@ -629,23 +652,41 @@ namespace Comfizen
         
         private void ShowColorPickerPopup(object sender, MouseButtonEventArgs e)
         {
-            // Находим наш Popup в ресурсах окна
             var popup = FindResource("ColorPickerPopup") as System.Windows.Controls.Primitives.Popup;
             if (popup == null) return;
 
             var clickedElement = sender as FrameworkElement;
             if (clickedElement == null) return;
 
-            // Важно: передаем DataContext (нашу группу/поле) в Popup,
-            // чтобы работали привязки команд
             popup.DataContext = clickedElement.DataContext;
     
-            // Открываем Popup в текущей позиции мыши
             popup.IsOpen = true;
 
-            // ОЧЕНЬ ВАЖНО: останавливаем событие, чтобы не появлялось стандартное
-            // контекстное меню и не срабатывали другие обработчики.
             e.Handled = true;
         }
+
+        // --- START OF FIX: Helper to reliably find named elements in a DataTemplate ---
+        private static T FindVisualChild<T>(DependencyObject parent, string childName = null) where T : DependencyObject
+        {
+            if (parent == null) return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                
+                if (child is T typedChild && (string.IsNullOrEmpty(childName) || (child is FrameworkElement fe && fe.Name == childName)))
+                {
+                    return typedChild;
+                }
+
+                T childOfChild = FindVisualChild<T>(child, childName);
+                if (childOfChild != null)
+                {
+                    return childOfChild;
+                }
+            }
+            return null;
+        }
+        // --- END OF FIX ---
     }
 }
