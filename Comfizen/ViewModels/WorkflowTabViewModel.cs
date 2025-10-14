@@ -18,8 +18,12 @@ namespace Comfizen
         public string FilePath { get; }
 
         public Workflow Workflow { get; private set; }
-        public ImageProcessingViewModel ImageProcessing { get; private set; }
-        public FullScreenViewModel FullScreen { get; private set; }
+        
+        // --- START OF CHANGES: ImageProcessing and FullScreen removed ---
+        // public ImageProcessingViewModel ImageProcessing { get; private set; }
+        // public FullScreenViewModel FullScreen { get; private set; }
+        // --- END OF CHANGES ---
+        
         public WorkflowInputsController WorkflowInputsController { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -35,13 +39,14 @@ namespace Comfizen
             _sessionManager = sessionManager;
 
             Workflow = new Workflow();
-            ImageProcessing = new ImageProcessingViewModel(comfyModel, settings);
-            FullScreen = new FullScreenViewModel(comfyModel, settings, ImageProcessing.FilteredImageOutputs);
             
-            // Инициализация контроллера
+            // --- START OF CHANGES: Instantiation of local VMs removed ---
+            // ImageProcessing = new ImageProcessingViewModel(comfyModel, settings);
+            // FullScreen = new FullScreenViewModel(comfyModel, settings, ImageProcessing.FilteredImageOutputs);
+            // --- END OF CHANGES ---
+            
             InitializeController();
             
-            // Асинхронная загрузка
             InitializeAsync();
         }
         
@@ -67,58 +72,43 @@ namespace Comfizen
         public void ResetState()
         {
             _sessionManager.ClearSession(this.FilePath);
-            InitializeAsync(); // Просто перезагружаем с нуля
+            InitializeAsync();
         }
         
-        /// <summary>
-        /// "Умно" перезагружает вкладку после сохранения воркфлоу в дизайнере.
-        /// </summary>
         public async Task Reload(WorkflowSaveType saveType)
         {
-            // 1. Сохраняем текущее состояние виджетов (если нужно)
             JObject? currentWidgetState = null;
             if (saveType == WorkflowSaveType.LayoutOnly && Workflow.LoadedApi != null)
             {
                 currentWidgetState = Workflow.LoadedApi.DeepClone() as JObject;
             }
 
-            // 2. Пересоздаем контроллер, чтобы очистить его внутреннее состояние
             InitializeController();
             
-            // 3. Перезагружаем воркфлоу с диска (получаем новую разметку и, возможно, новый API)
             Workflow.LoadWorkflow(this.FilePath);
 
-            // 4. Если нужно, восстанавливаем сохраненное состояние виджетов
             if (saveType == WorkflowSaveType.LayoutOnly && currentWidgetState != null)
             {
-                // Применяем старые значения к новому (или тому же) API
                 Utils.MergeJsonObjects(Workflow.LoadedApi, currentWidgetState);
             }
-            else // ApiReplaced
-            {
-                // Сессия уже была очищена в UIConstructorView, так что здесь делать ничего не нужно.
-                // LoadWorkflow уже загрузил новый API по умолчанию.
-            }
             
-            // 5. Перестраиваем UI на основе обновленных данных
             await WorkflowInputsController.LoadInputs();
         }
 
-        // --- НАЧАЛО ИЗМЕНЕНИЯ ---
         public void UpdateAfterSettingsChange(AppSettings newSettings, ComfyuiModel newComfyModel, ModelService newModelService, SessionManager newSessionManager)
         {
             _settings = newSettings;
             _sessionManager = newSessionManager;
             _comfyModel = newComfyModel;
             _modelService = newModelService;
-
-            // Просто вызываем "умную" перезагрузку с сохранением состояния
+            
+            // Reload the tab state, keeping widget values
             Reload(WorkflowSaveType.LayoutOnly);
             
-            // Обновляем сервисы, которые не зависят от контроллера напрямую
-            this.ImageProcessing.Settings = newSettings;
-            this.FullScreen = new FullScreenViewModel(_comfyModel, newSettings, this.ImageProcessing.FilteredImageOutputs);
+            // --- START OF CHANGES: No longer need to update local VMs ---
+            // this.ImageProcessing.Settings = newSettings;
+            // this.FullScreen = new FullScreenViewModel(_comfyModel, newSettings, this.ImageProcessing.FilteredImageOutputs);
+            // --- END OF CHANGES ---
         }
-        // --- КОНЕЦ ИЗМЕНЕНИЯ ---
     }
 }

@@ -19,18 +19,11 @@ namespace Comfizen
     public enum FileTypeFilter { All, Images, Video }
     public enum SortOption { NewestFirst, OldestFirst }
 
-    /// <summary>
-    /// Represents a header item in the workflow selection ComboBox.
-    /// </summary>
     public class WorkflowListHeader
     {
         public string Title { get; set; }
     }
 
-    /// <summary>
-    /// The main ViewModel for the application's main window.
-    /// Manages application state, including open tabs, workflows, and global commands.
-    /// </summary>
     [AddINotifyPropertyChangedInterface]
     public class MainViewModel : INotifyPropertyChanged
     {
@@ -40,17 +33,15 @@ namespace Comfizen
         private SessionManager _sessionManager;
         private ModelService _modelService;
         private ConsoleLogService _consoleLogService;
+        
+        // --- START OF CHANGES: Unified Gallery and FullScreen ViewModels ---
+        public ImageProcessingViewModel ImageProcessing { get; private set; }
+        public FullScreenViewModel FullScreen { get; private set; }
+        // --- END OF CHANGES ---
 
-        /// <summary>
-        /// Gets the collection of currently open workflow tabs.
-        /// </summary>
         public ObservableCollection<WorkflowTabViewModel> OpenTabs { get; } = new ObservableCollection<WorkflowTabViewModel>();
 
         private WorkflowTabViewModel _selectedTab;
-        /// <summary>
-        /// Gets or sets the currently selected workflow tab.
-        /// Saves the session of the previously selected tab when changed.
-        /// </summary>
         public WorkflowTabViewModel SelectedTab
         {
             get => _selectedTab;
@@ -68,14 +59,8 @@ namespace Comfizen
             }
         }
         
-        /// <summary>
-        /// Gets or sets the collection of all available workflow file paths (relative).
-        /// </summary>
         public ObservableCollection<string> Workflows { get; set; } = new();
         
-        /// <summary>
-        /// Gets or sets the collection of items to display in the workflow ComboBox, including headers and workflow paths.
-        /// </summary>
         public ObservableCollection<object> WorkflowDisplayList { get; set; } = new();
         
         private string _selectedWorkflowDisplay;
@@ -146,7 +131,7 @@ namespace Comfizen
         public event PropertyChangedEventHandler? PropertyChanged;
         
         public bool IsInfiniteQueueEnabled { get; set; } = false;
-        
+
         public ICommand ToggleInfiniteQueueCommand { get; }
         
         private class PromptTask
@@ -162,6 +147,11 @@ namespace Comfizen
 
             _comfyuiModel = new ComfyuiModel(_settings);
             _modelService = new ModelService(_settings);
+            
+            // --- START OF CHANGES: Instantiate global ViewModels ---
+            ImageProcessing = new ImageProcessingViewModel(_comfyuiModel, _settings);
+            FullScreen = new FullScreenViewModel(_comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
+            // --- END OF CHANGES ---
             
             MaxQueueSize = _settings.MaxQueueSize;
             _sessionManager = new SessionManager(_settings);
@@ -269,10 +259,6 @@ namespace Comfizen
             UpdateWorkflowDisplayList();
         }
         
-        /// <summary>
-        /// Opens a new tab for the specified workflow or switches to it if already open.
-        /// </summary>
-        /// <param name="relativePath">The relative path to the workflow file.</param>
         public void OpenOrSwitchToWorkflow(string relativePath)
         {
             if (string.IsNullOrEmpty(relativePath)) return;
@@ -303,11 +289,13 @@ namespace Comfizen
         private void CloseTab(WorkflowTabViewModel tabToClose)
         {
             if (tabToClose == null) return;
-
-            if (tabToClose.FullScreen.IsFullScreenOpen)
+            
+            // --- START OF CHANGES: FullScreen is now global ---
+            if (FullScreen.IsFullScreenOpen)
             {
-                tabToClose.FullScreen.IsFullScreenOpen = false;
+                FullScreen.IsFullScreenOpen = false;
             }
+            // --- END OF CHANGES ---
 
             if (tabToClose.Workflow.IsLoaded)
             {
@@ -412,6 +400,11 @@ namespace Comfizen
             _modelService = new ModelService(_settings);
             _sessionManager = new SessionManager(_settings);
             
+            // --- START OF CHANGES: Update global ViewModels after settings change ---
+            ImageProcessing.Settings = _settings;
+            FullScreen = new FullScreenViewModel(_comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
+            // --- END OF CHANGES ---
+            
             await _consoleLogService.ReconnectAsync(_settings);
             
             foreach (var tab in OpenTabs)
@@ -506,12 +499,12 @@ namespace Comfizen
                                 if (_canceledTasks) break;
                                 Application.Current.Dispatcher.Invoke(() =>
                                 {
-                                    // if (!task.OriginTab.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == io.VisualHash))
-                                    if (!task.OriginTab.ImageProcessing.ImageOutputs.Any(existing => existing.FilePath == io.FilePath))
+                                    // --- START OF CHANGES: Add to global gallery ---
+                                    if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.FilePath == io.FilePath))
                                     {
-                                        // add unique content in to gallery
-                                        task.OriginTab.ImageProcessing.ImageOutputs.Insert(0, io);
+                                        this.ImageProcessing.ImageOutputs.Insert(0, io);
                                     }
+                                    // --- END OF CHANGES ---
                                 });
                             }
         
@@ -679,14 +672,10 @@ namespace Comfizen
             UpdateWorkflowDisplayList();
         }
 
-        /// <summary>
-        /// Saves the application's state before closing.
-        /// </summary>
         public async Task SaveStateOnCloseAsync()
         {
             GlobalEventManager.WorkflowSaved -= OnWorkflowSaved;
             
-            // Replaced .Wait() with await to prevent deadlocks
             await _consoleLogService.DisconnectAsync();
 
             foreach (var tab in OpenTabs)
@@ -721,7 +710,6 @@ namespace Comfizen
             var workflowName = tabToDelete.Header;
             var filePath = tabToDelete.FilePath;
 
-            // Show a confirmation dialog before deleting
             var message = string.Format(LocalizationService.Instance["MainVM_DeleteConfirmMessage"], workflowName);
             var caption = LocalizationService.Instance["MainVM_DeleteConfirmTitle"];
             var result = MessageBox.Show(message, caption, MessageBoxButton.YesNo, MessageBoxImage.Warning);
@@ -733,16 +721,13 @@ namespace Comfizen
 
             try
             {
-                // Close the tab first to release any potential file handles
                 CloseTab(tabToDelete);
 
-                // Delete the physical file
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
                 }
-
-                // Remove the workflow from the recent list in settings
+                
                 var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, filePath).Replace(Path.DirectorySeparatorChar, '/');
                 if (_settings.RecentWorkflows.Contains(relativePath))
                 {
@@ -750,7 +735,6 @@ namespace Comfizen
                     _settingsService.SaveSettings(_settings);
                 }
             
-                // Refresh the list of available workflows in the UI
                 UpdateWorkflows();
             }
             catch (Exception ex)

@@ -74,7 +74,9 @@ namespace Comfizen
                     if (listViewItem.DataContext is ImageOutput item)
                     {
                         var viewModel = DataContext as MainViewModel;
-                        viewModel?.SelectedTab?.FullScreen.OpenFullScreenCommand.Execute(item);
+                        // --- START OF CHANGES: Call global FullScreen command ---
+                        viewModel?.FullScreen.OpenFullScreenCommand.Execute(item);
+                        // --- END OF CHANGES ---
                     }
                 }
             }
@@ -84,10 +86,12 @@ namespace Comfizen
         
         private void LvOutputs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (DataContext is MainViewModel vm && vm.SelectedTab != null && sender is ListView lv)
+            // --- START OF CHANGES: Bind to global ImageProcessing VM ---
+            if (DataContext is MainViewModel vm && sender is ListView lv)
             {
-                vm.SelectedTab.ImageProcessing.SelectedItemsCount = lv.SelectedItems.Count;
+                vm.ImageProcessing.SelectedItemsCount = lv.SelectedItems.Count;
             }
+            // --- END OF CHANGES ---
         }
         
         private void QueueSizeUpDown_OnSpinned(object sender, SpinEventArgs e)
@@ -144,7 +148,6 @@ namespace Comfizen
         {
             if (DataContext is MainViewModel viewModel)
             {
-                // Replaced synchronous call with await
                 await viewModel.SaveStateOnCloseAsync();
             }
             InMemoryHttpServer.Instance.Stop();
@@ -194,7 +197,9 @@ namespace Comfizen
             {
                 if (DataContext is MainViewModel viewModel)
                 {
-                    viewModel.SelectedTab?.FullScreen.CloseFullScreenCommand.Execute(null);
+                    // --- START OF CHANGES: Call global FullScreen command ---
+                    viewModel.FullScreen.CloseFullScreenCommand.Execute(null);
+                    // --- END OF CHANGES ---
                 }
             }
         }
@@ -238,7 +243,9 @@ namespace Comfizen
             if ((bool)e.NewValue == true)
             {
                 var vm = DataContext as MainViewModel;
-                RequestUpdatePlayerSource(vm?.SelectedTab?.FullScreen.CurrentFullScreenImage);
+                // --- START OF CHANGES: Get current image from global VM ---
+                RequestUpdatePlayerSource(vm?.FullScreen.CurrentFullScreenImage);
+                // --- END OF CHANGES ---
             }
             else 
             {
@@ -347,16 +354,18 @@ namespace Comfizen
 
         private async void MainWindow_OnKeyDown(object sender, KeyEventArgs e)
         {
-            if (DataContext is not MainViewModel viewModel || viewModel.SelectedTab == null) return;
+            if (DataContext is not MainViewModel viewModel) return;
             
-            if (e.Key == Key.NumPad6) viewModel.SelectedTab.FullScreen.MoveNextCommand.Execute(null);
-            else if (e.Key == Key.NumPad4) viewModel.SelectedTab.FullScreen.MovePreviousCommand.Execute(null);
-            else if (e.Key == Key.NumPad5 && viewModel.SelectedTab.FullScreen.IsFullScreenOpen) await System.Threading.Tasks.Task.Run(() => viewModel.SelectedTab.FullScreen.SaveCurrentImageCommand.Execute(null));
+            // --- START OF CHANGES: Use global FullScreen VM for hotkeys ---
+            if (e.Key == Key.NumPad6) viewModel.FullScreen.MoveNextCommand.Execute(null);
+            else if (e.Key == Key.NumPad4) viewModel.FullScreen.MovePreviousCommand.Execute(null);
+            else if (e.Key == Key.NumPad5 && viewModel.FullScreen.IsFullScreenOpen) await System.Threading.Tasks.Task.Run(() => viewModel.FullScreen.SaveCurrentImageCommand.Execute(null));
             else if (e.Key == Key.Escape)
             {
-                viewModel.SelectedTab.FullScreen.CloseFullScreenCommand.Execute(null);
+                viewModel.FullScreen.CloseFullScreenCommand.Execute(null);
                 this.Focus();
             }
+            // --- END OF CHANGES ---
             else if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) viewModel.QueueCommand.Execute(null);
             else if (e.Key == Key.V && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
