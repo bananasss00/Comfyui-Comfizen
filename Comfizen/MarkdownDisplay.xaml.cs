@@ -3,7 +3,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Navigation;
 
 namespace Comfizen
@@ -29,12 +31,13 @@ namespace Comfizen
         {
             if (d is MarkdownDisplay control)
             {
-                // Assign the generated document to the FlowDocument inside the viewer
+                var newDoc = MarkdownConverter.ToFlowDocument(e.NewValue as string);
+                
                 if (control.Viewer.Document == null)
                 {
-                    control.Viewer.Document = new System.Windows.Documents.FlowDocument();
+                    control.Viewer.Document = new FlowDocument();
                 }
-                var newDoc = MarkdownConverter.ToFlowDocument(e.NewValue as string);
+                
                 control.Viewer.Document.Blocks.Clear();
                 foreach (var block in newDoc.Blocks.ToList())
                 {
@@ -43,41 +46,68 @@ namespace Comfizen
             }
         }
 
+        // --- START OF FIX 2: Correctly handle double click ---
         private void Viewer_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            // Don't switch to edit mode if a hyperlink was clicked
-            if (e.OriginalSource is System.Windows.Documents.Hyperlink)
+            // Use the correct helper for logical elements
+            if (FindLogicalAncestor<Hyperlink>(e.OriginalSource as DependencyObject) != null)
             {
+                e.Handled = true;
                 return;
             }
             
-            // Switch to edit mode on double click
             Viewer.Visibility = Visibility.Collapsed;
             Editor.Visibility = Visibility.Visible;
             Editor.Focus();
             Editor.SelectAll();
         }
-
+        // --- END OF FIX 2 ---
 
         private void Editor_LostFocus(object sender, RoutedEventArgs e)
         {
-            // Switch back to view mode when focus is lost
             Viewer.Visibility = Visibility.Visible;
             Editor.Visibility = Visibility.Collapsed;
         }
 
-        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        // --- START OF FIX 1: Handle link clicks reliably with a Preview event ---
+        private void Viewer_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            try
+            var source = e.OriginalSource as DependencyObject;
+            if (source == null) return;
+
+            var link = FindLogicalAncestor<Hyperlink>(source);
+
+            if (link != null && link.NavigateUri != null)
             {
-                Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
-                e.Handled = true;
+                try
+                {
+                    Process.Start(new ProcessStartInfo(link.NavigateUri.AbsoluteUri) { UseShellExecute = true });
+                    // Mark the event as handled to prevent the double-click event and text selection.
+                    e.Handled = true; 
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, $"Could not open link: {link.NavigateUri.AbsoluteUri}");
+                }
             }
-            catch (Exception ex)
+        }
+        // --- END OF FIX 1 ---
+        
+        /// <summary>
+        /// Finds an ancestor of a given type in the logical tree.
+        /// </summary>
+        private static T FindLogicalAncestor<T>(DependencyObject current) where T : DependencyObject
+        {
+            while (current != null)
             {
-                // Log the error or show a message to the user
-                Logger.Log(ex, $"Could not open link: {e.Uri.AbsoluteUri}");
+                if (current is T)
+                {
+                    return (T)current;
+                }
+                // Use LogicalTreeHelper for document elements
+                current = LogicalTreeHelper.GetParent(current);
             }
+            return null;
         }
     }
 }

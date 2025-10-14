@@ -6,15 +6,16 @@
              xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
              mc:Ignorable="d" 
              d:DesignHeight="150" d:DesignWidth="400"
-             MaxHeight="200"> <!-- CHANGE 3: Limit the max height to approx. 10 lines -->
+             MaxHeight="200">
     <Grid>
         <!-- The Viewer for formatted Markdown -->
         <FlowDocumentScrollViewer x:Name="Viewer" 
                                   VerticalScrollBarVisibility="Auto" 
                                   IsToolBarVisible="False"
                                   MouseDoubleClick="Viewer_MouseDoubleClick"
-                                  Background="Transparent"
-                                  Hyperlink.RequestNavigate="Hyperlink_RequestNavigate"> <!-- CHANGE 2: Handle hyperlink clicks here -->
+                                  PreviewMouseLeftButtonDown="Viewer_PreviewMouseLeftButtonDown"
+                                  Background="Transparent">
+                                  <!-- The Hyperlink.RequestNavigate handler is removed from here -->
             <FlowDocumentScrollViewer.Resources>
                 <!-- Global document styles -->
                 <Style TargetType="{x:Type FlowDocument}">
@@ -32,7 +33,6 @@
                 <Style TargetType="{x:Type Hyperlink}">
                     <Setter Property="Foreground" Value="{StaticResource PrimaryAccentBrush}"/>
                     <Setter Property="TextDecorations" Value="None"/>
-                    <!-- The event is now handled by the parent viewer, so this EventSetter is removed. -->
                     <Style.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="TextDecorations" Value="Underline"/>
@@ -67,8 +67,6 @@
                     <Setter Property="FontSize" Value="14"/>
                 </Style>
                 
-                <!-- CHANGE 1: Removed non-existent style key for StrongEmphasisStyleKey -->
-
             </FlowDocumentScrollViewer.Resources>
             <!-- A dummy document to hold the resources and content -->
             <FlowDocument />
