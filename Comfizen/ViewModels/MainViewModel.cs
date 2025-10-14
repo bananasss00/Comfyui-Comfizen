@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -146,8 +146,7 @@ namespace Comfizen
         public event PropertyChangedEventHandler? PropertyChanged;
         
         public bool IsInfiniteQueueEnabled { get; set; } = false;
-
-        // Command to specifically toggle the infinite mode from the UI
+        
         public ICommand ToggleInfiniteQueueCommand { get; }
         
         private class PromptTask
@@ -683,10 +682,12 @@ namespace Comfizen
         /// <summary>
         /// Saves the application's state before closing.
         /// </summary>
-        public void SaveStateOnClose()
+        public async Task SaveStateOnCloseAsync()
         {
             GlobalEventManager.WorkflowSaved -= OnWorkflowSaved;
-            _consoleLogService.DisconnectAsync().Wait();
+            
+            // Replaced .Wait() with await to prevent deadlocks
+            await _consoleLogService.DisconnectAsync();
 
             foreach (var tab in OpenTabs)
             {

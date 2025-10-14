@@ -140,11 +140,12 @@ namespace Comfizen
             }
         }
         
-        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private async void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             if (DataContext is MainViewModel viewModel)
             {
-                viewModel.SaveStateOnClose();
+                // Replaced synchronous call with await
+                await viewModel.SaveStateOnCloseAsync();
             }
             InMemoryHttpServer.Instance.Stop();
         }
