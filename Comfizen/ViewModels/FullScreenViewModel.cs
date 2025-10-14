@@ -52,31 +52,34 @@ namespace Comfizen
                 if (CurrentFullScreenImage == null) return;
                 
                 ShowSaveConfirmation = true;
-                SaveConfirmationText = "Saving..."; // This could be localized if needed
+                SaveConfirmationText = "Saving..."; 
                 await Task.Delay(10); 
                 
                 string promptToSave = _settings.SavePromptWithFile ? CurrentFullScreenImage.Prompt : null;
                 
                 if (CurrentFullScreenImage.Type == FileType.Video)
                 {
-                    await _comfyuiModel.SaveVideoFile(
+                    // Pass the relative file path to the saving method
+                    await _comfyuiModel.SaveVideoFileAsync(
                         _settings.SavedImagesDirectory, 
+                        CurrentFullScreenImage.FilePath,
                         CurrentFullScreenImage.ImageBytes,
-                        CurrentFullScreenImage.FileName,
                         promptToSave
                     );
                 }
                 else
                 {
+                    // Pass the relative file path to the saving method
                     await _comfyuiModel.SaveImageFileAsync(
-                        _settings.SavedImagesDirectory, 
+                        _settings.SavedImagesDirectory,
+                        CurrentFullScreenImage.FilePath,
                         CurrentFullScreenImage.ImageBytes,
                         promptToSave,
                         _settings
                     );
                 }
                 
-                SaveConfirmationText = "Saved!"; // This could be localized if needed
+                SaveConfirmationText = "Saved!"; 
                 await Task.Delay(1500);
                 ShowSaveConfirmation = false;
             });

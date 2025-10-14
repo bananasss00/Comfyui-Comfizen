@@ -10,27 +10,22 @@ namespace Comfizen
 
     public class ComfyuiModel
     {
-        // --- НАЧАЛО ИЗМЕНЕНИЯ ---
         private readonly AppSettings _settings;
 
         public ComfyuiModel(AppSettings settings)
         {
             _settings = settings;
         }
-        // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
         public async Task Interrupt()
         {
-            // --- НАЧАЛО ИЗМЕНЕНИЯ ---
             var api = new ComfyUI_API(_settings.ServerAddress);
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
             await api.InterruptAsync();
         }
         
-        public async Task SaveImageFileAsync(string saveDirectory, byte[] sourcePngBytes, string prompt, AppSettings settings)
+
+        public async Task SaveImageFileAsync(string saveDirectory, string relativeFilePath, byte[] sourcePngBytes, string prompt, AppSettings settings)
         {
-            Directory.CreateDirectory(saveDirectory);
-        
             byte[] finalImageBytes;
             string extension;
             bool saveJsonSeparately = false;
@@ -60,51 +55,67 @@ namespace Comfizen
                     break;
             }
 
-            var md5 = Utils.ComputeMd5Hash(finalImageBytes);
-            var savePath = Path.Combine(saveDirectory, md5 + extension);
+            // Construct the desired full path including subdirectories
+            var desiredPath = Path.Combine(saveDirectory, relativeFilePath);
+            
+            // Ensure the target directory exists
+            var targetDirectory = Path.GetDirectoryName(desiredPath);
+            Directory.CreateDirectory(targetDirectory);
 
-            if (File.Exists(savePath))
-                return;
+            // Get the final, unique path for the image
+            var finalSavePath = await Utils.GetUniqueFilePathAsync(desiredPath, finalImageBytes);
 
-            await File.WriteAllBytesAsync(savePath, finalImageBytes);
-
-            if (saveJsonSeparately)
+            if (finalSavePath == null)
             {
-                var jsonSavePath = Path.Combine(saveDirectory, md5 + ".json");
+                // File with same content already exists, so we do nothing.
+                return;
+            }
+            
+            await File.WriteAllBytesAsync(finalSavePath, finalImageBytes);
+
+            if (saveJsonSeparately && !string.IsNullOrEmpty(prompt))
+            {
+                var jsonSavePath = Path.ChangeExtension(finalSavePath, ".json");
                 await File.WriteAllTextAsync(jsonSavePath, prompt);
             }
         }
         
-        public async Task SaveVideoFile(string saveDirectory, byte[] videoBytes, string originalFileName, string prompt)
+
+        public async Task SaveVideoFileAsync(string saveDirectory, string relativeFilePath, byte[] videoBytes, string prompt)
         {
-            Directory.CreateDirectory(saveDirectory);
+            // Construct the desired full path including subdirectories
+            var desiredPath = Path.Combine(saveDirectory, relativeFilePath);
+            
+            // Ensure the target directory exists
+            var targetDirectory = Path.GetDirectoryName(desiredPath);
+            Directory.CreateDirectory(targetDirectory);
     
             var videoBytesWithWorkflow = string.IsNullOrEmpty(prompt) 
                 ? videoBytes 
                 : Utils.EmbedWorkflowInVideo(videoBytes, prompt);
-            
-            var md5 = Utils.ComputeMd5Hash(videoBytesWithWorkflow);
-    
-            var extension = Path.GetExtension(originalFileName);
-            var savePath = Path.Combine(saveDirectory, md5 + extension);
-            var jsonSavePath = Path.Combine(saveDirectory, md5 + ".json");
 
-            if (File.Exists(savePath))
-                return;
+            // Get the final, unique path for the video
+            var finalSavePath = await Utils.GetUniqueFilePathAsync(desiredPath, videoBytesWithWorkflow);
             
-            await File.WriteAllBytesAsync(savePath, videoBytesWithWorkflow);
+            if (finalSavePath == null)
+            {
+                // File with same content already exists, do nothing.
+                return;
+            }
+            
+            await File.WriteAllBytesAsync(finalSavePath, videoBytesWithWorkflow);
             
             if (!string.IsNullOrEmpty(prompt))
             {
+                var jsonSavePath = Path.ChangeExtension(finalSavePath, ".json");
                 await File.WriteAllTextAsync(jsonSavePath, prompt);
             }
         }
 
+
         public async IAsyncEnumerable<ImageOutput> QueuePrompt(string json)
         {
-            // --- НАЧАЛО ИЗМЕНЕНИЯ ---
             var api = new ComfyUI_API(_settings.ServerAddress);
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
             await api.Connect();
 
             var result = await api.GetImagesAsync(json);
