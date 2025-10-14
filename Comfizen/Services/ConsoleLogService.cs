@@ -1,4 +1,6 @@
-﻿using System;
+﻿// --- START OF FILE ConsoleLogService.cs ---
+
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -18,6 +20,10 @@ namespace Comfizen
         private ClientWebSocket _ws;
         private CancellationTokenSource _cts;
 
+        // --- Fields for managing reconnection ---
+        private readonly object _connectionLock = new object();
+        private Task _connectionManagerTask;
+
         public ObservableCollection<LogMessage> LogMessages { get; } = new ObservableCollection<LogMessage>();
         public bool IsConnected => _ws?.State == WebSocketState.Open;
 
@@ -27,56 +33,61 @@ namespace Comfizen
             System.Windows.Data.BindingOperations.EnableCollectionSynchronization(LogMessages, new object());
         }
 
-        public async Task ConnectAsync()
+        // --- The ConnectAsync method now just starts the background connection manager ---
+        public Task ConnectAsync()
         {
-            if (IsConnected) return;
-
-            _cts = new CancellationTokenSource();
-            _ws = new ClientWebSocket();
-
-            try
+            // Use a lock to avoid race conditions when called from different threads
+            lock (_connectionLock)
             {
-                var uriBuilder = new UriBuilder($"http://{_settings.ServerAddress}");
-                uriBuilder.Scheme = uriBuilder.Scheme.Replace("http", "ws");
-                uriBuilder.Path = "/ws";
-                uriBuilder.Query = $"clientId={Guid.NewGuid()}";
-
-                await _ws.ConnectAsync(uriBuilder.Uri, _cts.Token);
-                
-                _ = Task.Run(() => ListenForMessages(_cts.Token), _cts.Token);
+                if (_connectionManagerTask == null || _connectionManagerTask.IsCompleted)
+                {
+                    _cts = new CancellationTokenSource();
+                    _connectionManagerTask = Task.Run(() => ConnectionManagerLoopAsync(_cts.Token));
+                }
             }
-            catch (Exception ex)
-            {
-                Logger.Log(ex, "Не удалось подключиться к WebSocket для логов");
-                await DisconnectAsync();
-            }
+            return Task.CompletedTask;
         }
-
+        
+        // --- The DisconnectAsync method now also stops the connection manager ---
         public async Task DisconnectAsync()
         {
+            // Cancel the token, which will signal the connection manager and the listening loop to stop
             if (_cts != null && !_cts.IsCancellationRequested)
             {
                 _cts.Cancel();
             }
 
+            // Wait for the connection manager task to complete
+            if (_connectionManagerTask != null)
+            {
+                try
+                {
+                    await _connectionManagerTask;
+                }
+                catch (OperationCanceledException) { /* Expected exception on cancellation */ }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, "Error while waiting for the connection manager task to complete");
+                }
+                _connectionManagerTask = null;
+            }
+
+            // Close the WebSocket itself if it is still open
             if (_ws != null)
             {
                 if (_ws.State == WebSocketState.Open || _ws.State == WebSocketState.Connecting)
                 {
                     try
                     {
-                        // Даем короткий таймаут на закрытие
-                        var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                        var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                         await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnecting", closeCts.Token);
                     }
-                    catch (Exception ex)
-                    {
-                         Logger.Log(ex, "Ошибка при закрытии WebSocket");
-                    }
+                    catch (Exception) { /* Ignore errors on close */ }
                 }
                 _ws.Dispose();
                 _ws = null;
             }
+
             _cts?.Dispose();
             _cts = null;
         }
@@ -88,37 +99,100 @@ namespace Comfizen
             await ConnectAsync();
         }
 
+        // --- The main loop that manages connection and reconnection ---
+        private async Task ConnectionManagerLoopAsync(CancellationToken token)
+        {
+            int minDelayMs = 5000;    // 5 seconds
+            int maxDelayMs = 60000;   // 1 minute
+            int currentDelayMs = minDelayMs;
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    // Create a new WebSocket instance for each attempt
+                    _ws?.Dispose();
+                    _ws = new ClientWebSocket();
+
+                    var uriBuilder = new UriBuilder($"http://{_settings.ServerAddress}")
+                    {
+                        Scheme = "ws",
+                        Path = "/ws",
+                        Query = $"clientId={Guid.NewGuid()}"
+                    };
+
+                    // Try to connect with a timeout to avoid hanging forever
+                    var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, connectCts.Token);
+                    
+                    await _ws.ConnectAsync(uriBuilder.Uri, linkedCts.Token);
+
+                    // If connected successfully, reset the delay and start listening for messages
+                    currentDelayMs = minDelayMs;
+                    await ListenForMessages(token); // This method will run until the connection is lost
+                }
+                catch (OperationCanceledException)
+                {
+                    // This can be caused by either the application cancellation token or the connection timeout
+                    if (token.IsCancellationRequested) break; // Exit if the application is closing
+                }
+                catch (Exception ex)
+                {
+                    // Log the error, but do not exit the loop
+                    Logger.Log(ex, "Error while connecting or listening to the log WebSocket");
+                }
+                finally
+                {
+                    // Ensure resources are freed before the next attempt
+                    _ws?.Dispose();
+                    _ws = null;
+                }
+
+                // If we are here, it means the connection failed or was lost.
+                // Wait before the next attempt.
+                if (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await Task.Delay(currentDelayMs, token);
+                        
+                        // Increase the delay for the next time (exponential backoff)
+                        currentDelayMs = Math.Min(currentDelayMs * 2, maxDelayMs);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Exit the loop if the application is closing during the delay
+                        break;
+                    }
+                }
+            }
+        }
+
         private async Task ListenForMessages(CancellationToken token)
         {
             var buffer = new ArraySegment<byte>(new byte[8192]);
 
-            try
+            // This loop will run as long as the socket is open and cancellation has not been requested
+            while (_ws.State == WebSocketState.Open && !token.IsCancellationRequested)
             {
-                while (_ws.State == WebSocketState.Open && !token.IsCancellationRequested)
+                using (var ms = new MemoryStream())
                 {
-                    using (var ms = new MemoryStream())
+                    WebSocketReceiveResult result;
+                    do
                     {
-                        WebSocketReceiveResult result;
-                        do
-                        {
-                            result = await _ws.ReceiveAsync(buffer, token);
-                            ms.Write(buffer.Array, buffer.Offset, result.Count);
-                        } while (!result.EndOfMessage);
+                        // If the token is cancelled, ReceiveAsync will throw an exception that will be caught in ConnectionManagerLoopAsync
+                        result = await _ws.ReceiveAsync(buffer, token);
+                        ms.Write(buffer.Array, buffer.Offset, result.Count);
+                    } while (!result.EndOfMessage);
 
-                        if (result.MessageType == WebSocketMessageType.Close) break;
+                    if (result.MessageType == WebSocketMessageType.Close) break;
 
-                        var message = Encoding.UTF8.GetString(ms.ToArray());
-                        ProcessMessage(message);
-                    }
+                    var message = Encoding.UTF8.GetString(ms.ToArray());
+                    ProcessMessage(message);
                 }
             }
-            catch (OperationCanceledException) { /* Нормальное завершение */ }
-            catch (Exception ex)
-            {
-                Logger.Log(ex, "Ошибка при прослушивании WebSocket");
-            }
         }
-
+        
         private void ProcessMessage(string message)
         {
             try
@@ -126,7 +200,7 @@ namespace Comfizen
                 var json = JObject.Parse(message);
                 var type = json["type"]?.ToString();
 
-                // 1. Обработка стандартных логов (INFO, WARNING, ERROR)
+                // 1. Handle standard logs (INFO, WARNING, ERROR)
                 if (type == "console_log_message")
                 {
                     var data = json["data"];
@@ -144,29 +218,29 @@ namespace Comfizen
                         Type = LogType.Normal
                     });
                 }
-                // 2. Обработка прямого вывода (прогресс-бары)
+                // 2. Handle direct output (progress bars)
                 else if (type == "console_stderr_output")
                 {
                     var text = json["data"]?["text"]?.ToString();
                     
-                    // Убираем \r и лишние пробелы в конце, чтобы избежать "прыганья"
+                    // Remove \r and trailing whitespace to avoid "jumping"
                     if (string.IsNullOrEmpty(text)) return;
                     text = text.Replace("\r", "").TrimEnd();
                     if (string.IsNullOrEmpty(text)) return;
 
                     var lastMessage = LogMessages.LastOrDefault();
                     
-                    // Если последнее сообщение было тоже прогресс-баром, обновляем его
+                    // If the last message was also a progress bar, update it
                     if (lastMessage != null && lastMessage.Type == LogType.Progress)
                     {
                         lastMessage.Text = text;
                     }
-                    else // Иначе, добавляем новое
+                    else // Otherwise, add a new one
                     {
                         LogMessages.Add(new LogMessage
                         {
                             Text = text,
-                            Level = LogLevel.Info, // Прогресс-бары считаем информационными
+                            Level = LogLevel.Info, // We consider progress bars to be informational
                             Type = LogType.Progress
                         });
                     }
@@ -174,7 +248,7 @@ namespace Comfizen
             }
             catch
             {
-                // Игнорируем не-JSON сообщения
+                // Ignore non-JSON messages
             }
         }
     }
