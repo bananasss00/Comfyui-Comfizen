@@ -1,4 +1,5 @@
-﻿<Window x:Class="Comfizen.MainWindow"
+﻿<!-- START OF FILE MainWindow.xaml -->
+<Window x:Class="Comfizen.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -71,6 +72,11 @@
 
             <!-- Row 0: The TabControl for the tab headers ONLY -->
             <TabControl Grid.Row="0" ItemsSource="{Binding OpenTabs}" SelectedItem="{Binding SelectedTab, Mode=TwoWay}" Margin="5,0,5,0" Background="Transparent" BorderThickness="0">
+                <!-- START OF CHANGES: Explicitly define an empty content template -->
+                <TabControl.ContentTemplate>
+                    <DataTemplate />
+                </TabControl.ContentTemplate>
+                <!-- END OF CHANGES -->
                 <TabControl.Style>
                     <Style TargetType="TabControl">
                         <Setter Property="Visibility" Value="Visible"/>
@@ -252,11 +258,9 @@
                                                             <ControlTemplate x:Key="InpaintLayoutTemplate" TargetType="ContentControl">
                                                                 <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
                                                             </ControlTemplate>
-                                                            <!-- START OF CHANGES: Add new template for Markdown -->
                                                             <ControlTemplate x:Key="FullWidthLayoutTemplate" TargetType="ContentControl">
                                                                  <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" Margin="0,4" />
                                                             </ControlTemplate>
-                                                            <!-- END OF CHANGES -->
                                                         </DataTemplate.Resources>
                                                         <ContentControl Content="{Binding}">
                                                             <ContentControl.Style>
@@ -266,11 +270,9 @@
                                                                         <DataTrigger Binding="{Binding Converter={StaticResource IsInpaintViewModelConverter}}" Value="True">
                                                                             <Setter Property="Template" Value="{StaticResource InpaintLayoutTemplate}"/>
                                                                         </DataTrigger>
-                                                                        <!-- START OF CHANGES: Add trigger for Markdown -->
                                                                         <DataTrigger Binding="{Binding Converter={StaticResource IsMarkdownViewModelConverter}}" Value="True">
                                                                             <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
                                                                         </DataTrigger>
-                                                                        <!-- END OF CHANGES -->
                                                                     </Style.Triggers>
                                                                 </Style>
                                                             </ContentControl.Style>
@@ -750,3 +752,4 @@
         </Grid>
     </Grid>
 </Window>
+<!-- END OF FILE MainWindow.xaml -->

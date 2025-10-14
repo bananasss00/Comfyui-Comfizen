@@ -82,6 +82,7 @@ namespace Comfizen
     public abstract class InputFieldViewModel : INotifyPropertyChanged
     {
         public string Name { get; }
+        public string Path { get; } // START OF CHANGES: Add Path property
         public FieldType Type { get; protected set; }
         public JProperty Property { get; } 
         
@@ -93,6 +94,7 @@ namespace Comfizen
         protected InputFieldViewModel(WorkflowField field, JProperty property)
         {
             Name = field.Name;
+            Path = field.Path; // END OF CHANGES: Initialize Path property
             Property = property;
             HighlightColor = field.HighlightColor;
         }
