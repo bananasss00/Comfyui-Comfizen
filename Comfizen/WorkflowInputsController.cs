@@ -254,6 +254,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
     {
         switch (field.Type)
         {
+            case FieldType.Markdown:
+                return new MarkdownFieldViewModel(field, prop);
+                
             case FieldType.Seed:
                 var seedVm = new SeedFieldViewModel(field, prop);
                 _seedViewModels.Add(seedVm);

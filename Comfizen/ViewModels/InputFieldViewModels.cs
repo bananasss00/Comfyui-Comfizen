@@ -158,6 +158,27 @@ namespace Comfizen
         }
     }
 
+    public class MarkdownFieldViewModel : InputFieldViewModel
+    {
+        public string Value
+        {
+            get => Property.Value.ToString();
+            set
+            {
+                if (Property.Value.ToString() != value)
+                {
+                    Property.Value = new JValue(value);
+                    OnPropertyChanged(nameof(Value));
+                }
+            }
+        }
+    
+        public MarkdownFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
+        {
+            Type = FieldType.Markdown;
+        }
+    }
+
     public class SeedFieldViewModel : InputFieldViewModel
     {
         private readonly WorkflowField _field;

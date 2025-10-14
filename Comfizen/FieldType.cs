@@ -12,6 +12,7 @@
         SliderInt,
         SliderFloat,
         ComboBox,
-        Model
+        Model,
+        Markdown
     }
 }

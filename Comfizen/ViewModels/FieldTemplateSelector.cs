@@ -13,11 +13,13 @@ namespace Comfizen
         public DataTemplate WildcardTemplate { get; set; }
         public DataTemplate AnyTypeTemplate { get; set; }
         public DataTemplate InpaintTemplate { get; set; }
+        public DataTemplate MarkdownTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
             return item switch
             {
+                MarkdownFieldViewModel => MarkdownTemplate,
                 InpaintFieldViewModel => InpaintTemplate,
                 SeedFieldViewModel => SeedTemplate,
                 SliderFieldViewModel => SliderTemplate,

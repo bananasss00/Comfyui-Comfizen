@@ -9,6 +9,7 @@
         <!-- Converters -->
         <local:ToTitleCaseConverter x:Key="ToTitleCaseConverter"/>
         <local:IsInpaintViewModelConverter x:Key="IsInpaintViewModelConverter"/>
+        <local:IsMarkdownViewModelConverter x:Key="IsMarkdownViewModelConverter"/>
         <local:TaskCountToVisibilityConverter x:Key="TaskCountToVisibilityConverter" />
         <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <global:IsHeaderConverter x:Key="IsHeaderConverter"/>
@@ -606,6 +607,10 @@
             <ContentControl Content="{Binding Editor}" Margin="0,5"/>
         </DataTemplate>
 
+        <DataTemplate x:Key="MarkdownTemplate" DataType="{x:Type local:MarkdownFieldViewModel}">
+            <local:MarkdownDisplay MarkdownText="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        </DataTemplate>
+
         <local:FieldTemplateSelector x:Key="FieldTemplateSelector"
                                      TextTemplate="{StaticResource TextTemplate}"
                                      SeedTemplate="{StaticResource SeedTemplate}"
@@ -615,6 +620,7 @@
                                      WildcardTemplate="{StaticResource WildcardTemplate}"
                                      AnyTypeTemplate="{StaticResource AnyTypeTemplate}" 
                                      InpaintTemplate="{StaticResource InpaintTemplate}"
+                                     MarkdownTemplate="{StaticResource MarkdownTemplate}"
         />
 
     </Application.Resources>
