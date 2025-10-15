@@ -438,5 +438,16 @@ namespace Comfizen
                 }
             }
         }
+
+        private void TabItem_DragEnter(object sender, DragEventArgs e)
+        {
+            if (sender is TabItem tabItem && 
+                tabItem.DataContext is WorkflowTabViewModel tabVm &&
+                DataContext is MainViewModel mainVm)
+            {
+                // Set the dragged-over tab as the selected one
+                mainVm.SelectedTab = tabVm;
+            }
+        }
     }
 }
