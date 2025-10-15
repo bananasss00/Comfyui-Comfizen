@@ -219,7 +219,7 @@ namespace Comfizen
         private void FilterTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (!ItemPopup.IsOpen) return;
-        
+
             if (e.Key == Key.Down)
             {
                 e.Handled = true;
@@ -230,6 +230,21 @@ namespace Comfizen
                 e.Handled = true;
                 ChangeSelection(-1);
             }
+            // --- START OF MODIFICATION ---
+            else if (e.Key == Key.Escape)
+            {
+                // If there is text in the search filter, clear it.
+                if (!string.IsNullOrEmpty(SearchFilter))
+                {
+                    SearchFilter = string.Empty;
+                    // Mark the event as handled to prevent the popup from closing.
+                    e.Handled = true;
+                }
+                // If the search filter is already empty, this 'if' is skipped.
+                // The event will not be handled, allowing it to bubble up to the
+                // ItemListBox_PreviewKeyDown handler, which will then close the popup.
+            }
+            // --- END OF MODIFICATION ---
         }
         
         private void ItemListBox_PreviewKeyDown(object sender, KeyEventArgs e)
