@@ -10,7 +10,6 @@
              Loaded="InpaintEditor_Loaded"
              Unloaded="InpaintEditor_OnUnloaded"
              MaxHeight="600">
-    <!-- MODIFIED: Added PreviewKeyDown handler to catch the Escape key -->
     <Grid x:Name="RootGrid" AllowDrop="True" DragOver="Grid_DragOver" Drop="Grid_Drop"
           PreviewMouseLeftButtonDown="Grid_PreviewMouseLeftButtonDown"
           PreviewKeyDown="RootGrid_PreviewKeyDown">
@@ -96,7 +95,6 @@
 
                 <StackPanel Orientation="Horizontal" x:Name="SketchColorPanel" Visibility="Collapsed">
                     <TextBlock Text="{local:Translate Inpaint_Color}" VerticalAlignment="Center" Margin="0,0,5,0" />
-                    <!-- MODIFIED: Added Unchecked handler to restore cursor visual -->
                     <ToggleButton x:Name="EyedropperToggle" 
                                   Content="&#xE790;" 
                                   ToolTip="{local:Translate Inpaint_Eyedropper}" 
@@ -115,9 +113,11 @@
                       x:Name="EditorScrollViewer"
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Auto">
+            <!-- MODIFIED: Added PreviewMouseWheel handler -->
             <Grid x:Name="ImageGrid"
                   HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Margin="5">
+                  Margin="5"
+                  PreviewMouseWheel="ImageGrid_PreviewMouseWheel">
 
                 <Grid.LayoutTransform>
                     <ScaleTransform ScaleX="{Binding ElementName=ZoomSlider, Path=Value}"

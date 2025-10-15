@@ -389,6 +389,28 @@ namespace Comfizen
             BrushCursorTransform.Y = finalPos.Y - finalRadius;
         }
         
+        // --- NEW: Handle Ctrl+MouseWheel to change brush size ---
+        /// <summary>
+        /// Handles the mouse wheel scroll event on the image grid to change brush size.
+        /// </summary>
+        private void ImageGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+            {
+                double step = 5;
+                if (e.Delta > 0)
+                {
+                    BrushSizeSlider.Value += step;
+                }
+                else if (e.Delta < 0)
+                {
+                    BrushSizeSlider.Value -= step;
+                }
+                
+                e.Handled = true;
+            }
+        }
+
         private void ImageGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Middle)
