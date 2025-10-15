@@ -63,6 +63,7 @@ namespace Comfizen
             Directory.CreateDirectory(targetDirectory);
 
             // Get the final, unique path for the image
+            desiredPath = Path.ChangeExtension(desiredPath, extension);
             var finalSavePath = await Utils.GetUniqueFilePathAsync(desiredPath, finalImageBytes);
 
             if (finalSavePath == null)
@@ -70,7 +71,7 @@ namespace Comfizen
                 // File with same content already exists, so we do nothing.
                 return;
             }
-            
+
             await File.WriteAllBytesAsync(finalSavePath, finalImageBytes);
 
             if (saveJsonSeparately && !string.IsNullOrEmpty(prompt))
