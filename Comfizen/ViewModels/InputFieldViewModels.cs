@@ -48,7 +48,7 @@ namespace Comfizen
     [AddINotifyPropertyChangedInterface]
     public class GlobalSettingsViewModel : INotifyPropertyChanged
     {
-        public string Header { get; set; } = "Global Settings";
+        public string Header { get; set; } = LocalizationService.Instance["GlobalSettings_Header"];
         public bool IsExpanded { get; set; } = true;
         public bool IsVisible { get; set; } = false;
 
@@ -118,23 +118,22 @@ namespace Comfizen
             get
             {
                 var text = Property.Value.ToString();
-                // Если это длинная строка, похожая на Base64, показываем плейсхолдер
                 if (text.Length > 1000 && (text.StartsWith("iVBOR") || text.StartsWith("/9j/")))
                 {
-                    return $"[Base64 Image Data: {text.Length / 1024} KB]";
+                    // Используем строку из локализации
+                    return string.Format(LocalizationService.Instance["TextField_Base64Placeholder"], text.Length / 1024);
                 }
                 return text;
             }
             set
             {
-                // Не позволяем пользователю вручную редактировать плейсхолдер
-                if (value.StartsWith("[Base64 Image Data:"))
+                // Плейсхолдер теперь зависит от языка, поэтому ищем по началу строки
+                if (value.StartsWith("[Base64 Image Data:") || value.StartsWith("[Данные изображения Base64:"))
                     return;
-                
+            
                 if (Property.Value.ToString() != value)
                 {
                     Property.Value = new JValue(value);
-                    // OnPropertyChanged не нужен, так как изменение пришло от самого биндинга
                 }
             }
         }

@@ -44,7 +44,9 @@ public sealed class InMemoryHttpServer
         catch (Exception ex)
         {
             Logger.Log(ex, "Failed to start InMemoryHttpServer");
-            MessageBox.Show($"Could not start internal media server: {ex.Message}", "Playback Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            var message = string.Format(LocalizationService.Instance["Server_StartError"], ex.Message);
+            var title = LocalizationService.Instance["Server_PlaybackErrorTitle"];
+            MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

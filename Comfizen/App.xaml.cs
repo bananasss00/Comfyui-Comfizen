@@ -411,18 +411,18 @@ namespace Comfizen
         {
             Logger.Log(ex, $"Unhandled exception in {context}");
 
-            var message = "A critical error has occurred. The application will now close. " +
-                          "Details have been written to the log file in the 'logs' folder.";
-            
+            var message = LocalizationService.Instance["App_CriticalErrorMessage"];
+            var title = LocalizationService.Instance["App_CriticalErrorTitle"];
+    
             if (Dispatcher.CheckAccess())
             {
-                MessageBox.Show(message, "Critical Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
             }
             else
             {
-                Dispatcher.Invoke(() => MessageBox.Show(message, "Critical Error", MessageBoxButton.OK, MessageBoxImage.Error));
+                Dispatcher.Invoke(() => MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error));
             }
-            
+    
             if (isTerminating)
             {
                 Environment.Exit(1);

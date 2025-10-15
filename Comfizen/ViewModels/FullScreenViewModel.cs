@@ -50,16 +50,15 @@ namespace Comfizen
             SaveCurrentImageCommand = new AsyncRelayCommand(async x =>
             {
                 if (CurrentFullScreenImage == null) return;
-                
+    
                 ShowSaveConfirmation = true;
-                SaveConfirmationText = "Saving..."; 
+                SaveConfirmationText = LocalizationService.Instance["Fullscreen_Saving"];
                 await Task.Delay(10); 
-                
+    
                 string promptToSave = _settings.SavePromptWithFile ? CurrentFullScreenImage.Prompt : null;
-                
+    
                 if (CurrentFullScreenImage.Type == FileType.Video)
                 {
-                    // Pass the relative file path to the saving method
                     await _comfyuiModel.SaveVideoFileAsync(
                         _settings.SavedImagesDirectory, 
                         CurrentFullScreenImage.FilePath,
@@ -69,7 +68,6 @@ namespace Comfizen
                 }
                 else
                 {
-                    // Pass the relative file path to the saving method
                     await _comfyuiModel.SaveImageFileAsync(
                         _settings.SavedImagesDirectory,
                         CurrentFullScreenImage.FilePath,
@@ -78,8 +76,8 @@ namespace Comfizen
                         _settings
                     );
                 }
-                
-                SaveConfirmationText = "Saved!"; 
+    
+                SaveConfirmationText = LocalizationService.Instance["Fullscreen_Saved"]; 
                 await Task.Delay(1500);
                 ShowSaveConfirmation = false;
             });

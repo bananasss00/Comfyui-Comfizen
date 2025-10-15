@@ -88,7 +88,7 @@
                                  Padding="5,5,25,5"
                                  PreviewKeyDown="FilterTextBox_PreviewKeyDown"/>
                         
-                        <Button Content="✕" ToolTip="Очистить поиск"
+                        <Button Content="✕" ToolTip="{local:Translate FilterableComboBox_ClearSearchTooltip}"
                                 HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0"
                                 Command="{Binding ClearSearchCommand, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}">
                             <Button.Style>

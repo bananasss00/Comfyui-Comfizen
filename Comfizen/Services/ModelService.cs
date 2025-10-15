@@ -183,8 +183,9 @@ public class ModelService
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to fetch model types: {ex.Message}", "Error", MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            var message = string.Format(LocalizationService.Instance["ModelService_ErrorFetchModelTypes"], ex.Message);
+            var title = LocalizationService.Instance["General_Error"];
+            MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
         return new List<ModelTypeInfo>();
