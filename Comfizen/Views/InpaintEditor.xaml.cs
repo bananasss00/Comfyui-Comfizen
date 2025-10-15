@@ -52,6 +52,12 @@ namespace Comfizen
         private bool _isPanning = false;
         private Point _panStartPoint;
         private Point _panStartOffset;
+        
+        // Store brush settings for each mode separately
+        private double _maskBrushSize = 30.0;
+        private double _maskOpacity = 1.0;
+        private double _sketchBrushSize = 10.0;
+        private double _sketchOpacity = 1.0;
 
         /// <summary>
         /// Gets a value indicating whether this editor can accept an image via drag-drop or paste.
@@ -218,6 +224,33 @@ namespace Comfizen
 
             UpdateCanvasesState();
             
+            if (_currentMode == EditingMode.Mask)
+            {
+                // Suppress events while changing slider values programmatically
+                BrushSizeSlider.ValueChanged -= OnBrushPropertyChanged;
+                OpacitySlider.ValueChanged -= OpacitySlider_OnValueChanged;
+
+                BrushSizeSlider.Value = _maskBrushSize;
+                OpacitySlider.Value = _maskOpacity;
+        
+                // Restore event handlers
+                BrushSizeSlider.ValueChanged += OnBrushPropertyChanged;
+                OpacitySlider.ValueChanged += OpacitySlider_OnValueChanged;
+            }
+            else // Sketch Mode
+            {
+                // Suppress events while changing slider values programmatically
+                BrushSizeSlider.ValueChanged -= OnBrushPropertyChanged;
+                OpacitySlider.ValueChanged -= OpacitySlider_OnValueChanged;
+
+                BrushSizeSlider.Value = _sketchBrushSize;
+                OpacitySlider.Value = _sketchOpacity;
+        
+                // Restore event handlers
+                BrushSizeSlider.ValueChanged += OnBrushPropertyChanged;
+                OpacitySlider.ValueChanged += OpacitySlider_OnValueChanged;
+            }
+
             UpdateDrawingAttributes();
             UpdateBrushCursorVisual();
             UpdateUndoRedoButtons();
@@ -226,6 +259,16 @@ namespace Comfizen
         private void OnBrushPropertyChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (!IsLoaded) return;
+            
+            if (_currentMode == EditingMode.Mask)
+            {
+                _maskBrushSize = BrushSizeSlider.Value;
+            }
+            else
+            {
+                _sketchBrushSize = BrushSizeSlider.Value;
+            }
+    
             UpdateDrawingAttributes();
             UpdateBrushCursorVisual();
         }
@@ -233,6 +276,16 @@ namespace Comfizen
         private void OpacitySlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (!IsLoaded) return;
+            
+            if (_currentMode == EditingMode.Mask)
+            {
+                _maskOpacity = OpacitySlider.Value;
+            }
+            else
+            {
+                _sketchOpacity = OpacitySlider.Value;
+            }
+
             UpdateDrawingAttributes();
         }
 
