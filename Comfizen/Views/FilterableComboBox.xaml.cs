@@ -160,17 +160,29 @@ namespace Comfizen
             FilteredItems.Clear();
             if (ItemsSource == null) return;
 
-            // Преобразуем к object, так как коллекция теперь гетерогенная
             var source = ItemsSource.Cast<object>();
-    
-            var filtered = string.IsNullOrWhiteSpace(SearchFilter)
-                ? source // Если фильтр пуст, показываем всё как есть (с заголовками)
-                : source.OfType<string>() // Иначе, берем ТОЛЬКО строки
-                    .Where(m => m.IndexOf(SearchFilter, StringComparison.OrdinalIgnoreCase) >= 0);
 
-            foreach (var item in filtered)
+            // Если фильтр пуст, показываем всё как есть (с заголовками)
+            if (string.IsNullOrWhiteSpace(SearchFilter))
             {
-                FilteredItems.Add(item);
+                foreach (var item in source)
+                {
+                    FilteredItems.Add(item);
+                }
+            }
+            else
+            {
+                // --- MODIFIED: Split search filter by spaces for multi-word search ---
+                string[] searchTerms = SearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        
+                // Берем ТОЛЬКО строки и проверяем, что каждая из них содержит ВСЕ поисковые слова
+                var filtered = source.OfType<string>()
+                    .Where(item => searchTerms.All(term => item.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
+
+                foreach (var item in filtered)
+                {
+                    FilteredItems.Add(item);
+                }
             }
         }
 
