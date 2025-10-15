@@ -6,6 +6,9 @@ Forget about constantly navigating a tangled node graph. Extract only the most e
 
 ![Main Interface](readme/main.jpg)
 
+## Creating a custom workflow
+https://github.com/user-attachments/assets/5a2a2460-b818-4f13-8ed5-5e98e3373572
+
 ---
 
 ## Requirements
