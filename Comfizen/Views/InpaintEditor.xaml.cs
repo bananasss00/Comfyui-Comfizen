@@ -58,6 +58,8 @@ namespace Comfizen
         private double _maskOpacity = 1.0;
         private double _sketchBrushSize = 10.0;
         private double _sketchOpacity = 1.0;
+        
+        private bool _isMouseOverCanvasArea = false;
 
         /// <summary>
         /// Gets a value indicating whether this editor can accept an image via drag-drop or paste.
@@ -371,6 +373,7 @@ namespace Comfizen
 
         private void Canvas_MouseEnter(object sender, MouseEventArgs e)
         {
+            _isMouseOverCanvasArea = true; // Mouse is now over the canvas area
             if (e.RightButton != MouseButtonState.Pressed && e.MiddleButton != MouseButtonState.Pressed)
             {
                 BrushCursor.Visibility = Visibility.Visible;
@@ -379,6 +382,7 @@ namespace Comfizen
 
         private void Canvas_MouseLeave(object sender, MouseEventArgs e)
         {
+            _isMouseOverCanvasArea = false; // Mouse has left the canvas area
             BrushCursor.Visibility = Visibility.Collapsed;
         }
 
@@ -713,9 +717,32 @@ namespace Comfizen
         /// </summary>
         private void RootGrid_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // Handle Escape key to cancel eyedropper
             if (e.Key == Key.Escape && EyedropperToggle.IsChecked == true)
             {
                 EyedropperToggle.IsChecked = false;
+                e.Handled = true;
+                return; // Important to stop further processing
+            }
+
+            // --- MODIFIED: Handle 'Q' key to toggle editing mode ---
+            // This only triggers if the mouse is over the drawing grid
+            // AND both editing modes are available to the user.
+            if (e.Key == Key.Q && _isMouseOverCanvasArea && _imageEditingEnabled && _maskEditingEnabled)
+            {
+                // Toggle the IsChecked property of the radio buttons.
+                // This will automatically trigger the Mode_Changed event.
+                if (MaskRadioButton.IsChecked == true)
+                {
+                    SketchRadioButton.IsChecked = true;
+                }
+                else
+                {
+                    MaskRadioButton.IsChecked = true;
+                }
+
+                // Mark the event as handled to prevent the 'q' character
+                // from being typed into any focused control.
                 e.Handled = true;
             }
         }
