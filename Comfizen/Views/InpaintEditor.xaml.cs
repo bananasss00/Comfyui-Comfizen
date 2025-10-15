@@ -615,6 +615,14 @@ namespace Comfizen
             _fullScreenWindow.PreviewKeyDown += (s, e) => {
                 if (e.Key == Key.Escape)
                 {
+                    // If eyedropper is active, let the RootGrid's handler deal with it.
+                    // By not handling the event here, we allow it to continue to the RootGrid.
+                    if (EyedropperToggle.IsChecked == true)
+                    {
+                        return;
+                    }
+            
+                    // If eyedropper is NOT active, exit full screen and stop the event.
                     e.Handled = true;
                     ExitFullScreen();
                 }
