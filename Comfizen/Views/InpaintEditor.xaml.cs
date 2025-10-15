@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -330,6 +331,39 @@ namespace Comfizen
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
+            // --- NEW: Eyedropper color preview logic ---
+            if (EyedropperToggle.IsChecked == true && SourceImage.Source != null)
+            {
+                BrushCursor.Visibility = Visibility.Visible;
+                Point pos = e.GetPosition(ImageGrid);
+                double radius = BrushCursor.Width / 2.0;
+                BrushCursorTransform.X = pos.X - radius;
+                BrushCursorTransform.Y = pos.Y - radius;
+
+                Point posOnImage = e.GetPosition(SourceImage);
+                if (SourceImage.Source is BitmapSource bmpSource &&
+                    posOnImage.X >= 0 && posOnImage.Y >= 0 &&
+                    posOnImage.X < bmpSource.PixelWidth && posOnImage.Y < bmpSource.PixelHeight)
+                {
+                    try
+                    {
+                        var bytesPerPixel = (bmpSource.Format.BitsPerPixel + 7) / 8;
+                        if (bytesPerPixel < 3) return; // Not enough color info
+                        
+                        var pixelData = new byte[bytesPerPixel];
+                        bmpSource.CopyPixels(new Int32Rect((int)posOnImage.X, (int)posOnImage.Y, 1, 1), pixelData, bytesPerPixel, 0);
+                        
+                        var pickedColor = Color.FromArgb(255, pixelData[2], pixelData[1], pixelData[0]); // BGRA or BGR -> RGB
+                        BrushCursor.Fill = new SolidColorBrush(pickedColor) { Opacity = 0.75 };
+                    }
+                    catch (Exception)
+                    {
+                        // Silently ignore formats we can't handle to prevent crashes
+                    }
+                }
+                return; // Prevent other mouse move logic from running
+            }
+            
             if (_isPanning && e.MiddleButton == MouseButtonState.Pressed)
             {
                 if (EditorScrollViewer == null) return;
@@ -349,10 +383,10 @@ namespace Comfizen
             }
             
             BrushCursor.Visibility = Visibility.Visible;
-            Point pos = e.GetPosition(ImageGrid);
-            double radius = BrushCursor.Width / 2.0;
-            BrushCursorTransform.X = pos.X - radius;
-            BrushCursorTransform.Y = pos.Y - radius;
+            Point finalPos = e.GetPosition(ImageGrid);
+            double finalRadius = BrushCursor.Width / 2.0;
+            BrushCursorTransform.X = finalPos.X - finalRadius;
+            BrushCursorTransform.Y = finalPos.Y - finalRadius;
         }
         
         private void ImageGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -588,6 +622,28 @@ namespace Comfizen
             FullScreenButton.Content = "\uE740";
             FullScreenButton.ToolTip = LocalizationService.Instance["Inpaint_Fullscreen"];
             _isFullScreen = false;
+        }
+        
+        // --- NEW: Handle Escape key press to cancel eyedropper ---
+        /// <summary>
+        /// Handles key presses for the entire control, specifically to cancel the eyedropper.
+        /// </summary>
+        private void RootGrid_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape && EyedropperToggle.IsChecked == true)
+            {
+                EyedropperToggle.IsChecked = false;
+                e.Handled = true;
+            }
+        }
+
+        // --- NEW: Update brush cursor when eyedropper is deactivated ---
+        /// <summary>
+        /// Restores the normal brush cursor visual when the eyedropper is turned off.
+        /// </summary>
+        private void EyedropperToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            UpdateBrushCursorVisual();
         }
 
         /// <summary>

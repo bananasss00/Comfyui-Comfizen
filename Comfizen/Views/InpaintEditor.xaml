@@ -10,8 +10,10 @@
              Loaded="InpaintEditor_Loaded"
              Unloaded="InpaintEditor_OnUnloaded"
              MaxHeight="600">
+    <!-- MODIFIED: Added PreviewKeyDown handler to catch the Escape key -->
     <Grid x:Name="RootGrid" AllowDrop="True" DragOver="Grid_DragOver" Drop="Grid_Drop"
-          PreviewMouseLeftButtonDown="Grid_PreviewMouseLeftButtonDown">
+          PreviewMouseLeftButtonDown="Grid_PreviewMouseLeftButtonDown"
+          PreviewKeyDown="RootGrid_PreviewKeyDown">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -94,10 +96,12 @@
 
                 <StackPanel Orientation="Horizontal" x:Name="SketchColorPanel" Visibility="Collapsed">
                     <TextBlock Text="{local:Translate Inpaint_Color}" VerticalAlignment="Center" Margin="0,0,5,0" />
+                    <!-- MODIFIED: Added Unchecked handler to restore cursor visual -->
                     <ToggleButton x:Name="EyedropperToggle" 
                                   Content="&#xE790;" 
                                   ToolTip="{local:Translate Inpaint_Eyedropper}" 
-                                  Style="{StaticResource IconToggleButton}"/>
+                                  Style="{StaticResource IconToggleButton}"
+                                  Unchecked="EyedropperToggle_Unchecked"/>
                   
                     <xctk:ColorPicker x:Name="SketchColorPicker" Width="120" Margin="5,0,0,0" 
                                       SelectedColor="Black"
