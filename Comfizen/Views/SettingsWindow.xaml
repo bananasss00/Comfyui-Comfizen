@@ -233,23 +233,47 @@
                                 <TextBox Text="{Binding SpecialModelValues, Converter={StaticResource StringListConverter}, UpdateSourceTrigger=PropertyChanged}"/>
                             </StackPanel>
                         </GroupBox>
-                        
+
                         <GroupBox Header="{local:Translate Settings_Hotkeys}">
                             <Grid Margin="5">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Ctrl + Enter" FontWeight="Bold" Margin="0,2"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{local:Translate Settings_Hotkey_Queue}" Margin="0,2"/>
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="NumPad 6" FontWeight="Bold" Margin="0,2"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{local:Translate Settings_Hotkey_NextImage}" Margin="0,2"/>
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="NumPad 4" FontWeight="Bold" Margin="0,2"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{local:Translate Settings_Hotkey_PrevImage}" Margin="0,2"/>
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="NumPad 5" FontWeight="Bold" Margin="0,2"/>
-                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{local:Translate Settings_Hotkey_SaveImage}" Margin="0,2"/>
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Escape" FontWeight="Bold" Margin="0,2"/>
-                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{local:Translate Settings_Hotkey_ExitFullscreen}" Margin="0,2"/>
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Ctrl + V" FontWeight="Bold" Margin="0,2"/>
-                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{local:Translate Settings_Hotkey_Paste}" Margin="0,2" TextWrapping="Wrap"/>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Ctrl + Enter" FontWeight="Bold"
+                                           Margin="0,2" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{local:Translate Settings_Hotkey_Queue}"
+                                           Margin="0,2" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="NumPad 6" FontWeight="Bold" Margin="0,2" />
+                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                           Text="{local:Translate Settings_Hotkey_NextImage}" Margin="0,2" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="NumPad 4" FontWeight="Bold" Margin="0,2" />
+                                <TextBlock Grid.Row="2" Grid.Column="1"
+                                           Text="{local:Translate Settings_Hotkey_PrevImage}" Margin="0,2" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="NumPad 5" FontWeight="Bold" Margin="0,2" />
+                                <TextBlock Grid.Row="3" Grid.Column="1"
+                                           Text="{local:Translate Settings_Hotkey_SaveImage}" Margin="0,2" />
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Escape" FontWeight="Bold" Margin="0,2" />
+                                <TextBlock Grid.Row="4" Grid.Column="1"
+                                           Text="{local:Translate Settings_Hotkey_ExitFullscreen}" Margin="0,2" />
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Ctrl + V" FontWeight="Bold" Margin="0,2" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{local:Translate Settings_Hotkey_Paste}"
+                                           Margin="0,2" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Q (in editor)" FontWeight="Bold" Margin="0,2"/>
+                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{local:Translate Settings_Hotkey_ToggleInpaintMode}" Margin="0,2" TextWrapping="Wrap"/>
+
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="Ctrl + Mouse Wheel (in editor)" FontWeight="Bold" Margin="0,2"/>
+                                <TextBlock Grid.Row="7" Grid.Column="1" Text="{local:Translate Settings_Hotkey_ChangeBrushSize}" Margin="0,2" TextWrapping="Wrap"/>
                             </Grid>
                         </GroupBox>
                     </StackPanel>
