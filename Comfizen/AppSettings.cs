@@ -27,6 +27,7 @@ namespace Comfizen
         public string SessionsDirectory { get; set; }
         public bool SavePromptWithFile { get; set; } = true;
         
+        public bool RemoveBase64OnSave { get; set; } = false;
         public ImageSaveFormat SaveFormat { get; set; } = ImageSaveFormat.Jpg;
         public int PngCompressionLevel { get; set; } = 6;
         public int WebpQuality { get; set; } = 83;
@@ -81,6 +82,7 @@ namespace Comfizen
                     Schedulers = GetDefaultSchedulers(),
                     SessionsDirectory = GetDefaultSessionsDirectory(),
                     SavePromptWithFile = true,
+                    RemoveBase64OnSave = false,
                     SaveFormat = ImageSaveFormat.Webp,
                     PngCompressionLevel = 6,
                     WebpQuality = 83,

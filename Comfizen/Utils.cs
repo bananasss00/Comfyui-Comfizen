@@ -362,6 +362,45 @@ namespace Comfizen
                 token.WriteTo(writer);
             }
         }
+        
+        public static JObject? CleanBase64FromJObject(JObject? originalJson)
+        {
+            if (originalJson == null) return null;
 
+            var cleanedJson = originalJson.DeepClone() as JObject;
+            if (cleanedJson == null) return null;
+
+            var properties = cleanedJson.Descendants()
+                .OfType<JProperty>()
+                .Where(p => p.Value.Type == JTokenType.String)
+                .ToList(); 
+
+            foreach (var prop in properties)
+            {
+                var value = prop.Value.Value<string>();
+                if (!string.IsNullOrEmpty(value) && value.Length > 1000 && (value.StartsWith("iVBOR") || value.StartsWith("/9j/") || value.StartsWith("UklG")))
+                {
+                    prop.Value = ""; 
+                }
+            }
+            return cleanedJson;
+        }
+
+        public static string? CleanBase64FromString(string? jsonString)
+        {
+            if (string.IsNullOrEmpty(jsonString)) return jsonString;
+
+            try
+            {
+                var jObject = JObject.Parse(jsonString);
+                var cleanedJObject = CleanBase64FromJObject(jObject);
+                return cleanedJObject?.ToString(Formatting.Indented);
+            }
+            catch (JsonReaderException)
+            {
+                // If parsing fails, return the original string
+                return jsonString;
+            }
+        }
     }
 }

@@ -32,15 +32,16 @@ namespace Comfizen
         private object _itemBeingRenamed;
         private readonly SessionManager _sessionManager;
         private readonly ModelService _modelService;
+        private readonly AppSettings _settings;
         public ObservableCollection<string> ModelSubTypes { get; } = new();
         private bool _apiWasReplaced = false;
 
         public UIConstructorView(string? workflowRelativePath = null)
         {
             var settingsService = new SettingsService();
-            var settings = settingsService.LoadSettings();
-            _sessionManager = new SessionManager(settings);
-            _modelService = new ModelService(settings);
+            _settings = settingsService.LoadSettings();
+            _sessionManager = new SessionManager(_settings);
+            _modelService = new ModelService(_settings);
             
             LoadCommand = new RelayCommand(_ => LoadApiWorkflow());
             SaveWorkflowCommand = new RelayCommand(param => SaveWorkflow(param as Window), 

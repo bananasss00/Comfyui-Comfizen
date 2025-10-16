@@ -133,6 +133,8 @@
   "Settings_ImageSaving": "Image Saving",
   "Settings_SaveMetadata": "Save Workflow/Prompt in file metadata",
   "Settings_SaveMetadataTooltip": "If enabled, the .json with generation parameters will be embedded into the file (for PNG, WebP). For JPG, a separate .json file will be created.",
+  "Settings_RemoveBase64OnSave": "Remove image data (Base64) when saving the workflow file",
+  "Settings_RemoveBase64OnSaveTooltip": "If enabled, all embedded image data from Inpaint or ImageInput fields will be cleared before saving. This significantly reduces the workflow file size but removes the input images.",
   "Settings_SaveFormat": "Save format:",
   "Settings_PngCompression": "PNG Compression Level (0-9):",
   "Settings_PngCompressionTooltip": "0 - no compression, 9 - maximum compression.",

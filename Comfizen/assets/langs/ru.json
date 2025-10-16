@@ -133,6 +133,8 @@
   "Settings_ImageSaving": "Сохранение изображений",
   "Settings_SaveMetadata": "Сохранять Workflow/Prompt в метаданные файла",
   "Settings_SaveMetadataTooltip": "Если включено, при сохранении файла в него будет встроен .json с параметрами генерации (для PNG, WebP). Для JPG будет создан отдельный .json файл.",
+  "Settings_RemoveBase64OnSave": "Удалять данные изображений (Base64) при сохранении воркфлоу",
+  "Settings_RemoveBase64OnSaveTooltip": "Если включено, все встроенные данные изображений из полей Inpaint или ImageInput будут очищены перед сохранением. Это значительно уменьшает размер файла воркфлоу, но удаляет входные изображения.",
   "Settings_SaveFormat": "Формат сохранения:",
   "Settings_PngCompression": "Уровень сжатия PNG (0-9):",
   "Settings_PngCompressionTooltip": "0 - без сжатия, 9 - максимальное сжатие.",

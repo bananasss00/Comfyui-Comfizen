@@ -41,6 +41,7 @@ namespace Comfizen
         public string ServerAddress { get; set; }
         public string SavedImagesDirectory { get; set; }
         public bool SavePromptWithFile { get; set; }
+        public bool RemoveBase64OnSave { get; set; }
         public ImageSaveFormat SaveFormat { get; set; }
         public int PngCompressionLevel { get; set; }
         public int WebpQuality { get; set; }
@@ -88,6 +89,7 @@ namespace Comfizen
             ServerAddress = _settings.ServerAddress;
             SavedImagesDirectory = _settings.SavedImagesDirectory;
             SavePromptWithFile = _settings.SavePromptWithFile;
+            RemoveBase64OnSave = _settings.RemoveBase64OnSave;
             Samplers = new ObservableCollection<string>(_settings.Samplers);
             Schedulers = new ObservableCollection<string>(_settings.Schedulers);
             SaveFormat = _settings.SaveFormat;
@@ -186,6 +188,7 @@ namespace Comfizen
                     _settings.ServerAddress = ServerAddress;
                     _settings.SavedImagesDirectory = SavedImagesDirectory;
                     _settings.SavePromptWithFile = SavePromptWithFile;
+                    _settings.RemoveBase64OnSave = RemoveBase64OnSave;
                     _settings.Samplers = Samplers.ToList();
                     _settings.Schedulers = Schedulers.ToList();
                     _settings.SaveFormat = SaveFormat;

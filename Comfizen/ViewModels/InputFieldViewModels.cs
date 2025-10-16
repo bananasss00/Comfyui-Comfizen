@@ -118,7 +118,7 @@ namespace Comfizen
             get
             {
                 var text = Property.Value.ToString();
-                if (text.Length > 1000 && (text.StartsWith("iVBOR") || text.StartsWith("/9j/")))
+                if (text.Length > 1000 && (text.StartsWith("iVBOR") || text.StartsWith("/9j/") || text.StartsWith("UklG")))
                 {
                     // Используем строку из локализации
                     return string.Format(LocalizationService.Instance["TextField_Base64Placeholder"], text.Length / 1024);
@@ -149,9 +149,6 @@ namespace Comfizen
             // Уведомляем UI, что свойство Value нужно перечитать (чтобы отобразился плейсхолдер)
             OnPropertyChanged(nameof(Value));
         }
-        // ========================================================== //
-        //     КОНЕЦ ИЗМЕНЕНИЯ                                        //
-        // ========================================================== //
 
         public TextFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
         {

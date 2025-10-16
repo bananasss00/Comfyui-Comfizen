@@ -164,6 +164,7 @@
                         <GroupBox Header="{local:Translate Settings_ImageSaving}">
                             <StackPanel>
                                 <CheckBox Content="{local:Translate Settings_SaveMetadata}" IsChecked="{Binding SavePromptWithFile}" ToolTip="{local:Translate Settings_SaveMetadataTooltip}"/>
+                                <CheckBox Content="{local:Translate Settings_RemoveBase64OnSave}" IsChecked="{Binding RemoveBase64OnSave}" ToolTip="{local:Translate Settings_RemoveBase64OnSaveTooltip}" Margin="0,5,0,0"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                     <TextBlock Text="{local:Translate Settings_SaveFormat}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                     <ComboBox ItemsSource="{Binding ImageSaveFormatValues}" SelectedItem="{Binding SaveFormat}" Width="100"/>

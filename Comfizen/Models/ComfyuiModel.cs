@@ -32,6 +32,11 @@ namespace Comfizen
 
             string promptToEmbed = settings.SavePromptWithFile ? prompt : null;
 
+            if (settings.RemoveBase64OnSave && !string.IsNullOrEmpty(promptToEmbed))
+            {
+                promptToEmbed = Utils.CleanBase64FromString(promptToEmbed);
+            }
+
             switch (settings.SaveFormat)
             {
                 case ImageSaveFormat.Png:
@@ -74,10 +79,10 @@ namespace Comfizen
 
             await File.WriteAllBytesAsync(finalSavePath, finalImageBytes);
 
-            if (saveJsonSeparately && !string.IsNullOrEmpty(prompt))
+            if (saveJsonSeparately && !string.IsNullOrEmpty(promptToEmbed))
             {
                 var jsonSavePath = Path.ChangeExtension(finalSavePath, ".json");
-                await File.WriteAllTextAsync(jsonSavePath, prompt);
+                await File.WriteAllTextAsync(jsonSavePath, promptToEmbed);
             }
         }
         
@@ -91,9 +96,15 @@ namespace Comfizen
             var targetDirectory = Path.GetDirectoryName(desiredPath);
             Directory.CreateDirectory(targetDirectory);
     
-            var videoBytesWithWorkflow = string.IsNullOrEmpty(prompt) 
+            string promptToProcess = prompt;
+            if (_settings.RemoveBase64OnSave && !string.IsNullOrEmpty(promptToProcess))
+            {
+                promptToProcess = Utils.CleanBase64FromString(promptToProcess);
+            }
+
+            var videoBytesWithWorkflow = string.IsNullOrEmpty(promptToProcess) 
                 ? videoBytes 
-                : Utils.EmbedWorkflowInVideo(videoBytes, prompt);
+                : Utils.EmbedWorkflowInVideo(videoBytes, promptToProcess);
 
             // Get the final, unique path for the video
             var finalSavePath = await Utils.GetUniqueFilePathAsync(desiredPath, videoBytesWithWorkflow);
@@ -106,10 +117,10 @@ namespace Comfizen
             
             await File.WriteAllBytesAsync(finalSavePath, videoBytesWithWorkflow);
             
-            if (!string.IsNullOrEmpty(prompt))
+            if (!string.IsNullOrEmpty(promptToProcess))
             {
                 var jsonSavePath = Path.ChangeExtension(finalSavePath, ".json");
-                await File.WriteAllTextAsync(jsonSavePath, prompt);
+                await File.WriteAllTextAsync(jsonSavePath, promptToProcess);
             }
         }
 
