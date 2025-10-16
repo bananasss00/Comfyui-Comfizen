@@ -1,6 +1,4 @@
-﻿// Workflow.cs
-
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
 using System.Collections.Generic;
@@ -18,6 +16,9 @@ namespace Comfizen
 
         private JObject? _loadedApi;
 
+        /// <summary>
+        /// The live state of the workflow, including any user-modified widget values.
+        /// </summary>
         public JObject? LoadedApi
         {
             get => _loadedApi;
@@ -29,6 +30,12 @@ namespace Comfizen
                 }
             }
         }
+        
+        /// <summary>
+        /// The original, unmodified API definition from the workflow file. Used for fingerprinting.
+        /// </summary>
+        public JObject OriginalApi { get; private set; }
+
 
         public ObservableCollection<WorkflowGroup> Groups { get; set; } = new();
 
@@ -42,7 +49,9 @@ namespace Comfizen
         public void LoadApiWorkflow(string filePath)
         {
             var json = File.ReadAllText(filePath);
-            LoadedApi = JObject.Parse(json);
+            var parsedJson = JObject.Parse(json);
+            OriginalApi = parsedJson;
+            LoadedApi = parsedJson.DeepClone() as JObject; // The live version is a clone
         }
 
         public JProperty? GetPropertyByPath(string path)
@@ -78,22 +87,31 @@ namespace Comfizen
         {
             var data = new
             {
-                prompt = _loadedApi,
+                prompt = OriginalApi,
                 promptTemplate = Groups
             };
 
             var jsonString = JsonConvert.SerializeObject(data, Formatting.Indented);
 
-            // Собираем полный путь
             var fullPath = Path.Combine(WorkflowsDir, fileName + ".json");
-
-            // Получаем путь к директории из полного пути к файлу
             var directoryPath = Path.GetDirectoryName(fullPath);
-
-            // Создаем директорию, если она не существует. Это безопасно вызывать, даже если она есть.
             Directory.CreateDirectory(directoryPath);
-    
-            // Записываем файл
+            File.WriteAllText(fullPath, jsonString);
+        }
+        
+        public void SaveWorkflowWithCurrentState(string fileName)
+        {
+            var data = new
+            {
+                prompt = LoadedApi,
+                promptTemplate = Groups
+            };
+
+            var jsonString = JsonConvert.SerializeObject(data, Formatting.Indented);
+
+            var fullPath = Path.Combine(WorkflowsDir, fileName + ".json");
+            var directoryPath = Path.GetDirectoryName(fullPath);
+            Directory.CreateDirectory(directoryPath);
             File.WriteAllText(fullPath, jsonString);
         }
 
@@ -112,7 +130,6 @@ namespace Comfizen
                 if (inputsObj is JObject inputsDict)
                 {
                     inputs.AddRange(inputsDict.Properties()
-                        // <<====== ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена проверка на JTokenType.Boolean
                         .Where(input => input.Value.Type == JTokenType.String ||
                                         input.Value.Type == JTokenType.Integer ||
                                         input.Value.Type == JTokenType.Float ||
@@ -131,16 +148,12 @@ namespace Comfizen
 
         public void LoadWorkflow(string fileName)
         {
-            // БЫЛО:
-            // var jsonString = File.ReadAllText(Path.Combine(WorkflowsDir, fileName));
-
-            // СТАЛО:
-            // Просто используем предоставленный fileName как есть, так как он уже является полным путем.
             var jsonString = File.ReadAllText(fileName);
 
             var data = JsonConvert.DeserializeAnonymousType(jsonString, new { prompt = default(JObject), promptTemplate = default(ObservableCollection<WorkflowGroup>) });
 
-            LoadedApi = data.prompt;
+            OriginalApi = data.prompt;
+            LoadedApi = data.prompt?.DeepClone() as JObject;
 
             Groups.Clear();
             if (data.promptTemplate != null)

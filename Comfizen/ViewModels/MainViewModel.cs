@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using PropertyChanged;
+using Newtonsoft.Json.Linq;
 
 namespace Comfizen
 {
@@ -34,10 +35,8 @@ namespace Comfizen
         private ModelService _modelService;
         private ConsoleLogService _consoleLogService;
         
-        // --- START OF CHANGES: Unified Gallery and FullScreen ViewModels ---
         public ImageProcessingViewModel ImageProcessing { get; private set; }
         public FullScreenViewModel FullScreen { get; private set; }
-        // --- END OF CHANGES ---
 
         public ObservableCollection<WorkflowTabViewModel> OpenTabs { get; } = new ObservableCollection<WorkflowTabViewModel>();
 
@@ -148,10 +147,8 @@ namespace Comfizen
             _comfyuiModel = new ComfyuiModel(_settings);
             _modelService = new ModelService(_settings);
             
-            // --- START OF CHANGES: Instantiate global ViewModels ---
             ImageProcessing = new ImageProcessingViewModel(_comfyuiModel, _settings);
-            FullScreen = new FullScreenViewModel(_comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
-            // --- END OF CHANGES ---
+            FullScreen = new FullScreenViewModel(this, _comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
             
             MaxQueueSize = _settings.MaxQueueSize;
             _sessionManager = new SessionManager(_settings);
@@ -238,6 +235,97 @@ namespace Comfizen
             };
             QueueCommand = new RelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
         }
+
+        public void ImportStateFromFile(string filePath)
+        {
+            try
+            {
+                string jsonString;
+                string fileExtension = Path.GetExtension(filePath).ToLowerInvariant();
+
+                if (fileExtension == ".png" || fileExtension == ".webp")
+                {
+                    var fileBytes = File.ReadAllBytes(filePath);
+                    jsonString = Utils.ReadStateFromImage(fileBytes);
+                    if (string.IsNullOrEmpty(jsonString))
+                    {
+                        MessageBox.Show("No Comfizen state metadata was found in the image file.", "Import Failed", MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+                }
+                else if (fileExtension.EndsWith(".json"))
+                {
+                    jsonString = File.ReadAllText(filePath);
+                }
+                else
+                {
+                    return; // Not a supported file type
+                }
+        
+                var data = JObject.Parse(jsonString);
+                ImportStateFromJObject(data);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred while importing the state file: {ex.Message}", "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        private async void ImportStateFromJObject(JObject data)
+        {
+            var promptData = data["prompt"] as JObject;
+            var uiDefinition = data["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
+
+            if (promptData == null || uiDefinition == null)
+            {
+                MessageBox.Show("The imported file is not a valid Comfizen state file or is corrupted.", "Invalid File", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            
+            var fingerprint = _sessionManager.GenerateFingerprint(uiDefinition);
+            var existingWorkflowPath = _sessionManager.FindWorkflowByFingerprint(fingerprint);
+
+            if (existingWorkflowPath != null)
+            {
+                // The widget state *is* the prompt data
+                _sessionManager.SaveSession(promptData, existingWorkflowPath);
+                var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, existingWorkflowPath).Replace(Path.DirectorySeparatorChar, '/');
+                OpenOrSwitchToWorkflow(relativePath);
+    
+                var tab = OpenTabs.FirstOrDefault(t => Path.GetFullPath(t.FilePath).Equals(Path.GetFullPath(existingWorkflowPath), StringComparison.OrdinalIgnoreCase));
+                if (tab != null)
+                {
+                    await tab.Reload(WorkflowSaveType.ApiReplaced);
+                }
+
+                MessageBox.Show($"Session for workflow '{Path.GetFileName(existingWorkflowPath)}' has been successfully imported.", "Import Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                var dialog = new SaveFileDialog
+                {
+                    Title = "Save New Workflow",
+                    Filter = "Workflow Files (*.json)|*.json",
+                    InitialDirectory = Path.GetFullPath(Workflow.WorkflowsDir),
+                    FileName = "imported_workflow.json"
+                };
+                if (dialog.ShowDialog() == true)
+                {
+                    var newWorkflowPath = dialog.FileName;
+                    
+                    var workflowData = new { prompt = promptData, promptTemplate = uiDefinition };
+                    var workflowJson = JsonConvert.SerializeObject(workflowData, Formatting.Indented);
+                    File.WriteAllText(newWorkflowPath, workflowJson);
+                    
+                    // No need to save a session, as the workflow file itself contains the desired state
+                    UpdateWorkflows();
+                    var newWorkflowRelativePath = Path.GetRelativePath(Workflow.WorkflowsDir, newWorkflowPath).Replace(Path.DirectorySeparatorChar, '/');
+                    OpenOrSwitchToWorkflow(newWorkflowRelativePath);
+
+                    MessageBox.Show($"New workflow '{Path.GetFileName(newWorkflowPath)}' has been successfully imported.", "Import Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+        }
         
         private async void OnWorkflowSaved(object sender, WorkflowSaveEventArgs e)
         {
@@ -290,12 +378,10 @@ namespace Comfizen
         {
             if (tabToClose == null) return;
             
-            // --- START OF CHANGES: FullScreen is now global ---
             if (FullScreen.IsFullScreenOpen)
             {
                 FullScreen.IsFullScreenOpen = false;
             }
-            // --- END OF CHANGES ---
 
             if (tabToClose.Workflow.IsLoaded)
             {
@@ -340,7 +426,7 @@ namespace Comfizen
                 var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, fullPath);
                 var relativePathWithoutExtension = Path.ChangeExtension(relativePath, null);
                 
-                SelectedTab.Workflow.SaveWorkflow(relativePathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/'));
+                SelectedTab.Workflow.SaveWorkflowWithCurrentState(relativePathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/'));
                 _sessionManager.SaveSession(SelectedTab.Workflow.LoadedApi, SelectedTab.FilePath);
 
                 MessageBox.Show(LocalizationService.Instance["MainVM_ValuesSavedMessage"],
@@ -400,10 +486,8 @@ namespace Comfizen
             _modelService = new ModelService(_settings);
             _sessionManager = new SessionManager(_settings);
             
-            // --- START OF CHANGES: Update global ViewModels after settings change ---
             ImageProcessing.Settings = _settings;
-            FullScreen = new FullScreenViewModel(_comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
-            // --- END OF CHANGES ---
+            FullScreen = new FullScreenViewModel(this, _comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
             
             await _consoleLogService.ReconnectAsync(_settings);
             
@@ -499,12 +583,10 @@ namespace Comfizen
                                 if (_canceledTasks) break;
                                 Application.Current.Dispatcher.Invoke(() =>
                                 {
-                                    // --- START OF CHANGES: Add to global gallery ---
                                     if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.FilePath == io.FilePath))
                                     {
                                         this.ImageProcessing.ImageOutputs.Insert(0, io);
                                     }
-                                    // --- END OF CHANGES ---
                                 });
                             }
         

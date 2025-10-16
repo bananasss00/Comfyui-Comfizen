@@ -633,6 +633,7 @@ namespace Comfizen
             {
                 LoadImageFromFile(files[0]);
             }
+            e.Handled = true;
         }
 
         private void LoadImageFromFile(string filePath)

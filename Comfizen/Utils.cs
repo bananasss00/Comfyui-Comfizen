@@ -16,6 +16,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Hjg.Pngcs;
 using Hjg.Pngcs.Chunks;
+using MetadataExtractor.Formats.Exif;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Formats.Png.Chunks;
@@ -301,25 +302,82 @@ namespace Comfizen
             return jProperty;
         }
 
-        public static string? ReadPngPrompt(byte[] bytes)
+        public static string? ReadStateFromImage(byte[] imageBytes)
         {
-            MemoryStream stream = new MemoryStream(bytes);
-            var directories = ImageMetadataReader.ReadMetadata(stream);
-            foreach (var directory in directories)
+            string? stateJson = ReadPngPrompt(imageBytes);
+            if (!string.IsNullOrEmpty(stateJson))
             {
-                foreach (var tag in directory.Tags)
-                {
-                    if (tag.DirectoryName == "PNG-tEXt" && tag.Name == "Textual Data") 
-                    {
-                        string workflow = tag.Description.Substring(7); 
-                        dynamic parsedWorkflow = JsonConvert.DeserializeObject(workflow);
-                        string formattedJson = JsonConvert.SerializeObject(parsedWorkflow, Formatting.Indented);
-                        return formattedJson;
-                    }
-                }
+                return stateJson;
+            }
+        
+            stateJson = ReadWebpPrompt(imageBytes);
+            if (!string.IsNullOrEmpty(stateJson))
+            {
+                return stateJson;
             }
 
             return null;
+        }
+
+        public static string? ReadWebpPrompt(byte[] bytes)
+        {
+            try
+            {
+                var directories = ImageMetadataReader.ReadMetadata(new MemoryStream(bytes));
+                var exifDir = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
+                if (exifDir != null)
+                {
+                    // Use the integer tag ID for "Make" (271) for better compatibility
+                    var makeTag = exifDir.GetDescription(271);
+                    if (makeTag != null && makeTag.StartsWith("prompt:"))
+                    {
+                        var workflow = makeTag.Substring(7);
+                        return TryFormatJson(workflow);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error reading WebP metadata: {ex.Message}");
+            }
+            return null;
+        }
+
+        public static string? ReadPngPrompt(byte[] bytes)
+        {
+            try
+            {
+                var directories = ImageMetadataReader.ReadMetadata(new MemoryStream(bytes));
+                foreach (var directory in directories)
+                {
+                    foreach (var tag in directory.Tags)
+                    {
+                        if (tag.DirectoryName == "PNG-tEXt" && tag.Name == "Textual Data" && tag.Description.StartsWith("prompt\0"))
+                        {
+                            var workflow = tag.Description.Substring("prompt\0".Length);
+                            return TryFormatJson(workflow);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error reading PNG metadata: {ex.Message}");
+            }
+            return null;
+        }
+
+        private static string TryFormatJson(string json)
+        {
+            try
+            {
+                dynamic parsedJson = JsonConvert.DeserializeObject(json);
+                return JsonConvert.SerializeObject(parsedJson, Formatting.Indented);
+            }
+            catch
+            {
+                return json;
+            }
         }
         
         /// <summary>

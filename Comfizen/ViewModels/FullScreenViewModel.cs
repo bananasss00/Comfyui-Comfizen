@@ -3,6 +3,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Input;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Windows;
 
 namespace Comfizen
 {
@@ -11,6 +14,7 @@ namespace Comfizen
     /// </summary>
     public class FullScreenViewModel : INotifyPropertyChanged
     {
+        private readonly MainViewModel _mainViewModel;
         private readonly ComfyuiModel _comfyuiModel;
         private readonly AppSettings _settings;
         
@@ -30,8 +34,9 @@ namespace Comfizen
         
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        public FullScreenViewModel(ComfyuiModel comfyuiModel, AppSettings settings, ObservableCollection<ImageOutput> galleryItems)
+        public FullScreenViewModel(MainViewModel mainViewModel, ComfyuiModel comfyuiModel, AppSettings settings, ObservableCollection<ImageOutput> galleryItems)
         {
+            _mainViewModel = mainViewModel;
             _comfyuiModel = comfyuiModel;
             _settings = settings;
             
@@ -55,8 +60,26 @@ namespace Comfizen
                 SaveConfirmationText = LocalizationService.Instance["Fullscreen_Saving"];
                 await Task.Delay(10); 
     
-                string promptToSave = _settings.SavePromptWithFile ? CurrentFullScreenImage.Prompt : null;
-    
+                string promptToSave = null;
+
+                if (_settings.SavePromptWithFile)
+                {
+                    var activeTab = _mainViewModel.SelectedTab;
+                    if (activeTab != null && activeTab.Workflow.IsLoaded)
+                    {
+                        var fullState = new JObject
+                        {
+                            ["prompt"] = activeTab.Workflow.LoadedApi,
+                            ["promptTemplate"] = JToken.FromObject(activeTab.Workflow.Groups),
+                        };
+                        promptToSave = fullState.ToString(Formatting.None);
+                    }
+                    else
+                    {
+                        promptToSave = CurrentFullScreenImage.Prompt;
+                    }
+                }
+
                 if (CurrentFullScreenImage.Type == FileType.Video)
                 {
                     await _comfyuiModel.SaveVideoFileAsync(

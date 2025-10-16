@@ -2,34 +2,41 @@
 using System.IO;
 using System.Security.Cryptography; // Для MD5
 using System.Text;
+using Newtonsoft.Json;
+using System.Linq;
+using System.Collections.ObjectModel;
+using Newtonsoft.Json.Serialization;
+using System.Collections.Generic;
 
 namespace Comfizen
 {
     public class SessionManager
     {
         private readonly AppSettings _settings;
+        
+        private static readonly JsonSerializer _fingerprintSerializer = new JsonSerializer
+        {
+            Formatting = Formatting.None,
+            ContractResolver = new OrderedContractResolver()
+        };
+
+        private class OrderedContractResolver : DefaultContractResolver
+        {
+            protected override IList<JsonProperty> CreateProperties(System.Type type, MemberSerialization memberSerialization)
+            {
+                return base.CreateProperties(type, memberSerialization).OrderBy(p => p.PropertyName).ToList();
+            }
+        }
 
         public SessionManager(AppSettings settings)
         {
             _settings = settings;
-            // Убеждаемся, что директория для сессий существует
             Directory.CreateDirectory(_settings.SessionsDirectory);
         }
 
-        /// <summary>
-        /// Генерирует уникальное имя файла для сессии на основе содержимого Workflow.
-        /// Это гарантирует, что сессии не будут конфликтовать, даже если workflow названы одинаково,
-        /// но имеют разное внутреннее наполнение.
-        /// </summary>
         private string GetSessionFileName(string workflowFullPath)
         {
-            // ========================================================== //
-            //     НАЧАЛО ИСПРАВЛЕНИЯ 3 (Улучшение)                       //
-            // ========================================================== //
-            // Приводим путь к нижнему регистру перед хэшированием,
-            // чтобы C:\file.json и c:\file.json имели один и тот же файл сессии.
             string pathToHash = Path.GetFullPath(workflowFullPath).ToLowerInvariant();
-
             using (MD5 md5 = MD5.Create())
             {
                 byte[] inputBytes = Encoding.UTF8.GetBytes(pathToHash);
@@ -41,16 +48,67 @@ namespace Comfizen
                 }
                 return sb.ToString() + ".json";
             }
-            // ========================================================== //
-            //     КОНЕЦ ИСПРАВЛЕНИЯ 3                                    //
-            // ========================================================== //
+        }
+        
+        public string GenerateFingerprint(ObservableCollection<WorkflowGroup> uiDefinition)
+        {
+            if (uiDefinition == null) return string.Empty;
+
+            using (var sw = new StringWriter())
+            {
+                // The fingerprint is based ONLY on the UI structure (promptTemplate)
+                _fingerprintSerializer.Serialize(sw, uiDefinition);
+                string jsonText = sw.ToString();
+
+                using (MD5 md5 = MD5.Create())
+                {
+                    byte[] inputBytes = Encoding.UTF8.GetBytes(jsonText);
+                    byte[] hashBytes = md5.ComputeHash(inputBytes);
+                    var sb = new StringBuilder();
+                    for (int i = 0; i < hashBytes.Length; i++)
+                    {
+                        sb.Append(hashBytes[i].ToString("x2"));
+                    }
+                    return sb.ToString();
+                }
+            }
         }
 
-        /// <summary>
-        /// Сохраняет текущее состояние JObject workflow в файл сессии.
-        /// </summary>
-        /// <param name="workflowJObject">JObject для сохранения.</param>
-        /// <param name="workflowFullPath">Полный путь к файлу workflow, для которого сохраняется сессия.</param>
+        public string FindWorkflowByFingerprint(string fingerprint)
+        {
+            if (string.IsNullOrEmpty(fingerprint) || !Directory.Exists(Workflow.WorkflowsDir))
+            {
+                return null;
+            }
+    
+            var files = Directory.EnumerateFiles(Workflow.WorkflowsDir, "*.json", SearchOption.AllDirectories);
+
+            foreach (var file in files)
+            {
+                try
+                {
+                    var jsonString = File.ReadAllText(file);
+                    var data = JsonConvert.DeserializeAnonymousType(jsonString, 
+                        new { promptTemplate = default(ObservableCollection<WorkflowGroup>) });
+
+                    if (data.promptTemplate != null)
+                    {
+                        var currentFingerprint = GenerateFingerprint(data.promptTemplate);
+                        if (fingerprint.Equals(currentFingerprint, System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            return Path.GetFullPath(file);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore corrupted or invalid files
+                }
+            }
+
+            return null;
+        }
+
         public void SaveSession(JObject workflowJObject, string workflowFullPath)
         {
             if (workflowJObject == null) return;
@@ -61,11 +119,6 @@ namespace Comfizen
             File.WriteAllText(sessionFilePath, workflowJObject.ToString(Newtonsoft.Json.Formatting.Indented));
         }
 
-        /// <summary>
-        /// Загружает состояние JObject workflow из файла сессии.
-        /// </summary>
-        /// <param name="workflowFullPath">Полный путь к файлу workflow, для которого загружается сессия.</param>
-        /// <returns>Загруженный JObject или null, если файл сессии не найден.</returns>
         public JObject? LoadSession(string workflowFullPath)
         {
             string sessionFileName = GetSessionFileName(workflowFullPath);
@@ -79,10 +132,6 @@ namespace Comfizen
             return null;
         }
 
-        /// <summary>
-        /// Удаляет файл сессии для указанного workflow.
-        /// </summary>
-        /// <param name="workflowFullPath">Полный путь к файлу workflow, сессию которого нужно сбросить.</param>
         public void ClearSession(string workflowFullPath)
         {
             string sessionFileName = GetSessionFileName(workflowFullPath);

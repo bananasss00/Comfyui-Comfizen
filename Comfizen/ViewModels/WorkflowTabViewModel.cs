@@ -21,11 +21,6 @@ namespace Comfizen
 
         public Workflow Workflow { get; private set; }
         
-        // --- START OF CHANGES: ImageProcessing and FullScreen removed ---
-        // public ImageProcessingViewModel ImageProcessing { get; private set; }
-        // public FullScreenViewModel FullScreen { get; private set; }
-        // --- END OF CHANGES ---
-        
         public WorkflowInputsController WorkflowInputsController { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -41,11 +36,6 @@ namespace Comfizen
             _sessionManager = sessionManager;
 
             Workflow = new Workflow();
-            
-            // --- START OF CHANGES: Instantiation of local VMs removed ---
-            // ImageProcessing = new ImageProcessingViewModel(comfyModel, settings);
-            // FullScreen = new FullScreenViewModel(comfyModel, settings, ImageProcessing.FilteredImageOutputs);
-            // --- END OF CHANGES ---
             
             InitializeController();
             
@@ -66,9 +56,9 @@ namespace Comfizen
             {
                 Workflow.LoadWorkflow(FilePath);
                 var sessionJObject = _sessionManager.LoadSession(FilePath);
-                if (sessionJObject != null && Workflow.LoadedApi != null)
+                if (sessionJObject != null)
                 {
-                    Utils.MergeJsonObjects(Workflow.LoadedApi, sessionJObject);
+                    Workflow.LoadedApi = sessionJObject;
                 }
                 await WorkflowInputsController.LoadInputs();
             }
@@ -102,6 +92,15 @@ namespace Comfizen
             {
                 Utils.MergeJsonObjects(Workflow.LoadedApi, currentWidgetState);
             }
+            else
+            {
+                // Also reload session after a full API replacement to get the latest values
+                var sessionJObject = _sessionManager.LoadSession(FilePath);
+                if (sessionJObject != null)
+                {
+                    Workflow.LoadedApi = sessionJObject;
+                }
+            }
             
             await WorkflowInputsController.LoadInputs();
         }
@@ -113,13 +112,7 @@ namespace Comfizen
             _comfyModel = newComfyModel;
             _modelService = newModelService;
             
-            // Reload the tab state, keeping widget values
             Reload(WorkflowSaveType.LayoutOnly);
-            
-            // --- START OF CHANGES: No longer need to update local VMs ---
-            // this.ImageProcessing.Settings = newSettings;
-            // this.FullScreen = new FullScreenViewModel(_comfyModel, newSettings, this.ImageProcessing.FilteredImageOutputs);
-            // --- END OF CHANGES ---
         }
     }
 }

@@ -40,6 +40,30 @@ namespace Comfizen
             _positionUpdateTimer.Interval = TimeSpan.FromMilliseconds(200);
             _positionUpdateTimer.Tick += PositionUpdateTimer_Tick;
         }
+        
+        private void Window_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void Window_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+            {
+                // We only process the first file dropped
+                var filePath = files[0];
+                var extension = Path.GetExtension(filePath).ToLowerInvariant();
+                
+                if (extension.EndsWith(".json") || extension == ".png" || extension == ".webp")
+                {
+                    if (DataContext is MainViewModel viewModel)
+                    {
+                        viewModel.ImportStateFromFile(filePath);
+                    }
+                }
+            }
+        }
 
         private void PositionUpdateTimer_Tick(object sender, EventArgs e)
         {
@@ -74,9 +98,7 @@ namespace Comfizen
                     if (listViewItem.DataContext is ImageOutput item)
                     {
                         var viewModel = DataContext as MainViewModel;
-                        // --- START OF CHANGES: Call global FullScreen command ---
                         viewModel?.FullScreen.OpenFullScreenCommand.Execute(item);
-                        // --- END OF CHANGES ---
                     }
                 }
             }
@@ -86,12 +108,10 @@ namespace Comfizen
         
         private void LvOutputs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // --- START OF CHANGES: Bind to global ImageProcessing VM ---
             if (DataContext is MainViewModel vm && sender is ListView lv)
             {
                 vm.ImageProcessing.SelectedItemsCount = lv.SelectedItems.Count;
             }
-            // --- END OF CHANGES ---
         }
         
         private void QueueSizeUpDown_OnSpinned(object sender, SpinEventArgs e)
@@ -197,9 +217,7 @@ namespace Comfizen
             {
                 if (DataContext is MainViewModel viewModel)
                 {
-                    // --- START OF CHANGES: Call global FullScreen command ---
                     viewModel.FullScreen.CloseFullScreenCommand.Execute(null);
-                    // --- END OF CHANGES ---
                 }
             }
         }
@@ -243,9 +261,7 @@ namespace Comfizen
             if ((bool)e.NewValue == true)
             {
                 var vm = DataContext as MainViewModel;
-                // --- START OF CHANGES: Get current image from global VM ---
                 RequestUpdatePlayerSource(vm?.FullScreen.CurrentFullScreenImage);
-                // --- END OF CHANGES ---
             }
             else 
             {
@@ -356,7 +372,6 @@ namespace Comfizen
         {
             if (DataContext is not MainViewModel viewModel) return;
             
-            // --- START OF CHANGES: Use global FullScreen VM for hotkeys ---
             if (e.Key == Key.NumPad6) viewModel.FullScreen.MoveNextCommand.Execute(null);
             else if (e.Key == Key.NumPad4) viewModel.FullScreen.MovePreviousCommand.Execute(null);
             else if (e.Key == Key.NumPad5 && viewModel.FullScreen.IsFullScreenOpen) await System.Threading.Tasks.Task.Run(() => viewModel.FullScreen.SaveCurrentImageCommand.Execute(null));
@@ -365,7 +380,6 @@ namespace Comfizen
                 viewModel.FullScreen.CloseFullScreenCommand.Execute(null);
                 this.Focus();
             }
-            // --- END OF CHANGES ---
             else if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) viewModel.QueueCommand.Execute(null);
             else if (e.Key == Key.V && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
