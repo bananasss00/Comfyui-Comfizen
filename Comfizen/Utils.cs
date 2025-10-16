@@ -20,6 +20,7 @@ using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
 using Directory = System.IO.Directory;
+using System.ComponentModel;
 
 namespace Comfizen
 {
@@ -61,6 +62,107 @@ namespace Comfizen
     {
         private const string MagicMarker = "COMFIZEN_WORKFLOW_EMBED_V1";
         private static readonly byte[] MagicMarkerBytes = Encoding.UTF8.GetBytes(MagicMarker);
+        
+        private static bool? _isFfmpegAvailable;
+
+        public static bool IsFfmpegAvailable()
+        {
+            if (_isFfmpegAvailable.HasValue)
+            {
+                return _isFfmpegAvailable.Value;
+            }
+
+            try
+            {
+                using (var process = new Process())
+                {
+                    process.StartInfo.FileName = "ffmpeg";
+                    process.StartInfo.Arguments = "-version";
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.Start();
+                    process.WaitForExit();
+                    _isFfmpegAvailable = process.ExitCode == 0;
+                }
+            }
+            catch (Win32Exception)
+            {
+                _isFfmpegAvailable = false;
+                // Логируем только один раз за сессию, если ffmpeg не найден
+                Logger.Log("ffmpeg command not found in PATH. Metadata stripping for videos will be disabled.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "An unexpected error occurred while checking for ffmpeg");
+                _isFfmpegAvailable = false;
+            }
+
+            return _isFfmpegAvailable.Value;
+        }
+        
+        public static async Task<byte[]> StripVideoMetadataAsync(byte[] videoBytes, string originalFileName)
+        {
+            if (!IsFfmpegAvailable())
+            {
+                return videoBytes;
+            }
+
+            var extension = Path.GetExtension(originalFileName);
+            if (string.IsNullOrEmpty(extension))
+            {
+                Logger.Log($"Could not determine file extension for metadata stripping of file '{originalFileName}'. Skipping.");
+                return videoBytes;
+            }
+
+            var tempInputFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
+            var tempOutputFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
+
+            try
+            {
+                await File.WriteAllBytesAsync(tempInputFile, videoBytes);
+
+                using (var process = new Process())
+                {
+                    process.StartInfo.FileName = "ffmpeg";
+                    process.StartInfo.Arguments = $"-y -i \"{tempInputFile}\" -map_metadata -1 -c copy \"{tempOutputFile}\"";
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.StartInfo.RedirectStandardError = true;
+
+                    process.Start();
+                    string error = await process.StandardError.ReadToEndAsync();
+                    process.WaitForExit();
+
+                    if (process.ExitCode != 0)
+                    {
+                        Logger.Log($"ffmpeg failed with exit code {process.ExitCode} while processing '{originalFileName}'. Error: {error}");
+                        return videoBytes;
+                    }
+
+                    if (File.Exists(tempOutputFile) && new FileInfo(tempOutputFile).Length > 0)
+                    {
+                        return await File.ReadAllBytesAsync(tempOutputFile);
+                    }
+                    else
+                    {
+                        Logger.Log($"ffmpeg stripping process did not create an output file for '{originalFileName}'. Error: {error}");
+                        return videoBytes;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, $"Exception during ffmpeg metadata stripping for '{originalFileName}'");
+                return videoBytes;
+            }
+            finally
+            {
+                try { if (File.Exists(tempInputFile)) File.Delete(tempInputFile); } catch {}
+                try { if (File.Exists(tempOutputFile)) File.Delete(tempOutputFile); } catch {}
+            }
+        }
         
         private static byte[] Compress(string data)
         {
@@ -143,9 +245,6 @@ namespace Comfizen
             }
         }
         
-        // ========================================================== //
-        //     НАЧАЛО ИСПРАВЛЕНИЯ: Разделение логики для Jpeg и других //
-        // ========================================================== //
         public static byte[] ProcessImageAndAppendWorkflow(byte[] sourceImageBytes, string workflowJson, IImageEncoder encoder)
         {
             byte[] processedImageBytes;
@@ -156,7 +255,6 @@ namespace Comfizen
                 {
                     if (encoder is JpegEncoder)
                     {
-                        // Path for JPG: Create Rgb24, fill with white, draw, save.
                         using (var cleanImage = new Image<Rgb24>(image.Width, image.Height))
                         {
                             cleanImage.Mutate(ctx => ctx.BackgroundColor(Color.White).DrawImage(image, 1f));
@@ -165,7 +263,6 @@ namespace Comfizen
                     }
                     else
                     {
-                        // Path for PNG/WebP: Create Rgba32, draw, save.
                         using (var cleanImage = new Image<Rgba32>(image.Width, image.Height))
                         {
                             cleanImage.Mutate(ctx => ctx.DrawImage(image, 1f));
@@ -227,7 +324,7 @@ namespace Comfizen
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error reading appended workflow: {ex.Message}");
+                Logger.Log(ex, "Error reading appended workflow");
                 return null;
             }
         }

@@ -26,9 +26,6 @@ namespace Comfizen
             await api.InterruptAsync();
         }
         
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Полностью переработанный метод       //
-        // ========================================================== //
         public async Task SaveImageFileAsync(string saveDirectory, string relativeFilePath, byte[] sourcePngBytes, string prompt, AppSettings settings)
         {
             byte[] finalImageBytes;
@@ -84,14 +81,15 @@ namespace Comfizen
             var targetDirectory = Path.GetDirectoryName(desiredPath);
             Directory.CreateDirectory(targetDirectory);
     
+            var processedVideoBytes = await Utils.StripVideoMetadataAsync(videoBytes, relativeFilePath);
+            
             string promptToProcess = prompt;
             if (_settings.RemoveBase64OnSave && !string.IsNullOrEmpty(promptToProcess))
             {
                 promptToProcess = Utils.CleanBase64FromString(promptToProcess);
             }
 
-            // Теперь просто вызываем универсальный метод
-            var videoBytesWithWorkflow = Utils.EmbedWorkflowInVideo(videoBytes, promptToProcess);
+            var videoBytesWithWorkflow = Utils.EmbedWorkflowInVideo(processedVideoBytes, promptToProcess);
 
             var finalSavePath = await Utils.GetUniqueFilePathAsync(desiredPath, videoBytesWithWorkflow);
             
@@ -115,7 +113,6 @@ namespace Comfizen
             {
                 foreach (var fileOutput in kv.Value)
                 {
-                    // Теперь мы можем пытаться прочитать workflow из ЛЮБОГО полученного файла
                     string prompt = Utils.ReadStateFromImage(fileOutput.Data) ?? json;
                     
                     var isVideo = new[] { ".mp4", ".mov", ".avi", ".mkv", ".webm", ".gif" }
