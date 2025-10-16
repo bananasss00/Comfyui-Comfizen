@@ -1,6 +1,9 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Media;
+using Guid = TagLib.Asf.Guid;
 
 namespace Comfizen
 {
@@ -9,6 +12,9 @@ namespace Comfizen
         private static readonly string LogDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
         private static readonly string LogFilePath;
         private static readonly object _lock = new object();
+        
+        public static ConsoleLogService ConsoleLogServiceInstance { get; set; }
+        public static event Action OnErrorLogged;
 
         static Logger()
         {
@@ -19,7 +25,6 @@ namespace Comfizen
             }
             catch (Exception ex)
             {
-                // Если настройка логгера не удалась, мы мало что можем сделать.
                 Console.WriteLine($"Не удалось инициализировать логгер: {ex.Message}");
             }
         }
@@ -65,11 +70,17 @@ namespace Comfizen
                     level++;
                 }
                 sb.AppendLine("==============================================================================");
+                
+                var fullErrorMessage = sb.ToString();
 
                 lock (_lock)
                 {
-                    File.AppendAllText(LogFilePath, sb.ToString());
+                    File.AppendAllText(LogFilePath, fullErrorMessage);
                 }
+                
+                ConsoleLogServiceInstance?.LogError(fullErrorMessage);
+                SystemSounds.Exclamation.Play();
+                OnErrorLogged?.Invoke();
             }
             catch (Exception ex)
             {

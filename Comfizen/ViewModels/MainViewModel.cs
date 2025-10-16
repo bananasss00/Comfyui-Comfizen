@@ -157,6 +157,9 @@ namespace Comfizen
             ConsoleLogMessages = _consoleLogService.LogMessages;
             _consoleLogService.ConnectAsync();
 
+            Logger.ConsoleLogServiceInstance = _consoleLogService;
+            Logger.OnErrorLogged += ShowConsoleOnError;
+
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
             ClearConsoleCommand = new RelayCommand(_ => ConsoleLogMessages.Clear());
             
@@ -236,9 +239,14 @@ namespace Comfizen
             QueueCommand = new RelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
         }
         
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Упрощенный метод импорта             //
-        // ========================================================== //
+        private void ShowConsoleOnError()
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                IsConsoleVisible = true;
+            });
+        }
+
         public void ImportStateFromFile(string filePath)
         {
             try
@@ -248,7 +256,6 @@ namespace Comfizen
 
                 if (string.IsNullOrEmpty(jsonString))
                 {
-                    // Если ReadStateFromImage ничего не нашел, проверим, не является ли это чистым JSON
                     if (Path.GetExtension(filePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
                     {
                         jsonString = File.ReadAllText(filePath);
@@ -593,7 +600,7 @@ namespace Comfizen
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[Connection Error] Failed to queue prompt: {ex.Message}");
+                            Logger.Log(ex, "[Connection Error] Failed to queue prompt");
                             Application.Current.Dispatcher.Invoke(() =>
                             {
                                 MessageBox.Show(
@@ -754,6 +761,7 @@ namespace Comfizen
         {
             GlobalEventManager.WorkflowSaved -= OnWorkflowSaved;
             
+            Logger.OnErrorLogged -= ShowConsoleOnError;
             await _consoleLogService.DisconnectAsync();
 
             foreach (var tab in OpenTabs)

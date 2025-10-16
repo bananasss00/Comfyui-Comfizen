@@ -90,7 +90,6 @@ namespace Comfizen
             catch (Win32Exception)
             {
                 _isFfmpegAvailable = false;
-                // Логируем только один раз за сессию, если ffmpeg не найден
                 Logger.Log("ffmpeg command not found in PATH. Metadata stripping for videos will be disabled.");
             }
             catch (Exception ex)
@@ -109,58 +108,114 @@ namespace Comfizen
                 return videoBytes;
             }
 
-            var extension = Path.GetExtension(originalFileName);
+            var extension = Path.GetExtension(originalFileName)?.TrimStart('.');
             if (string.IsNullOrEmpty(extension))
             {
                 Logger.Log($"Could not determine file extension for metadata stripping of file '{originalFileName}'. Skipping.");
                 return videoBytes;
             }
+            
+            var fileBasedFormats = new[] { "mkv" };
 
-            var tempInputFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
-            var tempOutputFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
-
-            try
+            if (fileBasedFormats.Contains(extension.ToLowerInvariant()))
             {
-                await File.WriteAllBytesAsync(tempInputFile, videoBytes);
+                var tempInputFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + "." + extension);
+                var tempOutputFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + "." + extension);
 
-                using (var process = new Process())
+                try
                 {
-                    process.StartInfo.FileName = "ffmpeg";
-                    process.StartInfo.Arguments = $"-y -i \"{tempInputFile}\" -map_metadata -1 -c copy \"{tempOutputFile}\"";
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.CreateNoWindow = true;
-                    process.StartInfo.RedirectStandardError = true;
+                    await File.WriteAllBytesAsync(tempInputFile, videoBytes);
 
-                    process.Start();
-                    string error = await process.StandardError.ReadToEndAsync();
-                    process.WaitForExit();
+                    var processStartInfo = new ProcessStartInfo
+                    {
+                        FileName = "ffmpeg",
+                        Arguments = $"-y -i \"{tempInputFile}\" -map_metadata -1 -c copy \"{tempOutputFile}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardError = true
+                    };
+                    
+                    using (var process = new Process { StartInfo = processStartInfo })
+                    {
+                        process.Start();
+                        string error = await process.StandardError.ReadToEndAsync();
+                        await process.WaitForExitAsync();
 
-                    if (process.ExitCode != 0)
-                    {
-                        Logger.Log($"ffmpeg failed with exit code {process.ExitCode} while processing '{originalFileName}'. Error: {error}");
-                        return videoBytes;
-                    }
+                        if (process.ExitCode != 0)
+                        {
+                            Logger.Log($"ffmpeg (file-based) failed with exit code {process.ExitCode} for '{originalFileName}'. Error: {error}");
+                            return videoBytes;
+                        }
 
-                    if (File.Exists(tempOutputFile) && new FileInfo(tempOutputFile).Length > 0)
-                    {
-                        return await File.ReadAllBytesAsync(tempOutputFile);
-                    }
-                    else
-                    {
-                        Logger.Log($"ffmpeg stripping process did not create an output file for '{originalFileName}'. Error: {error}");
+                        if (File.Exists(tempOutputFile) && new FileInfo(tempOutputFile).Length > 0)
+                        {
+                            return await File.ReadAllBytesAsync(tempOutputFile);
+                        }
+                        
+                        Logger.Log($"ffmpeg (file-based) stripping did not create an output file for '{originalFileName}'. Error: {error}");
                         return videoBytes;
                     }
                 }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, $"Exception during file-based ffmpeg metadata stripping for '{originalFileName}'");
+                    return videoBytes;
+                }
+                finally
+                {
+                    try { if (File.Exists(tempInputFile)) File.Delete(tempInputFile); } catch {}
+                    try { if (File.Exists(tempOutputFile)) File.Delete(tempOutputFile); } catch {}
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Logger.Log(ex, $"Exception during ffmpeg metadata stripping for '{originalFileName}'");
-                return videoBytes;
-            }
-            finally
-            {
-                try { if (File.Exists(tempInputFile)) File.Delete(tempInputFile); } catch {}
-                try { if (File.Exists(tempOutputFile)) File.Delete(tempOutputFile); } catch {}
+                var processStartInfo = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = $"-f {extension} -i - -map_metadata -1 -c copy -movflags isml+frag_keyframe -f {extension} -",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                try
+                {
+                    using (var process = new Process { StartInfo = processStartInfo })
+                    using (var outputStream = new MemoryStream())
+                    {
+                        process.Start();
+
+                        var inputTask = process.StandardInput.BaseStream.WriteAsync(videoBytes, 0, videoBytes.Length).ContinueWith(_ => process.StandardInput.Close());
+                        var outputTask = process.StandardOutput.BaseStream.CopyToAsync(outputStream);
+                        var errorTask = process.StandardError.ReadToEndAsync();
+
+                        await Task.WhenAll(inputTask, outputTask, errorTask);
+                        
+                        process.WaitForExit();
+                        var errorOutput = await errorTask;
+
+                        if (process.ExitCode != 0)
+                        {
+                            Logger.Log($"ffmpeg (stream-based) failed for '{originalFileName}'. Error: {errorOutput}");
+                            return videoBytes;
+                        }
+                        
+                        if (outputStream.Length > 0)
+                        {
+                            return outputStream.ToArray();
+                        }
+                        
+                        Logger.Log($"ffmpeg (stream-based) produced no output for '{originalFileName}'. Error: {errorOutput}");
+                        return videoBytes;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, $"Exception during stream-based ffmpeg metadata stripping for '{originalFileName}'");
+                    return videoBytes;
+                }
             }
         }
         

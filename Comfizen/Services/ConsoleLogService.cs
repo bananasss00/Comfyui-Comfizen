@@ -1,6 +1,4 @@
-﻿// --- START OF FILE ConsoleLogService.cs ---
-
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -191,6 +189,16 @@ namespace Comfizen
                     ProcessMessage(message);
                 }
             }
+        }
+        
+        public void LogError(string message)
+        {
+            LogMessages.Add(new LogMessage
+            {
+                Text = message,
+                Level = LogLevel.Error,
+                Type = LogType.Normal
+            });
         }
         
         private void ProcessMessage(string message)
