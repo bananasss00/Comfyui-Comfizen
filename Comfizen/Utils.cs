@@ -405,15 +405,70 @@ namespace Comfizen
 
         public static JProperty? GetJsonPropertyByPath(JObject obj, string path)
         {
-            var parts = path.Split('.');
-            var current = obj;
-            JProperty? prop = null;
-            for (int i = 0; i < parts.Length; i++)
+            if (obj == null)
             {
-                if (i == parts.Length - 1) prop = current.Property(parts[i]);
-                else current = (JObject)current[parts[i]];
+                Logger.Log($"GetJsonPropertyByPath was called with a null JObject for path: '{path ?? "null"}'.");
+                return null;
             }
-            return prop;
+
+            if (string.IsNullOrEmpty(path))
+            {
+                Logger.Log("GetJsonPropertyByPath was called with a null or empty path.");
+                return null;
+            }
+
+            // ========================================================== //
+            //     START OF FIX: Resiliency against incorrect paths       //
+            // ========================================================== //
+            // This handles legacy workflow files where paths might be incorrectly stored with a "prompt." prefix.
+            // We safely remove it before proceeding, as the 'obj' parameter is already the content of "prompt".
+            string correctedPath = path;
+            if (correctedPath.StartsWith("prompt."))
+            {
+                correctedPath = correctedPath.Substring("prompt.".Length);
+            }
+            // ========================================================== //
+            //     END OF FIX                                             //
+            // ========================================================== //
+
+            var parts = correctedPath.Split('.');
+            JToken? currentToken = obj;
+
+            for (int i = 0; i < parts.Length - 1; i++)
+            {
+                string part = parts[i];
+                
+                if (currentToken is not JObject currentObj)
+                {
+                    Logger.Log($"Path traversal failed for '{path}'. The segment '{string.Join(".", parts.Take(i))}' did not resolve to a JObject.");
+                    return null;
+                }
+
+                currentToken = currentObj[part];
+
+                if (currentToken == null)
+                {
+                    Logger.Log($"Path traversal failed for '{path}'. Segment '{part}' not found at path '{string.Join(".", parts.Take(i + 1))}'.");
+                    return null;
+                }
+            }
+
+            if (currentToken is not JObject finalObj)
+            {
+                Logger.Log($"Path traversal failed for '{path}'. The final container '{string.Join(".", parts.Take(parts.Length - 1))}' was not a JObject.");
+                return null;
+            }
+
+            string finalPart = parts.Last();
+            var property = finalObj.Property(finalPart);
+
+            if (property == null)
+            {
+                Logger.Log($"Property '{finalPart}' not found at the end of path '{path}'.");
+                return null;
+            }
+
+            return property;
         }
 
         private static string TryFormatJson(string json)
