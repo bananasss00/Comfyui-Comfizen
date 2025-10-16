@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.PixelFormats;
 using System;
@@ -15,10 +16,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Hjg.Pngcs;
-using Hjg.Pngcs.Chunks;
-using MetadataExtractor.Formats.Exif;
 using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
 using Directory = System.IO.Directory;
 
@@ -63,9 +62,6 @@ namespace Comfizen
         private const string MagicMarker = "COMFIZEN_WORKFLOW_EMBED_V1";
         private static readonly byte[] MagicMarkerBytes = Encoding.UTF8.GetBytes(MagicMarker);
         
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Методы для сжатия и распаковки      //
-        // ========================================================== //
         private static byte[] Compress(string data)
         {
             var bytes = Encoding.UTF8.GetBytes(data);
@@ -87,28 +83,6 @@ namespace Comfizen
                 gs.CopyTo(mso);
             }
             return Encoding.UTF8.GetString(mso.ToArray());
-        }
-
-        private static string CompressAndBase64Encode(string data)
-        {
-            if (string.IsNullOrEmpty(data)) return string.Empty;
-            var compressedBytes = Compress(data);
-            return Convert.ToBase64String(compressedBytes);
-        }
-
-        private static string Base64DecodeAndDecompress(string compressedBase64)
-        {
-            if (string.IsNullOrEmpty(compressedBase64)) return string.Empty;
-            try
-            {
-                var bytes = Convert.FromBase64String(compressedBase64);
-                return Decompress(bytes);
-            }
-            catch
-            {
-                // Fallback for old, uncompressed data
-                return compressedBase64;
-            }
         }
         
         public static string ComputeMd5Hash(byte[] inputData)
@@ -168,91 +142,93 @@ namespace Comfizen
                 counter++;
             }
         }
-
-        public static byte[] ConvertPngToWebpWithWorkflow(byte[] pngBytes, string workflowJson, int quality = 83)
-        {
-            using var image = Image.Load(pngBytes);
-            if (!string.IsNullOrEmpty(workflowJson))
-            {
-                image.Metadata.ExifProfile ??= new SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifProfile();
-                string compressedData = CompressAndBase64Encode(workflowJson);
-                image.Metadata.ExifProfile.SetValue(SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifTag.Make, $"prompt:{compressedData}");
-            }
-            var encoder = new WebpEncoder { Quality = quality, FileFormat = WebpFileFormatType.Lossy };
-            using var outputStream = new MemoryStream();
-            image.Save(outputStream, encoder);
-            return outputStream.ToArray();
-        }
         
-        public static byte[] ConvertPngToPngWithWorkflow(byte[] pngBytes, string workflowJson, int compressionLevel)
+        // ========================================================== //
+        //     НАЧАЛО ИСПРАВЛЕНИЯ: Разделение логики для Jpeg и других //
+        // ========================================================== //
+        public static byte[] ProcessImageAndAppendWorkflow(byte[] sourceImageBytes, string workflowJson, IImageEncoder encoder)
         {
-            if (string.IsNullOrEmpty(workflowJson)) return pngBytes;
-            using var inputStream = new MemoryStream(pngBytes);
-            using var outputStream = new MemoryStream();
-            var reader = new PngReader(inputStream);
-            var writer = new PngWriter(outputStream, reader.ImgInfo);
-            writer.CopyChunksFirst(reader, ChunkCopyBehaviour.COPY_ALL);
-            var textChunk = new PngChunkTEXT(reader.ImgInfo);
-            string compressedData = CompressAndBase64Encode(workflowJson);
-            textChunk.SetKeyVal("prompt", compressedData);
-            writer.GetChunksList().Queue(textChunk);
-            for (int i = 0; i < reader.ImgInfo.Rows; i++)
+            byte[] processedImageBytes;
+
+            using (var image = Image.Load(sourceImageBytes))
             {
-                ImageLine line = reader.ReadRow(i);
-                writer.WriteRow(line.Scanline);
+                using (var ms = new MemoryStream())
+                {
+                    if (encoder is JpegEncoder)
+                    {
+                        // Path for JPG: Create Rgb24, fill with white, draw, save.
+                        using (var cleanImage = new Image<Rgb24>(image.Width, image.Height))
+                        {
+                            cleanImage.Mutate(ctx => ctx.BackgroundColor(Color.White).DrawImage(image, 1f));
+                            cleanImage.Save(ms, encoder);
+                        }
+                    }
+                    else
+                    {
+                        // Path for PNG/WebP: Create Rgba32, draw, save.
+                        using (var cleanImage = new Image<Rgba32>(image.Width, image.Height))
+                        {
+                            cleanImage.Mutate(ctx => ctx.DrawImage(image, 1f));
+                            cleanImage.Save(ms, encoder);
+                        }
+                    }
+                    processedImageBytes = ms.ToArray();
+                }
             }
-            writer.CopyChunksLast(reader, ChunkCopyBehaviour.COPY_ALL);
-            reader.End();
-            writer.End();
-            return outputStream.ToArray();
+
+            return AppendWorkflowToBytes(processedImageBytes, workflowJson);
         }
 
-        public static byte[] ConvertPngToJpgWithWorkflow(byte[] pngBytes, string workflowJson, int quality)
+        public static byte[] EmbedWorkflowInVideo(byte[] videoBytes, string workflowJson)
         {
-            using var image = Image.Load(pngBytes);
-            using var outputImage = new Image<Rgba32>(image.Width, image.Height, Color.White);
-            outputImage.Mutate(x => x.DrawImage(image, 1f));
-            var encoder = new JpegEncoder { Quality = quality };
-            using var outputStream = new MemoryStream();
-            outputImage.Save(outputStream, encoder);
-            var jpgBytes = outputStream.ToArray();
-            return string.IsNullOrEmpty(workflowJson) ? jpgBytes : AppendWorkflowToBytes(jpgBytes, workflowJson);
+            return AppendWorkflowToBytes(videoBytes, workflowJson);
         }
 
         private static byte[] AppendWorkflowToBytes(byte[] originalBytes, string workflowJson)
         {
             if (string.IsNullOrEmpty(workflowJson)) return originalBytes;
+
             var compressedWorkflowBytes = Compress(workflowJson);
-            using var ms = new MemoryStream(originalBytes.Length + MagicMarkerBytes.Length + compressedWorkflowBytes.Length);
-            ms.Write(originalBytes, 0, originalBytes.Length);
-            ms.Write(MagicMarkerBytes, 0, MagicMarkerBytes.Length);
-            ms.Write(compressedWorkflowBytes, 0, compressedWorkflowBytes.Length);
-            return ms.ToArray();
+            
+            using (var ms = new MemoryStream(originalBytes.Length + MagicMarkerBytes.Length + compressedWorkflowBytes.Length))
+            {
+                ms.Write(originalBytes, 0, originalBytes.Length);
+                ms.Write(MagicMarkerBytes, 0, MagicMarkerBytes.Length);
+                ms.Write(compressedWorkflowBytes, 0, compressedWorkflowBytes.Length);
+                return ms.ToArray();
+            }
+        }
+
+        public static string? ReadStateFromImage(byte[] fileBytes)
+        {
+            var json = ReadAppendedWorkflow(fileBytes);
+            return string.IsNullOrEmpty(json) ? null : TryFormatJson(json);
         }
         
-        public static byte[] EmbedWorkflowInVideo(byte[] videoBytes, string workflowJson)
+        private static string? ReadAppendedWorkflow(byte[] fileBytes)
         {
-            if (string.IsNullOrEmpty(workflowJson)) return videoBytes;
-            var tempFilePath = Path.GetTempFileName();
+            var markerIndex = FindLast(fileBytes, MagicMarkerBytes);
+            if (markerIndex == -1) return null;
+
             try
             {
-                File.WriteAllBytes(tempFilePath, videoBytes);
-                using (var tfile = TagLib.File.Create(tempFilePath))
+                var startIndex = markerIndex + MagicMarkerBytes.Length;
+                var compressedBytes = new byte[fileBytes.Length - startIndex];
+                Array.Copy(fileBytes, startIndex, compressedBytes, 0, compressedBytes.Length);
+                
+                try
                 {
-                    string compressedData = CompressAndBase64Encode(workflowJson);
-                    tfile.Tag.Comment = $"prompt:{compressedData}";
-                    tfile.Save();
+                    return Decompress(compressedBytes);
                 }
-                return File.ReadAllBytes(tempFilePath);
+                catch
+                {
+                    return Encoding.UTF8.GetString(compressedBytes);
+                }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error embedding workflow in video metadata: {ex.Message}. Appending to file as a fallback.");
-                return AppendWorkflowToBytes(videoBytes, workflowJson);
-            }
-            finally
-            {
-                if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
+                Debug.WriteLine($"Error reading appended workflow: {ex.Message}");
+                return null;
             }
         }
 
@@ -286,104 +262,6 @@ namespace Comfizen
                 else current = (JObject)current[parts[i]];
             }
             return prop;
-        }
-
-        public static string? ReadStateFromImage(byte[] imageBytes)
-        {
-            string? stateJson = ReadPngPrompt(imageBytes);
-            if (!string.IsNullOrEmpty(stateJson)) return TryFormatJson(stateJson);
-
-            stateJson = ReadWebpPrompt(imageBytes);
-            if (!string.IsNullOrEmpty(stateJson)) return TryFormatJson(stateJson);
-
-            stateJson = ReadAppendedWorkflow(imageBytes);
-            if (!string.IsNullOrEmpty(stateJson)) return TryFormatJson(stateJson);
-            
-            stateJson = ReadVideoWorkflow(imageBytes);
-            if (!string.IsNullOrEmpty(stateJson)) return TryFormatJson(stateJson);
-
-            return null;
-        }
-        
-        private static string? ReadAppendedWorkflow(byte[] fileBytes)
-        {
-            var markerIndex = FindLast(fileBytes, MagicMarkerBytes);
-            if (markerIndex == -1) return null;
-            try
-            {
-                var startIndex = markerIndex + MagicMarkerBytes.Length;
-                var compressedBytes = new byte[fileBytes.Length - startIndex];
-                Array.Copy(fileBytes, startIndex, compressedBytes, 0, compressedBytes.Length);
-                return Decompress(compressedBytes);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error reading appended workflow: {ex.Message}");
-                return null;
-            }
-        }
-        
-        private static string? ReadVideoWorkflow(byte[] videoBytes)
-        {
-            var tempFilePath = Path.GetTempFileName();
-            try
-            {
-                File.WriteAllBytes(tempFilePath, videoBytes);
-                using var tfile = TagLib.File.Create(tempFilePath);
-                var comment = tfile.Tag.Comment;
-                if (comment != null && comment.StartsWith("prompt:"))
-                {
-                    return Base64DecodeAndDecompress(comment.Substring(7));
-                }
-                return null;
-            }
-            catch (TagLib.UnsupportedFormatException) { return null; }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error reading video metadata: {ex.Message}");
-                return null;
-            }
-            finally
-            {
-                if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-            }
-        }
-        
-        public static string? ReadWebpPrompt(byte[] bytes)
-        {
-            try
-            {
-                var directories = ImageMetadataReader.ReadMetadata(new MemoryStream(bytes));
-                var exifDir = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
-                if (exifDir != null)
-                {
-                    var makeTag = exifDir.GetDescription(271);
-                    if (makeTag != null && makeTag.StartsWith("prompt:"))
-                    {
-                        return Base64DecodeAndDecompress(makeTag.Substring(7));
-                    }
-                }
-            }
-            catch (Exception ex) { Debug.WriteLine($"Error reading WebP metadata: {ex.Message}"); }
-            return null;
-        }
-
-        public static string? ReadPngPrompt(byte[] bytes)
-        {
-            try
-            {
-                var directories = ImageMetadataReader.ReadMetadata(new MemoryStream(bytes));
-                foreach (var tag in directories.SelectMany(d => d.Tags))
-                {
-                    if (tag.DirectoryName == "PNG-tEXt" && tag.Name == "Textual Data" && tag.Description.StartsWith("prompt\0"))
-                    {
-                        var rawData = tag.Description.Substring("prompt\0".Length);
-                        return Base64DecodeAndDecompress(rawData);
-                    }
-                }
-            }
-            catch (Exception ex) { Debug.WriteLine($"Error reading PNG metadata: {ex.Message}"); }
-            return null;
         }
 
         private static string TryFormatJson(string json)
@@ -453,7 +331,7 @@ namespace Comfizen
             {
                 var jObject = JObject.Parse(jsonString);
                 var cleanedJObject = CleanBase64FromJObject(jObject);
-                return cleanedJObject?.ToString(Formatting.Indented);
+                return cleanedJObject?.ToString(Formatting.None); // Save compressed
             }
             catch (JsonReaderException) { return jsonString; }
         }

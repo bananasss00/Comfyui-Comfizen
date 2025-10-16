@@ -4,6 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Formats.Webp;
 
 namespace Comfizen
 {
@@ -24,7 +27,7 @@ namespace Comfizen
         }
         
         // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Переработанный метод сохранения       //
+        //     НАЧАЛО ИЗМЕНЕНИЯ: Полностью переработанный метод       //
         // ========================================================== //
         public async Task SaveImageFileAsync(string saveDirectory, string relativeFilePath, byte[] sourcePngBytes, string prompt, AppSettings settings)
         {
@@ -41,54 +44,43 @@ namespace Comfizen
             switch (settings.SaveFormat)
             {
                 case ImageSaveFormat.Png:
-                    finalImageBytes = Utils.ConvertPngToPngWithWorkflow(sourcePngBytes, promptToEmbed, settings.PngCompressionLevel);
+                    var pngEncoder = new PngEncoder { CompressionLevel = (PngCompressionLevel)settings.PngCompressionLevel };
+                    finalImageBytes = Utils.ProcessImageAndAppendWorkflow(sourcePngBytes, promptToEmbed, pngEncoder);
                     extension = ".png";
                     break;
                 
                 case ImageSaveFormat.Jpg:
-                    // Метод теперь встраивает данные в конец файла
-                    finalImageBytes = Utils.ConvertPngToJpgWithWorkflow(sourcePngBytes, promptToEmbed, settings.JpgQuality);
+                    var jpgEncoder = new JpegEncoder { Quality = settings.JpgQuality };
+                    finalImageBytes = Utils.ProcessImageAndAppendWorkflow(sourcePngBytes, promptToEmbed, jpgEncoder);
                     extension = ".jpg";
                     break;
                 
                 case ImageSaveFormat.Webp:
                 default:
-                    finalImageBytes = Utils.ConvertPngToWebpWithWorkflow(sourcePngBytes, promptToEmbed, settings.WebpQuality);
+                    var webpEncoder = new WebpEncoder { Quality = settings.WebpQuality };
+                    finalImageBytes = Utils.ProcessImageAndAppendWorkflow(sourcePngBytes, promptToEmbed, webpEncoder);
                     extension = ".webp";
                     break;
             }
 
-            // Construct the desired full path including subdirectories
             var desiredPath = Path.Combine(saveDirectory, relativeFilePath);
-            
-            // Ensure the target directory exists
             var targetDirectory = Path.GetDirectoryName(desiredPath);
             Directory.CreateDirectory(targetDirectory);
 
-            // Get the final, unique path for the image
             desiredPath = Path.ChangeExtension(desiredPath, extension);
             var finalSavePath = await Utils.GetUniqueFilePathAsync(desiredPath, finalImageBytes);
 
             if (finalSavePath == null)
             {
-                // File with same content already exists, so we do nothing.
                 return;
             }
 
             await File.WriteAllBytesAsync(finalSavePath, finalImageBytes);
-
-            // Логика сохранения отдельного JSON полностью удалена
         }
         
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Переработанный метод сохранения видео  //
-        // ========================================================== //
         public async Task SaveVideoFileAsync(string saveDirectory, string relativeFilePath, byte[] videoBytes, string prompt)
         {
-            // Construct the desired full path including subdirectories
             var desiredPath = Path.Combine(saveDirectory, relativeFilePath);
-            
-            // Ensure the target directory exists
             var targetDirectory = Path.GetDirectoryName(desiredPath);
             Directory.CreateDirectory(targetDirectory);
     
@@ -98,22 +90,17 @@ namespace Comfizen
                 promptToProcess = Utils.CleanBase64FromString(promptToProcess);
             }
 
-            var videoBytesWithWorkflow = string.IsNullOrEmpty(promptToProcess) 
-                ? videoBytes 
-                : Utils.EmbedWorkflowInVideo(videoBytes, promptToProcess);
+            // Теперь просто вызываем универсальный метод
+            var videoBytesWithWorkflow = Utils.EmbedWorkflowInVideo(videoBytes, promptToProcess);
 
-            // Get the final, unique path for the video
             var finalSavePath = await Utils.GetUniqueFilePathAsync(desiredPath, videoBytesWithWorkflow);
             
             if (finalSavePath == null)
             {
-                // File with same content already exists, do nothing.
                 return;
             }
             
             await File.WriteAllBytesAsync(finalSavePath, videoBytesWithWorkflow);
-            
-            // Логика сохранения отдельного JSON полностью удалена
         }
 
 
@@ -128,23 +115,12 @@ namespace Comfizen
             {
                 foreach (var fileOutput in kv.Value)
                 {
-                    string prompt = null;
-                    if (fileOutput.FileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                    {
-                        prompt = Utils.ReadPngPrompt(fileOutput.Data);
-                    }
-                    else
-                    {
-                        prompt = json;
-                    }
-                    
-                    if (string.IsNullOrEmpty(prompt))
-                    {
-                        prompt = json;
-                    }
+                    // Теперь мы можем пытаться прочитать workflow из ЛЮБОГО полученного файла
+                    string prompt = Utils.ReadStateFromImage(fileOutput.Data) ?? json;
                     
                     var isVideo = new[] { ".mp4", ".mov", ".avi", ".mkv", ".webm", ".gif" }
                         .Any(ext => fileOutput.FileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
+                        
                     yield return new ImageOutput
                     {
                         ImageBytes = fileOutput.Data,
