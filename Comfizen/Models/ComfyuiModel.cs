@@ -23,12 +23,13 @@ namespace Comfizen
             await api.InterruptAsync();
         }
         
-
+        // ========================================================== //
+        //     НАЧАЛО ИЗМЕНЕНИЯ: Переработанный метод сохранения       //
+        // ========================================================== //
         public async Task SaveImageFileAsync(string saveDirectory, string relativeFilePath, byte[] sourcePngBytes, string prompt, AppSettings settings)
         {
             byte[] finalImageBytes;
             string extension;
-            bool saveJsonSeparately = false;
 
             string promptToEmbed = settings.SavePromptWithFile ? prompt : null;
 
@@ -45,12 +46,9 @@ namespace Comfizen
                     break;
                 
                 case ImageSaveFormat.Jpg:
-                    finalImageBytes = Utils.ConvertPngToJpg(sourcePngBytes, settings.JpgQuality);
+                    // Метод теперь встраивает данные в конец файла
+                    finalImageBytes = Utils.ConvertPngToJpgWithWorkflow(sourcePngBytes, promptToEmbed, settings.JpgQuality);
                     extension = ".jpg";
-                    if (!string.IsNullOrEmpty(promptToEmbed))
-                    {
-                        saveJsonSeparately = true;
-                    }
                     break;
                 
                 case ImageSaveFormat.Webp:
@@ -79,14 +77,12 @@ namespace Comfizen
 
             await File.WriteAllBytesAsync(finalSavePath, finalImageBytes);
 
-            if (saveJsonSeparately && !string.IsNullOrEmpty(promptToEmbed))
-            {
-                var jsonSavePath = Path.ChangeExtension(finalSavePath, ".json");
-                await File.WriteAllTextAsync(jsonSavePath, promptToEmbed);
-            }
+            // Логика сохранения отдельного JSON полностью удалена
         }
         
-
+        // ========================================================== //
+        //     НАЧАЛО ИЗМЕНЕНИЯ: Переработанный метод сохранения видео  //
+        // ========================================================== //
         public async Task SaveVideoFileAsync(string saveDirectory, string relativeFilePath, byte[] videoBytes, string prompt)
         {
             // Construct the desired full path including subdirectories
@@ -117,11 +113,7 @@ namespace Comfizen
             
             await File.WriteAllBytesAsync(finalSavePath, videoBytesWithWorkflow);
             
-            if (!string.IsNullOrEmpty(promptToProcess))
-            {
-                var jsonSavePath = Path.ChangeExtension(finalSavePath, ".json");
-                await File.WriteAllTextAsync(jsonSavePath, promptToProcess);
-            }
+            // Логика сохранения отдельного JSON полностью удалена
         }
 
 

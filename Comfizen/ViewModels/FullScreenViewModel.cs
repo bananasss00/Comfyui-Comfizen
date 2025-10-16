@@ -72,6 +72,9 @@ namespace Comfizen
                             ["prompt"] = activeTab.Workflow.LoadedApi,
                             ["promptTemplate"] = JToken.FromObject(activeTab.Workflow.Groups),
                         };
+                        // ========================================================== //
+                        //     ИЗМЕНЕНИЕ: Сериализация без форматирования для сжатия   //
+                        // ========================================================== //
                         promptToSave = fullState.ToString(Formatting.None);
                     }
                     else
