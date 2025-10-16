@@ -136,11 +136,20 @@ namespace Comfizen
         
         private async void LoadModelSubTypesAsync()
         {
-            var types = await _modelService.GetModelTypesAsync();
-            ModelSubTypes.Clear();
-            foreach (var type in types.OrderBy(t => t.Name))
+            try
             {
-                ModelSubTypes.Add(type.Name);
+                var types = await _modelService.GetModelTypesAsync();
+                ModelSubTypes.Clear();
+                foreach (var type in types.OrderBy(t => t.Name))
+                {
+                    ModelSubTypes.Add(type.Name);
+                }
+            }
+            catch (Exception ex)
+            {
+                var message = string.Format(LocalizationService.Instance["ModelService_ErrorFetchModelTypes"], ex.Message);
+                var title = LocalizationService.Instance["General_Error"];
+                MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         

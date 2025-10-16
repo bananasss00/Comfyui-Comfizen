@@ -171,21 +171,12 @@ public class ModelService
     {
         if (_modelTypesCache.TryGetValue(_apiBaseUrl, out var cachedTypes)) return cachedTypes;
 
-        try
+        var response = await _httpClient.GetStringAsync($"{_apiBaseUrl}/api/experiment/models");
+        var types = JsonConvert.DeserializeObject<List<ModelTypeInfo>>(response);
+        if (types != null)
         {
-            var response = await _httpClient.GetStringAsync($"{_apiBaseUrl}/api/experiment/models");
-            var types = JsonConvert.DeserializeObject<List<ModelTypeInfo>>(response);
-            if (types != null)
-            {
-                _modelTypesCache.TryAdd(_apiBaseUrl, types);
-                return types;
-            }
-        }
-        catch (Exception ex)
-        {
-            var message = string.Format(LocalizationService.Instance["ModelService_ErrorFetchModelTypes"], ex.Message);
-            var title = LocalizationService.Instance["General_Error"];
-            MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
+            _modelTypesCache.TryAdd(_apiBaseUrl, types);
+            return types;
         }
 
         return new List<ModelTypeInfo>();

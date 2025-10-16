@@ -1,8 +1,10 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System;
+using Newtonsoft.Json.Linq;
 using PropertyChanged;
 using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace Comfizen
 {
@@ -60,13 +62,22 @@ namespace Comfizen
         
         private async void InitializeAsync()
         {
-            Workflow.LoadWorkflow(FilePath);
-            var sessionJObject = _sessionManager.LoadSession(FilePath);
-            if (sessionJObject != null && Workflow.LoadedApi != null)
+            try
             {
-                Utils.MergeJsonObjects(Workflow.LoadedApi, sessionJObject);
+                Workflow.LoadWorkflow(FilePath);
+                var sessionJObject = _sessionManager.LoadSession(FilePath);
+                if (sessionJObject != null && Workflow.LoadedApi != null)
+                {
+                    Utils.MergeJsonObjects(Workflow.LoadedApi, sessionJObject);
+                }
+                await WorkflowInputsController.LoadInputs();
             }
-            await WorkflowInputsController.LoadInputs();
+            catch (Exception ex)
+            {
+                var message = string.Format(LocalizationService.Instance["ModelService_ErrorFetchModelTypes"], ex.Message);
+                var title = LocalizationService.Instance["General_Error"];
+                MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         
         public void ResetState()
