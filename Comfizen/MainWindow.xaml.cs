@@ -47,14 +47,10 @@ namespace Comfizen
             e.Handled = true;
         }
 
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Универсальная обработка Drop          //
-        // ========================================================== //
         private void Window_Drop(object sender, DragEventArgs e)
         {
             if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
             {
-                // Убрана проверка расширения. Просто передаем первый файл на обработку.
                 if (DataContext is MainViewModel viewModel)
                 {
                     viewModel.ImportStateFromFile(files[0]);
@@ -416,6 +412,20 @@ namespace Comfizen
             }
         }
 
+        private void TabItem_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(typeof(WorkflowTabViewModel)))
+            {
+                e.Effects = DragDropEffects.Move;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            
+            e.Handled = true;
+        }
+
         private void TabItem_Drop(object sender, DragEventArgs e)
         {
             if (e.Data.GetData(typeof(WorkflowTabViewModel)) is WorkflowTabViewModel sourceTabVM &&
@@ -452,12 +462,14 @@ namespace Comfizen
 
         private void TabItem_DragEnter(object sender, DragEventArgs e)
         {
-            if (sender is TabItem tabItem && 
-                tabItem.DataContext is WorkflowTabViewModel tabVm &&
-                DataContext is MainViewModel mainVm)
+            if (!e.Data.GetDataPresent(typeof(WorkflowTabViewModel)))
             {
-                // Set the dragged-over tab as the selected one
-                mainVm.SelectedTab = tabVm;
+                if (sender is TabItem tabItem && 
+                    tabItem.DataContext is WorkflowTabViewModel tabVm &&
+                    DataContext is MainViewModel mainVm)
+                {
+                    mainVm.SelectedTab = tabVm;
+                }
             }
         }
     }

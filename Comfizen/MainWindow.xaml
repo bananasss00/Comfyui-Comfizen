@@ -93,6 +93,7 @@
                         <Setter Property="Background" Value="{StaticResource SecondaryBackground}"/>
                         <Setter Property="Padding" Value="8,5"/>
                         <Setter Property="AllowDrop" Value="True"/>
+                        <EventSetter Event="DragOver" Handler="TabItem_DragOver"/>
                         <EventSetter Event="DragEnter" Handler="TabItem_DragEnter"/>
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown"/>
                         <EventSetter Event="Drop" Handler="TabItem_Drop"/>
