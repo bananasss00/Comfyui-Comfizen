@@ -47,20 +47,17 @@ namespace Comfizen
             e.Handled = true;
         }
 
+        // ========================================================== //
+        //     НАЧАЛО ИЗМЕНЕНИЯ: Универсальная обработка Drop          //
+        // ========================================================== //
         private void Window_Drop(object sender, DragEventArgs e)
         {
             if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
             {
-                // We only process the first file dropped
-                var filePath = files[0];
-                var extension = Path.GetExtension(filePath).ToLowerInvariant();
-                
-                if (extension.EndsWith(".json") || extension == ".png" || extension == ".webp")
+                // Убрана проверка расширения. Просто передаем первый файл на обработку.
+                if (DataContext is MainViewModel viewModel)
                 {
-                    if (DataContext is MainViewModel viewModel)
-                    {
-                        viewModel.ImportStateFromFile(filePath);
-                    }
+                    viewModel.ImportStateFromFile(files[0]);
                 }
             }
         }

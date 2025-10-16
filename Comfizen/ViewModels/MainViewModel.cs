@@ -235,31 +235,29 @@ namespace Comfizen
             };
             QueueCommand = new RelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
         }
-
+        
+        // ========================================================== //
+        //     НАЧАЛО ИЗМЕНЕНИЯ: Упрощенный метод импорта             //
+        // ========================================================== //
         public void ImportStateFromFile(string filePath)
         {
             try
             {
-                string jsonString;
-                string fileExtension = Path.GetExtension(filePath).ToLowerInvariant();
+                var fileBytes = File.ReadAllBytes(filePath);
+                var jsonString = Utils.ReadStateFromImage(fileBytes);
 
-                if (fileExtension == ".png" || fileExtension == ".webp")
+                if (string.IsNullOrEmpty(jsonString))
                 {
-                    var fileBytes = File.ReadAllBytes(filePath);
-                    jsonString = Utils.ReadStateFromImage(fileBytes);
-                    if (string.IsNullOrEmpty(jsonString))
+                    // Если ReadStateFromImage ничего не нашел, проверим, не является ли это чистым JSON
+                    if (Path.GetExtension(filePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
                     {
-                        MessageBox.Show("No Comfizen state metadata was found in the image file.", "Import Failed", MessageBoxButton.OK, MessageBoxImage.Information);
+                        jsonString = File.ReadAllText(filePath);
+                    }
+                    else
+                    {
+                         MessageBox.Show("No Comfizen state metadata was found in the file.", "Import Failed", MessageBoxButton.OK, MessageBoxImage.Information);
                         return;
                     }
-                }
-                else if (fileExtension.EndsWith(".json"))
-                {
-                    jsonString = File.ReadAllText(filePath);
-                }
-                else
-                {
-                    return; // Not a supported file type
                 }
         
                 var data = JObject.Parse(jsonString);
@@ -287,7 +285,6 @@ namespace Comfizen
 
             if (existingWorkflowPath != null)
             {
-                // The widget state *is* the prompt data
                 _sessionManager.SaveSession(promptData, existingWorkflowPath);
                 var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, existingWorkflowPath).Replace(Path.DirectorySeparatorChar, '/');
                 OpenOrSwitchToWorkflow(relativePath);
@@ -317,7 +314,6 @@ namespace Comfizen
                     var workflowJson = JsonConvert.SerializeObject(workflowData, Formatting.Indented);
                     File.WriteAllText(newWorkflowPath, workflowJson);
                     
-                    // No need to save a session, as the workflow file itself contains the desired state
                     UpdateWorkflows();
                     var newWorkflowRelativePath = Path.GetRelativePath(Workflow.WorkflowsDir, newWorkflowPath).Replace(Path.DirectorySeparatorChar, '/');
                     OpenOrSwitchToWorkflow(newWorkflowRelativePath);

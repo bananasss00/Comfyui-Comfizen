@@ -9,6 +9,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -18,11 +19,8 @@ using Hjg.Pngcs;
 using Hjg.Pngcs.Chunks;
 using MetadataExtractor.Formats.Exif;
 using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Png.Chunks;
 using SixLabors.ImageSharp.Processing;
 using Directory = System.IO.Directory;
-using Image = SixLabors.ImageSharp.Image;
 
 namespace Comfizen
 {
@@ -48,13 +46,12 @@ namespace Comfizen
     
             if (!File.Exists(fullPath))
             {
-                // Cache the fact that the file doesn't exist to avoid repeated disk access
                 _cache.TryAdd(wildcardName, Array.Empty<string>());
                 return Array.Empty<string>();
             }
     
             var lines = File.ReadAllLines(fullPath)
-                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#")) // Ignore empty lines and comments
+                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
                 .ToArray();
             _cache.TryAdd(wildcardName, lines);
             return lines;
@@ -63,14 +60,56 @@ namespace Comfizen
     
     public static class Utils
     {
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Маркер для встроенных данных          //
-        // ========================================================== //
-        /// <summary>
-        /// A unique marker to identify the start of our appended workflow data in a file.
-        /// </summary>
         private const string MagicMarker = "COMFIZEN_WORKFLOW_EMBED_V1";
         private static readonly byte[] MagicMarkerBytes = Encoding.UTF8.GetBytes(MagicMarker);
+        
+        // ========================================================== //
+        //     НАЧАЛО ИЗМЕНЕНИЯ: Методы для сжатия и распаковки      //
+        // ========================================================== //
+        private static byte[] Compress(string data)
+        {
+            var bytes = Encoding.UTF8.GetBytes(data);
+            using var msi = new MemoryStream(bytes);
+            using var mso = new MemoryStream();
+            using (var gs = new GZipStream(mso, CompressionMode.Compress))
+            {
+                msi.CopyTo(gs);
+            }
+            return mso.ToArray();
+        }
+
+        private static string Decompress(byte[] bytes)
+        {
+            using var msi = new MemoryStream(bytes);
+            using var mso = new MemoryStream();
+            using (var gs = new GZipStream(msi, CompressionMode.Decompress))
+            {
+                gs.CopyTo(mso);
+            }
+            return Encoding.UTF8.GetString(mso.ToArray());
+        }
+
+        private static string CompressAndBase64Encode(string data)
+        {
+            if (string.IsNullOrEmpty(data)) return string.Empty;
+            var compressedBytes = Compress(data);
+            return Convert.ToBase64String(compressedBytes);
+        }
+
+        private static string Base64DecodeAndDecompress(string compressedBase64)
+        {
+            if (string.IsNullOrEmpty(compressedBase64)) return string.Empty;
+            try
+            {
+                var bytes = Convert.FromBase64String(compressedBase64);
+                return Decompress(bytes);
+            }
+            catch
+            {
+                // Fallback for old, uncompressed data
+                return compressedBase64;
+            }
+        }
         
         public static string ComputeMd5Hash(byte[] inputData)
         {
@@ -91,10 +130,8 @@ namespace Comfizen
             try
             {
                 using var image = Image.Load(imageBytes);
-
                 using var memoryStream = new MemoryStream();
                 image.SaveAsBmp(memoryStream);
-
                 return ComputeMd5Hash(memoryStream.ToArray());
             }
             catch (Exception)
@@ -109,21 +146,17 @@ namespace Comfizen
             {
                 return desiredPath;
             }
-
             var existingFileBytes = await File.ReadAllBytesAsync(desiredPath);
             var existingHash = ComputeMd5Hash(existingFileBytes);
             var newHash = ComputeMd5Hash(newFileBytes);
-
             if (string.Equals(existingHash, newHash, StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
-
             var directory = Path.GetDirectoryName(desiredPath);
             var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(desiredPath);
             var extension = Path.GetExtension(desiredPath);
             int counter = 1;
-
             while (true)
             {
                 var newFileName = $"{fileNameWithoutExtension}_({counter}){extension}";
@@ -139,139 +172,87 @@ namespace Comfizen
         public static byte[] ConvertPngToWebpWithWorkflow(byte[] pngBytes, string workflowJson, int quality = 83)
         {
             using var image = Image.Load(pngBytes);
-
             if (!string.IsNullOrEmpty(workflowJson))
             {
                 image.Metadata.ExifProfile ??= new SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifProfile();
-                string workflowData = $"prompt:{workflowJson}";
-                image.Metadata.ExifProfile.SetValue(SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifTag.Make, workflowData);
+                string compressedData = CompressAndBase64Encode(workflowJson);
+                image.Metadata.ExifProfile.SetValue(SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifTag.Make, $"prompt:{compressedData}");
             }
-            
-            var encoder = new WebpEncoder
-            {
-                Quality = quality,
-                FileFormat = WebpFileFormatType.Lossy,
-            };
-            
+            var encoder = new WebpEncoder { Quality = quality, FileFormat = WebpFileFormatType.Lossy };
             using var outputStream = new MemoryStream();
             image.Save(outputStream, encoder);
-
             return outputStream.ToArray();
         }
         
         public static byte[] ConvertPngToPngWithWorkflow(byte[] pngBytes, string workflowJson, int compressionLevel)
         {
-            if (string.IsNullOrEmpty(workflowJson))
+            if (string.IsNullOrEmpty(workflowJson)) return pngBytes;
+            using var inputStream = new MemoryStream(pngBytes);
+            using var outputStream = new MemoryStream();
+            var reader = new PngReader(inputStream);
+            var writer = new PngWriter(outputStream, reader.ImgInfo);
+            writer.CopyChunksFirst(reader, ChunkCopyBehaviour.COPY_ALL);
+            var textChunk = new PngChunkTEXT(reader.ImgInfo);
+            string compressedData = CompressAndBase64Encode(workflowJson);
+            textChunk.SetKeyVal("prompt", compressedData);
+            writer.GetChunksList().Queue(textChunk);
+            for (int i = 0; i < reader.ImgInfo.Rows; i++)
             {
-                return pngBytes;
+                ImageLine line = reader.ReadRow(i);
+                writer.WriteRow(line.Scanline);
             }
-
-            using (var inputStream = new MemoryStream(pngBytes))
-            using (var outputStream = new MemoryStream())
-            {
-                PngReader reader = new PngReader(inputStream);
-                PngWriter writer = new PngWriter(outputStream, reader.ImgInfo);
-
-                writer.CopyChunksFirst(reader, ChunkCopyBehaviour.COPY_ALL);
-
-                PngChunkTEXT textChunk = new PngChunkTEXT(reader.ImgInfo);
-                textChunk.SetKeyVal("prompt", workflowJson);
-                writer.GetChunksList().Queue(textChunk);
-
-                for (int i = 0; i < reader.ImgInfo.Rows; i++)
-                {
-                    ImageLine line = reader.ReadRow(i);
-                    writer.WriteRow(line.Scanline);
-                }
-
-                writer.CopyChunksLast(reader, ChunkCopyBehaviour.COPY_ALL);
-
-                reader.End();
-                writer.End();
-
-                return outputStream.ToArray();
-            }
+            writer.CopyChunksLast(reader, ChunkCopyBehaviour.COPY_ALL);
+            reader.End();
+            writer.End();
+            return outputStream.ToArray();
         }
 
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Метод для JPG и других форматов      //
-        // ========================================================== //
-        /// <summary>
-        /// Converts PNG to JPG and appends the workflow to the end of the file.
-        /// </summary>
         public static byte[] ConvertPngToJpgWithWorkflow(byte[] pngBytes, string workflowJson, int quality)
         {
             using var image = Image.Load(pngBytes);
             using var outputImage = new Image<Rgba32>(image.Width, image.Height, Color.White);
             outputImage.Mutate(x => x.DrawImage(image, 1f));
-
             var encoder = new JpegEncoder { Quality = quality };
-
             using var outputStream = new MemoryStream();
             outputImage.Save(outputStream, encoder);
             var jpgBytes = outputStream.ToArray();
-
-            if (string.IsNullOrEmpty(workflowJson))
-            {
-                return jpgBytes;
-            }
-
-            return AppendWorkflowToBytes(jpgBytes, workflowJson);
+            return string.IsNullOrEmpty(workflowJson) ? jpgBytes : AppendWorkflowToBytes(jpgBytes, workflowJson);
         }
 
-        /// <summary>
-        /// Appends a magic marker and workflow data to a byte array.
-        /// </summary>
         private static byte[] AppendWorkflowToBytes(byte[] originalBytes, string workflowJson)
         {
-            if (string.IsNullOrEmpty(workflowJson))
-            {
-                return originalBytes;
-            }
-
-            var workflowBytes = Encoding.UTF8.GetBytes(workflowJson);
-            
-            using (var ms = new MemoryStream(originalBytes.Length + MagicMarkerBytes.Length + workflowBytes.Length))
-            {
-                ms.Write(originalBytes, 0, originalBytes.Length);
-                ms.Write(MagicMarkerBytes, 0, MagicMarkerBytes.Length);
-                ms.Write(workflowBytes, 0, workflowBytes.Length);
-                return ms.ToArray();
-            }
+            if (string.IsNullOrEmpty(workflowJson)) return originalBytes;
+            var compressedWorkflowBytes = Compress(workflowJson);
+            using var ms = new MemoryStream(originalBytes.Length + MagicMarkerBytes.Length + compressedWorkflowBytes.Length);
+            ms.Write(originalBytes, 0, originalBytes.Length);
+            ms.Write(MagicMarkerBytes, 0, MagicMarkerBytes.Length);
+            ms.Write(compressedWorkflowBytes, 0, compressedWorkflowBytes.Length);
+            return ms.ToArray();
         }
         
         public static byte[] EmbedWorkflowInVideo(byte[] videoBytes, string workflowJson)
         {
-            if (string.IsNullOrEmpty(workflowJson))
-            {
-                return videoBytes;
-            }
-            
-            string tempFilePath = Path.GetTempFileName();
+            if (string.IsNullOrEmpty(workflowJson)) return videoBytes;
+            var tempFilePath = Path.GetTempFileName();
             try
             {
                 File.WriteAllBytes(tempFilePath, videoBytes);
-
                 using (var tfile = TagLib.File.Create(tempFilePath))
                 {
-                    tfile.Tag.Comment = $"prompt:{workflowJson}";
+                    string compressedData = CompressAndBase64Encode(workflowJson);
+                    tfile.Tag.Comment = $"prompt:{compressedData}";
                     tfile.Save();
                 }
-
                 return File.ReadAllBytes(tempFilePath);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error embedding workflow in video metadata: {ex.Message}. Appending to file as a fallback.");
-                // Если метаданные записать не удалось (неподдерживаемый формат), прикрепляем в конец
                 return AppendWorkflowToBytes(videoBytes, workflowJson);
             }
             finally
             {
-                if (File.Exists(tempFilePath))
-                {
-                    File.Delete(tempFilePath);
-                }
+                if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
             }
         }
 
@@ -285,81 +266,55 @@ namespace Comfizen
         
         public static void MergeJsonObjects(JObject target, JObject source)
         {
-            foreach (var sourceProperty in source.Properties())
+            foreach (var sp in source.Properties())
             {
-                var targetProperty = target.Property(sourceProperty.Name);
-
-                if (targetProperty == null)
-                {
-                    continue;
-                }
-
-                if (sourceProperty.Value is JObject sourceNestedObj && targetProperty.Value is JObject targetNestedObj)
-                {
-                    MergeJsonObjects(targetNestedObj, sourceNestedObj);
-                }
-                else
-                {
-                    targetProperty.Value = sourceProperty.Value;
-                }
+                var tp = target.Property(sp.Name);
+                if (tp == null) continue;
+                if (sp.Value is JObject sourceNested && tp.Value is JObject targetNested) MergeJsonObjects(targetNested, sourceNested);
+                else tp.Value = sp.Value;
             }
         }
 
-        public static JProperty? GetJsonPropertyByPath(JObject obj, string propertyPath)
+        public static JProperty? GetJsonPropertyByPath(JObject obj, string path)
         {
-            var parts = propertyPath.Split('.');
-            var currentPart = obj;
-            JProperty? jProperty = null;
+            var parts = path.Split('.');
+            var current = obj;
+            JProperty? prop = null;
             for (int i = 0; i < parts.Length; i++)
             {
-                string part = parts[i];
-                if (i == parts.Length - 1)
-                    jProperty = currentPart.Property(part);
-                else
-                    currentPart = (JObject)currentPart[part];
+                if (i == parts.Length - 1) prop = current.Property(parts[i]);
+                else current = (JObject)current[parts[i]];
             }
-            return jProperty;
+            return prop;
         }
 
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Универсальный метод чтения данных    //
-        // ========================================================== //
         public static string? ReadStateFromImage(byte[] imageBytes)
         {
-            // Priority 1: PNG tEXt chunk
             string? stateJson = ReadPngPrompt(imageBytes);
             if (!string.IsNullOrEmpty(stateJson)) return TryFormatJson(stateJson);
 
-            // Priority 2: WebP EXIF data
             stateJson = ReadWebpPrompt(imageBytes);
             if (!string.IsNullOrEmpty(stateJson)) return TryFormatJson(stateJson);
 
-            // Priority 3: Appended data (for JPG and other formats)
             stateJson = ReadAppendedWorkflow(imageBytes);
             if (!string.IsNullOrEmpty(stateJson)) return TryFormatJson(stateJson);
             
-            // Priority 4: Video metadata
             stateJson = ReadVideoWorkflow(imageBytes);
             if (!string.IsNullOrEmpty(stateJson)) return TryFormatJson(stateJson);
 
             return null;
         }
         
-        /// <summary>
-        /// Reads workflow data appended to the end of a file.
-        /// </summary>
         private static string? ReadAppendedWorkflow(byte[] fileBytes)
         {
             var markerIndex = FindLast(fileBytes, MagicMarkerBytes);
-            if (markerIndex == -1)
-            {
-                return null;
-            }
-
+            if (markerIndex == -1) return null;
             try
             {
                 var startIndex = markerIndex + MagicMarkerBytes.Length;
-                return Encoding.UTF8.GetString(fileBytes, startIndex, fileBytes.Length - startIndex);
+                var compressedBytes = new byte[fileBytes.Length - startIndex];
+                Array.Copy(fileBytes, startIndex, compressedBytes, 0, compressedBytes.Length);
+                return Decompress(compressedBytes);
             }
             catch (Exception ex)
             {
@@ -368,30 +323,21 @@ namespace Comfizen
             }
         }
         
-        /// <summary>
-        /// Reads workflow from video file metadata.
-        /// </summary>
         private static string? ReadVideoWorkflow(byte[] videoBytes)
         {
-            string tempFilePath = Path.GetTempFileName();
+            var tempFilePath = Path.GetTempFileName();
             try
             {
                 File.WriteAllBytes(tempFilePath, videoBytes);
-                using (var tfile = TagLib.File.Create(tempFilePath))
+                using var tfile = TagLib.File.Create(tempFilePath);
+                var comment = tfile.Tag.Comment;
+                if (comment != null && comment.StartsWith("prompt:"))
                 {
-                    var comment = tfile.Tag.Comment;
-                    if (comment != null && comment.StartsWith("prompt:"))
-                    {
-                        return comment.Substring(7);
-                    }
+                    return Base64DecodeAndDecompress(comment.Substring(7));
                 }
                 return null;
             }
-            catch (TagLib.UnsupportedFormatException)
-            {
-                // Это не видео или формат не поддерживается, это нормально.
-                return null;
-            }
+            catch (TagLib.UnsupportedFormatException) { return null; }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error reading video metadata: {ex.Message}");
@@ -399,10 +345,7 @@ namespace Comfizen
             }
             finally
             {
-                if (File.Exists(tempFilePath))
-                {
-                    File.Delete(tempFilePath);
-                }
+                if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
             }
         }
         
@@ -417,14 +360,11 @@ namespace Comfizen
                     var makeTag = exifDir.GetDescription(271);
                     if (makeTag != null && makeTag.StartsWith("prompt:"))
                     {
-                        return makeTag.Substring(7);
+                        return Base64DecodeAndDecompress(makeTag.Substring(7));
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error reading WebP metadata: {ex.Message}");
-            }
+            catch (Exception ex) { Debug.WriteLine($"Error reading WebP metadata: {ex.Message}"); }
             return null;
         }
 
@@ -433,21 +373,16 @@ namespace Comfizen
             try
             {
                 var directories = ImageMetadataReader.ReadMetadata(new MemoryStream(bytes));
-                foreach (var directory in directories)
+                foreach (var tag in directories.SelectMany(d => d.Tags))
                 {
-                    foreach (var tag in directory.Tags)
+                    if (tag.DirectoryName == "PNG-tEXt" && tag.Name == "Textual Data" && tag.Description.StartsWith("prompt\0"))
                     {
-                        if (tag.DirectoryName == "PNG-tEXt" && tag.Name == "Textual Data" && tag.Description.StartsWith("prompt\0"))
-                        {
-                            return tag.Description.Substring("prompt\0".Length);
-                        }
+                        var rawData = tag.Description.Substring("prompt\0".Length);
+                        return Base64DecodeAndDecompress(rawData);
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error reading PNG metadata: {ex.Message}");
-            }
+            catch (Exception ex) { Debug.WriteLine($"Error reading PNG metadata: {ex.Message}"); }
             return null;
         }
 
@@ -458,15 +393,9 @@ namespace Comfizen
                 dynamic parsedJson = JsonConvert.DeserializeObject(json);
                 return JsonConvert.SerializeObject(parsedJson, Formatting.Indented);
             }
-            catch
-            {
-                return json;
-            }
+            catch { return json; }
         }
         
-        /// <summary>
-        /// Finds the last occurrence of a byte sequence in another byte array.
-        /// </summary>
         private static int FindLast(byte[] haystack, byte[] needle)
         {
             if (needle.Length > haystack.Length) return -1;
@@ -488,61 +417,31 @@ namespace Comfizen
         
         public static string ReplaceWildcards(string input, long seed)
         {
-            Random random = new Random((int)(seed & 0xFFFFFFFF));
-            
-            string pass1 = Regex.Replace(input, @"\{__([^{}]+)__\}", match =>
+            var random = new Random((int)(seed & 0xFFFFFFFF));
+            string pass1 = Regex.Replace(input, @"\{__([^{}]+)__\}", m =>
             {
-                string wildcardName = match.Groups[1].Value.Trim();
-                string[] lines = WildcardFileHandler.GetLines(wildcardName);
-                if (lines == null || lines.Length == 0)
-                {
-                    return match.Value; 
-                }
-                return lines[random.Next(lines.Length)];
+                var lines = WildcardFileHandler.GetLines(m.Groups[1].Value.Trim());
+                return lines.Length == 0 ? m.Value : lines[random.Next(lines.Length)];
             });
-            
-            string pass2 = Regex.Replace(pass1, @"\{([^{}|]+(?:\|[^{}|]+)+)\}", match =>
+            return Regex.Replace(pass1, @"\{([^{}|]+(?:\|[^{}|]+)+)\}", m =>
             {
-                string[] choices = match.Groups[1].Value.Split('|');
+                var choices = m.Groups[1].Value.Split('|');
                 return choices[random.Next(choices.Length)].Trim();
             });
-
-            return pass2;
         }
         
-        public static string ReplaceWildcards(string input)
-        {
-            return ReplaceWildcards(input, (long)DateTime.Now.Ticks);
-        }
-
-        public static void SaveJsonToFile(JToken token, string filePath)
-        {
-            using (StreamWriter file = File.CreateText(filePath))
-            using (JsonTextWriter writer = new JsonTextWriter(file) { Formatting = Formatting.Indented })
-            {
-                token.WriteTo(writer);
-            }
-        }
+        public static string ReplaceWildcards(string input) => ReplaceWildcards(input, DateTime.Now.Ticks);
         
         public static JObject? CleanBase64FromJObject(JObject? originalJson)
         {
             if (originalJson == null) return null;
-
             var cleanedJson = originalJson.DeepClone() as JObject;
             if (cleanedJson == null) return null;
-
-            var properties = cleanedJson.Descendants()
-                .OfType<JProperty>()
-                .Where(p => p.Value.Type == JTokenType.String)
-                .ToList(); 
-
-            foreach (var prop in properties)
+            var props = cleanedJson.Descendants().OfType<JProperty>().Where(p => p.Value.Type == JTokenType.String).ToList();
+            foreach (var p in props)
             {
-                var value = prop.Value.Value<string>();
-                if (!string.IsNullOrEmpty(value) && value.Length > 1000 && (value.StartsWith("iVBOR") || value.StartsWith("/9j/") || value.StartsWith("UklG")))
-                {
-                    prop.Value = ""; 
-                }
+                var v = p.Value.Value<string>();
+                if (!string.IsNullOrEmpty(v) && v.Length > 1000 && (v.StartsWith("iVBOR") || v.StartsWith("/9j/") || v.StartsWith("UklG"))) p.Value = "";
             }
             return cleanedJson;
         }
@@ -550,17 +449,13 @@ namespace Comfizen
         public static string? CleanBase64FromString(string? jsonString)
         {
             if (string.IsNullOrEmpty(jsonString)) return jsonString;
-
             try
             {
                 var jObject = JObject.Parse(jsonString);
                 var cleanedJObject = CleanBase64FromJObject(jObject);
                 return cleanedJObject?.ToString(Formatting.Indented);
             }
-            catch (JsonReaderException)
-            {
-                return jsonString;
-            }
+            catch (JsonReaderException) { return jsonString; }
         }
     }
 }
