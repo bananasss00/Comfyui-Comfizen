@@ -115,7 +115,7 @@ namespace Comfizen
                 return videoBytes;
             }
             
-            var fileBasedFormats = new[] { "mkv" };
+            var fileBasedFormats = new[] { "mkv", "mp4" };
 
             if (fileBasedFormats.Contains(extension.ToLowerInvariant()))
             {
