@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Input;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Controls;
@@ -125,6 +126,7 @@ namespace Comfizen
         public bool IsConsoleVisible { get; set; } = false;
         public ICommand ToggleConsoleCommand { get; }
         public ICommand ClearConsoleCommand { get; }
+        public ICommand CopyConsoleCommand { get; }
         public ICommand OpenWildcardBrowserCommand { get; }
         
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -162,6 +164,7 @@ namespace Comfizen
 
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
             ClearConsoleCommand = new RelayCommand(_ => ConsoleLogMessages.Clear());
+            CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => ConsoleLogMessages.Any());
             
             CloseTabCommand = new RelayCommand(p => CloseTab(p as WorkflowTabViewModel));
 
@@ -497,6 +500,37 @@ namespace Comfizen
             foreach (var tab in OpenTabs)
             {
                 tab.UpdateAfterSettingsChange(_settings, _comfyuiModel, _modelService, _sessionManager);
+            }
+        }
+        
+        /// <summary>
+        /// Copies the entire content of the console log to the clipboard.
+        /// </summary>
+        private void CopyConsoleContent(object obj)
+        {
+            if (ConsoleLogMessages == null || !ConsoleLogMessages.Any())
+            {
+                return;
+            }
+
+            var stringBuilder = new StringBuilder();
+            foreach (var logMessage in ConsoleLogMessages)
+            {
+                // Concatenate all text parts from the segments
+                var lineText = string.Concat(logMessage.Segments.Select(s => s.Text));
+        
+                // Format the line with timestamp and level for clarity
+                stringBuilder.AppendLine($"{logMessage.Timestamp:HH:mm:ss} [{logMessage.Level.ToString().ToUpper()}] {lineText}");
+            }
+
+            try
+            {
+                Clipboard.SetText(stringBuilder.ToString());
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to copy console content to clipboard");
+                MessageBox.Show("Could not copy to clipboard.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 

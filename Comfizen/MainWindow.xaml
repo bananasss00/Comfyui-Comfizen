@@ -521,11 +521,19 @@
                 <Border DockPanel.Dock="Top" Padding="8,5" Background="{StaticResource TertiaryBackground}">
                     <Grid>
                         <TextBlock Text="{local:Translate Console_Title}" FontWeight="Bold" HorizontalAlignment="Left"/>
-                        <Button Content="&#xE74D;" Style="{StaticResource IconButton}" 
-                                Command="{Binding ClearConsoleCommand}"
-                                HorizontalAlignment="Right" VerticalAlignment="Center" 
-                                Width="24" Height="24"
-                                ToolTip="{local:Translate Console_Clear}"/>
+                        
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button Content="&#xE8C8;" Style="{StaticResource IconButton}" 
+                                    Command="{Binding CopyConsoleCommand}"
+                                    Width="24" Height="24"
+                                    ToolTip="{local:Translate Console_Copy}" 
+                                    Margin="0,0,5,0"/>
+            
+                            <Button Content="&#xE74D;" Style="{StaticResource IconButton}" 
+                                    Command="{Binding ClearConsoleCommand}"
+                                    Width="24" Height="24"
+                                    ToolTip="{local:Translate Console_Clear}"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
                 <Grid>
@@ -557,8 +565,10 @@
                                 </Style.Triggers>
                             </Style>
                         </ScrollViewer.Style>
-                        <ListBox ItemsSource="{Binding ConsoleLogMessages}" Background="Transparent" BorderThickness="0" Margin="5"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox x:Name="ConsoleListBox" ItemsSource="{Binding ConsoleLogMessages}" Background="Transparent" BorderThickness="0" Margin="5"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                 PreviewMouseWheel="ConsoleListBox_PreviewMouseWheel">
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem">
                                     <Setter Property="Template">

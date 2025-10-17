@@ -68,13 +68,40 @@ namespace Comfizen
         
         private void ConsoleLogMessages_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (ConsoleScrollViewer != null)
+            if (ConsoleScrollViewer == null)
             {
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    ConsoleScrollViewer.ScrollToEnd();
-                }), DispatcherPriority.Background);
+                return;
             }
+            
+            bool isUserAtBottom = ConsoleScrollViewer.VerticalOffset >= ConsoleScrollViewer.ScrollableHeight - 5.0;
+            
+            if (!isUserAtBottom)
+            {
+                return;
+            }
+            
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                ConsoleScrollViewer.ScrollToEnd();
+            }), DispatcherPriority.Background);
+        }
+        
+        /// <summary>
+        /// Manually handles the mouse wheel scroll event for the console ListBox
+        /// and redirects it to the parent ScrollViewer.
+        /// </summary>
+        private void ConsoleListBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (e.Handled)
+            {
+                return;
+            }
+
+            // Manually scroll the outer ScrollViewer
+            ConsoleScrollViewer.ScrollToVerticalOffset(ConsoleScrollViewer.VerticalOffset - e.Delta);
+            
+            // Mark the event as handled to prevent the ListBox from processing it.
+            e.Handled = true;
         }
         
         private void ListViewItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
