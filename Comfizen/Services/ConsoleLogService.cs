@@ -253,6 +253,19 @@ namespace Comfizen
                         });
                     }
                 }
+                // 3. Handle direct stdout output
+                else if (type == "console_stdout_output")
+                {
+                    var text = json["data"]?["text"]?.ToString();
+                    if (string.IsNullOrEmpty(text)) return;
+                    
+                    LogMessages.Add(new LogMessage
+                    {
+                        Text = text,
+                        Level = LogLevel.Info,
+                        Type = LogType.Normal
+                    });
+                }
             }
             catch
             {

@@ -1,73 +1,91 @@
 import sys
 import server
 import logging
+from types import TracebackType
+from typing import Optional, Type
 
-print("--- [Comfyui-ConsoleBridgeNode] Initializing full console stream hijack ---")
+print("--- [ComfyUI-ConsoleBridge] Initializing console stream hijack ---")
 
-# Получаем экземпляр PromptServer для отправки сообщений по WebSocket
+# Get the PromptServer instance to send WebSocket messages
 prompt_server = server.PromptServer.instance
 
-# --- 1. Обработчик для модуля logging ---
+# --- 1. Handler for the logging module ---
 
 class WebSocketLoggingHandler(logging.Handler):
-    def emit(self, record):
-        """
-        Этот метод вызывается для каждой записи лога (info, warning, error и т.д.).
-        """
+    """
+    This logging handler intercepts log records (info, warning, error, etc.)
+    and sends them over the WebSocket connection.
+    """
+    def emit(self, record: logging.LogRecord):
         try:
-            # Форматируем сообщение лога в строку
             message = self.format(record)
-            
             if message.strip():
                 prompt_server.send_sync("console_log_message", {
                     "level": record.levelname,
                     "message": message
                 })
         except Exception as e:
-            # В случае ошибки выводим ее в оригинальный stderr
-            original_stderr.write(f"[WebSocketLogStreamer] Logging Handler Error: {e}\n")
+            # On error, write to the original stderr to avoid an infinite loop
+            original_stderr.write(f"[WebSocketStreamer] Logging Handler Error: {e}\n")
             original_stderr.flush()
 
-# --- 2. Перехватчик для прямого вывода в stderr (для tqdm и др.) ---
+# --- 2. Generic stream redirector for stdout and stderr ---
 
-# Сохраняем оригинальный stderr на случай, если что-то пойдет не так
+# Save the original streams before they are replaced
+original_stdout = sys.stdout
 original_stderr = sys.stderr
 
-class WebSocketStderrWriter:
-    def write(self, text):
-        # Отправляем текст напрямую по WebSocket
+class WebSocketStreamRedirector:
+    """
+    A wrapper class to intercept writes to a stream (like stdout or stderr)
+    and forward them over a WebSocket. It also delegates any other attribute
+    access (e.g., isatty) to the original stream to ensure compatibility.
+    """
+    def __init__(self, original_stream, message_type: str):
+        self.original_stream = original_stream
+        self.message_type = message_type
+
+    def write(self, text: str):
+        # Send the text over the WebSocket if it's not empty
         if text.strip():
             try:
-                # Используем другой тип сообщения, чтобы клиент мог их различать
-                prompt_server.send_sync("console_stderr_output", {
-                    "text": text
-                })
+                prompt_server.send_sync(self.message_type, {"text": text})
             except Exception as e:
-                original_stderr.write(f"[WebSocketLogStreamer] Stderr Writer Error: {e}\n")
+                # Use a specific error message and the original stderr
+                error_prefix = f"[WebSocketStreamer] {self.message_type} Error"
+                original_stderr.write(f"{error_prefix}: {e}\n")
 
-        # Дублируем вывод в оригинальную консоль
-        original_stderr.write(text)
-        original_stderr.flush()
+        # Duplicate the output to the original console
+        self.original_stream.write(text)
+        self.original_stream.flush()
 
     def flush(self):
-        original_stderr.flush()
+        self.original_stream.flush()
 
-# --- Применение перехватчиков ---
+    def __getattr__(self, name: str):
+        """
+        Redirects all other attribute requests (e.g., isatty, encoding)
+        to the original stream object to maintain its behavior.
+        """
+        return getattr(self.original_stream, name)
 
-# Создаем и добавляем наш обработчик логов в корневой логгер.
-# Теперь все вызовы logging.info(), logging.error() и т.д. будут проходить через него.
+# --- 3. Applying the hijack ---
+
+# Set up and add the logging handler to the root logger.
+# All calls to logging.info(), logging.error(), etc., will now be intercepted.
 handler = WebSocketLoggingHandler()
-# Устанавливаем простой формат, чтобы не было дублирования информации
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logging.getLogger().addHandler(handler)
+# Optionally set the root logger level if you want to capture everything
+# logging.getLogger().setLevel(logging.INFO)
 
-# Перехватываем только stderr для tqdm и других прямых записей.
-# stdout больше не трогаем, так как logging теперь обрабатывается напрямую.
-sys.stderr = WebSocketStderrWriter()
+# Hijack stdout and stderr using our generic redirector class.
+sys.stdout = WebSocketStreamRedirector(original_stdout, "console_stdout_output")
+sys.stderr = WebSocketStreamRedirector(original_stderr, "console_stderr_output")
 
-print("--- [Comfyui-ConsoleBridgeNode] Full console stream hijack is active ---")
+print("--- [ComfyUI-ConsoleBridge] Console stream hijack is active ---")
 
-# Стандартная часть для любого кастомного узла
+# Standard boilerplate for custom nodes
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
