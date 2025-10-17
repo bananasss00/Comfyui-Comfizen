@@ -573,8 +573,8 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="{x:Type local:LogMessage}">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Timestamp, StringFormat='HH:mm:ss'}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0"/>
-                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap">
+                                        <TextBlock Text="{Binding Timestamp, StringFormat='HH:mm:ss'}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0" VerticalAlignment="Top"/>
+                                        <TextBlock local:TextBlockExtensions.BindableInlines="{Binding Segments}" TextWrapping="Wrap">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                                     <Style.Triggers>

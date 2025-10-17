@@ -1,22 +1,33 @@
 ﻿using PropertyChanged;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Windows.Media;
 
 namespace Comfizen
 {
-    // Новый enum для определения уровня логирования
     public enum LogLevel { Info, Warning, Error, Critical, Debug }
 
-    // Новый enum для определения, является ли сообщение обычной строкой или обновлением прогресса
-    public enum LogType { Normal, Progress }
+    /// <summary>
+    /// Represents a single text segment in a log message with its own color.
+    /// </summary>
+    public class LogMessageSegment
+    {
+        public string Text { get; set; }
+        public Color? Color { get; set; } // Nullable to allow using the default color
+    }
 
     [AddINotifyPropertyChangedInterface]
     public class LogMessage : INotifyPropertyChanged
     {
         public DateTime Timestamp { get; } = DateTime.Now;
-        public string Text { get; set; }
+        public List<LogMessageSegment> Segments { get; set; }
         public LogLevel Level { get; set; }
-        public LogType Type { get; set; }
+        
+        /// <summary>
+        /// Indicates if this message is a progress bar update.
+        /// </summary>
+        public bool IsProgress { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }

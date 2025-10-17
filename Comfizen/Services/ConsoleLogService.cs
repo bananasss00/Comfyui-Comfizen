@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -18,7 +19,6 @@ namespace Comfizen
         private ClientWebSocket _ws;
         private CancellationTokenSource _cts;
 
-        // --- Fields for managing reconnection ---
         private readonly object _connectionLock = new object();
         private Task _connectionManagerTask;
 
@@ -31,10 +31,8 @@ namespace Comfizen
             System.Windows.Data.BindingOperations.EnableCollectionSynchronization(LogMessages, new object());
         }
 
-        // --- The ConnectAsync method now just starts the background connection manager ---
         public Task ConnectAsync()
         {
-            // Use a lock to avoid race conditions when called from different threads
             lock (_connectionLock)
             {
                 if (_connectionManagerTask == null || _connectionManagerTask.IsCompleted)
@@ -46,23 +44,20 @@ namespace Comfizen
             return Task.CompletedTask;
         }
         
-        // --- The DisconnectAsync method now also stops the connection manager ---
         public async Task DisconnectAsync()
         {
-            // Cancel the token, which will signal the connection manager and the listening loop to stop
             if (_cts != null && !_cts.IsCancellationRequested)
             {
                 _cts.Cancel();
             }
 
-            // Wait for the connection manager task to complete
             if (_connectionManagerTask != null)
             {
                 try
                 {
                     await _connectionManagerTask;
                 }
-                catch (OperationCanceledException) { /* Expected exception on cancellation */ }
+                catch (OperationCanceledException) { /* Expected */ }
                 catch (Exception ex)
                 {
                     Logger.Log(ex, "Error while waiting for the connection manager task to complete");
@@ -70,7 +65,6 @@ namespace Comfizen
                 _connectionManagerTask = null;
             }
 
-            // Close the WebSocket itself if it is still open
             if (_ws != null)
             {
                 if (_ws.State == WebSocketState.Open || _ws.State == WebSocketState.Connecting)
@@ -80,7 +74,7 @@ namespace Comfizen
                         var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                         await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnecting", closeCts.Token);
                     }
-                    catch (Exception) { /* Ignore errors on close */ }
+                    catch (Exception) { /* Ignore */ }
                 }
                 _ws.Dispose();
                 _ws = null;
@@ -97,18 +91,16 @@ namespace Comfizen
             await ConnectAsync();
         }
 
-        // --- The main loop that manages connection and reconnection ---
         private async Task ConnectionManagerLoopAsync(CancellationToken token)
         {
-            int minDelayMs = 5000;    // 5 seconds
-            int maxDelayMs = 60000;   // 1 minute
+            int minDelayMs = 5000;
+            int maxDelayMs = 60000;
             int currentDelayMs = minDelayMs;
 
             while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    // Create a new WebSocket instance for each attempt
                     _ws?.Dispose();
                     _ws = new ClientWebSocket();
 
@@ -119,47 +111,37 @@ namespace Comfizen
                         Query = $"clientId={Guid.NewGuid()}"
                     };
 
-                    // Try to connect with a timeout to avoid hanging forever
                     var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, connectCts.Token);
                     
                     await _ws.ConnectAsync(uriBuilder.Uri, linkedCts.Token);
 
-                    // If connected successfully, reset the delay and start listening for messages
                     currentDelayMs = minDelayMs;
-                    await ListenForMessages(token); // This method will run until the connection is lost
+                    await ListenForMessages(token);
                 }
                 catch (OperationCanceledException)
                 {
-                    // This can be caused by either the application cancellation token or the connection timeout
-                    if (token.IsCancellationRequested) break; // Exit if the application is closing
+                    if (token.IsCancellationRequested) break;
                 }
                 catch (Exception ex)
                 {
-                    // Log the error, but do not exit the loop
                     Logger.Log(ex, "Error while connecting or listening to the log WebSocket");
                 }
                 finally
                 {
-                    // Ensure resources are freed before the next attempt
                     _ws?.Dispose();
                     _ws = null;
                 }
 
-                // If we are here, it means the connection failed or was lost.
-                // Wait before the next attempt.
                 if (!token.IsCancellationRequested)
                 {
                     try
                     {
                         await Task.Delay(currentDelayMs, token);
-                        
-                        // Increase the delay for the next time (exponential backoff)
                         currentDelayMs = Math.Min(currentDelayMs * 2, maxDelayMs);
                     }
                     catch (OperationCanceledException)
                     {
-                        // Exit the loop if the application is closing during the delay
                         break;
                     }
                 }
@@ -170,7 +152,6 @@ namespace Comfizen
         {
             var buffer = new ArraySegment<byte>(new byte[8192]);
 
-            // This loop will run as long as the socket is open and cancellation has not been requested
             while (_ws.State == WebSocketState.Open && !token.IsCancellationRequested)
             {
                 using (var ms = new MemoryStream())
@@ -178,7 +159,6 @@ namespace Comfizen
                     WebSocketReceiveResult result;
                     do
                     {
-                        // If the token is cancelled, ReceiveAsync will throw an exception that will be caught in ConnectionManagerLoopAsync
                         result = await _ws.ReceiveAsync(buffer, token);
                         ms.Write(buffer.Array, buffer.Offset, result.Count);
                     } while (!result.EndOfMessage);
@@ -195,9 +175,9 @@ namespace Comfizen
         {
             LogMessages.Add(new LogMessage
             {
-                Text = message,
+                Segments = new List<LogMessageSegment> { new LogMessageSegment { Text = message } },
                 Level = LogLevel.Error,
-                Type = LogType.Normal
+                IsProgress = false
             });
         }
         
@@ -207,64 +187,50 @@ namespace Comfizen
             {
                 var json = JObject.Parse(message);
                 var type = json["type"]?.ToString();
-
-                // 1. Handle standard logs (INFO, WARNING, ERROR)
-                if (type == "console_log_message")
+                
+                // 1. Handle logs (INFO, WARNING, ERROR) and stdout
+                if (type == "console_log_message" || type == "console_stdout_output")
                 {
                     var data = json["data"];
-                    var levelStr = data?["level"]?.ToString();
-                    var text = data?["message"]?.ToString();
-
+                    var text = (type == "console_log_message" ? data?["message"]?.ToString() : data?["text"]?.ToString());
                     if (string.IsNullOrEmpty(text)) return;
-
+                    
+                    var levelStr = data?["level"]?.ToString() ?? "Info";
                     Enum.TryParse<LogLevel>(levelStr, true, out var level);
                     
                     LogMessages.Add(new LogMessage
                     {
-                        Text = text,
+                        Segments = AnsiColorParser.Parse(text),
                         Level = level,
-                        Type = LogType.Normal
+                        IsProgress = false
                     });
                 }
-                // 2. Handle direct output (progress bars)
+                // 2. Handle stderr (progress bars)
                 else if (type == "console_stderr_output")
                 {
                     var text = json["data"]?["text"]?.ToString();
-                    
-                    // Remove \r and trailing whitespace to avoid "jumping"
                     if (string.IsNullOrEmpty(text)) return;
+                    
                     text = text.Replace("\r", "").TrimEnd();
                     if (string.IsNullOrEmpty(text)) return;
 
+                    var newSegments = AnsiColorParser.Parse(text);
                     var lastMessage = LogMessages.LastOrDefault();
                     
-                    // If the last message was also a progress bar, update it
-                    if (lastMessage != null && lastMessage.Type == LogType.Progress)
+                    // If the last message was a progress bar, update it
+                    if (lastMessage != null && lastMessage.IsProgress)
                     {
-                        lastMessage.Text = text;
+                        lastMessage.Segments = newSegments;
                     }
                     else // Otherwise, add a new one
                     {
                         LogMessages.Add(new LogMessage
                         {
-                            Text = text,
-                            Level = LogLevel.Info, // We consider progress bars to be informational
-                            Type = LogType.Progress
+                            Segments = newSegments,
+                            Level = LogLevel.Info,
+                            IsProgress = true
                         });
                     }
-                }
-                // 3. Handle direct stdout output
-                else if (type == "console_stdout_output")
-                {
-                    var text = json["data"]?["text"]?.ToString();
-                    if (string.IsNullOrEmpty(text)) return;
-                    
-                    LogMessages.Add(new LogMessage
-                    {
-                        Text = text,
-                        Level = LogLevel.Info,
-                        Type = LogType.Normal
-                    });
                 }
             }
             catch
