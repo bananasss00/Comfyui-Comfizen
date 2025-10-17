@@ -146,11 +146,11 @@ namespace Comfizen
                     ModelSubTypes.Add(type.Name);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                var message = string.Format(LocalizationService.Instance["ModelService_ErrorFetchModelTypes"], ex.Message);
-                var title = LocalizationService.Instance["General_Error"];
-                MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
+                // The error message is now handled by ModelService.
+                // We just catch the exception to prevent the application from crashing.
+                // The model list will simply remain empty.
             }
         }
         

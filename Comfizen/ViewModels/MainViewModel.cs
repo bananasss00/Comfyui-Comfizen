@@ -404,6 +404,7 @@ namespace Comfizen
             var workflowToReload = SelectedTab.FilePath;
             _sessionManager.SaveSession(SelectedTab.Workflow.LoadedApi, workflowToReload);
             
+            ModelService.ResetConnectionErrorFlag();
             ModelService.ClearCache();
             
             int tabIndex = OpenTabs.IndexOf(SelectedTab);
@@ -484,6 +485,7 @@ namespace Comfizen
             var settingsWindow = new SettingsWindow { Owner = Application.Current.MainWindow };
             settingsWindow.ShowDialog();
             
+            ModelService.ResetConnectionErrorFlag();
             ModelService.ClearCache();
             _settings = _settingsService.LoadSettings();
             MaxQueueSize = _settings.MaxQueueSize;

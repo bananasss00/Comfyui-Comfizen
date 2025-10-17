@@ -306,32 +306,39 @@ namespace Comfizen
 
         public async Task LoadItemsAsync(ModelService modelService, AppSettings settings)
         {
-            var finalItemsSource = new List<string>();
+            try
+            {
+                var finalItemsSource = new List<string>();
 
-            if (Type == FieldType.Model)
-            {
-                var types = await modelService.GetModelTypesAsync();
-                var modelTypeInfo = types.FirstOrDefault(t => t.Name == _field.ModelType);
-                if (modelTypeInfo != null)
+                if (Type == FieldType.Model)
                 {
-                    var models = await modelService.GetModelFilesAsync(modelTypeInfo);
-                    finalItemsSource.AddRange(settings.SpecialModelValues);
-                    finalItemsSource.AddRange(models);
+                    var types = await modelService.GetModelTypesAsync(); // This might throw an exception
+                    var modelTypeInfo = types.FirstOrDefault(t => t.Name == _field.ModelType);
+                    if (modelTypeInfo != null)
+                    {
+                        var models = await modelService.GetModelFilesAsync(modelTypeInfo);
+                        finalItemsSource.AddRange(settings.SpecialModelValues);
+                        finalItemsSource.AddRange(models);
+                    }
                 }
-            }
-            else
-            {
-                // ИСПРАВЛЕНИЕ: Используем _field вместо field
-                finalItemsSource = _field.Type switch
+                else
                 {
-                    FieldType.Sampler => settings.Samplers,
-                    FieldType.Scheduler => settings.Schedulers,
-                    FieldType.ComboBox => _field.ComboBoxItems,
-                    _ => new List<string>()
-                };
+                    finalItemsSource = _field.Type switch
+                    {
+                        FieldType.Sampler => settings.Samplers,
+                        FieldType.Scheduler => settings.Schedulers,
+                        FieldType.ComboBox => _field.ComboBoxItems,
+                        _ => new List<string>()
+                    };
+                }
+                ItemsSource = finalItemsSource.Distinct().ToList();
+                OnPropertyChanged(nameof(ItemsSource));
             }
-            ItemsSource = finalItemsSource.Distinct().ToList();
-            OnPropertyChanged(nameof(ItemsSource));
+            catch (Exception ex)
+            {
+                // Silently log the error. The user has already been notified by the ModelService.
+                System.Diagnostics.Debug.WriteLine($"Failed to load items for combobox '{Name}': {ex.Message}");
+            }
         }
         
         private readonly WorkflowField _field;

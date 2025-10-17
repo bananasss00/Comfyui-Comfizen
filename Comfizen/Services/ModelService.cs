@@ -82,6 +82,7 @@ public class ModelService
     private static readonly object _cacheLock = new();
     private readonly string _apiBaseUrl;
     private readonly AppSettings _settings;
+    private static bool _isConnectionErrorVisible = false;
 
     /// <summary>
     ///     Static constructor to load the persistent cache from disk when the class is first used.
@@ -97,6 +98,15 @@ public class ModelService
     {
         _settings = settings;
         _apiBaseUrl = $"http://{_settings.ServerAddress}";
+    }
+    
+    /// <summary>
+    /// Resets the flag that tracks if a connection error has been shown.
+    /// This allows a new error message to be displayed on the next connection attempt.
+    /// </summary>
+    public static void ResetConnectionErrorFlag()
+    {
+        _isConnectionErrorVisible = false;
     }
 
     /// <summary>
@@ -171,15 +181,35 @@ public class ModelService
     {
         if (_modelTypesCache.TryGetValue(_apiBaseUrl, out var cachedTypes)) return cachedTypes;
 
-        var response = await _httpClient.GetStringAsync($"{_apiBaseUrl}/api/experiment/models");
-        var types = JsonConvert.DeserializeObject<List<ModelTypeInfo>>(response);
-        if (types != null)
+        try
         {
-            _modelTypesCache.TryAdd(_apiBaseUrl, types);
-            return types;
+            var response = await _httpClient.GetStringAsync($"{_apiBaseUrl}/api/experiment/models");
+            var types = JsonConvert.DeserializeObject<List<ModelTypeInfo>>(response);
+            if (types != null)
+            {
+                _modelTypesCache.TryAdd(_apiBaseUrl, types);
+                return types;
+            }
+            return new List<ModelTypeInfo>();
         }
-
-        return new List<ModelTypeInfo>();
+        catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException)
+        {
+            lock (_cacheLock)
+            {
+                if (!_isConnectionErrorVisible)
+                {
+                    _isConnectionErrorVisible = true;
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var message = string.Format(LocalizationService.Instance["ModelService_ErrorFetchModelTypes"], ex.Message);
+                        var title = LocalizationService.Instance["General_Error"];
+                        MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
+                }
+            }
+            // Re-throw the exception so the calling code knows the operation failed.
+            throw;
+        }
     }
 
     /// <summary>
