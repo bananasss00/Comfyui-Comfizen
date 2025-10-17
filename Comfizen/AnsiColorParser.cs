@@ -29,7 +29,7 @@ namespace Comfizen
         };
 
         // Regular expression to find codes like [96m or [0m
-        private static readonly Regex AnsiRegex = new Regex(@"(\[\d+m)", RegexOptions.Compiled);
+        private static readonly Regex AnsiRegex = new Regex(@"(\[\d+(?:;\d+)*m)", RegexOptions.Compiled);
 
         /// <summary>
         /// Parses a string with ANSI-like color codes into a list of segments with colors.
@@ -44,26 +44,37 @@ namespace Comfizen
             {
                 if (string.IsNullOrEmpty(part)) continue;
 
-                // If the part is a color code
                 if (AnsiRegex.IsMatch(part))
                 {
-                    var code = part.Trim('[', 'm');
-                    if (code == "0")
+                    var codesString = part.Trim('[', 'm');
+                    
+                    // The code "0" is always a reset command.
+                    if (codesString == "0")
                     {
-                        currentColor = null; // Reset color
+                        currentColor = null;
                     }
-                    else if (AnsiColorMap.TryGetValue(code, out var color))
+                    else
                     {
-                        currentColor = color;
+                        // Split by semicolon to handle codes like [33;20m
+                        // and find the first valid color code in the sequence.
+                        var codes = codesString.Split(';');
+                        foreach (var code in codes)
+                        {
+                            if (AnsiColorMap.TryGetValue(code, out var color))
+                            {
+                                currentColor = color; // Found a color, apply it.
+                                // We could break here, but continuing allows the last color in a sequence to win, which is standard behavior.
+                            }
+                        }
                     }
                 }
-                else // Otherwise, it's regular text
+                else // This part is plain text
                 {
                     segments.Add(new LogMessageSegment { Text = part, Color = currentColor });
                 }
             }
             
-            // If there were no codes in the entire string, create a single segment
+            // If the entire string contained no color codes, create a single segment for it.
             if (!segments.Any() && !string.IsNullOrEmpty(message))
             {
                  segments.Add(new LogMessageSegment { Text = message, Color = null });
