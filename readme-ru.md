@@ -6,6 +6,9 @@
 
 ![Главный интерфейс](readme/main.jpg)
 
+## Создание своего процесса
+https://github.com/user-attachments/assets/5a2a2460-b818-4f13-8ed5-5e98e3373572
+
 ---
 
 ## Требования
