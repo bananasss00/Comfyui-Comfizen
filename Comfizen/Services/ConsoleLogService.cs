@@ -188,7 +188,7 @@ namespace Comfizen
                 var json = JObject.Parse(message);
                 var type = json["type"]?.ToString();
                 
-                // 1. Handle logs (INFO, WARNING, ERROR) and stdout
+                // --- START OF FIX: Handle multi-line console messages ---
                 if (type == "console_log_message" || type == "console_stdout_output")
                 {
                     var data = json["data"];
@@ -198,14 +198,26 @@ namespace Comfizen
                     var levelStr = data?["level"]?.ToString() ?? "Info";
                     Enum.TryParse<LogLevel>(levelStr, true, out var level);
                     
-                    LogMessages.Add(new LogMessage
+                    // Split the incoming text by newlines
+                    var lines = text.Split('\n');
+
+                    foreach (var line in lines)
                     {
-                        Segments = AnsiColorParser.Parse(text),
-                        Level = level,
-                        IsProgress = false
-                    });
+                        // Trim the carriage return that often comes with newlines (\r\n)
+                        var processedLine = line.TrimEnd('\r');
+                        
+                        // Add each line as a separate LogMessage
+                        LogMessages.Add(new LogMessage
+                        {
+                            Segments = AnsiColorParser.Parse(processedLine),
+                            Level = level,
+                            IsProgress = false
+                        });
+                    }
                 }
-                // 2. Handle stderr (progress bars)
+                // --- END OF FIX ---
+                
+                // 2. Handle stderr (progress bars) - this part remains the same
                 else if (type == "console_stderr_output")
                 {
                     var text = json["data"]?["text"]?.ToString();
@@ -217,12 +229,11 @@ namespace Comfizen
                     var newSegments = AnsiColorParser.Parse(text);
                     var lastMessage = LogMessages.LastOrDefault();
                     
-                    // If the last message was a progress bar, update it
                     if (lastMessage != null && lastMessage.IsProgress)
                     {
                         lastMessage.Segments = newSegments;
                     }
-                    else // Otherwise, add a new one
+                    else
                     {
                         LogMessages.Add(new LogMessage
                         {
