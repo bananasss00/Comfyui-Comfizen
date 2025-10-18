@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
@@ -94,7 +95,7 @@ namespace Comfizen
             Name = model.Name;
             HighlightColor = model.HighlightColor;
         }
-        
+
         protected void OnPropertyChanged(string name)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -140,22 +141,52 @@ namespace Comfizen
         {
             get
             {
-                var text = Property.Value.ToString();
+                var propValue = Property.Value;
+                string text;
+
+                switch (propValue.Type)
+                {
+                    case JTokenType.Float:
+                        // Always format floating-point numbers with a '.' decimal separator.
+                        text = propValue.ToObject<double>().ToString("G", CultureInfo.InvariantCulture);
+                        break;
+                    case JTokenType.Integer:
+                        // Ensure integers are formatted without culture-specific separators.
+                        text = propValue.ToObject<long>().ToString(CultureInfo.InvariantCulture);
+                        break;
+                    default:
+                        text = propValue.ToString();
+                        break;
+                }
+
                 if (text.Length > 1000 && (text.StartsWith("iVBOR") || text.StartsWith("/9j/") || text.StartsWith("UklG")))
                 {
-                    // Используем строку из локализации
                     return string.Format(LocalizationService.Instance["TextField_Base64Placeholder"], text.Length / 1024);
                 }
                 return text;
             }
             set
             {
-                // Плейсхолдер теперь зависит от языка, поэтому ищем по началу строки
                 if (value.StartsWith("[Base64 Image Data:") || value.StartsWith("[Данные изображения Base64:"))
                     return;
-            
-                if (Property.Value.ToString() != value)
+
+                // When setting the value, try to parse it as a number using invariant culture.
+                // This correctly handles inputs with a '.' separator regardless of system culture.
+                if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out double numericValue))
                 {
+                    // If the parsed value is a whole number, store it as an integer to keep the JSON clean.
+                    if (numericValue == Math.Truncate(numericValue))
+                    {
+                        Property.Value = new JValue(Convert.ToInt64(numericValue));
+                    }
+                    else
+                    {
+                        Property.Value = new JValue(numericValue);
+                    }
+                }
+                else
+                {
+                    // If it cannot be parsed as a number, treat it as a string.
                     Property.Value = new JValue(value);
                 }
             }
@@ -205,10 +236,10 @@ namespace Comfizen
         private readonly WorkflowField _field;
         public string Value
         {
-            get => Property.Value.ToString();
+            get => Property.Value.ToObject<long>().ToString(CultureInfo.InvariantCulture);
             set
             {
-                if (long.TryParse(value, out var longValue) && (long)Property.Value != longValue)
+                if (long.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var longValue) && Property.Value.ToObject<long>() != longValue)
                 {
                     Property.Value = new JValue(longValue);
                     OnPropertyChanged(nameof(Value));
