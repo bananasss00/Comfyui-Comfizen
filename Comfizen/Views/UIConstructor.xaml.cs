@@ -23,6 +23,19 @@ namespace Comfizen
         public string Hex { get; set; }
     }
     
+    [AddINotifyPropertyChangedInterface]
+    public class ActionNameViewModel : INotifyPropertyChanged
+    {
+        public string Name { get; set; }
+        public bool IsRenaming { get; set; }
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public ActionNameViewModel(string name)
+        {
+            Name = name;
+        }
+    }
+    
     /// <summary>
     /// ViewModel for the UIConstructor window.
     /// Handles the logic for creating and modifying workflow UI layouts.
@@ -42,12 +55,14 @@ namespace Comfizen
         public string SelectedHookName { get; set; }
         public TextDocument SelectedHookScript { get; set; } = new TextDocument();
 
-        public ObservableCollection<string> ActionNames { get; } = new ObservableCollection<string>();
-        public string SelectedActionName { get; set; }
+        public ObservableCollection<ActionNameViewModel> ActionNames { get; } = new ObservableCollection<ActionNameViewModel>();
+        public ActionNameViewModel SelectedActionName { get; set; }
         public TextDocument SelectedActionScript { get; set; } = new TextDocument();
         
         public ICommand AddActionCommand { get; }
         public ICommand RemoveActionCommand { get; }
+        
+        private string _originalActionName; // Для хранения имени перед переименованием
         // --- END OF SCRIPTING PROPERTIES ---
         
         public UIConstructorView(string? workflowRelativePath = null)
@@ -69,9 +84,9 @@ namespace Comfizen
             // --- START OF SCRIPTING INITIALIZATION ---
             AvailableHooks = new ObservableCollection<string> { "on_workflow_load", "on_queue_start", "on_queue_finish", "on_output_received" };
             
-            AddActionCommand = new RelayCommand(param => AddNewAction());
-            RemoveActionCommand = new RelayCommand(param => RemoveSelectedAction(), (param) => !string.IsNullOrEmpty(SelectedActionName));
-
+            AddActionCommand = new RelayCommand(_ => AddNewAction());
+            RemoveActionCommand = new RelayCommand(_ => RemoveSelectedAction(), _ => SelectedActionName != null);
+            
             // Отслеживание изменений для хуков
             this.PropertyChanged += (s, e) => {
                 if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
@@ -167,63 +182,67 @@ namespace Comfizen
 
         public event PropertyChangedEventHandler? PropertyChanged;
         
-        // --- START OF SCRIPTING METHODS ---
+        // --- SCRIPTING METHODS ---
         private void OnSelectedHookChanged()
         {
             if (Workflow.Scripts.Hooks.TryGetValue(SelectedHookName ?? "", out var script))
-            {
                 SelectedHookScript.Text = script;
-            }
             else
-            {
                 SelectedHookScript.Text = string.Empty;
-            }
         }
 
         private void SaveHookScript()
         {
             if (!string.IsNullOrEmpty(SelectedHookName))
-            {
                 Workflow.Scripts.Hooks[SelectedHookName] = SelectedHookScript.Text;
-            }
         }
 
         private void OnSelectedActionChanged()
         {
-            if (Workflow.Scripts.Actions.TryGetValue(SelectedActionName ?? "", out var script))
+            // Находим элемент, который В ДАННЫЙ МОМЕНТ находится в режиме редактирования
+            var currentlyRenaming = ActionNames.FirstOrDefault(a => a.IsRenaming);
+
+            // Если такой элемент есть, и это НЕ тот, который мы только что выбрали,
+            // завершаем его редактирование.
+            if (currentlyRenaming != null && currentlyRenaming != SelectedActionName)
             {
+                CommitActionRename(currentlyRenaming, currentlyRenaming.Name);
+            }
+
+            // Обновляем редактор скриптов для нового выбранного элемента
+            if (SelectedActionName != null && Workflow.Scripts.Actions.TryGetValue(SelectedActionName.Name, out var script))
                 SelectedActionScript.Text = script;
-            }
             else
-            {
                 SelectedActionScript.Text = string.Empty;
-            }
         }
 
         private void SaveActionScript()
         {
-            if (!string.IsNullOrEmpty(SelectedActionName))
-            {
-                Workflow.Scripts.Actions[SelectedActionName] = SelectedActionScript.Text;
-            }
+            if (SelectedActionName != null)
+                Workflow.Scripts.Actions[SelectedActionName.Name] = SelectedActionScript.Text;
         }
 
         private void AddNewAction()
         {
-            var newActionName = $"new_action_{ActionNames.Count + 1}";
-            if (!ActionNames.Contains(newActionName))
+            var baseName = "new_action";
+            string newActionName = baseName;
+            int counter = 1;
+            while (ActionNames.Any(a => a.Name == newActionName))
             {
-                ActionNames.Add(newActionName);
-                Workflow.Scripts.Actions[newActionName] = "# Your Python script here";
-                SelectedActionName = newActionName;
+                newActionName = $"{baseName}_{counter++}";
             }
+
+            var newActionVm = new ActionNameViewModel(newActionName);
+            ActionNames.Add(newActionVm);
+            Workflow.Scripts.Actions[newActionName] = "# Your Python script here";
+            SelectedActionName = newActionVm;
         }
 
         private void RemoveSelectedAction()
         {
-            if (!string.IsNullOrEmpty(SelectedActionName))
+            if (SelectedActionName != null)
             {
-                Workflow.Scripts.Actions.Remove(SelectedActionName);
+                Workflow.Scripts.Actions.Remove(SelectedActionName.Name);
                 ActionNames.Remove(SelectedActionName);
                 SelectedActionName = ActionNames.FirstOrDefault();
             }
@@ -234,8 +253,79 @@ namespace Comfizen
             ActionNames.Clear();
             foreach (var key in Workflow.Scripts.Actions.Keys.OrderBy(k => k))
             {
-                ActionNames.Add(key);
+                ActionNames.Add(new ActionNameViewModel(key));
             }
+        }
+        
+        public void StartActionRename(ActionNameViewModel actionVm)
+        {
+            if (actionVm == null) return;
+
+            // Закрываем редактирование других элементов перед началом нового
+            var otherRenaming = ActionNames.FirstOrDefault(a => a.IsRenaming);
+            if (otherRenaming != null)
+            {
+                CommitActionRename(otherRenaming, otherRenaming.Name);
+            }
+            
+            _originalActionName = actionVm.Name;
+            actionVm.IsRenaming = true;
+        }
+
+        public void CommitActionRename(ActionNameViewModel actionVm, string newName)
+        {
+            if (actionVm == null || !actionVm.IsRenaming) return;
+
+            actionVm.IsRenaming = false;
+
+            // Если имя не изменилось или стало пустым, просто выходим из режима редактирования
+            if (string.IsNullOrWhiteSpace(newName) || newName == _originalActionName)
+            {
+                actionVm.Name = _originalActionName; // Восстанавливаем старое имя на случай, если пользователь его стер
+                return;
+            }
+
+            // Проверяем на дубликаты
+            if (ActionNames.Any(a => a.Name == newName && a != actionVm))
+            {
+                MessageBox.Show("An action with this name already exists.", "Rename Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                actionVm.Name = _originalActionName; // Восстанавливаем
+                return;
+            }
+
+            // Обновляем ключ в словаре скриптов
+            if (Workflow.Scripts.Actions.TryGetValue(_originalActionName, out var script))
+            {
+                Workflow.Scripts.Actions.Remove(_originalActionName);
+                Workflow.Scripts.Actions[newName] = script;
+            }
+            
+            // Обновляем имя в ViewModel
+            actionVm.Name = newName;
+
+            // Обновляем ссылки на это действие во всех полях-кнопках
+            RefreshActionNamesInFields(_originalActionName, newName);
+        }
+        
+        private void RefreshActionNamesInFields(string oldName, string newName)
+        {
+            foreach (var group in Workflow.Groups)
+            {
+                foreach (var field in group.Fields)
+                {
+                    if (field.Type == FieldType.ScriptButton && field.ActionName == oldName)
+                    {
+                        field.ActionName = newName;
+                    }
+                }
+            }
+        }
+
+        public void CancelActionRename(ActionNameViewModel actionVm)
+        {
+            if (actionVm == null) return;
+            actionVm.IsRenaming = false;
+            actionVm.Name = _originalActionName; // Восстанавливаем старое имя
         }
         // --- END OF SCRIPTING METHODS ---
         
@@ -710,34 +800,100 @@ namespace Comfizen
 
         private void InlineTextBox_LostFocus(object sender, RoutedEventArgs e)
         {
-            if (sender is TextBox textBox) CommitEdit(textBox);
+            if (sender is not TextBox textBox || DataContext is not UIConstructorView viewModel) return;
+
+            var dataContext = textBox.DataContext;
+
+            if (dataContext is ActionNameViewModel actionVm && actionVm.IsRenaming)
+            {
+                viewModel.CommitActionRename(actionVm, textBox.Text);
+            }
+            // ==========================================================
+            //     НАЧАЛО ИСПРАВЛЕНИЙ: Восстановленная логика
+            // ==========================================================
+            else if (dataContext is WorkflowGroup g && g.IsRenaming)
+            {
+                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                StopEditing(g);
+            }
+            else if (dataContext is WorkflowField f && f.IsRenaming)
+            {
+                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                StopEditing(f);
+            }
+            // ==========================================================
+            //     КОНЕЦ ИСПРАВЛЕНИЙ
+            // ==========================================================
         }
 
         private void InlineTextBox_KeyDown(object sender, KeyEventArgs e)
         {
-            if (sender is TextBox textBox)
+            if (sender is not TextBox textBox || DataContext is not UIConstructorView viewModel) return;
+            
+            var dataContext = textBox.DataContext;
+
+            if (e.Key == Key.Enter)
             {
-                if (e.Key == Key.Enter)
+                if (dataContext is ActionNameViewModel actionVm)
                 {
-                    CommitEdit(textBox);
+                    viewModel.CommitActionRename(actionVm, textBox.Text);
                 }
-                else if (e.Key == Key.Escape)
+                // ==========================================================
+                //     НАЧАЛО ИСПРАВЛЕНИЙ: Восстановленная логика
+                // ==========================================================
+                else if (dataContext is WorkflowGroup || dataContext is WorkflowField)
                 {
+                    // Принудительно обновляем источник привязки и выходим из режима редактирования
+                    textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                    StopEditing(dataContext);
+                }
+                // ==========================================================
+                //     КОНЕЦ ИСПРАВЛЕНИЙ
+                // ==========================================================
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                if (dataContext is ActionNameViewModel actionVm)
+                {
+                    viewModel.CancelActionRename(actionVm);
+                }
+                // ==========================================================
+                //     НАЧАЛО ИСПРАВЛЕНИЙ: Восстановленная логика
+                // ==========================================================
+                else if (dataContext is WorkflowGroup || dataContext is WorkflowField)
+                {
+                    // Отменяем изменения и выходим из режима редактирования
                     textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
-                    StopEditing(textBox.DataContext, "IsRenaming");
+                    StopEditing(dataContext);
                 }
+                // ==========================================================
+                //     КОНЕЦ ИСПРАВЛЕНИЙ
+                // ==========================================================
+                e.Handled = true;
+            }
+        }
+        
+        private void ActionItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (DataContext is UIConstructorView viewModel && sender is ListBoxItem { DataContext: ActionNameViewModel actionVm })
+            {
+                viewModel.StartActionRename(actionVm);
+                // Предотвращаем дальнейшую обработку клика, которая может сбить фокус
+                e.Handled = true; 
             }
         }
 
-        private void CommitEdit(TextBox textBox)
-        {
-            textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-            StopEditing(textBox.DataContext, "IsRenaming");
-        }
+        // private void CommitEdit(TextBox textBox)
+        // {
+        //     textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+        //     StopEditing(textBox.DataContext, "IsRenaming");
+        // }
 
-        private void StopEditing(object dataContext, string propertyName)
+        private void StopEditing(object dataContext)
         {
-            if (dataContext is INotifyPropertyChanged npc) npc.GetType().GetProperty(propertyName)?.SetValue(npc, false);
+            if (dataContext is WorkflowGroup g) g.IsRenaming = false;
+            if (dataContext is WorkflowField f) f.IsRenaming = false;
         }
 
         private void InlineTextBox_GotFocus(object sender, RoutedEventArgs e)

@@ -294,9 +294,12 @@
                                                                                             </Style>
                                                                                         </StackPanel.Style>
                                                                                         <TextBlock Text="Action to Execute:"/>
-                                                                                        <ComboBox ItemsSource="{Binding DataContext.ActionNames, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                                            SelectedItem="{Binding ActionName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                                            Margin="0,2,0,0"/>
+                                                                                        <ComboBox x:Name="ActionComboBox" 
+                                                                                            ItemsSource="{Binding DataContext.ActionNames, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                            SelectedValue="{Binding ActionName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                            DisplayMemberPath="Name" 
+                                                                                            SelectedValuePath="Name"
+                                                                                            Margin="0,2,0,0" />
                                                                                     </StackPanel>
                                                                                 </Grid>
                                                                             </Border>
@@ -320,56 +323,114 @@
                     </Border>
                 </Grid>
             </TabItem>
+            
             <TabItem Header="Scripts">
-                <Grid Margin="10">
+                <Grid Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*" MinWidth="250"/>
                         <ColumnDefinition Width="5"/>
-                        <ColumnDefinition Width="1*" MinWidth="250"/>
+                        <ColumnDefinition Width="2*" MinWidth="400"/>
                     </Grid.ColumnDefinitions>
+                    
+                    <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent" />
 
                     <!-- Панель для Хуков -->
-                    <GroupBox Grid.Column="0" Header="Hooks (Автоматические триггеры)">
-                        <DockPanel>
-                            <ComboBox DockPanel.Dock="Top" Margin="5"
-                                      ItemsSource="{Binding AvailableHooks}"
-                                      SelectedItem="{Binding SelectedHookName}"
-                                      ToolTip="Выберите событие для привязки скрипта"/>
+                    <DockPanel Grid.Column="0">
+                        <TextBlock DockPanel.Dock="Top" Text="Hooks (Автоматические триггеры)" FontWeight="Bold" Margin="5"/>
+                        <ComboBox DockPanel.Dock="Top" Margin="5"
+                                  ItemsSource="{Binding AvailableHooks}"
+                                  SelectedItem="{Binding SelectedHookName}"
+                                  ToolTip="Выберите событие для привязки скрипта"/>
 
-                            <avalonedit:TextEditor Document="{Binding SelectedHookScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 SyntaxHighlighting="Python"
-                                                 FontFamily="Consolas"
-                                                 FontSize="12"
-                                                 ShowLineNumbers="True"
-                                                 Background="{StaticResource SecondaryBackground}"
-                                                 Foreground="{StaticResource TextBrush}"/>
-                        </DockPanel>
-                    </GroupBox>
-
-                    <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent"/>
+                        <avalonedit:TextEditor Document="{Binding SelectedHookScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             SyntaxHighlighting="Python"
+                                             FontFamily="Consolas"
+                                             FontSize="12"
+                                             ShowLineNumbers="True"
+                                             Background="{StaticResource SecondaryBackground}"
+                                             Foreground="{StaticResource TextBrush}"
+                                             BorderBrush="{StaticResource TertiaryBackground}"
+                                             BorderThickness="1"
+                                             Padding="5"/>
+                    </DockPanel>
 
                     <!-- Панель для Действий -->
-                    <GroupBox Grid.Column="2" Header="Actions (Кнопки в интерфейсе)">
-                        <DockPanel>
-                            <ToolBarPanel DockPanel.Dock="Top" Margin="5">
+                    <DockPanel Grid.Column="2">
+                        <TextBlock DockPanel.Dock="Top" Text="Actions (Кнопки в интерфейсе)" FontWeight="Bold" Margin="5"/>
+                        <!-- ========================================================== -->
+                        <!--     НАЧАЛО ИЗМЕНЕНИЙ: Панель кнопок                      -->
+                        <!-- ========================================================== -->
+                        <Border DockPanel.Dock="Top" Margin="5,0,5,5" Padding="5" Background="{StaticResource SecondaryBackground}" CornerRadius="3" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1">
+                            <StackPanel Orientation="Horizontal">
                                 <Button Content="Add Action" Command="{Binding AddActionCommand}"/>
-                                <Button Content="Remove Action" Command="{Binding RemoveActionCommand}" Margin="5,0"/>
-                                <!-- Rename можно реализовать через двойной клик в списке -->
-                            </ToolBarPanel>
+                                <Button Content="Remove Action" Command="{Binding RemoveActionCommand}" Margin="5,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- ========================================================== -->
+                        <!--     КОНЕЦ ИЗМЕНЕНИЙ                                        -->
+                        <!-- ========================================================== -->
 
-                            <ListBox DockPanel.Dock="Left" Width="150" Margin="0,0,5,0"
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" MinWidth="150"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- ========================================================== -->
+                            <!--     НАЧАЛО ИЗМЕНЕНИЙ: ListBox с поддержкой переименования -->
+                            <!-- ========================================================== -->
+                            <ListBox Grid.Column="0" Margin="0,0,5,0"
                                      ItemsSource="{Binding ActionNames}"
-                                     SelectedItem="{Binding SelectedActionName}"/>
+                                     SelectedItem="{Binding SelectedActionName, Mode=TwoWay}"
+                                     Background="{StaticResource SecondaryBackground}"
+                                     BorderBrush="{StaticResource TertiaryBackground}"
+                                     BorderThickness="1">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Padding" Value="5,3"/>
+                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                        <EventSetter Event="MouseDoubleClick" Handler="ActionItem_MouseDoubleClick"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{StaticResource TertiaryBackground}"/></Trigger>
+                                            <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/></Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type local:ActionNameViewModel}">
+                                        <Grid>
+                                            <!-- ========================================================== -->
+                                            <!--     НАЧАЛО ИСПРАВЛЕНИЙ: Правильные привязки              -->
+                                            <!-- ========================================================== -->
+                                            <TextBlock Text="{Binding Name}" 
+                                                       Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}"/>
+                                            <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" 
+                                                     Style="{StaticResource InlineEditTextBox}"
+                                                     Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                            <!-- ========================================================== -->
+                                            <!--     КОНЕЦ ИСПРАВЛЕНИЙ                                        -->
+                                            <!-- ========================================================== -->
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <!-- ========================================================== -->
+                            <!--     КОНЕЦ ИЗМЕНЕНИЙ                                        -->
+                            <!-- ========================================================== -->
 
-                            <avalonedit:TextEditor Document="{Binding SelectedActionScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            <avalonedit:TextEditor Grid.Column="1"
+                                                 Document="{Binding SelectedActionScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                  SyntaxHighlighting="Python"
                                                  FontFamily="Consolas"
                                                  FontSize="12"
                                                  ShowLineNumbers="True"
                                                  Background="{StaticResource SecondaryBackground}"
-                                                 Foreground="{StaticResource TextBrush}"/>
-                        </DockPanel>
-                    </GroupBox>
+                                                 Foreground="{StaticResource TextBrush}"
+                                                 BorderBrush="{StaticResource TertiaryBackground}"
+                                                 BorderThickness="1"
+                                                 Padding="5"/>
+                        </Grid>
+                    </DockPanel>
                 </Grid>
             </TabItem>
         </TabControl>
