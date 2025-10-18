@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using ICSharpCode.AvalonEdit.Document;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using PropertyChanged;
@@ -35,7 +36,20 @@ namespace Comfizen
         private readonly AppSettings _settings;
         public ObservableCollection<string> ModelSubTypes { get; } = new();
         private bool _apiWasReplaced = false;
+        
+        // --- START OF SCRIPTING PROPERTIES ---
+        public ObservableCollection<string> AvailableHooks { get; }
+        public string SelectedHookName { get; set; }
+        public TextDocument SelectedHookScript { get; set; } = new TextDocument();
 
+        public ObservableCollection<string> ActionNames { get; } = new ObservableCollection<string>();
+        public string SelectedActionName { get; set; }
+        public TextDocument SelectedActionScript { get; set; } = new TextDocument();
+        
+        public ICommand AddActionCommand { get; }
+        public ICommand RemoveActionCommand { get; }
+        // --- END OF SCRIPTING PROPERTIES ---
+        
         public UIConstructorView(string? workflowRelativePath = null)
         {
             var settingsService = new SettingsService();
@@ -51,6 +65,23 @@ namespace Comfizen
             RemoveGroupCommand = new RelayCommand(param => RemoveGroup(param as WorkflowGroup));
             RemoveFieldFromGroupCommand = new RelayCommand(param => RemoveField(param as WorkflowField));
             ToggleRenameCommand = new RelayCommand(ToggleRename);
+            
+            // --- START OF SCRIPTING INITIALIZATION ---
+            AvailableHooks = new ObservableCollection<string> { "on_workflow_load", "on_queue_start", "on_queue_finish", "on_output_received" };
+            
+            AddActionCommand = new RelayCommand(param => AddNewAction());
+            RemoveActionCommand = new RelayCommand(param => RemoveSelectedAction(), (param) => !string.IsNullOrEmpty(SelectedActionName));
+
+            // Отслеживание изменений для хуков
+            this.PropertyChanged += (s, e) => {
+                if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
+                if (e.PropertyName == nameof(SelectedActionName)) OnSelectedActionChanged();
+            };
+            
+            // Сохранение скриптов при изменении текста
+            SelectedHookScript.TextChanged += (s, e) => SaveHookScript();
+            SelectedActionScript.TextChanged += (s, e) => SaveActionScript();
+            // --- END OF SCRIPTING INITIALIZATION ---
             
             // Initialize the color palette
             ColorPalette = new ObservableCollection<ColorInfo>
@@ -110,6 +141,7 @@ namespace Comfizen
 
                 NewWorkflowName = Path.ChangeExtension(workflowRelativePath, null);
                 UpdateAvailableFields();
+                RefreshActionNames();
             }
         }
 
@@ -134,6 +166,78 @@ namespace Comfizen
             new(Enum.GetValues(typeof(FieldType)).Cast<FieldType>());
 
         public event PropertyChangedEventHandler? PropertyChanged;
+        
+        // --- START OF SCRIPTING METHODS ---
+        private void OnSelectedHookChanged()
+        {
+            if (Workflow.Scripts.Hooks.TryGetValue(SelectedHookName ?? "", out var script))
+            {
+                SelectedHookScript.Text = script;
+            }
+            else
+            {
+                SelectedHookScript.Text = string.Empty;
+            }
+        }
+
+        private void SaveHookScript()
+        {
+            if (!string.IsNullOrEmpty(SelectedHookName))
+            {
+                Workflow.Scripts.Hooks[SelectedHookName] = SelectedHookScript.Text;
+            }
+        }
+
+        private void OnSelectedActionChanged()
+        {
+            if (Workflow.Scripts.Actions.TryGetValue(SelectedActionName ?? "", out var script))
+            {
+                SelectedActionScript.Text = script;
+            }
+            else
+            {
+                SelectedActionScript.Text = string.Empty;
+            }
+        }
+
+        private void SaveActionScript()
+        {
+            if (!string.IsNullOrEmpty(SelectedActionName))
+            {
+                Workflow.Scripts.Actions[SelectedActionName] = SelectedActionScript.Text;
+            }
+        }
+
+        private void AddNewAction()
+        {
+            var newActionName = $"new_action_{ActionNames.Count + 1}";
+            if (!ActionNames.Contains(newActionName))
+            {
+                ActionNames.Add(newActionName);
+                Workflow.Scripts.Actions[newActionName] = "# Your Python script here";
+                SelectedActionName = newActionName;
+            }
+        }
+
+        private void RemoveSelectedAction()
+        {
+            if (!string.IsNullOrEmpty(SelectedActionName))
+            {
+                Workflow.Scripts.Actions.Remove(SelectedActionName);
+                ActionNames.Remove(SelectedActionName);
+                SelectedActionName = ActionNames.FirstOrDefault();
+            }
+        }
+
+        private void RefreshActionNames()
+        {
+            ActionNames.Clear();
+            foreach (var key in Workflow.Scripts.Actions.Keys.OrderBy(k => k))
+            {
+                ActionNames.Add(key);
+            }
+        }
+        // --- END OF SCRIPTING METHODS ---
         
         private async void LoadModelSubTypesAsync()
         {
@@ -184,6 +288,7 @@ namespace Comfizen
                 UpdateAvailableFields();
                 _apiWasReplaced = true;
             }
+            RefreshActionNames();
         }
 
         private void SaveWorkflow(Window window)
