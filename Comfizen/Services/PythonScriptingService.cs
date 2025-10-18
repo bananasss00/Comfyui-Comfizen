@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Windows.Media;
 using Newtonsoft.Json.Linq;
 
 namespace Comfizen
@@ -29,7 +30,7 @@ namespace Comfizen
             this.state = state;
             this.settings = settings;
             this.http = new HttpClient();
-            this.log = (message) => Logger.Log($"[PythonScript] {message}");
+            this.log = (message) => Logger.LogToConsole($"[PythonScript] {message}", LogLevel.Info, Colors.Cyan);
             this.output = output;
         }
     }
@@ -40,23 +41,14 @@ namespace Comfizen
         private static readonly Lazy<PythonScriptingService> _instance = new Lazy<PythonScriptingService>(() => new PythonScriptingService());
         public static PythonScriptingService Instance => _instance.Value;
 
-        // --- START OF FIX ---
-        /// <summary>
-        /// Статический конструктор. Выполняется один раз при первом обращении к классу.
-        /// Регистрирует провайдер кодировок, необходимый для работы IronPython в среде .NET Core / .NET 5+.
-        /// </summary>
         static PythonScriptingService()
         {
-            // Это исправляет фундаментальную причину ошибки 'unknown encoding: codepage___0'.
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         }
-        // --- END OF FIX ---
 
         private PythonScriptingService()
         {
             _engine = Python.CreateEngine();
-
-            // Убеждаемся, что движок знает путь к стандартной библиотеке (папке Lib)
             var stdLibPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Lib");
             if (Directory.Exists(stdLibPath))
             {
@@ -78,7 +70,6 @@ namespace Comfizen
                 var utf8Encoding = new UTF8Encoding(false);
                 using (var memoryStream = new MemoryStream())
                 {
-                    // Теперь, когда движок инициализирован правильно, этот метод будет работать корректно
                     _engine.Runtime.IO.SetOutput(memoryStream, utf8Encoding);
                     _engine.Runtime.IO.SetErrorOutput(memoryStream, utf8Encoding);
 
@@ -87,7 +78,6 @@ namespace Comfizen
                     
                     _engine.Execute(script, scope);
 
-                    // Сбрасываем буферы Python, чтобы получить вывод
                     _engine.Runtime.IO.OutputWriter.Flush();
                     
                     memoryStream.Position = 0;
@@ -96,7 +86,8 @@ namespace Comfizen
                         string output = streamReader.ReadToEnd();
                         if (!string.IsNullOrWhiteSpace(output))
                         {
-                            Logger.Log($"[Py-print] {output.TrimEnd()}");
+                            // --- CHANGE: Redirect print() output to the UI console with LightBlue color ---
+                            Logger.LogToConsole($"[Py-print] {output.TrimEnd()}", LogLevel.Info, Colors.LightBlue);
                         }
                     }
                 }

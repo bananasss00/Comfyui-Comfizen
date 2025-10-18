@@ -280,20 +280,13 @@
                                                                                             <Style TargetType="StackPanel">
                                                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                                                                 <Style.Triggers>
-                                                                                                    <!-- ... -->
-                                                                                                    <!-- ========================================================== -->
-                                                                                                    <!--     НАЧАЛО ИЗМЕНЕНИЙ: Панель для ScriptButton              -->
-                                                                                                    <!-- ========================================================== -->
                                                                                                     <DataTrigger Binding="{Binding Type}" Value="ScriptButton">
                                                                                                         <Setter Property="Visibility" Value="Visible"/>
                                                                                                     </DataTrigger>
-                                                                                                    <!-- ========================================================== -->
-                                                                                                    <!--     КОНЕЦ ИЗМЕНЕНИЙ                                        -->
-                                                                                                    <!-- ========================================================== -->
                                                                                                 </Style.Triggers>
                                                                                             </Style>
                                                                                         </StackPanel.Style>
-                                                                                        <TextBlock Text="Action to Execute:"/>
+                                                                                        <TextBlock Text="{local:Translate UIConstructor_ActionToExecute}"/>
                                                                                         <ComboBox x:Name="ActionComboBox" 
                                                                                             ItemsSource="{Binding DataContext.ActionNames, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                                             SelectedValue="{Binding ActionName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -331,44 +324,33 @@
                         <ColumnDefinition Width="5"/>
                         <ColumnDefinition Width="2*" MinWidth="400"/>
                     </Grid.ColumnDefinitions>
-                    
+    
                     <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent" />
 
-                    <!-- Панель для Хуков -->
-                    <DockPanel Grid.Column="0">
-                        <TextBlock DockPanel.Dock="Top" Text="Hooks (Автоматические триггеры)" FontWeight="Bold" Margin="5"/>
+                    <!-- Hooks Panel -->
+                    <DockPanel Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_HooksHeader}" FontWeight="Bold" Margin="5"/>
                         <ComboBox DockPanel.Dock="Top" Margin="5"
                                   ItemsSource="{Binding AvailableHooks}"
                                   SelectedItem="{Binding SelectedHookName}"
-                                  ToolTip="Выберите событие для привязки скрипта"/>
-
-                        <avalonedit:TextEditor Document="{Binding SelectedHookScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             SyntaxHighlighting="Python"
-                                             FontFamily="Consolas"
-                                             FontSize="12"
-                                             ShowLineNumbers="True"
-                                             Background="{StaticResource SecondaryBackground}"
-                                             Foreground="{StaticResource TextBrush}"
-                                             BorderBrush="{StaticResource TertiaryBackground}"
-                                             BorderThickness="1"
-                                             Padding="5"/>
+                                  ToolTip="{local:Translate UIConstructor_HooksTooltip}"/>
+                        <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" Padding="2" CornerRadius="3">
+                            <avalonedit:TextEditor Document="{Binding SelectedHookScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                   SyntaxHighlighting="Python" FontFamily="Consolas" FontSize="12"
+                                                   ShowLineNumbers="True" Background="{StaticResource SecondaryBackground}"
+                                                   Foreground="{StaticResource TextBrush}" BorderThickness="0"/>
+                        </Border>
                     </DockPanel>
 
-                    <!-- Панель для Действий -->
-                    <DockPanel Grid.Column="2">
-                        <TextBlock DockPanel.Dock="Top" Text="Actions (Кнопки в интерфейсе)" FontWeight="Bold" Margin="5"/>
-                        <!-- ========================================================== -->
-                        <!--     НАЧАЛО ИЗМЕНЕНИЙ: Панель кнопок                      -->
-                        <!-- ========================================================== -->
+                    <!-- Actions Panel -->
+                    <DockPanel Grid.Column="2" Margin="5,0,0,0">
+                        <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_ActionsHeader}" FontWeight="Bold" Margin="5"/>
                         <Border DockPanel.Dock="Top" Margin="5,0,5,5" Padding="5" Background="{StaticResource SecondaryBackground}" CornerRadius="3" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="Add Action" Command="{Binding AddActionCommand}"/>
-                                <Button Content="Remove Action" Command="{Binding RemoveActionCommand}" Margin="5,0,0,0"/>
+                                <Button Content="{local:Translate UIConstructor_AddAction}" Command="{Binding AddActionCommand}"/>
+                                <Button Content="{local:Translate UIConstructor_RemoveAction}" Command="{Binding RemoveActionCommand}" Margin="5,0,0,0"/>
                             </StackPanel>
                         </Border>
-                        <!-- ========================================================== -->
-                        <!--     КОНЕЦ ИЗМЕНЕНИЙ                                        -->
-                        <!-- ========================================================== -->
 
                         <Grid>
                             <Grid.ColumnDefinitions>

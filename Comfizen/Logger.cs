@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Media;
 using Guid = TagLib.Asf.Guid;
+using System.Windows.Media;
+using System.Collections.Generic;
 
 namespace Comfizen
 {
@@ -86,6 +88,27 @@ namespace Comfizen
             {
                 Console.WriteLine($"Не удалось записать исключение в лог-файл: {ex.Message}");
             }
+        }
+        
+        /// <summary>
+        /// Logs a message directly to the in-app UI console with a specific color.
+        /// </summary>
+        public static void LogToConsole(string message, LogLevel level, Color? color)
+        {
+            if (ConsoleLogServiceInstance == null)
+            {
+                Log($"[CONSOLE_FALLBACK] {message}"); // Fallback to file if console is not available
+                return;
+            }
+            
+            var logMessage = new LogMessage
+            {
+                Level = level,
+                IsProgress = false,
+                Segments = new List<LogMessageSegment> { new LogMessageSegment { Text = message, Color = color } }
+            };
+            
+            ConsoleLogServiceInstance.LogMessages.Add(logMessage);
         }
     }
 }

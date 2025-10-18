@@ -190,5 +190,15 @@
   "Color_Indigo": "Indigo",
   "Color_Purple": "Purple",
   "Color_Plum": "Plum",
-  "Color_Slate": "Slate"
+  "Color_Slate": "Slate",
+  "UIConstructor_HooksHeader": "Hooks (Automatic Triggers)",
+  "UIConstructor_HooksTooltip": "Select an event to bind a script to",
+  "UIConstructor_ActionsHeader": "Actions (UI Buttons)",
+  "UIConstructor_AddAction": "Add Action",
+  "UIConstructor_RemoveAction": "Remove Action",
+  "UIConstructor_ActionToExecute": "Action to Execute:",
+  "UIConstructor_RenameFailedTitle": "Rename Failed",
+  "UIConstructor_DuplicateActionNameError": "An action with this name already exists.",
+  "UIConstructor_NewActionDefaultName": "new_action",
+  "UIConstructor_PythonPlaceholder": "Your Python script here"
 }

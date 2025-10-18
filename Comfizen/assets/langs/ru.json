@@ -190,5 +190,15 @@
   "Color_Indigo": "Индиго",
   "Color_Purple": "Фиолетовый",
   "Color_Plum": "Сливовый",
-  "Color_Slate": "Серый"
+  "Color_Slate": "Серый",
+  "UIConstructor_HooksHeader": "Хуки (Автоматические триггеры)",
+  "UIConstructor_HooksTooltip": "Выберите событие для привязки скрипта",
+  "UIConstructor_ActionsHeader": "Действия (Кнопки в интерфейсе)",
+  "UIConstructor_AddAction": "Добавить действие",
+  "UIConstructor_RemoveAction": "Удалить действие",
+  "UIConstructor_ActionToExecute": "Действие для выполнения:",
+  "UIConstructor_RenameFailedTitle": "Переименование не удалось",
+  "UIConstructor_DuplicateActionNameError": "Действие с таким именем уже существует.",
+  "UIConstructor_NewActionDefaultName": "новое_действие",
+  "UIConstructor_PythonPlaceholder": "Ваш Python скрипт здесь"
 }

@@ -224,7 +224,7 @@ namespace Comfizen
 
         private void AddNewAction()
         {
-            var baseName = "new_action";
+            var baseName = LocalizationService.Instance["UIConstructor_NewActionDefaultName"];
             string newActionName = baseName;
             int counter = 1;
             while (ActionNames.Any(a => a.Name == newActionName))
@@ -234,7 +234,7 @@ namespace Comfizen
 
             var newActionVm = new ActionNameViewModel(newActionName);
             ActionNames.Add(newActionVm);
-            Workflow.Scripts.Actions[newActionName] = "# Your Python script here";
+            Workflow.Scripts.Actions[newActionName] = $"# {LocalizationService.Instance["UIConstructor_PythonPlaceholder"]}";
             SelectedActionName = newActionVm;
         }
 
@@ -278,32 +278,29 @@ namespace Comfizen
 
             actionVm.IsRenaming = false;
 
-            // Если имя не изменилось или стало пустым, просто выходим из режима редактирования
             if (string.IsNullOrWhiteSpace(newName) || newName == _originalActionName)
             {
-                actionVm.Name = _originalActionName; // Восстанавливаем старое имя на случай, если пользователь его стер
+                actionVm.Name = _originalActionName;
                 return;
             }
 
-            // Проверяем на дубликаты
             if (ActionNames.Any(a => a.Name == newName && a != actionVm))
             {
-                MessageBox.Show("An action with this name already exists.", "Rename Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
-                actionVm.Name = _originalActionName; // Восстанавливаем
+                MessageBox.Show(LocalizationService.Instance["UIConstructor_DuplicateActionNameError"], 
+                    LocalizationService.Instance["UIConstructor_RenameFailedTitle"], 
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                actionVm.Name = _originalActionName;
                 return;
             }
 
-            // Обновляем ключ в словаре скриптов
             if (Workflow.Scripts.Actions.TryGetValue(_originalActionName, out var script))
             {
                 Workflow.Scripts.Actions.Remove(_originalActionName);
                 Workflow.Scripts.Actions[newName] = script;
             }
-            
-            // Обновляем имя в ViewModel
+    
             actionVm.Name = newName;
 
-            // Обновляем ссылки на это действие во всех полях-кнопках
             RefreshActionNamesInFields(_originalActionName, newName);
         }
         

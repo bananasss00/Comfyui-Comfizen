@@ -7,7 +7,7 @@
         xmlns:local="clr-namespace:Comfizen"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="Comfizen v1.0" Height="600" Width="1000"
+        Title="Comfizen v1.2" Height="600" Width="1000"
         WindowStartupLocation="CenterScreen"
         MinWidth="800" MinHeight="500"
         Background="{StaticResource PrimaryBackground}"
@@ -273,6 +273,9 @@
                                                                             <Setter Property="Template" Value="{StaticResource InpaintLayoutTemplate}"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Converter={StaticResource IsMarkdownViewModelConverter}}" Value="True">
+                                                                            <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Type}" Value="ScriptButton">
                                                                             <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
