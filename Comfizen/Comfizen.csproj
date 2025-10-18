@@ -44,4 +44,9 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="Resources\Python-Dark.xshd" />
+    <EmbeddedResource Include="Resources\Python-Dark.xshd" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,75 @@
+﻿<?xml version="1.0"?>
+<SyntaxDefinition name="Python-Dark" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+    <Color name="Comment" foreground="#75715E" />
+    <Color name="String" foreground="#E6DB74" />
+    <Color name="Keywords" foreground="#F92672" fontWeight="bold" />
+    <Color name="Operators" foreground="#F92672" />
+    <Color name="Numbers" foreground="#AE81FF" />
+    <Color name="Builtins" foreground="#66D9EF" />
+    <Color name="DocString" foreground="#E6DB74" />
+
+    <RuleSet>
+        <Span color="Comment" begin="#" />
+        <Span color="DocString" multiline="true" begin="'''" end="'''" />
+        <Span color="DocString" multiline="true" begin="&quot;&quot;&quot;" end="&quot;&quot;&quot;" />
+
+        <Span color="String" multiline="true" begin="'" end="'" />
+        <Span color="String" multiline="true" begin="&quot;" end="&quot;" />
+
+        <Keywords color="Keywords">
+            <Word>as</Word>
+            <Word>assert</Word>
+            <Word>break</Word>
+            <Word>class</Word>
+            <Word>continue</Word>
+            <Word>def</Word>
+            <Word>del</Word>
+            <Word>elif</Word>
+            <Word>else</Word>
+            <Word>except</Word>
+            <Word>exec</Word>
+            <Word>finally</Word>
+            <Word>for</Word>
+            <Word>from</Word>
+            <Word>global</Word>
+            <Word>if</Word>
+            <Word>import</Word>
+            <Word>in</Word>
+            <Word>is</Word>
+            <Word>lambda</Word>
+            <Word>not</Word>
+            <Word>or</Word>
+            <Word>pass</Word>
+            <Word>raise</Word>
+            <Word>return</Word>
+            <Word>try</Word>
+            <Word>while</Word>
+            <Word>with</Word>
+            <Word>yield</Word>
+            <Word>and</Word>
+        </Keywords>
+
+        <Keywords color="Builtins">
+            <Word>True</Word>
+            <Word>False</Word>
+            <Word>None</Word>
+            <Word>print</Word>
+            <Word>str</Word>
+            <Word>int</Word>
+            <Word>float</Word>
+            <Word>len</Word>
+        </Keywords>
+
+        <Rule color="Numbers">
+            \b0[xX][0-9a-fA-F]+[lL]?  # Hex
+            |
+            \b\d+[\.]\d*([eE][-+]?\d+)?[jJ]? # Floating point
+            |
+            \b\d+[jJlL]?      # Integer
+        </Rule>
+
+        <Rule color="Operators">
+            [ \t\r\n]*[+\-*/%&amp;|^~&lt;&gt;=]+
+        </Rule>
+    </RuleSet>
+</SyntaxDefinition>

@@ -336,7 +336,8 @@
                                   ToolTip="{local:Translate UIConstructor_HooksTooltip}"/>
                         <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" Padding="2" CornerRadius="3">
                             <avalonedit:TextEditor Document="{Binding SelectedHookScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                   SyntaxHighlighting="Python" FontFamily="Consolas" FontSize="12"
+                                                   SyntaxHighlighting="{Binding PythonSyntaxHighlighting}" 
+                                                   FontFamily="Consolas" FontSize="12"
                                                    ShowLineNumbers="True" Background="{StaticResource SecondaryBackground}"
                                                    Foreground="{StaticResource TextBrush}" BorderThickness="0"/>
                         </Border>
@@ -401,16 +402,16 @@
                             <!-- ========================================================== -->
 
                             <avalonedit:TextEditor Grid.Column="1"
-                                                 Document="{Binding SelectedActionScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 SyntaxHighlighting="Python"
-                                                 FontFamily="Consolas"
-                                                 FontSize="12"
-                                                 ShowLineNumbers="True"
-                                                 Background="{StaticResource SecondaryBackground}"
-                                                 Foreground="{StaticResource TextBrush}"
-                                                 BorderBrush="{StaticResource TertiaryBackground}"
-                                                 BorderThickness="1"
-                                                 Padding="5"/>
+                                                   Document="{Binding SelectedActionScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                   SyntaxHighlighting="{Binding PythonSyntaxHighlighting}"
+                                                   FontFamily="Consolas"
+                                                   FontSize="12"
+                                                   ShowLineNumbers="True"
+                                                   Background="{StaticResource SecondaryBackground}"
+                                                   Foreground="{StaticResource TextBrush}"
+                                                   BorderBrush="{StaticResource TertiaryBackground}"
+                                                   BorderThickness="1"
+                                                   Padding="5"/>
                         </Grid>
                     </DockPanel>
                 </Grid>

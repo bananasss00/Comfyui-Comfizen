@@ -3,14 +3,18 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Xml;
 using ICSharpCode.AvalonEdit.Document;
+using ICSharpCode.AvalonEdit.Highlighting;
+using ICSharpCode.AvalonEdit.Highlighting.Xshd;
 using Microsoft.Win32;
-using Newtonsoft.Json;
 using PropertyChanged;
+using Formatting = Newtonsoft.Json.Formatting;
 
 namespace Comfizen
 {
@@ -47,6 +51,7 @@ namespace Comfizen
         private readonly SessionManager _sessionManager;
         private readonly ModelService _modelService;
         private readonly AppSettings _settings;
+        public IHighlightingDefinition PythonSyntaxHighlighting { get; }
         public ObservableCollection<string> ModelSubTypes { get; } = new();
         private bool _apiWasReplaced = false;
         
@@ -67,6 +72,8 @@ namespace Comfizen
         
         public UIConstructorView(string? workflowRelativePath = null)
         {
+            PythonSyntaxHighlighting = HighlightingManager.Instance.GetDefinition("Python-Dark") ?? HighlightingManager.Instance.GetDefinition("Python");
+            
             var settingsService = new SettingsService();
             _settings = settingsService.LoadSettings();
             _sessionManager = new SessionManager(_settings);
@@ -524,7 +531,32 @@ namespace Comfizen
         private Border? _lastFieldIndicator;
         private Border? _lastGroupIndicator;
         private Border? _lastIndicator;
+        
+        static UIConstructor()
+        {
+            // Check if our highlighting is already registered
+            if (HighlightingManager.Instance.GetDefinition("Python-Dark") == null)
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = "Comfizen.Resources.Python-Dark.xshd";
 
+                using (Stream s = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (s == null)
+                    {
+                        // This message will appear if something is still wrong with the resource
+                        MessageBox.Show("FATAL: Could not find the Python-Dark.xshd highlighting resource.");
+                        return;
+                    }
+                    using (XmlReader reader = new XmlTextReader(s))
+                    {
+                        var customHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                        HighlightingManager.Instance.RegisterHighlighting("Python-Dark", new[] { ".py" }, customHighlighting);
+                    }
+                }
+            }
+        }
+        
         public UIConstructor()
         {
             InitializeComponent();
