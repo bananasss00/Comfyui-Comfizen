@@ -62,8 +62,20 @@ namespace Comfizen
     [AddINotifyPropertyChangedInterface]
     public class WorkflowGroupViewModel : INotifyPropertyChanged
     {
+        private readonly WorkflowGroup _model;
         public string Name { get; set; }
-        public bool IsExpanded { get; set; } = true;
+        public bool IsExpanded
+        {
+            get => _model.IsExpanded;
+            set
+            {
+                if (_model.IsExpanded != value)
+                {
+                    _model.IsExpanded = value;
+                    OnPropertyChanged(nameof(IsExpanded));
+                }
+            }
+        }
         public ObservableCollection<InputFieldViewModel> Fields { get; set; } = new();
         
         /// <summary>
@@ -76,6 +88,17 @@ namespace Comfizen
         public bool HasInpaintEditor => InpaintEditorControl != null;
         
         public event PropertyChangedEventHandler PropertyChanged;
+        public WorkflowGroupViewModel(WorkflowGroup model)
+        {
+            _model = model;
+            Name = model.Name;
+            HighlightColor = model.HighlightColor;
+        }
+        
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
     }
 
     // --- Базовый класс для всех полей ввода ---

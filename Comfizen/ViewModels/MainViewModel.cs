@@ -51,7 +51,7 @@ namespace Comfizen
 
                 if (_selectedTab != null && _selectedTab.Workflow.IsLoaded)
                 {
-                    _sessionManager.SaveSession(_selectedTab.Workflow.LoadedApi, _selectedTab.FilePath);
+                    _sessionManager.SaveSession(_selectedTab.Workflow.LoadedApi, _selectedTab.Workflow.Groups, _selectedTab.FilePath);
                 }
 
                 _selectedTab = value;
@@ -295,7 +295,7 @@ namespace Comfizen
 
             if (existingWorkflowPath != null)
             {
-                _sessionManager.SaveSession(promptData, existingWorkflowPath);
+                _sessionManager.SaveSession(promptData, uiDefinition, existingWorkflowPath);
                 var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, existingWorkflowPath).Replace(Path.DirectorySeparatorChar, '/');
                 OpenOrSwitchToWorkflow(relativePath);
     
@@ -391,7 +391,7 @@ namespace Comfizen
 
             if (tabToClose.Workflow.IsLoaded)
             {
-                _sessionManager.SaveSession(tabToClose.Workflow.LoadedApi, tabToClose.FilePath);
+                _sessionManager.SaveSession(tabToClose.Workflow.LoadedApi, tabToClose.Workflow.Groups, tabToClose.FilePath);
             }
             
             OpenTabs.Remove(tabToClose);
@@ -402,7 +402,7 @@ namespace Comfizen
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
 
             var workflowToReload = SelectedTab.FilePath;
-            _sessionManager.SaveSession(SelectedTab.Workflow.LoadedApi, workflowToReload);
+            _sessionManager.SaveSession(SelectedTab.Workflow.LoadedApi, SelectedTab.Workflow.Groups, workflowToReload);
             
             ModelService.ResetConnectionErrorFlag();
             ModelService.ClearCache();
@@ -434,7 +434,7 @@ namespace Comfizen
                 var relativePathWithoutExtension = Path.ChangeExtension(relativePath, null);
                 
                 SelectedTab.Workflow.SaveWorkflowWithCurrentState(relativePathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/'));
-                _sessionManager.SaveSession(SelectedTab.Workflow.LoadedApi, SelectedTab.FilePath);
+                _sessionManager.SaveSession(SelectedTab.Workflow.LoadedApi, SelectedTab.Workflow.Groups, SelectedTab.FilePath);
 
                 MessageBox.Show(LocalizationService.Instance["MainVM_ValuesSavedMessage"],
                     LocalizationService.Instance["MainVM_ValuesSavedTitle"],
@@ -804,7 +804,7 @@ namespace Comfizen
             {
                 if (tab.Workflow.IsLoaded && !string.IsNullOrEmpty(tab.FilePath) && tab.Workflow.LoadedApi != null)
                 {
-                    _sessionManager.SaveSession(tab.Workflow.LoadedApi, tab.FilePath);
+                    _sessionManager.SaveSession(tab.Workflow.LoadedApi, tab.Workflow.Groups, tab.FilePath);
                 }
             }
             

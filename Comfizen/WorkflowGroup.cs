@@ -28,6 +28,15 @@ namespace Comfizen
         public bool IsExpandedInDesigner { get; set; } = true;
         // --- END OF CHANGES ---
 
+        /// <summary>
+        /// Controls whether the group is expanded in the main UI.
+        /// This property is saved to the session file.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(true)]
+        public bool IsExpanded { get; set; } = true;
+
+
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

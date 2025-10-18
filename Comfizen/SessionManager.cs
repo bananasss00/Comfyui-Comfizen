@@ -7,9 +7,16 @@ using System.Linq;
 using System.Collections.ObjectModel;
 using Newtonsoft.Json.Serialization;
 using System.Collections.Generic;
+using System;
 
 namespace Comfizen
 {
+    public class SessionData
+    {
+        public JObject ApiState { get; set; }
+        public ObservableCollection<WorkflowGroup> GroupsState { get; set; }
+    }
+
     public class SessionManager
     {
         private readonly AppSettings _settings;
@@ -109,17 +116,24 @@ namespace Comfizen
             return null;
         }
 
-        public void SaveSession(JObject workflowJObject, string workflowFullPath)
+        public void SaveSession(JObject workflowJObject, ObservableCollection<WorkflowGroup> groups, string workflowFullPath)
         {
             if (workflowJObject == null) return;
+
+            var sessionData = new SessionData
+            {
+                ApiState = workflowJObject,
+                GroupsState = groups
+            };
 
             string sessionFileName = GetSessionFileName(workflowFullPath);
             string sessionFilePath = Path.Combine(_settings.SessionsDirectory, sessionFileName);
 
-            File.WriteAllText(sessionFilePath, workflowJObject.ToString(Newtonsoft.Json.Formatting.Indented));
+            var json = JsonConvert.SerializeObject(sessionData, Formatting.Indented);
+            File.WriteAllText(sessionFilePath, json);
         }
 
-        public JObject? LoadSession(string workflowFullPath)
+        public SessionData? LoadSession(string workflowFullPath)
         {
             string sessionFileName = GetSessionFileName(workflowFullPath);
             string sessionFilePath = Path.Combine(_settings.SessionsDirectory, sessionFileName);
@@ -127,7 +141,32 @@ namespace Comfizen
             if (File.Exists(sessionFilePath))
             {
                 string jsonString = File.ReadAllText(sessionFilePath);
-                return JObject.Parse(jsonString);
+                try
+                {
+                    var sessionData = JsonConvert.DeserializeObject<SessionData>(jsonString);
+                    if (sessionData != null && sessionData.ApiState == null && sessionData.GroupsState == null)
+                    {
+                        var oldApiState = JObject.Parse(jsonString);
+                        return new SessionData { ApiState = oldApiState, GroupsState = null };
+                    }
+                    return sessionData;
+                }
+                catch (JsonSerializationException)
+                {
+                    try
+                    {
+                        var oldApiState = JObject.Parse(jsonString);
+                        return new SessionData { ApiState = oldApiState, GroupsState = null };
+                    }
+                    catch
+                    {
+                        return null; 
+                    }
+                }
+                catch
+                {
+                    return null; 
+                }
             }
             return null;
         }

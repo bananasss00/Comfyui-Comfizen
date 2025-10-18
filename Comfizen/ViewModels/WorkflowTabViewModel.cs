@@ -55,10 +55,17 @@ namespace Comfizen
             try
             {
                 Workflow.LoadWorkflow(FilePath);
-                var sessionJObject = _sessionManager.LoadSession(FilePath);
-                if (sessionJObject != null)
+                var sessionData = _sessionManager.LoadSession(FilePath);
+                if (sessionData != null)
                 {
-                    Workflow.LoadedApi = sessionJObject;
+                    if (sessionData.ApiState != null)
+                    {
+                        Workflow.LoadedApi = sessionData.ApiState;
+                    }
+                    if (sessionData.GroupsState != null)
+                    {
+                        Workflow.Groups = sessionData.GroupsState;
+                    }
                 }
                 await WorkflowInputsController.LoadInputs();
             }
@@ -98,7 +105,11 @@ namespace Comfizen
                 var sessionJObject = _sessionManager.LoadSession(FilePath);
                 if (sessionJObject != null)
                 {
-                    Workflow.LoadedApi = sessionJObject;
+                    Workflow.LoadedApi = sessionJObject.ApiState;
+                    if (sessionJObject.GroupsState != null)
+                    {
+                        Workflow.Groups = sessionJObject.GroupsState;
+                    }
                 }
             }
             
