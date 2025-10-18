@@ -1,8 +1,7 @@
-﻿// --- START OF FILE PythonScriptingService.cs ---
-
 ﻿// --- START OF MODIFIED FILE PythonScriptingService.cs ---
 
 using IronPython.Hosting;
+using Microsoft.Scripting;
 using Microsoft.Scripting.Hosting;
 using System;
 using System.Collections.Generic;
@@ -34,15 +33,24 @@ namespace Comfizen
             this.output = output;
         }
     }
-
-    /// <summary>
-    /// Manages the execution of Python scripts using the IronPython engine.
-    /// </summary>
+    
     public class PythonScriptingService
     {
         private readonly ScriptEngine _engine;
         private static readonly Lazy<PythonScriptingService> _instance = new Lazy<PythonScriptingService>(() => new PythonScriptingService());
         public static PythonScriptingService Instance => _instance.Value;
+
+        // --- START OF FIX ---
+        /// <summary>
+        /// Статический конструктор. Выполняется один раз при первом обращении к классу.
+        /// Регистрирует провайдер кодировок, необходимый для работы IronPython в среде .NET Core / .NET 5+.
+        /// </summary>
+        static PythonScriptingService()
+        {
+            // Это исправляет фундаментальную причину ошибки 'unknown encoding: codepage___0'.
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        }
+        // --- END OF FIX ---
 
         private PythonScriptingService()
         {
@@ -67,51 +75,37 @@ namespace Comfizen
 
             try
             {
+                var utf8Encoding = new UTF8Encoding(false);
                 using (var memoryStream = new MemoryStream())
-                using (var streamWriter = new StreamWriter(memoryStream, Encoding.UTF8))
                 {
-                    _engine.Runtime.IO.SetOutput(memoryStream, streamWriter);
-                    _engine.Runtime.IO.SetErrorOutput(memoryStream, streamWriter);
+                    // Теперь, когда движок инициализирован правильно, этот метод будет работать корректно
+                    _engine.Runtime.IO.SetOutput(memoryStream, utf8Encoding);
+                    _engine.Runtime.IO.SetErrorOutput(memoryStream, utf8Encoding);
 
                     var scope = _engine.CreateScope();
                     scope.SetVariable("ctx", context);
-
-                    const string bootstrapScript = @"
-import sys
-import io
-
-if hasattr(sys.stdout, 'buffer'):
-    # line_buffering=True заставляет сбрасывать буфер при каждой новой строке, что полезно
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
-";
-                    var fullScript = bootstrapScript + script;
                     
-                    _engine.Execute(fullScript, scope);
+                    _engine.Execute(script, scope);
 
-                    // --- START OF FIX: Выполняем команду flush внутри Python ---
-                    // Это заставит TextIOWrapper сбросить свой буфер в нижележащий memoryStream.
-                    _engine.Execute("sys.stdout.flush()", scope);
-                    _engine.Execute("sys.stderr.flush()", scope);
-                    // --- END OF FIX ---
-
-                    // Также сбрасываем C#-враппер на случай, если в нем что-то осталось
-                    streamWriter.Flush();
+                    // Сбрасываем буферы Python, чтобы получить вывод
+                    _engine.Runtime.IO.OutputWriter.Flush();
+                    
                     memoryStream.Position = 0;
-                    
-                    using (var streamReader = new StreamReader(memoryStream))
+                    using (var streamReader = new StreamReader(memoryStream, utf8Encoding))
                     {
                         string output = streamReader.ReadToEnd();
                         if (!string.IsNullOrWhiteSpace(output))
                         {
-                            Logger.Log($"[Py-print] {output.Trim()}");
+                            Logger.Log($"[Py-print] {output.TrimEnd()}");
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Logger.Log(ex, "Python script execution failed");
+                var eo = _engine.GetService<ExceptionOperations>();
+                string errorDetails = eo.FormatException(ex);
+                Logger.Log(new Exception(errorDetails, ex), "Python script execution failed");
             }
         }
     }
