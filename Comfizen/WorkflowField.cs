@@ -1,3 +1,4 @@
+﻿// WorkflowField.cs
 ﻿using System.Collections.Generic;
 using PropertyChanged;
 using System.ComponentModel;
@@ -32,6 +33,16 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public List<string> ComboBoxItems { get; set; } = new List<string>();
 
+        // --- START OF CHANGES ---
+        /// <summary>
+        /// The name of the script action to execute when this button is clicked.
+        /// Used only when Type is ScriptButton.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string ActionName { get; set; }
+        // --- END OF CHANGES ---
+
+        [JsonIgnore]
         public bool IsRenaming { get; set; } = false;
 
         public event PropertyChangedEventHandler? PropertyChanged;

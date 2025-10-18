@@ -1,18 +1,16 @@
-﻿namespace Comfizen
+﻿public enum FieldType
 {
-    public enum FieldType
-    {
-        Any,
-        Seed,
-        WildcardSupportPrompt,
-        Sampler,
-        Scheduler,
-        ImageInput, // Поле для исходного изображения (Base64)
-        MaskInput,   // Поле для маски (Base64)
-        SliderInt,
-        SliderFloat,
-        ComboBox,
-        Model,
-        Markdown
-    }
+    Any,
+    Seed,
+    WildcardSupportPrompt,
+    Sampler,
+    Scheduler,
+    ImageInput, 
+    MaskInput,
+    SliderInt,
+    SliderFloat,
+    ComboBox,
+    Model,
+    Markdown,
+    ScriptButton // New type for scriptable buttons
 }

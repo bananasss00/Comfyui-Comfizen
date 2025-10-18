@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
 using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 
 namespace Comfizen
 {
@@ -24,6 +26,9 @@ namespace Comfizen
         public WorkflowInputsController WorkflowInputsController { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
+        
+        private readonly Dictionary<string, object> _scriptState = new Dictionary<string, object>();
+        public ICommand ExecuteActionCommand { get; }
 
         public WorkflowTabViewModel(string filePath, ComfyuiModel comfyModel, AppSettings settings, ModelService modelService, SessionManager sessionManager)
         {
@@ -39,12 +44,14 @@ namespace Comfizen
             
             InitializeController();
             
+            ExecuteActionCommand = new RelayCommand(actionName => ExecuteAction(actionName as string));
+            
             InitializeAsync();
         }
         
         private void InitializeController()
         {
-            WorkflowInputsController = new WorkflowInputsController(Workflow, _settings, _modelService)
+            WorkflowInputsController = new WorkflowInputsController(Workflow, _settings, _modelService, this)
             {
                 SelectedSeedControl = _settings.LastSeedControlState
             };
@@ -68,6 +75,7 @@ namespace Comfizen
                     }
                 }
                 await WorkflowInputsController.LoadInputs();
+                ExecuteHook("on_workflow_load");
             }
             catch (Exception ex)
             {
@@ -75,6 +83,29 @@ namespace Comfizen
                 var title = LocalizationService.Instance["General_Error"];
                 MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+        
+        public void ExecuteHook(string hookName, ImageOutput output = null)
+        {
+            if (Workflow.Scripts.Hooks.TryGetValue(hookName, out var script))
+            {
+                ExecuteScript(script, output);
+            }
+        }
+
+        public void ExecuteAction(string actionName)
+        {
+            if (Workflow.Scripts.Actions.TryGetValue(actionName, out var script))
+            {
+                ExecuteScript(script);
+            }
+        }
+
+        private void ExecuteScript(string script, ImageOutput output = null)
+        {
+            if (Workflow.LoadedApi == null) return;
+            var context = new ScriptContext(Workflow.LoadedApi, _scriptState, _settings, output);
+            PythonScriptingService.Instance.Execute(script, context);
         }
         
         public void ResetState()

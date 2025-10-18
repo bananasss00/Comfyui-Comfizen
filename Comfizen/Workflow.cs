@@ -9,6 +9,12 @@ using System.Linq;
 
 namespace Comfizen
 {
+    public class ScriptCollection
+    {
+        public Dictionary<string, string> Hooks { get; set; } = new Dictionary<string, string>();
+        public Dictionary<string, string> Actions { get; set; } = new Dictionary<string, string>();
+    }
+    
     [AddINotifyPropertyChangedInterface]
     public class Workflow : INotifyPropertyChanged
     {
@@ -38,7 +44,9 @@ namespace Comfizen
 
 
         public ObservableCollection<WorkflowGroup> Groups { get; set; } = new();
-
+        
+        public ScriptCollection Scripts { get; set; } = new ScriptCollection();
+        
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public bool IsLoaded => _loadedApi != null;
@@ -88,14 +96,13 @@ namespace Comfizen
             var data = new
             {
                 prompt = OriginalApi,
-                promptTemplate = Groups
+                promptTemplate = Groups,
+                scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null
             };
 
-            var jsonString = JsonConvert.SerializeObject(data, Formatting.Indented);
-
+            var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
             var fullPath = Path.Combine(WorkflowsDir, fileName + ".json");
-            var directoryPath = Path.GetDirectoryName(fullPath);
-            Directory.CreateDirectory(directoryPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
             File.WriteAllText(fullPath, jsonString);
         }
         
@@ -104,14 +111,13 @@ namespace Comfizen
             var data = new
             {
                 prompt = LoadedApi,
-                promptTemplate = Groups
+                promptTemplate = Groups,
+                scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null
             };
 
-            var jsonString = JsonConvert.SerializeObject(data, Formatting.Indented);
-
+            var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
             var fullPath = Path.Combine(WorkflowsDir, fileName + ".json");
-            var directoryPath = Path.GetDirectoryName(fullPath);
-            Directory.CreateDirectory(directoryPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
             File.WriteAllText(fullPath, jsonString);
         }
 
@@ -149,20 +155,21 @@ namespace Comfizen
         public void LoadWorkflow(string fileName)
         {
             var jsonString = File.ReadAllText(fileName);
-
-            var data = JsonConvert.DeserializeAnonymousType(jsonString, new { prompt = default(JObject), promptTemplate = default(ObservableCollection<WorkflowGroup>) });
+            var data = JsonConvert.DeserializeAnonymousType(jsonString, new { 
+                prompt = default(JObject), 
+                promptTemplate = default(ObservableCollection<WorkflowGroup>),
+                scripts = default(ScriptCollection) 
+            });
 
             OriginalApi = data.prompt;
             LoadedApi = data.prompt?.DeepClone() as JObject;
 
             Groups.Clear();
-            if (data.promptTemplate != null)
-            {
-                foreach (var group in data.promptTemplate)
-                {
-                    Groups.Add(group);
-                }
-            }
+            if (data.promptTemplate != null) { foreach (var group in data.promptTemplate) Groups.Add(group); }
+
+            // --- START OF CHANGES ---
+            Scripts = data.scripts ?? new ScriptCollection();
+            // --- END OF CHANGES ---
         }
     }
 }

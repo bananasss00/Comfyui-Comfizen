@@ -571,7 +571,9 @@ namespace Comfizen
         private void Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
-        
+            
+            SelectedTab.ExecuteHook("on_queue_start");
+            
             var prompts = CreatePromptTasks(SelectedTab).ToList();
             if (prompts.Count == 0) return;
             
@@ -626,6 +628,8 @@ namespace Comfizen
                                     {
                                         this.ImageProcessing.ImageOutputs.Insert(0, io);
                                     }
+                                    
+                                    task.OriginTab?.ExecuteHook("on_output_received", io);
                                 });
                             }
         
@@ -633,6 +637,8 @@ namespace Comfizen
         
                             CompletedTasks++;
                             CurrentProgress = (TotalTasks > 0) ? (CompletedTasks * 100) / TotalTasks : 0;
+                            
+                            task.OriginTab?.ExecuteHook("on_queue_finish");
                         }
                         catch (Exception ex)
                         {

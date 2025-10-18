@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
 
@@ -415,6 +416,19 @@ namespace Comfizen
         public CheckBoxFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
         {
             Type = FieldType.Any; 
+        }
+    }
+    
+    public class ScriptButtonFieldViewModel : InputFieldViewModel
+    {
+        public ICommand ExecuteScriptCommand { get; }
+        public string ActionName { get; }
+
+        public ScriptButtonFieldViewModel(WorkflowField field, JProperty property, ICommand command) : base(field, property)
+        {
+            Type = FieldType.ScriptButton;
+            ActionName = field.ActionName;
+            ExecuteScriptCommand = command;
         }
     }
 }

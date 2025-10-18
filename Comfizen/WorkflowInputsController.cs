@@ -22,6 +22,7 @@ namespace Comfizen;
 [AddINotifyPropertyChangedInterface]
 public class WorkflowInputsController : INotifyPropertyChanged
 {
+    private readonly WorkflowTabViewModel _parentTab; // Link to the parent
     private readonly AppSettings _settings;
     private readonly Workflow _workflow;
     private readonly ModelService _modelService;
@@ -33,12 +34,23 @@ public class WorkflowInputsController : INotifyPropertyChanged
     private readonly List<SeedFieldViewModel> _seedViewModels = new();
 
     private readonly List<string> _wildcardPropertyPaths = new();
+    
+    public ICommand ExecuteActionCommand { get; }
 
-    public WorkflowInputsController(Workflow workflow, AppSettings settings, ModelService modelService)
+    public WorkflowInputsController(Workflow workflow, AppSettings settings, ModelService modelService, WorkflowTabViewModel parentTab)
     {
         _workflow = workflow;
         _settings = settings;
         _modelService = modelService;
+        _parentTab = parentTab;
+        
+        ExecuteActionCommand = new RelayCommand(actionName =>
+        {
+            if (actionName is string name)
+            {
+                _parentTab.ExecuteAction(name);
+            }
+        });
         
         GlobalSettings = new GlobalSettingsViewModel();
     }
@@ -278,7 +290,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
                      return new CheckBoxFieldViewModel(field, prop);
                  }
                  return new TextFieldViewModel(field, prop);
-
+            
+            case FieldType.ScriptButton:
+                // We pass the ExecuteActionCommand from the controller itself
+                return new ScriptButtonFieldViewModel(field, prop, this.ExecuteActionCommand);
+            
             default:
                 return new TextFieldViewModel(field, prop);
         }

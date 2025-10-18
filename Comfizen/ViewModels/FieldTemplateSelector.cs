@@ -14,6 +14,7 @@ namespace Comfizen
         public DataTemplate AnyTypeTemplate { get; set; }
         public DataTemplate InpaintTemplate { get; set; }
         public DataTemplate MarkdownTemplate { get; set; }
+        public DataTemplate ScriptButtonTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -33,6 +34,7 @@ namespace Comfizen
                 // ========================================================== //
                 //     КОНЕЦ ИЗМЕНЕНИЯ                                        //
                 // ========================================================== //
+                ScriptButtonFieldViewModel => ScriptButtonTemplate,
                 TextFieldViewModel => TextTemplate,
                 _ => base.SelectTemplate(item, container)
             };
