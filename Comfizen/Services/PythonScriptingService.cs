@@ -58,7 +58,7 @@ namespace Comfizen
             }
             catch (Exception ex)
             {
-                log($"GET request to '{url}' failed: {ex.Message}");
+                log($"GET request to '{url}' failed: {ex}");
                 return null;
             }
         }
@@ -96,7 +96,7 @@ namespace Comfizen
             }
             catch (Exception ex)
             {
-                log($"POST request to '{url}' failed: {ex.Message}");
+                log($"POST request to '{url}' failed: {ex}");
                 return null;
             }
         }
