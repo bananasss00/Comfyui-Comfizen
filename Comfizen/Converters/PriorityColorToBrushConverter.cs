@@ -28,18 +28,19 @@ public class PriorityColorToBrushConverter : IMultiValueConverter
         {
             try
             {
-                // Create a brush with slight transparency for better blending with the background.
+                // --- START OF FIX: Return a solid, non-transparent brush ---
+                // The opacity was a workaround for the full background fill.
+                // For a clean accent line, we need a solid color.
                 var color = (Color)ColorConverter.ConvertFromString(colorHex);
-                return new SolidColorBrush(color) { Opacity = 0.5 };
+                return new SolidColorBrush(color);
+                // --- END OF FIX ---
             }
             catch
             {
-                // Return a transparent brush in case of an error.
                 return Brushes.Transparent;
             }
         }
             
-        // Default background if no color is specified.
         return Brushes.Transparent;
     }
 
