@@ -135,9 +135,6 @@ namespace Comfizen
 
     public class TextFieldViewModel : InputFieldViewModel
     {
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ                                       //
-        // ========================================================== //
         public string Value
         {
             get
@@ -148,11 +145,9 @@ namespace Comfizen
                 switch (propValue.Type)
                 {
                     case JTokenType.Float:
-                        // Always format floating-point numbers with a '.' decimal separator.
                         text = propValue.ToObject<double>().ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case JTokenType.Integer:
-                        // Ensure integers are formatted without culture-specific separators.
                         text = propValue.ToObject<long>().ToString(CultureInfo.InvariantCulture);
                         break;
                     default:
@@ -171,8 +166,27 @@ namespace Comfizen
                 if (value.StartsWith("[Base64 Image Data:") || value.StartsWith("[Данные изображения Base64:"))
                     return;
 
+                // --- START OF FIX: Allow typing of decimal separators ---
+                // Get the invariant decimal separator, which is '.'
+                string decimalSeparator = CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator;
+                
+                // If the user is typing a number and just typed a decimal point
+                // (e.g., "1."), we need to keep it as a string temporarily.
+                // Otherwise, TryParse would convert "1." to the integer 1, and the dot would disappear.
+                if (value.EndsWith(decimalSeparator))
+                {
+                    // Check if the part before the dot is a valid number.
+                    string valueWithoutSeparator = value.Substring(0, value.Length - 1);
+                    if (double.TryParse(valueWithoutSeparator, NumberStyles.Any, CultureInfo.InvariantCulture, out _))
+                    {
+                        // It's a valid partial number. Store as string and wait for more input.
+                        Property.Value = new JValue(value);
+                        return; // Exit early
+                    }
+                }
+                // --- END OF FIX ---
+
                 // When setting the value, try to parse it as a number using invariant culture.
-                // This correctly handles inputs with a '.' separator regardless of system culture.
                 if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out double numericValue))
                 {
                     // If the parsed value is a whole number, store it as an integer to keep the JSON clean.
@@ -194,14 +208,13 @@ namespace Comfizen
         }
         
         /// <summary>
-        /// Публичный метод для обновления значения из байтов изображения (для Drag&Drop и Paste).
+        /// Public method to update the value from image bytes (for Drag&Drop and Paste).
         /// </summary>
         public void UpdateWithImageData(byte[] imageBytes)
         {
             if (imageBytes == null) return;
             var base64String = Convert.ToBase64String(imageBytes);
             Property.Value = new JValue(base64String);
-            // Уведомляем UI, что свойство Value нужно перечитать (чтобы отобразился плейсхолдер)
             OnPropertyChanged(nameof(Value));
         }
 
