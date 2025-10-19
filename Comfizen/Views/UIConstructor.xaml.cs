@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -16,6 +17,7 @@ using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.Editing;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
+using ICSharpCode.AvalonEdit.Rendering;
 using Microsoft.Win32;
 using PropertyChanged;
 using Formatting = Newtonsoft.Json.Formatting;
@@ -615,7 +617,6 @@ namespace Comfizen
                 {
                     if (s == null)
                     {
-                        // This message will appear if something is still wrong with the resource
                         MessageBox.Show("FATAL: Could not find the Python-Dark.xshd highlighting resource.");
                         return;
                     }
@@ -633,6 +634,7 @@ namespace Comfizen
             InitializeComponent();
             DataContext = new UIConstructorView();
             AttachCompletionEvents();
+            ApplyHyperlinksColor();
         }
 
         public UIConstructor(string workflowFileName)
@@ -641,6 +643,16 @@ namespace Comfizen
             _viewModel = new UIConstructorView(workflowFileName);
             DataContext = _viewModel;
             AttachCompletionEvents();
+            ApplyHyperlinksColor();
+        }
+        
+        private void ApplyHyperlinksColor()
+        {
+            var yellowBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E6DB74"));
+            yellowBrush.Freeze();
+
+            HookScriptEditor.TextArea.TextView.LinkTextForegroundBrush = yellowBrush;
+            ActionScriptEditor.TextArea.TextView.LinkTextForegroundBrush = yellowBrush;
         }
         
         private void AttachCompletionEvents()
