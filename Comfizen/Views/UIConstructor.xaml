@@ -118,7 +118,12 @@
     </Window.Resources>
 
     <Grid x:Name="RootGrid" Margin="10">
-        <TabControl>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <TabControl Grid.Row="0">
             <TabItem Header="UI Designer">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -149,21 +154,7 @@
 
                     <Border Grid.Column="2" Background="{StaticResource SecondaryBackground}" CornerRadius="5">
                         <DockPanel Margin="10">
-                            <Border DockPanel.Dock="Top" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Padding="8" Margin="0,0,0,10">
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <TextBox Text="{Binding NewWorkflowName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
-                                        <Button Command="{Binding SaveWorkflowCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="{local:Translate UIConstructor_SaveTooltip}">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" Margin="0,0,5,0"/>
-                                                <TextBlock Text="{local:Translate UIConstructor_Save}"/>
-                                            </StackPanel>
-                                        </Button>
-                                        <Button Command="{Binding ExportApiWorkflowCommand}" Margin="5,0,0,0" ToolTip="{local:Translate UIConstructor_ExportTooltip}"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8AB;" FontFamily="Segoe MDL2 Assets" Margin="0,0,5,0"/><TextBlock Text="{local:Translate UIConstructor_Export}"/></StackPanel></Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
+                            
                             <Button DockPanel.Dock="Top" Content="{local:Translate UIConstructor_AddGroup}" Command="{Binding AddGroupCommand}" HorizontalAlignment="Left" Margin="0,0,0,10"/>
                             <!-- START OF CHANGES: Add Name and DragOver event to ScrollViewer -->
                             <ScrollViewer x:Name="GroupsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -335,7 +326,7 @@
                                   SelectedItem="{Binding SelectedHookName}"
                                   ToolTip="{local:Translate UIConstructor_HooksTooltip}"/>
                         <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" Padding="2" CornerRadius="3">
-                            <avalonedit:TextEditor Document="{Binding SelectedHookScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            <avalonedit:TextEditor x:Name="HookScriptEditor" Document="{Binding SelectedHookScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                    SyntaxHighlighting="{Binding PythonSyntaxHighlighting}" 
                                                    FontFamily="Consolas" FontSize="12"
                                                    ShowLineNumbers="True" Background="{StaticResource SecondaryBackground}"
@@ -350,6 +341,13 @@
                             <StackPanel Orientation="Horizontal">
                                 <Button Content="{local:Translate UIConstructor_AddAction}" Command="{Binding AddActionCommand}"/>
                                 <Button Content="{local:Translate UIConstructor_RemoveAction}" Command="{Binding RemoveActionCommand}" Margin="5,0,0,0"/>
+                                <Button Content="▶" 
+                                        Command="{Binding TestScriptCommand}" 
+                                        ToolTip="{local:Translate UIConstructor_TestScriptTooltip}"
+                                        Margin="10,0,0,0"
+                                        Style="{StaticResource IconButton}"
+                                        Width="30" Height="30"
+                                        Background="{StaticResource SuccessBrush}"/>
                             </StackPanel>
                         </Border>
 
@@ -401,7 +399,7 @@
                             <!--     КОНЕЦ ИЗМЕНЕНИЙ                                        -->
                             <!-- ========================================================== -->
 
-                            <avalonedit:TextEditor Grid.Column="1"
+                            <avalonedit:TextEditor x:Name="ActionScriptEditor" Grid.Column="1"
                                                    Document="{Binding SelectedActionScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                    SyntaxHighlighting="{Binding PythonSyntaxHighlighting}"
                                                    FontFamily="Consolas"
@@ -417,5 +415,21 @@
                 </Grid>
             </TabItem>
         </TabControl>
+        
+        <Border Grid.Row="1" DockPanel.Dock="Top" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Padding="8" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBox Text="{Binding NewWorkflowName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
+                    <Button Command="{Binding SaveWorkflowCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="{local:Translate UIConstructor_SaveTooltip}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" Margin="0,0,5,0"/>
+                            <TextBlock Text="{local:Translate UIConstructor_Save}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding ExportApiWorkflowCommand}" Margin="5,0,0,0" ToolTip="{local:Translate UIConstructor_ExportTooltip}"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8AB;" FontFamily="Segoe MDL2 Assets" Margin="0,0,5,0"/><TextBlock Text="{local:Translate UIConstructor_Export}"/></StackPanel></Button>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

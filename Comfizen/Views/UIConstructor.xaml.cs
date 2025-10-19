@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -6,10 +7,13 @@ using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Xml;
+using ICSharpCode.AvalonEdit.CodeCompletion;
 using ICSharpCode.AvalonEdit.Document;
+using ICSharpCode.AvalonEdit.Editing;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
 using Microsoft.Win32;
@@ -37,6 +41,44 @@ namespace Comfizen
         public ActionNameViewModel(string name)
         {
             Name = name;
+        }
+    }
+    
+    // --- START OF CHANGES: New class to hold completion data ---
+    /// <summary>
+    /// Implements ICompletionData for the AvalonEdit completion window.
+    /// It holds information about a single completion item.
+    /// </summary>
+    public class ScriptingCompletionData : ICompletionData
+    {
+        public ScriptingCompletionData(MemberInfo member)
+        {
+            Text = member.Name;
+            
+            if (member is MethodInfo method)
+            {
+                var parameters = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                Description = $"Method: {method.ReturnType.Name} {method.Name}({parameters})";
+            }
+            else if (member is PropertyInfo property)
+            {
+                Description = $"Property: {property.PropertyType.Name} {property.Name}";
+            }
+            else
+            {
+                Description = "Member: " + member.Name;
+            }
+        }
+
+        public ImageSource Image => null;
+        public string Text { get; }
+        public object Content => Text;
+        public object Description { get; }
+        public double Priority => 0;
+
+        public void Complete(TextArea textArea, ISegment completionSegment, EventArgs e)
+        {
+            textArea.Document.Replace(completionSegment, Text);
         }
     }
     
@@ -68,6 +110,8 @@ namespace Comfizen
         public ICommand RemoveActionCommand { get; }
         
         private string _originalActionName; // Для хранения имени перед переименованием
+        
+        public ICommand TestScriptCommand { get; }
         // --- END OF SCRIPTING PROPERTIES ---
         
         public UIConstructorView(string? workflowRelativePath = null)
@@ -103,6 +147,11 @@ namespace Comfizen
             // Сохранение скриптов при изменении текста
             SelectedHookScript.TextChanged += (s, e) => SaveHookScript();
             SelectedActionScript.TextChanged += (s, e) => SaveActionScript();
+            
+            TestScriptCommand = new RelayCommand(
+                _ => TestSelectedScript(),
+                _ => SelectedActionName != null && !string.IsNullOrWhiteSpace(SelectedActionScript.Text)
+            );
             // --- END OF SCRIPTING INITIALIZATION ---
             
             // Initialize the color palette
@@ -190,6 +239,27 @@ namespace Comfizen
         public event PropertyChangedEventHandler? PropertyChanged;
         
         // --- SCRIPTING METHODS ---
+        private void TestSelectedScript()
+        {
+            if (SelectedActionName == null || string.IsNullOrWhiteSpace(SelectedActionScript.Text))
+                return;
+
+            Logger.LogToConsole($"--- Testing script action: '{SelectedActionName.Name}' ---", LogLevel.Info, Colors.Magenta);
+
+            // Для теста мы создаем контекст с текущим состоянием workflow.
+            // Если workflow не загружен, API будет null, что тоже является валидным тестовым случаем.
+            var context = new ScriptContext(
+                Workflow.LoadedApi, 
+                new Dictionary<string, object>(), // Состояние state для теста пустое
+                _settings, 
+                null // output недоступен вне реального запуска
+            );
+            
+            PythonScriptingService.Instance.Execute(SelectedActionScript.Text, context);
+            
+            Logger.LogToConsole($"--- Test finished for: '{SelectedActionName.Name}' ---", LogLevel.Info, Colors.Magenta);
+        }
+        
         private void OnSelectedHookChanged()
         {
             if (Workflow.Scripts.Hooks.TryGetValue(SelectedHookName ?? "", out var script))
@@ -531,6 +601,7 @@ namespace Comfizen
         private Border? _lastFieldIndicator;
         private Border? _lastGroupIndicator;
         private Border? _lastIndicator;
+        private CompletionWindow _completionWindow;
         
         static UIConstructor()
         {
@@ -561,6 +632,7 @@ namespace Comfizen
         {
             InitializeComponent();
             DataContext = new UIConstructorView();
+            AttachCompletionEvents();
         }
 
         public UIConstructor(string workflowFileName)
@@ -568,6 +640,183 @@ namespace Comfizen
             InitializeComponent();
             _viewModel = new UIConstructorView(workflowFileName);
             DataContext = _viewModel;
+            AttachCompletionEvents();
+        }
+        
+        private void AttachCompletionEvents()
+        {
+            HookScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
+            ActionScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
+        }
+        
+        private void TextArea_TextEntered(object sender, TextCompositionEventArgs e)
+        {
+            // Вызываем автозавершение только при вводе точки
+            if (e.Text != "." || _completionWindow != null)
+            {
+                return;
+            }
+
+            var textArea = sender as TextArea;
+            if (textArea == null) return;
+
+            // Получаем выражение слева от точки (например, "ctx" или "ctx.settings")
+            string expression = GetFullExpressionBeforeCaret(textArea).TrimEnd('.');
+            
+            // Определяем .NET-тип этого выражения
+            Type targetType = ResolveExpressionType(expression);
+
+            if (targetType != null)
+            {
+                _completionWindow = new CompletionWindow(textArea);
+                _completionWindow.StartOffset = textArea.Caret.Offset;
+                
+                // Используем наш хелпер для заполнения списка на основе определенного типа
+                PopulateCompletionData(_completionWindow.CompletionList.CompletionData, targetType);
+
+                // Если мы нашли члены для отображения, показываем окно
+                if (_completionWindow.CompletionList.CompletionData.Any())
+                {
+                    // --- Здесь ваш код для стилизации окна (остается без изменений) ---
+                    _completionWindow.Background = (Brush)Application.Current.FindResource("SecondaryBackground");
+                    _completionWindow.BorderBrush = (Brush)Application.Current.FindResource("TertiaryBackground");
+                    _completionWindow.BorderThickness = new Thickness(1);
+                    var listBox = _completionWindow.CompletionList.ListBox;
+                    listBox.Background = (Brush)Application.Current.FindResource("SecondaryBackground");
+                    listBox.Foreground = (Brush)Application.Current.FindResource("TextBrush");
+                    var itemStyle = new Style(typeof(ListBoxItem));
+                    itemStyle.Setters.Add(new Setter(ListBoxItem.BackgroundProperty, Brushes.Transparent));
+                    itemStyle.Setters.Add(new Setter(ListBoxItem.ForegroundProperty, (Brush)Application.Current.FindResource("TextBrush")));
+                    itemStyle.Setters.Add(new Setter(ListBoxItem.PaddingProperty, new Thickness(4)));
+                    itemStyle.Setters.Add(new Setter(ListBoxItem.BorderThicknessProperty, new Thickness(0)));
+                    var selectedTrigger = new Trigger { Property = ListBoxItem.IsSelectedProperty, Value = true };
+                    selectedTrigger.Setters.Add(new Setter(ListBoxItem.BackgroundProperty, (Brush)Application.Current.FindResource("PrimaryAccentBrush")));
+                    itemStyle.Triggers.Add(selectedTrigger);
+                    var mouseOverTrigger = new Trigger { Property = ListBoxItem.IsMouseOverProperty, Value = true };
+                    mouseOverTrigger.Setters.Add(new Setter(ListBoxItem.BackgroundProperty, (Brush)Application.Current.FindResource("TertiaryBackground")));
+                    itemStyle.Triggers.Add(mouseOverTrigger);
+                    listBox.ItemContainerStyle = itemStyle;
+                    // --- Конец кода стилизации ---
+
+                    _completionWindow.Show();
+                    _completionWindow.Closed += (o, args) => { _completionWindow = null; };
+                }
+                else
+                {
+                    _completionWindow = null; // Нет членов для показа
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Извлекает полное выражение доступа к члену перед курсором (например, "ctx.settings.SomeProp").
+        /// </summary>
+        private string GetFullExpressionBeforeCaret(TextArea textArea)
+        {
+            int offset = textArea.Caret.Offset;
+            if (offset == 0) return string.Empty;
+
+            // Ищем начало выражения, которое прерывается пробелом или началом документа.
+            int start = offset - 1;
+            while (start >= 0)
+            {
+                char c = textArea.Document.GetCharAt(start);
+                if (char.IsWhiteSpace(c) || c == '(' || c == ')' || c == '[' || c == ']' || c == ',')
+                {
+                    start++;
+                    break;
+                }
+                if (start == 0) break;
+                start--;
+            }
+
+            return textArea.Document.GetText(start, offset - start);
+        }
+
+        /// <summary>
+        /// Заполняет список автозавершения членами указанного типа .NET.
+        /// </summary>
+        private void PopulateCompletionData(ICollection<ICompletionData> completionData, Type type)
+        {
+            if (type == null) return;
+            
+            // Получаем только публичные члены экземпляра, объявленные в самом типе, чтобы избежать мусора из System.Object
+            var members = type.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
+            foreach (var member in members.OrderBy(m => m.Name))
+            {
+                // Отфильтровываем специальные имена, сгенерированные компилятором (конструкторы, методы доступа к свойствам и т.д.)
+                if (member is MethodBase methodBase && methodBase.IsSpecialName)
+                {
+                    continue;
+                }
+                
+                // Также отфильтровываем методы добавления/удаления событий
+                if (member.Name.StartsWith("add_") || member.Name.StartsWith("remove_"))
+                {
+                     continue;
+                }
+
+                completionData.Add(new ScriptingCompletionData(member));
+            }
+        }
+
+
+        /// <summary>
+        /// Определяет .NET-тип для выражения доступа к члену (например, "ctx.settings").
+        /// </summary>
+        /// <param name="expression">Строка выражения.</param>
+        /// <returns>Тип .NET конечного члена или null, если не удалось его определить.</returns>
+        private Type ResolveExpressionType(string expression)
+        {
+            if (string.IsNullOrWhiteSpace(expression)) return null;
+
+            var parts = expression.Split('.');
+            if (parts.Length == 0 || parts[0] != "ctx") return null;
+
+            Type currentType = typeof(ScriptContext);
+
+            // Начинаем со второй части (так как первая - это "ctx")
+            for (int i = 1; i < parts.Length; i++)
+            {
+                var partName = parts[i];
+                if (string.IsNullOrEmpty(partName)) return currentType; // Выражение заканчивается на точку
+
+                // Ищем свойство или метод без учета регистра для надежности
+                var member = currentType.GetMember(partName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase).FirstOrDefault();
+                if (member == null) return null; // Член не найден
+
+                if (member is PropertyInfo prop)
+                {
+                    currentType = prop.PropertyType;
+                }
+                else if (member is MethodInfo method)
+                {
+                    currentType = method.ReturnType;
+                }
+                else if (member is FieldInfo field)
+                {
+                    currentType = field.FieldType;
+                }
+                else
+                {
+                    return null; // Это что-то другое, что мы не можем интроспектировать дальше (например, событие)
+                }
+            }
+            
+            return currentType;
+        }
+
+        private string GetWordBeforeCaret(TextArea textArea)
+        {
+            int offset = textArea.Caret.Offset;
+            if (offset == 0) return string.Empty;
+
+            int start = TextUtilities.GetNextCaretPosition(textArea.Document, offset, LogicalDirection.Backward, CaretPositioningMode.WordStart);
+            
+            if (start < 0) return string.Empty;
+            
+            return textArea.Document.GetText(start, offset - start);
         }
         
         // --- START OF CHANGES: Unified Auto-scroll handler ---

@@ -1,7 +1,4 @@
-﻿// --- START OF MODIFIED FILE PythonScriptingService.cs ---
-
-using IronPython.Hosting;
-using Microsoft.Scripting;
+﻿using IronPython.Hosting;
 using Microsoft.Scripting.Hosting;
 using System;
 using System.Collections.Generic;
@@ -9,17 +6,24 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks; // Добавлено для асинхронных операций
 using System.Windows.Media;
+using Newtonsoft.Json; // Добавлено для сериализации
 using Newtonsoft.Json.Linq;
+using IronPython.Runtime; // Добавлено для работы со словарями Python
 
 namespace Comfizen
 {
-    // ... (ScriptContext остается без изменений) ...
+    /// <summary>
+    /// Provides context and helper methods to Python scripts.
+    /// An instance of this class is available as 'ctx' inside the script.
+    /// </summary>
     public class ScriptContext
     {
+        private readonly HttpClient _http; 
+        
         public JObject prompt { get; }
         public Dictionary<string, object> state { get; }
-        public HttpClient http { get; }
         public Action<string> log { get; }
         public AppSettings settings { get; }
         public ImageOutput output { get; }
@@ -29,9 +33,72 @@ namespace Comfizen
             this.prompt = prompt;
             this.state = state;
             this.settings = settings;
-            this.http = new HttpClient();
+            this._http = new HttpClient();
             this.log = (message) => Logger.LogToConsole($"[PythonScript] {message}", LogLevel.Info, Colors.Cyan);
             this.output = output;
+        }
+
+        /// <summary>
+        /// Executes an HTTP GET request and returns the response body as a string.
+        /// </summary>
+        /// <param name="url">The URL to send the request to.</param>
+        /// <returns>The response content as a string, or null if an error occurs.</returns>
+        public async Task<string> get(string url)
+        {
+            try
+            {
+                // --- START OF FIX: Use ConfigureAwait(false) to prevent deadlocks ---
+                // This tells the task that it does not need to resume on the original UI thread context.
+                // It can continue on any available thread pool thread, which avoids a deadlock when
+                // the calling script is blocking the UI thread with .Result or .Wait().
+                var response = await _http.GetAsync(url).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                // --- END OF FIX ---
+            }
+            catch (Exception ex)
+            {
+                log($"GET request to '{url}' failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Executes an HTTP POST request with the given data and returns the response body as a string.
+        /// </summary>
+        /// <param name="url">The URL to send the request to.</param>
+        /// <param name="data">The data to post. Can be a Python dictionary (will be sent as JSON) or a string.</param>
+        /// <returns>The response content as a string, or null if an error occurs.</returns>
+        public async Task<string> post(string url, object data)
+        {
+            try
+            {
+                string payload;
+                
+                if (data is PythonDictionary dict)
+                {
+                    payload = JsonConvert.SerializeObject(dict);
+                }
+                else
+                {
+                    payload = data?.ToString() ?? string.Empty;
+                }
+
+                var content = new StringContent(payload, Encoding.UTF8, "application/json");
+
+                // --- START OF FIX: Use ConfigureAwait(false) to prevent deadlocks ---
+                // The same principle as in the get() method applies here.
+                var response = await _http.PostAsync(url, content).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+                
+                return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                // --- END OF FIX ---
+            }
+            catch (Exception ex)
+            {
+                log($"POST request to '{url}' failed: {ex.Message}");
+                return null;
+            }
         }
     }
     
@@ -86,7 +153,6 @@ namespace Comfizen
                         string output = streamReader.ReadToEnd();
                         if (!string.IsNullOrWhiteSpace(output))
                         {
-                            // --- CHANGE: Redirect print() output to the UI console with LightBlue color ---
                             Logger.LogToConsole($"[Py-print] {output.TrimEnd()}", LogLevel.Info, Colors.LightBlue);
                         }
                     }
@@ -101,4 +167,3 @@ namespace Comfizen
         }
     }
 }
-// --- END OF MODIFIED FILE PythonScriptingService.cs ---
