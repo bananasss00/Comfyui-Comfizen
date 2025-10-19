@@ -34,7 +34,7 @@ namespace Comfizen
             this.state = state;
             this.settings = settings;
             this._http = new HttpClient();
-            this.log = (message) => Logger.LogToConsole($"[PythonScript] {message}", LogLevel.Info, Colors.Cyan);
+            this.log = (message) => Logger.LogToConsole($"[py] {message}", LogLevel.Info, Colors.Cyan);
             this.output = output;
         }
 
@@ -153,7 +153,7 @@ namespace Comfizen
                         string output = streamReader.ReadToEnd();
                         if (!string.IsNullOrWhiteSpace(output))
                         {
-                            Logger.LogToConsole($"[Py-print] {output.TrimEnd()}", LogLevel.Info, Colors.LightBlue);
+                            Logger.LogToConsole($"[py] {output.TrimEnd()}", LogLevel.Info, Colors.LightBlue);
                         }
                     }
                 }
