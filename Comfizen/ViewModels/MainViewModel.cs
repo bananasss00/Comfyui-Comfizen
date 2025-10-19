@@ -275,7 +275,7 @@ namespace Comfizen
                     }
                     else
                     {
-                         MessageBox.Show("No Comfizen state metadata was found in the file.", "Import Failed", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show("No Comfizen state metadata was found in the file.", "Import Failed", MessageBoxButton.OK, MessageBoxImage.Information);
                         return;
                     }
                 }
@@ -293,6 +293,8 @@ namespace Comfizen
         {
             var promptData = data["prompt"] as JObject;
             var uiDefinition = data["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
+            
+            var scripts = data["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
 
             if (promptData == null || uiDefinition == null)
             {
@@ -300,7 +302,7 @@ namespace Comfizen
                 return;
             }
             
-            var fingerprint = _sessionManager.GenerateFingerprint(uiDefinition);
+            var fingerprint = _sessionManager.GenerateFingerprint(uiDefinition, scripts);
             var existingWorkflowPath = _sessionManager.FindWorkflowByFingerprint(fingerprint);
 
             if (existingWorkflowPath != null)
@@ -330,8 +332,9 @@ namespace Comfizen
                 {
                     var newWorkflowPath = dialog.FileName;
                     
-                    var workflowData = new { prompt = promptData, promptTemplate = uiDefinition };
-                    var workflowJson = JsonConvert.SerializeObject(workflowData, Formatting.Indented);
+                    var workflowData = new { prompt = promptData, promptTemplate = uiDefinition, scripts = scripts };
+
+                    var workflowJson = JsonConvert.SerializeObject(workflowData, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
                     File.WriteAllText(newWorkflowPath, workflowJson);
                     
                     UpdateWorkflows();
@@ -572,29 +575,32 @@ namespace Comfizen
         {
             var tasks = new List<PromptTask>();
 
-            // The full state object that will be serialized and stored.
-            // This represents the entire state needed for reproduction.
-            var fullState = new
-            {
-                prompt = tab.Workflow.LoadedApi,
-                promptTemplate = tab.Workflow.Groups,
-                scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null
-            };
-            
-            // We serialize it once without indentation to save space when embedding.
-            string fullWorkflowStateJson = JsonConvert.SerializeObject(fullState, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
-
             for (int i = 0; i < QueueSize; i++)
             {
-                // Create a clone of the API prompt for this specific task.
+                // 1. Create a clone of the API prompt that will be modified for this specific task.
                 var apiPromptForTask = tab.Workflow.JsonClone();
-                // Apply seed control, wildcards, etc., to this specific clone.
+                
+                // 2. Apply all per-task modifications (like seed randomization) to this clone.
+                // After this call, apiPromptForTask contains the *actual* values that will be sent to the API.
                 tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask);
 
+                // 3. NOW, create the full state object using the MODIFIED prompt clone.
+                // This ensures that the state we save to metadata is identical to what's used for generation.
+                var fullStateForThisTask = new
+                {
+                    prompt = apiPromptForTask, // Use the modified prompt here
+                    promptTemplate = tab.Workflow.Groups,
+                    scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null
+                };
+            
+                // 4. Serialize this complete and correct state for embedding.
+                string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
+                
+                // 5. Add the new task with the correct data.
                 tasks.Add(new PromptTask
                 {
-                    JsonPromptForApi = apiPromptForTask.ToString(),
-                    FullWorkflowStateJson = fullWorkflowStateJson, // Associate the full state with this task
+                    JsonPromptForApi = apiPromptForTask.ToString(), // This is sent to the server
+                    FullWorkflowStateJson = fullWorkflowStateJsonForThisTask, // This is saved in the image
                     OriginTab = tab
                 });
             }
@@ -654,9 +660,7 @@ namespace Comfizen
                             await foreach (var io in _comfyuiModel.QueuePrompt(task.JsonPromptForApi))
                             {
                                 if (_canceledTasks) break;
-
-                                // KEY FIX: After receiving the output, overwrite its Prompt property
-                                // with the full workflow state we saved in the task.
+                                
                                 io.Prompt = task.FullWorkflowStateJson;
 
                                 Application.Current.Dispatcher.Invoke(() =>

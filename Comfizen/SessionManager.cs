@@ -57,14 +57,21 @@ namespace Comfizen
             }
         }
         
-        public string GenerateFingerprint(ObservableCollection<WorkflowGroup> uiDefinition)
+        /// <summary>
+        /// Generates a unique MD5 fingerprint based on both the UI structure and the scripts.
+        /// </summary>
+        /// <param name="uiDefinition">The collection of workflow groups (promptTemplate).</param>
+        /// <param name="scripts">The collection of scripts.</param>
+        /// <returns>A unique MD5 hash string.</returns>
+        public string GenerateFingerprint(ObservableCollection<WorkflowGroup> uiDefinition, ScriptCollection scripts)
         {
             if (uiDefinition == null) return string.Empty;
 
             using (var sw = new StringWriter())
             {
-                // The fingerprint is based ONLY on the UI structure (promptTemplate)
-                _fingerprintSerializer.Serialize(sw, uiDefinition);
+                // The fingerprint is now based on a combined object containing both UI and scripts.
+                var dataToHash = new { promptTemplate = uiDefinition, scripts = scripts };
+                _fingerprintSerializer.Serialize(sw, dataToHash);
                 string jsonText = sw.ToString();
 
                 using (MD5 md5 = MD5.Create())
@@ -81,6 +88,11 @@ namespace Comfizen
             }
         }
 
+        /// <summary>
+        /// Scans workflow files to find one that matches the given fingerprint (UI + scripts).
+        /// </summary>
+        /// <param name="fingerprint">The fingerprint to search for.</param>
+        /// <returns>The full path to the matching workflow file, or null if not found.</returns>
         public string FindWorkflowByFingerprint(string fingerprint)
         {
             if (string.IsNullOrEmpty(fingerprint) || !Directory.Exists(Workflow.WorkflowsDir))
@@ -95,12 +107,19 @@ namespace Comfizen
                 try
                 {
                     var jsonString = File.ReadAllText(file);
+                    
+                    // Deserialize both promptTemplate and scripts from the file.
                     var data = JsonConvert.DeserializeAnonymousType(jsonString, 
-                        new { promptTemplate = default(ObservableCollection<WorkflowGroup>) });
+                        new { 
+                            promptTemplate = default(ObservableCollection<WorkflowGroup>),
+                            scripts = default(ScriptCollection) 
+                        });
 
                     if (data.promptTemplate != null)
                     {
-                        var currentFingerprint = GenerateFingerprint(data.promptTemplate);
+                        // Generate the fingerprint using both parts.
+                        // Use an empty ScriptCollection for old files that don't have a scripts block.
+                        var currentFingerprint = GenerateFingerprint(data.promptTemplate, data.scripts ?? new ScriptCollection());
                         if (fingerprint.Equals(currentFingerprint, System.StringComparison.OrdinalIgnoreCase))
                         {
                             return Path.GetFullPath(file);
