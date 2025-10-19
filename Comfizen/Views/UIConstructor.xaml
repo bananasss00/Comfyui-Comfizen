@@ -347,7 +347,8 @@
                                         Margin="10,0,0,0"
                                         Style="{StaticResource IconButton}"
                                         Width="30" Height="30"
-                                        Background="{StaticResource SuccessBrush}"/>
+                                        Background="{StaticResource SuccessBrush}"
+                                        FontFamily="Segoe UI Symbol"/>
                             </StackPanel>
                         </Border>
 

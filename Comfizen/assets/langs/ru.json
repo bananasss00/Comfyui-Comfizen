@@ -200,5 +200,6 @@
   "UIConstructor_RenameFailedTitle": "Переименование не удалось",
   "UIConstructor_DuplicateActionNameError": "Действие с таким именем уже существует.",
   "UIConstructor_NewActionDefaultName": "новое_действие",
-  "UIConstructor_PythonPlaceholder": "Ваш Python скрипт здесь"
+  "UIConstructor_PythonPlaceholder": "Ваш Python скрипт здесь",
+  "UIConstructor_TestScriptTooltip": "Тест скрипта"
 }

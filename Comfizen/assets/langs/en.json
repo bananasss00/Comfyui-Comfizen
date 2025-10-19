@@ -200,5 +200,6 @@
   "UIConstructor_RenameFailedTitle": "Rename Failed",
   "UIConstructor_DuplicateActionNameError": "An action with this name already exists.",
   "UIConstructor_NewActionDefaultName": "new_action",
-  "UIConstructor_PythonPlaceholder": "Your Python script here"
+  "UIConstructor_PythonPlaceholder": "Your Python script here",
+  "UIConstructor_TestScriptTooltip": "Test Script"
 }

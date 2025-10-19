@@ -342,11 +342,15 @@
             <Setter Property="Height" Value="30"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}" CornerRadius="3" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
-                            <TextBlock Text="{TemplateBinding Content}" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{TemplateBinding Foreground}"/>
+                            <TextBlock Text="{TemplateBinding Content}" 
+                                       FontFamily="{TemplateBinding FontFamily}" 
+                                       VerticalAlignment="Center" HorizontalAlignment="Center" 
+                                       Foreground="{TemplateBinding Foreground}"/>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
