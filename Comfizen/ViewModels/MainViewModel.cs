@@ -137,7 +137,17 @@ namespace Comfizen
         
         private class PromptTask
         {
-            public string JsonPrompt { get; set; }
+            /// <summary>
+            /// The raw API JSON sent to the ComfyUI server.
+            /// </summary>
+            public string JsonPromptForApi { get; set; }
+
+            /// <summary>
+            /// The complete workflow state (including prompt, promptTemplate, and scripts)
+            /// that should be associated with the output and saved to the file.
+            /// </summary>
+            public string FullWorkflowStateJson { get; set; }
+
             public WorkflowTabViewModel OriginTab { get; set; }
         }
         
@@ -558,26 +568,48 @@ namespace Comfizen
         private readonly object _processingLock = new object();
         private bool _isProcessing = false;
         
-        private IEnumerable<string> CreatePromptTasks(WorkflowTabViewModel tab)
+        private List<PromptTask> CreatePromptTasks(WorkflowTabViewModel tab)
         {
+            var tasks = new List<PromptTask>();
+
+            // The full state object that will be serialized and stored.
+            // This represents the entire state needed for reproduction.
+            var fullState = new
+            {
+                prompt = tab.Workflow.LoadedApi,
+                promptTemplate = tab.Workflow.Groups,
+                scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null
+            };
+            
+            // We serialize it once without indentation to save space when embedding.
+            string fullWorkflowStateJson = JsonConvert.SerializeObject(fullState, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
+
             for (int i = 0; i < QueueSize; i++)
             {
-                var prompt = tab.Workflow.JsonClone();
-                tab.WorkflowInputsController.ProcessSpecialFields(prompt);
-                yield return prompt.ToString();
+                // Create a clone of the API prompt for this specific task.
+                var apiPromptForTask = tab.Workflow.JsonClone();
+                // Apply seed control, wildcards, etc., to this specific clone.
+                tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask);
+
+                tasks.Add(new PromptTask
+                {
+                    JsonPromptForApi = apiPromptForTask.ToString(),
+                    FullWorkflowStateJson = fullWorkflowStateJson, // Associate the full state with this task
+                    OriginTab = tab
+                });
             }
             
+            return tasks;
         }
+        
         private void Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
             
             SelectedTab.ExecuteHook("on_queue_start");
             
-            var prompts = CreatePromptTasks(SelectedTab).ToList();
-            if (prompts.Count == 0) return;
-            
-            var originTab = SelectedTab; 
+            var promptTasks = CreatePromptTasks(SelectedTab);
+            if (promptTasks.Count == 0) return;
             
             if (_canceledTasks || (_promptsQueue.IsEmpty && !_isProcessing))
             {
@@ -587,11 +619,11 @@ namespace Comfizen
             }
             _canceledTasks = false;
         
-            foreach (var prompt in prompts)
+            foreach (var task in promptTasks)
             {
-                _promptsQueue.Enqueue(new PromptTask { JsonPrompt = prompt, OriginTab = originTab });
+                _promptsQueue.Enqueue(task);
             }
-            TotalTasks += prompts.Count;
+            TotalTasks += promptTasks.Count;
         
             lock (_processingLock)
             {
@@ -619,9 +651,14 @@ namespace Comfizen
                         
                         try
                         {
-                            await foreach (var io in _comfyuiModel.QueuePrompt(task.JsonPrompt))
+                            await foreach (var io in _comfyuiModel.QueuePrompt(task.JsonPromptForApi))
                             {
                                 if (_canceledTasks) break;
+
+                                // KEY FIX: After receiving the output, overwrite its Prompt property
+                                // with the full workflow state we saved in the task.
+                                io.Prompt = task.FullWorkflowStateJson;
+
                                 Application.Current.Dispatcher.Invoke(() =>
                                 {
                                     if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.FilePath == io.FilePath))
@@ -659,19 +696,19 @@ namespace Comfizen
                     {
                         if (IsInfiniteQueueEnabled && !_canceledTasks && lastTaskOriginTab != null)
                         {
-                            List<string> prompts = null;
+                            List<PromptTask> newTasks = null;
                             await Application.Current.Dispatcher.InvokeAsync(() =>
                             {
-                                prompts = CreatePromptTasks(lastTaskOriginTab).ToList();
+                                newTasks = CreatePromptTasks(lastTaskOriginTab);
                             });
 
-                            if (prompts != null)
+                            if (newTasks != null)
                             {
-                                foreach (var p in prompts)
+                                foreach (var p in newTasks)
                                 {
-                                    _promptsQueue.Enqueue(new PromptTask { JsonPrompt = p, OriginTab = lastTaskOriginTab });
+                                    _promptsQueue.Enqueue(p);
                                 }
-                                TotalTasks += prompts.Count;
+                                TotalTasks += newTasks.Count;
                             }
                             await Task.Delay(100);
                         }

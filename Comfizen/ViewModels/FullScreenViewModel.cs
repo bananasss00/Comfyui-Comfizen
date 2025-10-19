@@ -64,23 +64,7 @@ namespace Comfizen
 
                 if (_settings.SavePromptWithFile)
                 {
-                    var activeTab = _mainViewModel.SelectedTab;
-                    if (activeTab != null && activeTab.Workflow.IsLoaded)
-                    {
-                        var fullState = new JObject
-                        {
-                            ["prompt"] = activeTab.Workflow.LoadedApi,
-                            ["promptTemplate"] = JToken.FromObject(activeTab.Workflow.Groups),
-                        };
-                        // ========================================================== //
-                        //     ИЗМЕНЕНИЕ: Сериализация без форматирования для сжатия   //
-                        // ========================================================== //
-                        promptToSave = fullState.ToString(Formatting.None);
-                    }
-                    else
-                    {
-                        promptToSave = CurrentFullScreenImage.Prompt;
-                    }
+                    promptToSave = CurrentFullScreenImage.Prompt;
                 }
 
                 if (CurrentFullScreenImage.Type == FileType.Video)
