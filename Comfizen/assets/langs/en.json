@@ -203,5 +203,7 @@
   "UIConstructor_PythonPlaceholder": "Your Python script here",
   "UIConstructor_TestScriptTooltip": "Test Script",
   "UIConstructor_AddMarkdownField": "Add Markdown Field",
-  "UIConstructor_AddScriptButtonField": "Add Script Button"
+  "UIConstructor_AddScriptButtonField": "Add Script Button",
+  "UIConstructor_Hook_on_before_prompt_queue": "Before prompt is queued",
+  "UIConstructor_Hook_on_batch_finished": "After batch is finished"
 }

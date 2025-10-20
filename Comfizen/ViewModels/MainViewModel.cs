@@ -583,6 +583,8 @@ namespace Comfizen
                 // 2. Apply all per-task modifications (like seed randomization) to this clone.
                 // After this call, apiPromptForTask contains the *actual* values that will be sent to the API.
                 tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask);
+                
+                tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
 
                 // 3. NOW, create the full state object using the MODIFIED prompt clone.
                 // This ensures that the state we save to metadata is identical to what's used for generation.
@@ -608,11 +610,44 @@ namespace Comfizen
             return tasks;
         }
         
+        public void QueuePromptFromJObject(JObject prompt, WorkflowTabViewModel originTab)
+        {
+            if (prompt == null || originTab == null) return;
+
+            var fullState = new
+            {
+                prompt = prompt,
+                promptTemplate = originTab.Workflow.Groups,
+                scripts = (originTab.Workflow.Scripts.Hooks.Any() || originTab.Workflow.Scripts.Actions.Any()) ? originTab.Workflow.Scripts : null
+            };
+    
+            string fullWorkflowStateJson = JsonConvert.SerializeObject(fullState, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
+
+            var task = new PromptTask
+            {
+                JsonPromptForApi = prompt.ToString(),
+                FullWorkflowStateJson = fullWorkflowStateJson,
+                OriginTab = originTab
+            };
+
+            _promptsQueue.Enqueue(task);
+            TotalTasks++;
+
+            lock (_processingLock)
+            {
+                if (!_isProcessing)
+                {
+                    _isProcessing = true;
+                    _ = Task.Run(ProcessQueueAsync);
+                }
+            }
+        }
+        
         private void Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
             
-            SelectedTab.ExecuteHook("on_queue_start");
+            SelectedTab.ExecuteHook("on_queue_start", SelectedTab.Workflow.LoadedApi);
             
             var promptTasks = CreatePromptTasks(SelectedTab);
             if (promptTasks.Count == 0) return;
@@ -657,6 +692,8 @@ namespace Comfizen
                         
                         try
                         {
+                            var promptForTask = JObject.Parse(task.JsonPromptForApi);
+                            
                             await foreach (var io in _comfyuiModel.QueuePrompt(task.JsonPromptForApi))
                             {
                                 if (_canceledTasks) break;
@@ -669,8 +706,8 @@ namespace Comfizen
                                     {
                                         this.ImageProcessing.ImageOutputs.Insert(0, io);
                                     }
-                                    
-                                    task.OriginTab?.ExecuteHook("on_output_received", io);
+
+                                    task.OriginTab?.ExecuteHook("on_output_received", promptForTask, io);
                                 });
                             }
         
@@ -679,7 +716,7 @@ namespace Comfizen
                             CompletedTasks++;
                             CurrentProgress = (TotalTasks > 0) ? (CompletedTasks * 100) / TotalTasks : 0;
                             
-                            task.OriginTab?.ExecuteHook("on_queue_finish");
+                            task.OriginTab?.ExecuteHook("on_queue_finish", promptForTask);
                         }
                         catch (Exception ex)
                         {
@@ -736,6 +773,10 @@ namespace Comfizen
                     TotalTasks = CompletedTasks = 0;
                     CurrentProgress = 0;
                     IsInfiniteQueueEnabled = false;
+                }
+                else if (lastTaskOriginTab != null) // Queue batch finished
+                {
+                    lastTaskOriginTab.ExecuteHook("on_batch_finished", lastTaskOriginTab.Workflow.LoadedApi);
                 }
             }
         }

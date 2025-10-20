@@ -64,7 +64,7 @@ class ScriptContext:
     
     # Represents the entire workflow JSON object.
     # You can access nodes like ctx.prompt["12"]["inputs"]["seed"]
-    prompt: JObject
+    prompt: Dict[str, Any]
     
     # A persistent dictionary to store state between script executions.
     state: Dict[str, Any]
@@ -93,6 +93,16 @@ class ScriptContext:
         Executes an HTTP POST request.
         Note: This method is asynchronous. In IronPython, you must call .Result to get the value.
         Example: response = ctx.post("http://api/data", {"key": "value"}).Result
+        """
+        ...
+
+    def queue(self, prompt_to_queue: Dict[str, Any]) -> None:
+        """
+        Adds a new prompt (as a Python dictionary) to the generation queue.
+        Example:
+            new_prompt = dict(ctx.prompt)
+            new_prompt["3"]["inputs"]["steps"] = 50
+            ctx.queue(new_prompt)
         """
         ...
 

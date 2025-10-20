@@ -1,6 +1,7 @@
 ﻿using IronPython.Hosting;
 using Microsoft.Scripting.Hosting;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -22,20 +23,40 @@ namespace Comfizen
     {
         private readonly HttpClient _http; 
         
-        public JObject prompt { get; }
+        public PythonDictionary prompt { get; }
         public Dictionary<string, object> state { get; }
         public Action<string> log { get; }
         public AppSettings settings { get; }
         public ImageOutput output { get; }
+        private readonly Action<JObject> _queue_prompt_action;
 
-        public ScriptContext(JObject prompt, Dictionary<string, object> state, AppSettings settings, ImageOutput output = null)
+        public ScriptContext(JObject prompt, Dictionary<string, object> state, AppSettings settings, Action<JObject> queue_prompt_action, ImageOutput output = null)
         {
-            this.prompt = prompt;
+            this.prompt = ConvertJObjectToPythonDict(prompt);
             this.state = state;
             this.settings = settings;
             this._http = new HttpClient();
             this.log = (message) => Logger.LogToConsole($"[py] {message}", LogLevel.Info, Colors.Cyan);
             this.output = output;
+            this._queue_prompt_action = queue_prompt_action;
+        }
+        
+        /// <summary>
+        /// Queues a new prompt for generation.
+        /// </summary>
+        /// <param name="prompt_to_queue">A PythonDictionary representing the prompt. You can pass a modified ctx.prompt.</param>
+        public void queue(PythonDictionary prompt_to_queue)
+        {
+            try
+            {
+                // --- ГЛАВНОЕ ИЗМЕНЕНИЕ: КОНВЕРТИРУЕМ СЛОВАРЬ PYTHON ОБРАТНО В JObject ---
+                var promptJObject = ConvertPythonDictToJObject(prompt_to_queue);
+                _queue_prompt_action?.Invoke(promptJObject);
+            }
+            catch (Exception ex)
+            {
+                log($"Failed to queue prompt from script: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -99,6 +120,82 @@ namespace Comfizen
                 log($"POST request to '{url}' failed: {ex}");
                 return null;
             }
+        }
+        
+        private PythonDictionary ConvertJObjectToPythonDict(JObject jObject)
+        {
+            var dict = new PythonDictionary();
+            if (jObject == null) return dict;
+
+            foreach (var property in jObject.Properties())
+            {
+                dict[property.Name] = ConvertJTokenToPythonObject(property.Value);
+            }
+            return dict;
+        }
+
+        private object ConvertJTokenToPythonObject(JToken token)
+        {
+            if (token == null) return null;
+            switch (token.Type)
+            {
+                case JTokenType.Object:
+                    return ConvertJObjectToPythonDict((JObject)token);
+                case JTokenType.Array:
+                    var list = new List<object>();
+                    foreach (var item in token.Children())
+                    {
+                        list.Add(ConvertJTokenToPythonObject(item));
+                    }
+                    return list;
+                case JTokenType.Integer:
+                    return token.ToObject<long>();
+                case JTokenType.Float:
+                    return token.ToObject<double>();
+                case JTokenType.String:
+                    return token.ToObject<string>();
+                case JTokenType.Boolean:
+                    return token.ToObject<bool>();
+                default:
+                    return token.ToString();
+            }
+        }
+
+        private JObject ConvertPythonDictToJObject(IDictionary<object, object> dict)
+        {
+            var jObject = new JObject();
+            if (dict == null) return jObject;
+
+            foreach (var kvp in dict)
+            {
+                if (kvp.Key is string key)
+                {
+                    jObject[key] = ConvertPythonObjectToJToken(kvp.Value);
+                }
+            }
+            return jObject;
+        }
+
+        private JToken ConvertPythonObjectToJToken(object obj)
+        {
+            if (obj == null) return JValue.CreateNull();
+
+            if (obj is IDictionary<object, object> dict)
+            {
+                return ConvertPythonDictToJObject(dict);
+            }
+            if (obj is IList list)
+            {
+                var jArray = new JArray();
+                foreach (var item in list)
+                {
+                    jArray.Add(ConvertPythonObjectToJToken(item));
+                }
+                return jArray;
+            }
+            
+            // JToken.FromObject отлично справляется с базовыми типами
+            return JToken.FromObject(obj);
         }
     }
     

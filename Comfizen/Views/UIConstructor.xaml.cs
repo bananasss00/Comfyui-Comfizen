@@ -138,7 +138,14 @@ namespace Comfizen
             ToggleRenameCommand = new RelayCommand(ToggleRename);
             
             // --- START OF SCRIPTING INITIALIZATION ---
-            AvailableHooks = new ObservableCollection<string> { "on_workflow_load", "on_queue_start", "on_queue_finish", "on_output_received" };
+            AvailableHooks = new ObservableCollection<string> { 
+                "on_workflow_load", 
+                "on_queue_start", 
+                "on_before_prompt_queue",
+                "on_output_received",
+                "on_queue_finish",
+                "on_batch_finished"
+            };
             
             AddActionCommand = new RelayCommand(_ => AddNewAction());
             RemoveActionCommand = new RelayCommand(_ => RemoveSelectedAction(), _ => SelectedActionName != null);

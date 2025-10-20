@@ -103,7 +103,7 @@ namespace Comfizen
 
                 // 4. Загружаем контролы в UI
                 await WorkflowInputsController.LoadInputs();
-                ExecuteHook("on_workflow_load");
+                ExecuteHook("on_workflow_load", Workflow.LoadedApi);
             }
             catch (Exception ex)
             {
@@ -113,11 +113,12 @@ namespace Comfizen
             }
         }
         
-        public void ExecuteHook(string hookName, ImageOutput output = null)
+        public void ExecuteHook(string hookName, JObject? prompt = null, ImageOutput? output = null)
         {
             if (Workflow.Scripts.Hooks.TryGetValue(hookName, out var script))
             {
-                ExecuteScript(script, output);
+                var contextPrompt = prompt ?? Workflow.LoadedApi;
+                ExecuteScript(script, contextPrompt, output);
             }
         }
 
@@ -125,14 +126,26 @@ namespace Comfizen
         {
             if (Workflow.Scripts.Actions.TryGetValue(actionName, out var script))
             {
-                ExecuteScript(script);
+                ExecuteScript(script, Workflow.LoadedApi);
+            }
+        }
+        
+        public void QueuePromptFromScript(JObject prompt)
+        {
+            if (Application.Current.MainWindow?.DataContext is MainViewModel mainVm)
+            {
+                mainVm.QueuePromptFromJObject(prompt, this);
             }
         }
 
-        private void ExecuteScript(string script, ImageOutput output = null)
+        private void ExecuteScript(string script, JObject? prompt, ImageOutput? output = null)
         {
-            if (Workflow.LoadedApi == null) return;
-            var context = new ScriptContext(Workflow.LoadedApi, _scriptState, _settings, output);
+            if (prompt == null)
+            {
+                return; 
+            }
+
+            var context = new ScriptContext(prompt, _scriptState, _settings, QueuePromptFromScript, output);
             PythonScriptingService.Instance.Execute(script, context);
         }
         

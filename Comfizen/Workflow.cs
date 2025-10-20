@@ -52,7 +52,7 @@ namespace Comfizen
         public bool IsLoaded => _loadedApi != null;
 
         public JToken Json() => _loadedApi;
-        public JToken JsonClone() => _loadedApi.DeepClone();
+        public JObject? JsonClone() => _loadedApi?.DeepClone() as JObject;
 
         public void LoadApiWorkflow(string filePath)
         {

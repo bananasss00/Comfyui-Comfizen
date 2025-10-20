@@ -203,5 +203,7 @@
   "UIConstructor_PythonPlaceholder": "Ваш Python скрипт здесь",
   "UIConstructor_TestScriptTooltip": "Тест скрипта",
   "UIConstructor_AddMarkdownField": "Добавить поле Markdown",
-  "UIConstructor_AddScriptButtonField": "Добавить кнопку-скрипт"
+  "UIConstructor_AddScriptButtonField": "Добавить кнопку-скрипт",
+  "UIConstructor_Hook_on_before_prompt_queue": "Перед отправкой промпта в очередь",
+  "UIConstructor_Hook_on_batch_finished": "После завершения всей пачки"
 }
