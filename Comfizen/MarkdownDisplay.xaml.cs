@@ -79,15 +79,33 @@ namespace Comfizen
 
             if (link != null && link.NavigateUri != null)
             {
-                try
+                // --- НАЧАЛО ИЗМЕНЕНИЯ ---
+                // Проверяем, является ли ссылка кастомной ссылкой на воркфлоу
+                if (link.NavigateUri.Scheme.Equals("wf", StringComparison.OrdinalIgnoreCase))
                 {
-                    Process.Start(new ProcessStartInfo(link.NavigateUri.AbsoluteUri) { UseShellExecute = true });
-                    // Mark the event as handled to prevent the double-click event and text selection.
-                    e.Handled = true; 
+                    // Собираем относительный путь из URI (например, из "wf://folder/my_workflow.json" получаем "folder/my_workflow.json")
+                    var relativePath = link.NavigateUri.OriginalString.Substring("wf://".Length);
+
+                    // Получаем доступ к MainViewModel главного окна
+                    if (Application.Current.MainWindow?.DataContext is MainViewModel mainVm)
+                    {
+                        // Вызываем метод для открытия/переключения на вкладку с воркфлоу
+                        mainVm.OpenOrSwitchToWorkflow(relativePath);
+                    }
+                    e.Handled = true; // Помечаем событие как обработанное, чтобы ссылка не открывалась стандартным образом
                 }
-                catch (Exception ex)
+                // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+                else // Стандартная обработка для обычных http/https ссылок
                 {
-                    Logger.Log(ex, $"Could not open link: {link.NavigateUri.AbsoluteUri}");
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(link.NavigateUri.AbsoluteUri) { UseShellExecute = true });
+                        e.Handled = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(ex, $"Could not open link: {link.NavigateUri.AbsoluteUri}");
+                    }
                 }
             }
         }
