@@ -184,57 +184,57 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 }
 
                 InputFieldViewModel fieldVm = null;
-
+                var property = _workflow.GetPropertyByPath(field.Path);
+                
                 // ========================================================== //
                 //     НАЧАЛО ИЗМЕНЕНИЯ: Логика "умного" группирования      //
                 // ========================================================== //
-                
-                // Сценарий 1: Нашли ImageInput
-                if (field.Type == FieldType.ImageInput)
+
+                if (property != null)
                 {
-                    WorkflowField pairedMaskField = null;
-                    // Пытаемся найти парное поле MaskInput сразу за ним
-                    if (i + 1 < group.Fields.Count && group.Fields[i + 1].Type == FieldType.MaskInput)
+                    // Сценарий 1: Нашли ImageInput
+                    if (field.Type == FieldType.ImageInput)
                     {
-                        pairedMaskField = group.Fields[i + 1];
-                    }
-                    
-                    var property = _workflow.GetPropertyByPath(field.Path);
-                    if (property != null)
-                    {
+                        WorkflowField pairedMaskField = null;
+                        if (i + 1 < group.Fields.Count && group.Fields[i + 1].Type == FieldType.MaskInput)
+                        {
+                            pairedMaskField = group.Fields[i + 1];
+                        }
+
                         fieldVm = new InpaintFieldViewModel(field, pairedMaskField, property);
                         _inpaintViewModels.Add((InpaintFieldViewModel)fieldVm);
-
-                        processedFields.Add(field); // Помечаем ImageInput как обработанное
-                        if (pairedMaskField != null)
-                        {
-                            processedFields.Add(pairedMaskField); // Помечаем и MaskInput
-                        }
+                        processedFields.Add(field);
+                        if (pairedMaskField != null) processedFields.Add(pairedMaskField);
                     }
-                }
-                // Сценарий 2: Нашли MaskInput, которое не было частью пары
-                else if (field.Type == FieldType.MaskInput)
-                {
-                    var property = _workflow.GetPropertyByPath(field.Path);
-                    if (property != null)
+                    // Сценарий 2: Нашли MaskInput, которое не было частью пары
+                    else if (field.Type == FieldType.MaskInput)
                     {
                         // Создаем одиночный редактор только для маски
                         fieldVm = new InpaintFieldViewModel(field, null, property);
                         _inpaintViewModels.Add((InpaintFieldViewModel)fieldVm);
                         processedFields.Add(field);
                     }
-                }
-                // Сценарий 3: Любое другое поле
-                else
-                {
-                    var property = _workflow.GetPropertyByPath(field.Path);
-                    if (property != null)
+                    // Сценарий 3: Любое другое поле
+                    else
                     {
                         fieldVm = CreateDefaultFieldViewModel(field, property);
                         processedFields.Add(field);
                     }
                 }
-                
+                else
+                {
+                    if (field.Type == FieldType.Markdown)
+                    {
+                        fieldVm = new MarkdownFieldViewModel(field);
+                        processedFields.Add(field);
+                    }
+                    else if (field.Type == FieldType.ScriptButton)
+                    {
+                        fieldVm = new ScriptButtonFieldViewModel(field, this.ExecuteActionCommand);
+                        processedFields.Add(field);
+                    }
+                }
+
                 // ========================================================== //
                 //     КОНЕЦ ИЗМЕНЕНИЯ                                        //
                 // ========================================================== //
@@ -258,12 +258,12 @@ public class WorkflowInputsController : INotifyPropertyChanged
         await Task.WhenAll(comboBoxLoadTasks);
     }
     
-    private InputFieldViewModel CreateDefaultFieldViewModel(WorkflowField field, JProperty prop)
+    private InputFieldViewModel CreateDefaultFieldViewModel(WorkflowField field, JProperty? prop)
     {
         switch (field.Type)
         {
             case FieldType.Markdown:
-                return new MarkdownFieldViewModel(field, prop);
+                return new MarkdownFieldViewModel(field);
                 
             case FieldType.Seed:
                 var seedVm = new SeedFieldViewModel(field, prop);
@@ -293,7 +293,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             
             case FieldType.ScriptButton:
                 // We pass the ExecuteActionCommand from the controller itself
-                return new ScriptButtonFieldViewModel(field, prop, this.ExecuteActionCommand);
+                return new ScriptButtonFieldViewModel(field, this.ExecuteActionCommand);
             
             default:
                 return new TextFieldViewModel(field, prop);

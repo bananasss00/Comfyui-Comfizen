@@ -41,6 +41,9 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string ActionName { get; set; }
         // --- END OF CHANGES ---
+        
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string DefaultValue { get; set; } = string.Empty;
 
         [JsonIgnore]
         public bool IsRenaming { get; set; } = false;

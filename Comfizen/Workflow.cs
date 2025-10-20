@@ -167,9 +167,33 @@ namespace Comfizen
             Groups.Clear();
             if (data.promptTemplate != null) { foreach (var group in data.promptTemplate) Groups.Add(group); }
 
-            // --- START OF CHANGES ---
             Scripts = data.scripts ?? new ScriptCollection();
-            // --- END OF CHANGES ---
+
+            // --- НАЧАЛО МИГРАЦИИ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ---
+            if (LoadedApi != null)
+            {
+                foreach (var group in Groups)
+                {
+                    foreach (var field in group.Fields)
+                    {
+                        // Мигрируем только Markdown-поля, у которых еще нет значения в DefaultValue
+                        if (field.Type == FieldType.Markdown && string.IsNullOrEmpty(field.DefaultValue))
+                        {
+                            // Пытаемся найти свойство в API по старому пути
+                            var prop = Utils.GetJsonPropertyByPath(LoadedApi, field.Path);
+                            if (prop != null && prop.Value.Type == JTokenType.String)
+                            {
+                                // Копируем значение из API в новое поле DefaultValue
+                                field.DefaultValue = prop.Value.ToString();
+                        
+                                // Очищаем старое значение в API, чтобы завершить миграцию
+                                prop.Value = ""; 
+                            }
+                        }
+                    }
+                }
+            }
+            // --- КОНЕЦ МИГРАЦИИ ---
         }
     }
 }

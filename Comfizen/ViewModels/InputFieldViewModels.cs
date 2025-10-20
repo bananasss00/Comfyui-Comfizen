@@ -109,14 +109,14 @@ namespace Comfizen
         public string Name { get; }
         public string Path { get; } // START OF CHANGES: Add Path property
         public FieldType Type { get; protected set; }
-        public JProperty Property { get; } 
+        public JProperty? Property { get; } 
         
         /// <summary>
         /// The highlight color for the field in HEX format.
         /// </summary>
         public string HighlightColor { get; set; }
 
-        protected InputFieldViewModel(WorkflowField field, JProperty property)
+        protected InputFieldViewModel(WorkflowField field, JProperty? property)
         {
             Name = field.Name;
             Path = field.Path; // END OF CHANGES: Initialize Path property
@@ -226,21 +226,25 @@ namespace Comfizen
 
     public class MarkdownFieldViewModel : InputFieldViewModel
     {
+        private readonly WorkflowField _field; // Поле для хранения ссылки на модель
+
         public string Value
         {
-            get => Property.Value.ToString();
+            get => _field.DefaultValue; // Читаем и пишем значение в модель
             set
             {
-                if (Property.Value.ToString() != value)
+                if (_field.DefaultValue != value)
                 {
-                    Property.Value = new JValue(value);
+                    _field.DefaultValue = value;
                     OnPropertyChanged(nameof(Value));
                 }
             }
         }
-    
-        public MarkdownFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
+
+        // Новый конструктор, не требующий JProperty
+        public MarkdownFieldViewModel(WorkflowField field) : base(field, null)
         {
+            _field = field;
             Type = FieldType.Markdown;
         }
     }
@@ -437,7 +441,8 @@ namespace Comfizen
         public ICommand ExecuteScriptCommand { get; }
         public string ActionName { get; }
 
-        public ScriptButtonFieldViewModel(WorkflowField field, JProperty property, ICommand command) : base(field, property)
+        // Новый конструктор, не требующий JProperty
+        public ScriptButtonFieldViewModel(WorkflowField field, ICommand command) : base(field, null)
         {
             Type = FieldType.ScriptButton;
             ActionName = field.ActionName;

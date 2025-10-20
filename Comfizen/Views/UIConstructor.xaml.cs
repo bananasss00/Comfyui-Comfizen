@@ -116,6 +116,9 @@ namespace Comfizen
         public ICommand TestScriptCommand { get; }
         // --- END OF SCRIPTING PROPERTIES ---
         
+        public ICommand AddMarkdownFieldCommand { get; }
+        public ICommand AddScriptButtonFieldCommand { get; }
+        
         public UIConstructorView(string? workflowRelativePath = null)
         {
             PythonSyntaxHighlighting = HighlightingManager.Instance.GetDefinition("Python-Dark") ?? HighlightingManager.Instance.GetDefinition("Python");
@@ -199,6 +202,9 @@ namespace Comfizen
                 if (param is WorkflowGroup group) group.HighlightColor = null;
                 else if (param is WorkflowField field) field.HighlightColor = null;
             });
+            
+            AddMarkdownFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.Markdown));
+            AddScriptButtonFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.ScriptButton));
 
             PropertyChanged += (s, e) =>
             {
@@ -239,6 +245,36 @@ namespace Comfizen
             new(Enum.GetValues(typeof(FieldType)).Cast<FieldType>());
 
         public event PropertyChangedEventHandler? PropertyChanged;
+        
+        private void AddVirtualField(WorkflowGroup group, FieldType type)
+        {
+            if (group == null) return;
+
+            string baseName = type == FieldType.Markdown ? "Markdown Block" : "New Action Button";
+            string newName = baseName;
+            int counter = 1;
+    
+            // Гарантируем уникальное имя внутри группы
+            while (group.Fields.Any(f => f.Name == newName))
+            {
+                newName = $"{baseName} {++counter}";
+            }
+
+            var newField = new WorkflowField
+            {
+                Name = newName,
+                Type = type,
+                // Создаем уникальный путь, который никогда не пересечется с реальным API
+                Path = $"virtual_{type.ToString().ToLower()}_{Guid.NewGuid()}"
+            };
+
+            if (type == FieldType.Markdown)
+            {
+                newField.DefaultValue = "# " + newName + "\n\nEdit this text.";
+            }
+
+            group.Fields.Add(newField);
+        }
         
         // --- SCRIPTING METHODS ---
         private void TestSelectedScript()

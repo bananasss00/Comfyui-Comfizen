@@ -12,6 +12,12 @@ namespace Comfizen
         /// <returns>A styled FlowDocument.</returns>
         public static FlowDocument ToFlowDocument(string markdownText)
         {
+            // Добавляем проверку на null или пустую строку для надежности
+            if (string.IsNullOrEmpty(markdownText))
+            {
+                return new FlowDocument(); // Возвращаем пустой документ, чтобы избежать сбоя
+            }
+
             // Use the real Markdig.Wpf implementation
             return Markdig.Wpf.Markdown.ToFlowDocument(markdownText);
         }

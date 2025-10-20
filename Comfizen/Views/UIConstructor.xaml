@@ -188,11 +188,32 @@
                                                                     </MultiBinding>
                                                              </Border.Background>
                                                             <Grid>
-                                                                <StackPanel Orientation="Horizontal" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}">
                                                                     <TextBlock Text="{Binding Name}" FontWeight="Bold" MouseLeftButtonDown="GroupName_MouseLeftButtonDown"/>
-                                                                    <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Width="24" Height="24" ToolTip="{local:Translate UIConstructor_DeleteGroup}" Command="{Binding DataContext.RemoveGroupCommand, ElementName=RootGrid}" CommandParameter="{Binding}"/>
                                                                 </StackPanel>
-                                                                <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                    <Button Content="&#xE710; M" FontFamily="Segoe MDL2 Assets" 
+                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                            ToolTip="Add Markdown Field"
+                                                                            Command="{Binding DataContext.AddMarkdownFieldCommand, ElementName=RootGrid}"
+                                                                            CommandParameter="{Binding}"/>
+                                                                    <Button Content="&#xE945;" FontFamily="Segoe MDL2 Assets" 
+                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                            ToolTip="Add Script Button"
+                                                                            Command="{Binding DataContext.AddScriptButtonFieldCommand, ElementName=RootGrid}"
+                                                                            CommandParameter="{Binding}"/>
+                                                                    <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Width="24" Height="24" 
+                                                                            ToolTip="{local:Translate UIConstructor_DeleteGroup}" 
+                                                                            Command="{Binding DataContext.RemoveGroupCommand, ElementName=RootGrid}" 
+                                                                            CommandParameter="{Binding}"/>
+                                                                </StackPanel>
                                                             </Grid>
                                                         </Border>
                                                     </Expander.Header>
