@@ -201,5 +201,7 @@
   "UIConstructor_DuplicateActionNameError": "Действие с таким именем уже существует.",
   "UIConstructor_NewActionDefaultName": "новое_действие",
   "UIConstructor_PythonPlaceholder": "Ваш Python скрипт здесь",
-  "UIConstructor_TestScriptTooltip": "Тест скрипта"
+  "UIConstructor_TestScriptTooltip": "Тест скрипта",
+  "UIConstructor_AddMarkdownField": "Добавить поле Markdown",
+  "UIConstructor_AddScriptButtonField": "Добавить кнопку-скрипт"
 }

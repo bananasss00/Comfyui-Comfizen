@@ -242,7 +242,8 @@ namespace Comfizen
         public ObservableCollection<WorkflowField> AvailableFields { get; } = new();
 
         public ObservableCollection<FieldType> FieldTypes { get; } =
-            new(Enum.GetValues(typeof(FieldType)).Cast<FieldType>());
+            new(Enum.GetValues(typeof(FieldType)).Cast<FieldType>()
+                .Where(t => t != FieldType.Markdown && t != FieldType.ScriptButton));
 
         public event PropertyChangedEventHandler? PropertyChanged;
         

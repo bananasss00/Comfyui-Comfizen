@@ -61,7 +61,10 @@ namespace Comfizen
         {
             try
             {
+                // 1. Загружаем базовую структуру воркфлоу из файла
                 Workflow.LoadWorkflow(FilePath);
+                
+                // 2. Пытаемся загрузить и применить данные сессии поверх базовой структуры
                 var sessionData = _sessionManager.LoadSession(FilePath);
                 if (sessionData != null)
                 {
@@ -74,6 +77,31 @@ namespace Comfizen
                         Workflow.Groups = sessionData.GroupsState;
                     }
                 }
+
+                // --- НАЧАЛО ИЗМЕНЕНИЯ: Добавлена миграция после загрузки сессии ---
+                // 3. Выполняем миграцию. Этот код теперь сработает как на данных из файла,
+                //    так и на перезаписанных данных из сессии.
+                if (Workflow.LoadedApi != null)
+                {
+                    foreach (var group in Workflow.Groups)
+                    {
+                        foreach (var field in group.Fields)
+                        {
+                            if (field.Type == FieldType.Markdown && string.IsNullOrEmpty(field.DefaultValue))
+                            {
+                                var prop = Utils.GetJsonPropertyByPath(Workflow.LoadedApi, field.Path);
+                                if (prop != null && prop.Value.Type == JTokenType.String)
+                                {
+                                    field.DefaultValue = prop.Value.ToString();
+                                    prop.Value = ""; // Очищаем старое место
+                                }
+                            }
+                        }
+                    }
+                }
+                // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
+                // 4. Загружаем контролы в UI
                 await WorkflowInputsController.LoadInputs();
                 ExecuteHook("on_workflow_load");
             }

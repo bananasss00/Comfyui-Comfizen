@@ -199,14 +199,14 @@
                                                                 <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
                                                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                                    <Button Content="&#xE710; M" FontFamily="Segoe MDL2 Assets" 
+                                                                    <Button Content="&#xE162;" FontFamily="Segoe MDL2 Assets" 
                                                                             Style="{StaticResource IconButton}" Width="24" Height="24"
-                                                                            ToolTip="Add Markdown Field"
+                                                                            ToolTip="{local:Translate UIConstructor_AddMarkdownField}"
                                                                             Command="{Binding DataContext.AddMarkdownFieldCommand, ElementName=RootGrid}"
                                                                             CommandParameter="{Binding}"/>
                                                                     <Button Content="&#xE945;" FontFamily="Segoe MDL2 Assets" 
                                                                             Style="{StaticResource IconButton}" Width="24" Height="24"
-                                                                            ToolTip="Add Script Button"
+                                                                            ToolTip="{local:Translate UIConstructor_AddScriptButtonField}"
                                                                             Command="{Binding DataContext.AddScriptButtonFieldCommand, ElementName=RootGrid}"
                                                                             CommandParameter="{Binding}"/>
                                                                     <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Width="24" Height="24" 
@@ -275,7 +275,35 @@
                                                                                                     <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="SliderFloat"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
                                                                                                     <TextBlock Text="{local:Translate UIConstructor_Field_Precision}" VerticalAlignment="Center" Margin="5,0"/><xctk:IntegerUpDown Value="{Binding Precision, UpdateSourceTrigger=PropertyChanged}" Width="40" Minimum="0" Maximum="8"/>
                                                                                                 </StackPanel>
-                                                                                                <ComboBox ItemsSource="{Binding DataContext.FieldTypes, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Type, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="10,0,0,0" VerticalAlignment="Center" MouseLeftButtonDown="Control_StopsBubble_MouseLeftButtonDown"/>
+                                                                                                <Grid Margin="10,0,0,0" VerticalAlignment="Center">
+                                                                                                    <TextBlock>
+                                                                                                        <TextBlock.Text>
+                                                                                                            <Binding Path="Type" />
+                                                                                                        </TextBlock.Text>
+                                                                                                        <TextBlock.Style>
+                                                                                                            <Style TargetType="TextBlock">
+                                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                                <Style.Triggers>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="Markdown"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="ScriptButton"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                                                                </Style.Triggers>
+                                                                                                            </Style>
+                                                                                                        </TextBlock.Style>
+                                                                                                    </TextBlock>
+                                                                                                    <ComboBox ItemsSource="{Binding DataContext.FieldTypes, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                                        SelectedItem="{Binding Type, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                        MouseLeftButtonDown="Control_StopsBubble_MouseLeftButtonDown">
+                                                                                                        <ComboBox.Style>
+                                                                                                            <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                                                <Style.Triggers>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="Markdown"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="ScriptButton"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                                                </Style.Triggers>
+                                                                                                            </Style>
+                                                                                                        </ComboBox.Style>
+                                                                                                    </ComboBox>
+                                                                                                </Grid>
                                                                                             </StackPanel>
                                                                                         </Grid>
                                                                                         <StackPanel Grid.Row="1" Margin="0,5,0,0">
