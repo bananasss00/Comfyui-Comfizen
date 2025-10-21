@@ -9,67 +9,61 @@
              MaxHeight="200">
     <Grid>
         <!-- The Viewer for formatted Markdown -->
+        <!-- The Viewer for formatted Markdown -->
         <FlowDocumentScrollViewer x:Name="Viewer" 
                                   VerticalScrollBarVisibility="Auto" 
                                   IsToolBarVisible="False"
                                   MouseDoubleClick="Viewer_MouseDoubleClick"
                                   PreviewMouseLeftButtonDown="Viewer_PreviewMouseLeftButtonDown"
                                   Background="Transparent">
-                                  <!-- The Hyperlink.RequestNavigate handler is removed from here -->
+            <!-- The Hyperlink.RequestNavigate handler is removed from here -->
             <FlowDocumentScrollViewer.Resources>
-                <!-- Global document styles -->
-                <Style TargetType="{x:Type FlowDocument}">
-                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                    <Setter Property="FontFamily" Value="Segoe UI"/>
-                    <Setter Property="FontSize" Value="12"/>
-                </Style>
-                
-                <!-- Paragraphs (default text) -->
-                <Style TargetType="{x:Type Paragraph}" BasedOn="{StaticResource {x:Type Paragraph}}">
-                    <Setter Property="Margin" Value="0,0,0,8"/>
-                </Style>
-
-                <!-- Hyperlinks -->
-                <Style TargetType="{x:Type Hyperlink}">
-                    <Setter Property="Foreground" Value="{StaticResource PrimaryAccentBrush}"/>
-                    <Setter Property="TextDecorations" Value="None"/>
-                    <Style.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="TextDecorations" Value="Underline"/>
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-
-                <!-- Lists -->
-                <Style TargetType="{x:Type List}">
-                    <Setter Property="Margin" Value="20,0,0,8"/>
-                </Style>
-
-                <!-- Styles for Markdig elements -->
-                <Style x:Key="{x:Static markdig:Styles.Heading1StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
-                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                    <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="FontSize" Value="20"/>
-                </Style>
-                <Style x:Key="{x:Static markdig:Styles.Heading2StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
-                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                    <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="FontSize" Value="18"/>
-                </Style>
-                <Style x:Key="{x:Static markdig:Styles.Heading3StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
-                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                    <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="FontSize" Value="16"/>
-                </Style>
-                <Style x:Key="{x:Static markdig:Styles.Heading4StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
-                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                    <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="FontSize" Value="14"/>
-                </Style>
-                
+                <!-- This style block is being removed as it's not effective -->
             </FlowDocumentScrollViewer.Resources>
+            
             <!-- A dummy document to hold the resources and content -->
-            <FlowDocument />
+            <FlowDocument>
+                <FlowDocument.Resources>
+                    <!-- Global document styles -->
+                    <Style TargetType="{x:Type Paragraph}">
+                        <Setter Property="Margin" Value="0,0,0,8"/>
+                    </Style>
+
+                    <!-- THIS IS THE CORRECT WAY TO STYLE HYPERLINKS FOR MARKDIG.WPF -->
+                    <Style x:Key="{x:Static markdig:Styles.HyperlinkStyleKey}" TargetType="Hyperlink">
+                        <Setter Property="Foreground" Value="#E6DB74"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="TextDecorations" Value="None"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="TextDecorations" Value="Underline"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <!-- Styles for other Markdig elements remain the same -->
+                    <Style x:Key="{x:Static markdig:Styles.Heading1StyleKey}" TargetType="Paragraph">
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="FontSize" Value="20"/>
+                    </Style>
+                    <Style x:Key="{x:Static markdig:Styles.Heading2StyleKey}" TargetType="Paragraph">
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="FontSize" Value="18"/>
+                    </Style>
+                    <Style x:Key="{x:Static markdig:Styles.Heading3StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="FontSize" Value="16"/>
+                    </Style>
+                    <Style x:Key="{x:Static markdig:Styles.Heading4StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="FontSize" Value="14"/>
+                    </Style>
+                </FlowDocument.Resources>
+            </FlowDocument>
         </FlowDocumentScrollViewer>
 
         <!-- The Editor TextBox, initially hidden -->
