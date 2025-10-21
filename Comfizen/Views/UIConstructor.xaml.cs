@@ -99,7 +99,7 @@ namespace Comfizen
         public ObservableCollection<string> ModelSubTypes { get; } = new();
         private bool _apiWasReplaced = false;
         
-        // --- START OF SCRIPTING PROPERTIES ---
+        // --- SCRIPTING PROPERTIES ---
         public ObservableCollection<string> AvailableHooks { get; }
         public string SelectedHookName { get; set; }
         public TextDocument SelectedHookScript { get; set; } = new TextDocument();
@@ -111,7 +111,7 @@ namespace Comfizen
         public ICommand AddActionCommand { get; }
         public ICommand RemoveActionCommand { get; }
         
-        private string _originalActionName; // Для хранения имени перед переименованием
+        private string _originalActionName; // For storing the name before renaming.
         
         public ICommand TestScriptCommand { get; }
         // --- END OF SCRIPTING PROPERTIES ---
@@ -119,8 +119,21 @@ namespace Comfizen
         public ICommand AddMarkdownFieldCommand { get; }
         public ICommand AddScriptButtonFieldCommand { get; }
         
-        public UIConstructorView(string? workflowRelativePath = null)
+        // Constructor for a NEW workflow.
+        public UIConstructorView() : this(new Workflow(), null) { }
+
+        // Constructor for EDITING from a file path.
+        public UIConstructorView(string? workflowRelativePath) 
+            : this(LoadWorkflowFromFile(workflowRelativePath), workflowRelativePath) { }
+        
+        
+        
+        public UIConstructorView(Workflow liveWorkflow, string? workflowRelativePath)
         {
+            // Assign the live workflow object directly.
+            Workflow = liveWorkflow;
+            
+            // All readonly and get-only properties are initialized here, inside the constructor.
             PythonSyntaxHighlighting = HighlightingManager.Instance.GetDefinition("Python-Dark") ?? HighlightingManager.Instance.GetDefinition("Python");
             
             var settingsService = new SettingsService();
@@ -137,7 +150,7 @@ namespace Comfizen
             RemoveFieldFromGroupCommand = new RelayCommand(param => RemoveField(param as WorkflowField));
             ToggleRenameCommand = new RelayCommand(ToggleRename);
             
-            // --- START OF SCRIPTING INITIALIZATION ---
+            // --- Scripting initialization ---
             AvailableHooks = new ObservableCollection<string> { 
                 "on_workflow_load", 
                 "on_queue_start", 
@@ -146,27 +159,16 @@ namespace Comfizen
                 "on_queue_finish",
                 "on_batch_finished"
             };
-            
             AddActionCommand = new RelayCommand(_ => AddNewAction());
             RemoveActionCommand = new RelayCommand(_ => RemoveSelectedAction(), _ => SelectedActionName != null);
-            
-            // Отслеживание изменений для хуков
-            this.PropertyChanged += (s, e) => {
-                if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
-                if (e.PropertyName == nameof(SelectedActionName)) OnSelectedActionChanged();
-            };
-            
-            // Сохранение скриптов при изменении текста
-            SelectedHookScript.TextChanged += (s, e) => SaveHookScript();
-            SelectedActionScript.TextChanged += (s, e) => SaveActionScript();
-            
             TestScriptCommand = new RelayCommand(
                 _ => TestSelectedScript(),
                 _ => SelectedActionName != null && !string.IsNullOrWhiteSpace(SelectedActionScript.Text)
             );
-            // --- END OF SCRIPTING INITIALIZATION ---
             
-            // Initialize the color palette
+            // --- Other initializations ---
+            AddMarkdownFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.Markdown));
+            AddScriptButtonFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.ScriptButton));
             ColorPalette = new ObservableCollection<ColorInfo>
             {
                 // --- Warm Tones (Reds, Oranges, Browns) ---
@@ -189,49 +191,43 @@ namespace Comfizen
                 // --- Neutral Tone ---
                 new ColorInfo { Name = LocalizationService.Instance["Color_Slate"], Hex = "#6C757D" }
             };
-
-            // Command to set the highlight color
             SetHighlightColorCommand = new RelayCommand(param =>
             {
                 if (param is object[] args && args.Length == 2)
                 {
                     var target = args[0];
                     var colorHex = args[1] as string;
-
                     if (target is WorkflowGroup group) group.HighlightColor = colorHex;
                     else if (target is WorkflowField field) field.HighlightColor = colorHex;
                 }
             });
-
-            // Command to clear the highlight color
             ClearHighlightColorCommand = new RelayCommand(param =>
             {
                 if (param is WorkflowGroup group) group.HighlightColor = null;
                 else if (param is WorkflowField field) field.HighlightColor = null;
             });
-            
-            AddMarkdownFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.Markdown));
-            AddScriptButtonFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.ScriptButton));
 
-            PropertyChanged += (s, e) =>
-            {
+            // Attach event handlers
+            this.PropertyChanged += (s, e) => {
+                if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
+                if (e.PropertyName == nameof(SelectedActionName)) OnSelectedActionChanged();
                 if (e.PropertyName == nameof(SearchFilter) || e.PropertyName == nameof(Workflow)) UpdateAvailableFields();
             };
+            SelectedHookScript.TextChanged += (s, e) => SaveHookScript();
+            SelectedActionScript.TextChanged += (s, e) => SaveActionScript();
             
+            // Load initial data
             LoadModelSubTypesAsync();
-            
             if (!string.IsNullOrEmpty(workflowRelativePath))
             {
-                var fullPath = Path.Combine(Workflow.WorkflowsDir, workflowRelativePath);
-                Workflow.LoadWorkflow(fullPath);
-
                 NewWorkflowName = Path.ChangeExtension(workflowRelativePath, null);
                 UpdateAvailableFields();
                 RefreshActionNames();
             }
         }
-
-        public Workflow Workflow { get; } = new();
+        
+        // The Workflow property is now set in the constructor.
+        public Workflow Workflow { get; private set; }
         public ICommand LoadCommand { get; }
         public ICommand SaveWorkflowCommand { get; }
         public ICommand ExportApiWorkflowCommand { get; }
@@ -253,6 +249,21 @@ namespace Comfizen
                 .Where(t => t != FieldType.Markdown && t != FieldType.ScriptButton));
 
         public event PropertyChangedEventHandler? PropertyChanged;
+        
+        // Helper method to load a workflow from a file path.
+        private static Workflow LoadWorkflowFromFile(string? relativePath)
+        {
+            var workflow = new Workflow();
+            if (!string.IsNullOrEmpty(relativePath))
+            {
+                var fullPath = Path.Combine(Comfizen.Workflow.WorkflowsDir, relativePath);
+                if (File.Exists(fullPath))
+                {
+                    workflow.LoadWorkflow(fullPath);
+                }
+            }
+            return workflow;
+        }
         
         private void AddVirtualField(WorkflowGroup group, FieldType type)
         {
@@ -685,6 +696,17 @@ namespace Comfizen
         {
             InitializeComponent();
             _viewModel = new UIConstructorView(workflowFileName);
+            DataContext = _viewModel;
+            AttachCompletionEvents();
+            ApplyHyperlinksColor();
+        }
+        
+        // This is the new constructor that accepts the live workflow object.
+        public UIConstructor(Workflow liveWorkflow, string workflowRelativePath)
+        {
+            InitializeComponent();
+            // Pass the live object directly to the ViewModel.
+            _viewModel = new UIConstructorView(liveWorkflow, workflowRelativePath);
             DataContext = _viewModel;
             AttachCompletionEvents();
             ApplyHyperlinksColor();

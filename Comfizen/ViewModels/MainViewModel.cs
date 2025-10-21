@@ -185,7 +185,9 @@ namespace Comfizen
 
             EditWorkflowCommand = new RelayCommand(o => {
                 var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, SelectedTab.FilePath);
-                new UIConstructor(relativePath).ShowDialog();
+                // Pass the live Workflow object from the selected tab directly to the constructor.
+                var liveWorkflow = SelectedTab.Workflow;
+                new UIConstructor(liveWorkflow, relativePath).ShowDialog();
                 UpdateWorkflows();
             }, o => SelectedTab != null);
 
