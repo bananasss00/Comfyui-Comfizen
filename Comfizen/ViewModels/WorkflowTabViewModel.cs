@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Newtonsoft.Json;
 
 namespace Comfizen
 {
@@ -19,11 +20,14 @@ namespace Comfizen
         private ModelService _modelService;
 
         public string Header { get; set; }
-        public string FilePath { get; }
+        public string? FilePath { get; }
 
         public Workflow Workflow { get; private set; }
         
         public WorkflowInputsController WorkflowInputsController { get; set; }
+        
+        [JsonIgnore]
+        public bool IsVirtual => string.IsNullOrEmpty(FilePath);
 
         public event PropertyChangedEventHandler PropertyChanged;
         
@@ -47,6 +51,31 @@ namespace Comfizen
             ExecuteActionCommand = new RelayCommand(actionName => ExecuteAction(actionName as string));
             
             InitializeAsync();
+        }
+        
+        // New constructor for creating "virtual" tabs from an in-memory workflow.
+        public WorkflowTabViewModel(Workflow preloadedWorkflow, string header, ComfyuiModel comfyModel, AppSettings settings, ModelService modelService, SessionManager sessionManager)
+        {
+            FilePath = null; // This indicates a virtual tab.
+            Header = header;
+
+            _comfyModel = comfyModel;
+            _settings = settings;
+            _modelService = modelService;
+            _sessionManager = sessionManager;
+
+            Workflow = preloadedWorkflow; // Use the provided workflow object directly.
+
+            InitializeController();
+            
+            ExecuteActionCommand = new RelayCommand(actionName => ExecuteAction(actionName as string));
+
+            // Instead of loading from file, we just load the UI controls.
+            // No need for InitializeAsync().
+            Task.Run(async () => {
+                await WorkflowInputsController.LoadInputs();
+                ExecuteHook("on_workflow_load", Workflow.LoadedApi);
+            });
         }
         
         private void InitializeController()
@@ -151,6 +180,8 @@ namespace Comfizen
         
         public void ResetState()
         {
+            if (IsVirtual) return;
+            
             _sessionManager.ClearSession(this.FilePath);
             InitializeAsync();
         }
@@ -164,8 +195,11 @@ namespace Comfizen
             }
 
             InitializeController();
-            
-            Workflow.LoadWorkflow(this.FilePath);
+
+            if (!IsVirtual)
+            {
+                Workflow.LoadWorkflow(this.FilePath);
+            }
 
             if (saveType == WorkflowSaveType.LayoutOnly && currentWidgetState != null)
             {
@@ -173,14 +207,17 @@ namespace Comfizen
             }
             else
             {
-                // Also reload session after a full API replacement to get the latest values
-                var sessionJObject = _sessionManager.LoadSession(FilePath);
-                if (sessionJObject != null)
+                if (!IsVirtual)
                 {
-                    Workflow.LoadedApi = sessionJObject.ApiState;
-                    if (sessionJObject.GroupsState != null)
+                    // Also reload session after a full API replacement to get the latest values
+                    var sessionJObject = _sessionManager.LoadSession(FilePath);
+                    if (sessionJObject != null)
                     {
-                        Workflow.Groups = sessionJObject.GroupsState;
+                        Workflow.LoadedApi = sessionJObject.ApiState;
+                        if (sessionJObject.GroupsState != null)
+                        {
+                            Workflow.Groups = sessionJObject.GroupsState;
+                        }
                     }
                 }
             }

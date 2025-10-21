@@ -49,7 +49,8 @@ namespace Comfizen
             {
                 if (_selectedTab == value) return;
 
-                if (_selectedTab != null && _selectedTab.Workflow.IsLoaded)
+                // If the previously selected tab exists, is loaded, AND IS NOT VIRTUAL, save its session.
+                if (_selectedTab != null && _selectedTab.Workflow.IsLoaded && !_selectedTab.IsVirtual)
                 {
                     _sessionManager.SaveSession(_selectedTab.Workflow.LoadedApi, _selectedTab.Workflow.Groups, _selectedTab.FilePath);
                 }
@@ -184,8 +185,11 @@ namespace Comfizen
             });
 
             EditWorkflowCommand = new RelayCommand(o => {
-                var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, SelectedTab.FilePath);
-                // Pass the live Workflow object from the selected tab directly to the constructor.
+                // Use Header as the initial "file name" for virtual tabs, which guides the "Save As" dialog.
+                var relativePath = !SelectedTab.IsVirtual
+                    ? Path.GetRelativePath(Workflow.WorkflowsDir, SelectedTab.FilePath)
+                    : SelectedTab.Header;
+
                 var liveWorkflow = SelectedTab.Workflow;
                 new UIConstructor(liveWorkflow, relativePath).ShowDialog();
                 UpdateWorkflows();
@@ -199,20 +203,23 @@ namespace Comfizen
             );
             
             ClearSessionCommand = new RelayCommand(o => ClearSessionForCurrentWorkflow(), 
-                o => SelectedTab != null);
+                o => SelectedTab != null && !SelectedTab.IsVirtual);
 
             PasteImageCommand = new RelayCommand(
                 _ => SelectedTab?.WorkflowInputsController.HandlePasteOperation(),
                 _ => SelectedTab != null
             );
             
-            RefreshModelsCommand = new RelayCommand(RefreshModels, o => SelectedTab?.Workflow.IsLoaded ?? false);
+            RefreshModelsCommand = new RelayCommand(RefreshModels, 
+                o => SelectedTab != null && SelectedTab.Workflow.IsLoaded && !SelectedTab.IsVirtual);
             
             SaveChangesToWorkflowCommand = new RelayCommand(SaveChangesToWorkflow, 
-                o => SelectedTab != null && SelectedTab.Workflow.IsLoaded);
+                // Disable this command for virtual tabs, as they have no "default file" to overwrite.
+                o => SelectedTab != null && SelectedTab.Workflow.IsLoaded && !SelectedTab.IsVirtual);
             
             ExportCurrentStateCommand = new RelayCommand(ExportCurrentState, o => SelectedTab?.Workflow.IsLoaded ?? false);
-            DeleteWorkflowCommand = new RelayCommand(DeleteSelectedWorkflow, _ => SelectedTab != null);
+            // Disable delete for virtual tabs (they are just closed, not deleted from disk).
+            DeleteWorkflowCommand = new RelayCommand(DeleteSelectedWorkflow, _ => SelectedTab != null && !SelectedTab.IsVirtual);
             
             OpenWildcardBrowserCommand = new RelayCommand(param =>
             {
@@ -283,7 +290,8 @@ namespace Comfizen
                 }
         
                 var data = JObject.Parse(jsonString);
-                ImportStateFromJObject(data);
+                // Pass the original file name to be used as the tab header.
+                ImportStateFromJObject(data, Path.GetFileName(filePath));
             }
             catch (Exception ex)
             {
@@ -291,11 +299,10 @@ namespace Comfizen
             }
         }
         
-        private async void ImportStateFromJObject(JObject data)
+        private void ImportStateFromJObject(JObject data, string sourceFileName)
         {
             var promptData = data["prompt"] as JObject;
             var uiDefinition = data["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
-            
             var scripts = data["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
 
             if (promptData == null || uiDefinition == null)
@@ -303,49 +310,23 @@ namespace Comfizen
                 MessageBox.Show("The imported file is not a valid Comfizen state file or is corrupted.", "Invalid File", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+
+            // Create a new in-memory Workflow object.
+            var importedWorkflow = new Workflow();
+            importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts);
             
-            var fingerprint = _sessionManager.GenerateFingerprint(uiDefinition, scripts);
-            var existingWorkflowPath = _sessionManager.FindWorkflowByFingerprint(fingerprint);
+            // Create a new "virtual" tab using the new constructor.
+            var newTab = new WorkflowTabViewModel(
+                importedWorkflow, 
+                sourceFileName, // Use the image name as the header.
+                _comfyuiModel, 
+                _settings, 
+                _modelService, 
+                _sessionManager
+            );
 
-            if (existingWorkflowPath != null)
-            {
-                _sessionManager.SaveSession(promptData, uiDefinition, existingWorkflowPath);
-                var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, existingWorkflowPath).Replace(Path.DirectorySeparatorChar, '/');
-                OpenOrSwitchToWorkflow(relativePath);
-    
-                var tab = OpenTabs.FirstOrDefault(t => Path.GetFullPath(t.FilePath).Equals(Path.GetFullPath(existingWorkflowPath), StringComparison.OrdinalIgnoreCase));
-                if (tab != null)
-                {
-                    await tab.Reload(WorkflowSaveType.ApiReplaced);
-                }
-
-                MessageBox.Show($"Session for workflow '{Path.GetFileName(existingWorkflowPath)}' has been successfully imported.", "Import Successful", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                var dialog = new SaveFileDialog
-                {
-                    Title = "Save New Workflow",
-                    Filter = "Workflow Files (*.json)|*.json",
-                    InitialDirectory = Path.GetFullPath(Workflow.WorkflowsDir),
-                    FileName = "imported_workflow.json"
-                };
-                if (dialog.ShowDialog() == true)
-                {
-                    var newWorkflowPath = dialog.FileName;
-                    
-                    var workflowData = new { prompt = promptData, promptTemplate = uiDefinition, scripts = scripts };
-
-                    var workflowJson = JsonConvert.SerializeObject(workflowData, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
-                    File.WriteAllText(newWorkflowPath, workflowJson);
-                    
-                    UpdateWorkflows();
-                    var newWorkflowRelativePath = Path.GetRelativePath(Workflow.WorkflowsDir, newWorkflowPath).Replace(Path.DirectorySeparatorChar, '/');
-                    OpenOrSwitchToWorkflow(newWorkflowRelativePath);
-
-                    MessageBox.Show($"New workflow '{Path.GetFileName(newWorkflowPath)}' has been successfully imported.", "Import Successful", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            }
+            OpenTabs.Add(newTab);
+            SelectedTab = newTab;
         }
         
         private async void OnWorkflowSaved(object sender, WorkflowSaveEventArgs e)
@@ -404,7 +385,8 @@ namespace Comfizen
                 FullScreen.IsFullScreenOpen = false;
             }
 
-            if (tabToClose.Workflow.IsLoaded)
+            // Only save session if the tab is NOT virtual (i.e., has a file path).
+            if (!tabToClose.IsVirtual && tabToClose.Workflow.IsLoaded)
             {
                 _sessionManager.SaveSession(tabToClose.Workflow.LoadedApi, tabToClose.Workflow.Groups, tabToClose.FilePath);
             }
@@ -892,7 +874,8 @@ namespace Comfizen
 
             foreach (var tab in OpenTabs)
             {
-                if (tab.Workflow.IsLoaded && !string.IsNullOrEmpty(tab.FilePath) && tab.Workflow.LoadedApi != null)
+                // Also add the !tab.IsVirtual check here for robustness.
+                if (!tab.IsVirtual && tab.Workflow.IsLoaded && tab.Workflow.LoadedApi != null)
                 {
                     _sessionManager.SaveSession(tab.Workflow.LoadedApi, tab.Workflow.Groups, tab.FilePath);
                 }
@@ -904,10 +887,12 @@ namespace Comfizen
             }
             
             _settings.LastOpenWorkflows = OpenTabs
+                // Filter out virtual tabs from being saved into the last open list.
+                .Where(t => !t.IsVirtual)
                 .Select(t => Path.GetRelativePath(Workflow.WorkflowsDir, t.FilePath).Replace(Path.DirectorySeparatorChar, '/'))
                 .ToList();
 
-            _settings.LastActiveWorkflow = SelectedTab != null 
+            _settings.LastActiveWorkflow = (SelectedTab != null && !SelectedTab.IsVirtual)
                 ? Path.GetRelativePath(Workflow.WorkflowsDir, SelectedTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') 
                 : null;
             

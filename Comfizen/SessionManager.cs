@@ -137,7 +137,7 @@ namespace Comfizen
 
         public void SaveSession(JObject workflowJObject, ObservableCollection<WorkflowGroup> groups, string workflowFullPath)
         {
-            if (workflowJObject == null) return;
+            if (string.IsNullOrEmpty(workflowFullPath) || workflowJObject == null) return;
 
             var sessionData = new SessionData
             {
@@ -154,6 +154,8 @@ namespace Comfizen
 
         public SessionData? LoadSession(string workflowFullPath)
         {
+            if (string.IsNullOrEmpty(workflowFullPath)) return null;
+            
             string sessionFileName = GetSessionFileName(workflowFullPath);
             string sessionFilePath = Path.Combine(_settings.SessionsDirectory, sessionFileName);
 
@@ -192,6 +194,8 @@ namespace Comfizen
 
         public void ClearSession(string workflowFullPath)
         {
+            if (string.IsNullOrEmpty(workflowFullPath)) return;
+            
             string sessionFileName = GetSessionFileName(workflowFullPath);
             string sessionFilePath = Path.Combine(_settings.SessionsDirectory, sessionFileName);
 

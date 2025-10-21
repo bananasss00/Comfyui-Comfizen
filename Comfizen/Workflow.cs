@@ -53,7 +53,39 @@ namespace Comfizen
 
         public JToken Json() => _loadedApi;
         public JObject? JsonClone() => _loadedApi?.DeepClone() as JObject;
+        
+        // New public method to initialize a workflow object from parts.
+        public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts)
+        {
+            OriginalApi = prompt;
+            LoadedApi = prompt?.DeepClone() as JObject;
 
+            Groups.Clear();
+            if (promptTemplate != null) { foreach (var group in promptTemplate) Groups.Add(group); }
+
+            Scripts = scripts ?? new ScriptCollection();
+            
+            // Run the migration logic here as well to handle older imported formats.
+            if (LoadedApi != null)
+            {
+                foreach (var group in Groups)
+                {
+                    foreach (var field in group.Fields)
+                    {
+                        if (field.Type == FieldType.Markdown && string.IsNullOrEmpty(field.DefaultValue))
+                        {
+                            var prop = Utils.GetJsonPropertyByPath(LoadedApi, field.Path);
+                            if (prop != null && prop.Value.Type == JTokenType.String)
+                            {
+                                field.DefaultValue = prop.Value.ToString();
+                                prop.Value = "";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         public void LoadApiWorkflow(string filePath)
         {
             var json = File.ReadAllText(filePath);
