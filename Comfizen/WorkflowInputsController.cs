@@ -30,21 +30,23 @@ public class GlobalPresetsViewModel : INotifyPropertyChanged
     
     private readonly Action<string> _applyPresetAction;
     private string _selectedGlobalPreset;
+    private bool _isInternalSet = false; // Flag to prevent action trigger on internal updates
 
     public string SelectedGlobalPreset
     {
         get => _selectedGlobalPreset;
         set
         {
-            // Only trigger if a new, valid item is selected.
-            if (_selectedGlobalPreset == value || value == null) return;
+            if (_selectedGlobalPreset == value) return;
             
             _selectedGlobalPreset = value;
-            _applyPresetAction?.Invoke(value);
-            
-            // Immediately reset to null so the user can select the same preset again if needed.
-            _selectedGlobalPreset = null;
             OnPropertyChanged(nameof(SelectedGlobalPreset));
+
+            // Only trigger the action if the change was made by the user (not internally)
+            if (!_isInternalSet && value != null)
+            {
+                _applyPresetAction?.Invoke(value);
+            }
         }
     }
 
@@ -55,6 +57,17 @@ public class GlobalPresetsViewModel : INotifyPropertyChanged
     {
         _applyPresetAction = applyPresetAction;
         GlobalPresetNames.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsVisible));
+    }
+    
+    /// <summary>
+    /// Sets the selected preset without triggering the application action.
+    /// Used for syncing the UI from the model state.
+    /// </summary>
+    public void SetSelectedPresetSilently(string presetName)
+    {
+        _isInternalSet = true;
+        SelectedGlobalPreset = presetName;
+        _isInternalSet = false;
     }
 }
 
@@ -332,7 +345,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     /// Scans all presets in the workflow to find names that are shared across multiple groups.
     /// Populates the GlobalPresets ViewModel with these names.
     /// </summary>
-    private void DiscoverGlobalPresets()
+    public void DiscoverGlobalPresets()
     {
         GlobalPresets.GlobalPresetNames.Clear();
 
@@ -363,7 +376,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         if (!participatingGroups.Any())
         {
-            GlobalPresets.SelectedGlobalPreset = null;
+            GlobalPresets.SetSelectedPresetSilently(null);
             return;
         }
 
@@ -373,7 +386,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         // If the first group has no preset selected, there's no common selection.
         if (firstPresetName == null || !GlobalPresets.GlobalPresetNames.Contains(firstPresetName))
         {
-            GlobalPresets.SelectedGlobalPreset = null;
+            GlobalPresets.SetSelectedPresetSilently(null);
             return;
         }
 
@@ -382,7 +395,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             .All(g => g.SelectedPreset?.Name == firstPresetName);
 
         // If all match, update the global selection. Otherwise, clear it.
-        GlobalPresets.SelectedGlobalPreset = allMatch ? firstPresetName : null;
+        GlobalPresets.SetSelectedPresetSilently(allMatch ? firstPresetName : null);
     }
     
     /// <summary>

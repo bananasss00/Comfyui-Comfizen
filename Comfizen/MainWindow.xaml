@@ -255,7 +255,8 @@
                                                             <MultiDataTrigger>
                                                                 <MultiDataTrigger.Conditions>
                                                                     <Condition Binding="{Binding GlobalPresetNames.Count, Converter={StaticResource CountToBooleanConverter}}" Value="True"/>
-                                                                    <Condition Binding="{Binding SelectedItem, ElementName=GlobalPresetsComboBox}" Value="{x:Null}"/>
+                                                                    <!-- Use a binding to the ViewModel property instead of ElementName -->
+                                                                    <Condition Binding="{Binding SelectedGlobalPreset}" Value="{x:Null}"/>
                                                                 </MultiDataTrigger.Conditions>
                                                                 <Setter Property="Visibility" Value="Visible"/>
                                                             </MultiDataTrigger>
