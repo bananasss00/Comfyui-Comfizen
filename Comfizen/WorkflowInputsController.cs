@@ -264,8 +264,57 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
         await Task.WhenAll(comboBoxLoadTasks);
+        
+        // After loading all ViewModels, try to find a matching preset for each group.
+        foreach (var groupVm in InputGroups)
+        {
+            TryAutoSelectPreset(groupVm);
+        }
     }
     
+    /// <summary>
+    /// Checks if the current state of a group's savable fields exactly matches one of its saved presets.
+    /// If a match is found, updates the SelectedPreset property to reflect it in the UI.
+    /// Fields like Seed, Markdown, and Script Buttons are ignored in this comparison.
+    /// </summary>
+    private void TryAutoSelectPreset(WorkflowGroupViewModel groupVm)
+    {
+        if (!groupVm.Presets.Any())
+        {
+            return; // No presets to check against.
+        }
+
+        // 1. Get the current state of all "savable" fields in the group.
+        // Savable fields are those with a backing JProperty that are not of type Seed.
+        var currentSavableValues = groupVm.Fields
+            .Where(f => f.Property != null && f.Type != FieldType.Seed)
+            .ToDictionary(f => f.Path, f => f.Property.Value);
+
+        // 2. Find the first preset that exactly matches this current state.
+        var matchingPresetVm = groupVm.Presets.FirstOrDefault(presetVm =>
+        {
+            var presetValues = presetVm.Model.Values;
+
+            // 3. The number of fields must be identical for an exact match.
+            if (presetValues.Count != currentSavableValues.Count)
+            {
+                return false;
+            }
+
+            // 4. Every key/value pair in the preset must exist and be equal in the current state.
+            return presetValues.All(presetPair =>
+                currentSavableValues.TryGetValue(presetPair.Key, out var currentValue) &&
+                JToken.DeepEquals(presetPair.Value, currentValue)
+            );
+        });
+
+        if (matchingPresetVm != null)
+        {
+            // A match was found. Set it as the selected preset.
+            groupVm.SelectedPreset = matchingPresetVm;
+        }
+    }
+
     private InputFieldViewModel CreateDefaultFieldViewModel(WorkflowField field, JProperty? prop)
     {
         switch (field.Type)

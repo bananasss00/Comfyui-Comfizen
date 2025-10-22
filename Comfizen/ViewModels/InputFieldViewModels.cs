@@ -210,6 +210,13 @@ namespace Comfizen
             var newPreset = new GroupPreset { Name = name };
             foreach (var field in Fields)
             {
+                // Ignore virtual fields (Markdown, Buttons) and Seed fields,
+                // as they should not be part of a preset.
+                if (field.Property == null || field.Type == FieldType.Seed)
+                {
+                    continue;
+                }
+                
                 // We save the value from the main JObject to ensure it's the most current one.
                 var prop = _workflow.GetPropertyByPath(field.Path);
                 if (prop != null)
