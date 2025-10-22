@@ -52,7 +52,7 @@ namespace Comfizen
                 // If the previously selected tab exists, is loaded, AND IS NOT VIRTUAL, save its session.
                 if (_selectedTab != null && _selectedTab.Workflow.IsLoaded && !_selectedTab.IsVirtual)
                 {
-                    _sessionManager.SaveSession(_selectedTab.Workflow.LoadedApi, _selectedTab.Workflow.Groups, _selectedTab.FilePath);
+                    _sessionManager.SaveSession(_selectedTab.Workflow, _selectedTab.FilePath);
                 }
 
                 _selectedTab = value;
@@ -110,8 +110,12 @@ namespace Comfizen
         public ICommand InterruptCommand { get; }
         public ICommand PasteImageCommand { get; }
         public ICommand CloseTabCommand { get; }
-        
+        public ICommand BlockNodeCommand { get; }
+        public ICommand ClearBlockedNodesCommand { get; }
         public ICommand RefreshModelsCommand { get; }
+        
+        
+        
         public int QueueSize { get; set; } = 1;
         public int MaxQueueSize { get; set; }
 
@@ -220,6 +224,36 @@ namespace Comfizen
             ExportCurrentStateCommand = new RelayCommand(ExportCurrentState, o => SelectedTab?.Workflow.IsLoaded ?? false);
             // Disable delete for virtual tabs (they are just closed, not deleted from disk).
             DeleteWorkflowCommand = new RelayCommand(DeleteSelectedWorkflow, _ => SelectedTab != null && !SelectedTab.IsVirtual);
+            
+            BlockNodeCommand = new RelayCommand(p =>
+            {
+                if (p is not ImageOutput imageOutput || SelectedTab == null) return;
+                var nodeId = imageOutput.NodeId;
+                if (string.IsNullOrEmpty(nodeId)) return;
+
+                SelectedTab.Workflow.BlockedNodeIds.Add(nodeId);
+
+                // Remove existing items from the gallery from this node
+                var itemsToRemove = ImageProcessing.ImageOutputs.Where(item => item.NodeId == nodeId).ToList();
+                foreach (var item in itemsToRemove)
+                {
+                    ImageProcessing.ImageOutputs.Remove(item);
+                }
+            }, p => p is ImageOutput);
+            
+            ClearBlockedNodesCommand = new RelayCommand(_ =>
+            {
+                if (SelectedTab == null) return;
+                if (MessageBox.Show(LocalizationService.Instance["MainVM_ClearBlockedNodesConfirmMessage"],
+                        LocalizationService.Instance["MainVM_ClearBlockedNodesConfirmTitle"],
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                {
+                    SelectedTab.Workflow.BlockedNodeIds.Clear();
+                    MessageBox.Show(LocalizationService.Instance["MainVM_ClearBlockedNodesSuccessMessage"],
+                        LocalizationService.Instance["MainVM_ClearBlockedNodesSuccessTitle"],
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }, _ => SelectedTab != null && SelectedTab.Workflow.BlockedNodeIds.Any());
             
             OpenWildcardBrowserCommand = new RelayCommand(param =>
             {
@@ -388,7 +422,8 @@ namespace Comfizen
             // Only save session if the tab is NOT virtual (i.e., has a file path).
             if (!tabToClose.IsVirtual && tabToClose.Workflow.IsLoaded)
             {
-                _sessionManager.SaveSession(tabToClose.Workflow.LoadedApi, tabToClose.Workflow.Groups, tabToClose.FilePath);
+                // _sessionManager.SaveSession(tabToClose.Workflow.LoadedApi, tabToClose.Workflow.Groups, tabToClose.FilePath);
+                _sessionManager.SaveSession(tabToClose.Workflow, tabToClose.FilePath);
             }
             
             OpenTabs.Remove(tabToClose);
@@ -399,7 +434,7 @@ namespace Comfizen
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
 
             var workflowToReload = SelectedTab.FilePath;
-            _sessionManager.SaveSession(SelectedTab.Workflow.LoadedApi, SelectedTab.Workflow.Groups, workflowToReload);
+            _sessionManager.SaveSession(SelectedTab.Workflow, workflowToReload);
             
             ModelService.ResetConnectionErrorFlag();
             ModelService.ClearCache();
@@ -431,7 +466,7 @@ namespace Comfizen
                 var relativePathWithoutExtension = Path.ChangeExtension(relativePath, null);
                 
                 SelectedTab.Workflow.SaveWorkflowWithCurrentState(relativePathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/'));
-                _sessionManager.SaveSession(SelectedTab.Workflow.LoadedApi, SelectedTab.Workflow.Groups, SelectedTab.FilePath);
+                _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath);
 
                 MessageBox.Show(LocalizationService.Instance["MainVM_ValuesSavedMessage"],
                     LocalizationService.Instance["MainVM_ValuesSavedTitle"],
@@ -686,6 +721,11 @@ namespace Comfizen
 
                                 Application.Current.Dispatcher.Invoke(() =>
                                 {
+                                    if (task.OriginTab.Workflow.BlockedNodeIds.Contains(io.NodeId))
+                                    {
+                                        return; // Skip adding this image
+                                    }
+                                    
                                     if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.FilePath == io.FilePath))
                                     {
                                         this.ImageProcessing.ImageOutputs.Insert(0, io);
@@ -877,7 +917,7 @@ namespace Comfizen
                 // Also add the !tab.IsVirtual check here for robustness.
                 if (!tab.IsVirtual && tab.Workflow.IsLoaded && tab.Workflow.LoadedApi != null)
                 {
-                    _sessionManager.SaveSession(tab.Workflow.LoadedApi, tab.Workflow.Groups, tab.FilePath);
+                    _sessionManager.SaveSession(tab.Workflow, tab.FilePath);
                 }
             }
             

@@ -105,6 +105,10 @@ namespace Comfizen
                     {
                         Workflow.Groups = sessionData.GroupsState;
                     }
+                    if (sessionData.BlockedNodeIds != null)
+                    {
+                        Workflow.BlockedNodeIds = sessionData.BlockedNodeIds;
+                    }
                 }
 
                 // --- НАЧАЛО ИЗМЕНЕНИЯ: Добавлена миграция после загрузки сессии ---

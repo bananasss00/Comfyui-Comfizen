@@ -46,6 +46,8 @@ namespace Comfizen
         public ObservableCollection<WorkflowGroup> Groups { get; set; } = new();
         
         public ScriptCollection Scripts { get; set; } = new ScriptCollection();
+        [JsonIgnore]
+        public HashSet<string> BlockedNodeIds { get; set; } = new HashSet<string>();
         
         public event PropertyChangedEventHandler? PropertyChanged;
 

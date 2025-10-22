@@ -81,7 +81,7 @@ namespace Comfizen
                 }
                 
                 ConsoleLogServiceInstance?.LogError(fullErrorMessage);
-                SystemSounds.Exclamation.Play();
+                // SystemSounds.Exclamation.Play();
                 OnErrorLogged?.Invoke();
             }
             catch (Exception ex)

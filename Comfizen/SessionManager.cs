@@ -15,6 +15,7 @@ namespace Comfizen
     {
         public JObject ApiState { get; set; }
         public ObservableCollection<WorkflowGroup> GroupsState { get; set; }
+        public HashSet<string> BlockedNodeIds { get; set; }
     }
 
     public class SessionManager
@@ -142,7 +143,25 @@ namespace Comfizen
             var sessionData = new SessionData
             {
                 ApiState = workflowJObject,
-                GroupsState = groups
+                GroupsState = groups,
+            };
+
+            string sessionFileName = GetSessionFileName(workflowFullPath);
+            string sessionFilePath = Path.Combine(_settings.SessionsDirectory, sessionFileName);
+
+            var json = JsonConvert.SerializeObject(sessionData, Formatting.Indented);
+            File.WriteAllText(sessionFilePath, json);
+        }
+        
+        public void SaveSession(Workflow workflow, string workflowFullPath)
+        {
+            if (string.IsNullOrEmpty(workflowFullPath) || workflow.LoadedApi == null) return;
+
+            var sessionData = new SessionData
+            {
+                ApiState = workflow.LoadedApi,
+                GroupsState = workflow.Groups,
+                BlockedNodeIds = workflow.BlockedNodeIds
             };
 
             string sessionFileName = GetSessionFileName(workflowFullPath);

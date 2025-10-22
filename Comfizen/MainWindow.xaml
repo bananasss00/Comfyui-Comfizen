@@ -19,7 +19,64 @@
         Drop="Window_Drop">
     <Window.DataContext>
         <local:MainViewModel/>
-    </Window.DataContext>
+    </Window.DataContext><Window.Resources>
+        <ControlTemplate x:Key="CustomContextMenuTemplate" TargetType="ContextMenu">
+        <Border x:Name="Border" 
+                Background="{StaticResource SecondaryBackground}"
+                BorderBrush="{StaticResource TertiaryBackground}"
+                BorderThickness="1">
+            <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Border" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                <Setter TargetName="Border" Property="BorderBrush" Value="#454545"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!--
+      ОБНОВЛЕННЫЙ стиль для ContextMenu.
+      Теперь он использует наш новый ControlTemplate.
+    -->
+    <Style x:Key="AppContextMenuStyle" TargetType="ContextMenu">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="Template" Value="{StaticResource CustomContextMenuTemplate}"/>
+    </Style>
+
+    <!--
+      ОБНОВЛЕННЫЙ стиль для MenuItem, который теперь будет работать корректно
+      внутри нашего нового ContextMenu.
+    -->
+    <Style TargetType="MenuItem">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="Border" 
+                            Background="Transparent"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter ContentSource="Header" 
+                                          RecognizesAccessKey="True"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="Gray"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+          
+    </Window.Resources>
 
     <Grid>
             
@@ -50,6 +107,7 @@
                     <Button Content="&#xE710;" Style="{StaticResource IconButton}" Command="{Binding OpenConstructorCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_NewWorkflow}"/>
                     <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Command="{Binding DeleteWorkflowCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_DeleteWorkflow}"/>
                     <Button Content="&#xE7A7;" Style="{StaticResource IconButton}" Command="{Binding ClearSessionCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ResetSession}"/>
+                    <Button Content="&#xE738;" Style="{StaticResource IconButton}" Command="{Binding ClearBlockedNodesCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ClearBlockedNodes}"/>
                     <Button Content="&#xE74E;" Style="{StaticResource IconButton}" Command="{Binding SaveChangesToWorkflowCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_SaveChanges}"/>
                     <Button Content="&#xE78C;" Style="{StaticResource IconButton}" Command="{Binding ExportCurrentStateCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ExportState}"/>
                     <Button Content="&#xE72C;" Style="{StaticResource IconButton}" Command="{Binding RefreshModelsCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_RefreshModels}"/>
@@ -375,6 +433,24 @@
                                         <EventSetter Event="MouseLeftButtonUp" Handler="ListViewItem_MouseLeftButtonUp"/>
                                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown"/>
                                         <EventSetter Event="MouseMove" Handler="ListViewItem_MouseMove"/>
+                                        
+                                        <Setter Property="Tag" Value="{Binding DataContext, ElementName=lvOutputs}"/>
+                                        
+                                            
+                                            
+                                        <Setter Property="ContextMenu">
+                                            <Setter.Value>
+                                                <ContextMenu Style="{StaticResource AppContextMenuStyle}">
+                                                    <MenuItem Header="{local:Translate ContextMenu_BlockNode}"
+                                                              Command="{Binding PlacementTarget.Tag.BlockNodeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              CommandParameter="{Binding}"/>
+                                                </ContextMenu>
+                                            </Setter.Value>
+                                        </Setter>
+
+
+
+
                                     </Style>
                                 </ListView.ItemContainerStyle>
                             </ListView>
