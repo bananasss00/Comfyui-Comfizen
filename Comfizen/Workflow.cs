@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using System;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
 using System.Collections.Generic;
@@ -9,6 +10,23 @@ using System.Linq;
 
 namespace Comfizen
 {
+    // Add a new class to represent a single preset.
+    // This class will be serialized into the workflow file.
+    public class GroupPreset
+    {
+        /// <summary>
+        /// The user-visible name of the preset.
+        /// </summary>
+        public string Name { get; set; }
+
+        /// <summary>
+        /// A dictionary storing the state of the widgets.
+        /// Key: The unique 'Path' of the WorkflowField.
+        /// Value: The JToken representing the value of the field.
+        /// </summary>
+        public Dictionary<string, JToken> Values { get; set; } = new Dictionary<string, JToken>();
+    }
+    
     public class ScriptCollection
     {
         public Dictionary<string, string> Hooks { get; set; } = new Dictionary<string, string>();
@@ -48,6 +66,14 @@ namespace Comfizen
         public ScriptCollection Scripts { get; set; } = new ScriptCollection();
         [JsonIgnore]
         public HashSet<string> BlockedNodeIds { get; set; } = new HashSet<string>();
+        
+        /// <summary>
+        /// Stores presets for widget groups.
+        /// Key: The unique ID of the WorkflowGroup.
+        /// Value: A list of named presets for that group.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public Dictionary<Guid, List<GroupPreset>> Presets { get; set; } = new Dictionary<Guid, List<GroupPreset>>();
         
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -131,7 +157,8 @@ namespace Comfizen
             {
                 prompt = OriginalApi,
                 promptTemplate = Groups,
-                scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null
+                scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null,
+                presets = Presets.Any() ? Presets : null,
             };
 
             var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
@@ -146,7 +173,8 @@ namespace Comfizen
             {
                 prompt = LoadedApi,
                 promptTemplate = Groups,
-                scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null
+                scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null,
+                presets = Presets.Any() ? Presets : null,
             };
 
             var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
@@ -192,7 +220,8 @@ namespace Comfizen
             var data = JsonConvert.DeserializeAnonymousType(jsonString, new { 
                 prompt = default(JObject), 
                 promptTemplate = default(ObservableCollection<WorkflowGroup>),
-                scripts = default(ScriptCollection) 
+                scripts = default(ScriptCollection),
+                presets = default(Dictionary<Guid, List<GroupPreset>>),
             });
 
             OriginalApi = data.prompt;
@@ -202,6 +231,7 @@ namespace Comfizen
             if (data.promptTemplate != null) { foreach (var group in data.promptTemplate) Groups.Add(group); }
 
             Scripts = data.scripts ?? new ScriptCollection();
+            Presets = data.presets ?? new Dictionary<Guid, List<GroupPreset>>();
 
             // --- НАЧАЛО МИГРАЦИИ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ---
             if (LoadedApi != null)

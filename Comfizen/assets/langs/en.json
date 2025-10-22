@@ -212,5 +212,12 @@
   "UIConstructor_AddMarkdownField": "Add Markdown Field",
   "UIConstructor_AddScriptButtonField": "Add Script Button",
   "UIConstructor_Hook_on_before_prompt_queue": "Before prompt is queued",
-  "UIConstructor_Hook_on_batch_finished": "After batch is finished"
+  "UIConstructor_Hook_on_batch_finished": "After batch is finished",
+  "Presets_ManageTooltip": "Manage Presets",
+  "Presets_LoadPlaceholder": "Load Preset...",
+  "Presets_SaveCurrentState": "Save Current State",
+  "Presets_SaveButton": "Save",
+  "Presets_ManageHeader": "Manage Presets",
+  "Presets_LoadTooltip": "Load Preset",
+  "Presets_DeleteTooltip": "Delete Preset"
 }

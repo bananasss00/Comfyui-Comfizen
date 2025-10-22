@@ -18,6 +18,8 @@
         <local:FileNameTrimmerConverter x:Key="FileNameTrimmerConverter"/>
         <local:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
         <local:MultiSelectCountToVisibilityConverter x:Key="MultiSelectCountToVisibilityConverter"/>
+        <local:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
+        <local:CountToBooleanConverter x:Key="CountToBooleanConverter"/>
         <local:BoolToGridLengthConverter x:Key="BoolToGridLengthConverter"/>
         <local:CultureInfoToNameConverter x:Key="CultureInfoToNameConverter"/>
         <local:MultiBindingStringFormatConverter x:Key="MultiBindingStringFormatConverter"/>

@@ -1,4 +1,5 @@
-﻿using PropertyChanged;
+﻿using System;
+using PropertyChanged;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Newtonsoft.Json;
@@ -8,6 +9,11 @@ namespace Comfizen
     [AddINotifyPropertyChangedInterface]
     public class WorkflowGroup : INotifyPropertyChanged
     {
+        /// <summary>
+        /// A unique, persistent identifier for this group, used to associate presets.
+        /// </summary>
+        public Guid Id { get; set; } = Guid.NewGuid();
+        
         public string Name { get; set; }
         public ObservableCollection<WorkflowField> Fields { get; set; } = new();
 

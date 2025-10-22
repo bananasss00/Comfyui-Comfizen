@@ -58,6 +58,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public ObservableCollection<WorkflowGroupViewModel> InputGroups { get; set; } = new();
 
     public SeedControl SelectedSeedControl { get; set; }
+    
+    /// <summary>
+    /// Bubbles up the PresetsModified event from any of the child WorkflowGroupViewModels.
+    /// </summary>
+    public event Action PresetsModifiedInGroup;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     
@@ -172,7 +177,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         foreach (var group in _workflow.Groups)
         {
-            var groupVm = new WorkflowGroupViewModel(group);
+            var groupVm = new WorkflowGroupViewModel(group, _workflow);
+            // Subscribe to the event from the group ViewModel.
+            // When it fires, bubble it up through this controller's own event.
+            groupVm.PresetsModified += () => PresetsModifiedInGroup?.Invoke();
             var processedFields = new HashSet<WorkflowField>(); // Отслеживаем уже обработанные поля
 
             for (int i = 0; i < group.Fields.Count; i++)

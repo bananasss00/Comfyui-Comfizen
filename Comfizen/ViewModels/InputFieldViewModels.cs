@@ -11,6 +11,18 @@ using PropertyChanged;
 
 namespace Comfizen
 {
+    [AddINotifyPropertyChangedInterface]
+    public class GroupPresetViewModel
+    {
+        public GroupPreset Model { get; }
+        public string Name => Model.Name;
+
+        public GroupPresetViewModel(GroupPreset model)
+        {
+            Model = model;
+        }
+    }
+    
     public class InpaintFieldViewModel : InputFieldViewModel
     {
         public InpaintEditor Editor { get; }
@@ -65,6 +77,7 @@ namespace Comfizen
     public class WorkflowGroupViewModel : INotifyPropertyChanged
     {
         private readonly WorkflowGroup _model;
+        private readonly Workflow _workflow; 
         public string Name { get; set; }
         public bool IsExpanded
         {
@@ -89,18 +102,165 @@ namespace Comfizen
         public InpaintEditor InpaintEditorControl { get; set; }
         public bool HasInpaintEditor => InpaintEditorControl != null;
         
+        public Guid Id => _model.Id;
+        public ObservableCollection<GroupPresetViewModel> Presets { get; } = new();
+
+        private GroupPresetViewModel _selectedPreset;
+        public GroupPresetViewModel SelectedPreset
+        {
+            get => _selectedPreset;
+            set
+            {
+                _selectedPreset = value;
+                // When a preset is selected from the dropdown, apply it.
+                if (value != null)
+                {
+                    ApplyPreset(value);
+                }
+                OnPropertyChanged(nameof(SelectedPreset));
+            }
+        }
+
+        public ICommand SavePresetCommand { get; }
+        public ICommand DeletePresetCommand { get; }
+        public ICommand OpenPresetManagerCommand { get; }
+        public bool IsPresetManagerOpen { get; set; }
+        public ICommand ApplyPresetCommand { get; }
+        
+        /// <summary>
+        /// This event is raised whenever presets are added or removed, signaling a need to save the workflow.
+        /// </summary>
+        public event Action PresetsModified;
+        
+        
         public event PropertyChangedEventHandler PropertyChanged;
-        public WorkflowGroupViewModel(WorkflowGroup model)
+        
+        public WorkflowGroupViewModel(WorkflowGroup model, Workflow workflow)
         {
             _model = model;
+            _workflow = workflow; // Store the reference
             Name = model.Name;
             HighlightColor = model.HighlightColor;
+
+            LoadPresets();
+
+            OpenPresetManagerCommand = new RelayCommand(_ => IsPresetManagerOpen = true);
+        
+            SavePresetCommand = new RelayCommand(param =>
+            {
+                if (param is string presetName && !string.IsNullOrWhiteSpace(presetName))
+                {
+                    SaveCurrentStateAsPreset(presetName);
+                }
+            });
+
+            DeletePresetCommand = new RelayCommand(param =>
+            {
+                if (param is GroupPresetViewModel presetVM)
+                {
+                    DeletePreset(presetVM);
+                }
+            });
+            
+            ApplyPresetCommand = new RelayCommand(param =>
+            {
+                if (param is GroupPresetViewModel presetVM)
+                {
+                    ApplyPreset(presetVM);
+                    // Close the manager after applying a preset from it
+                    IsPresetManagerOpen = false; 
+                }
+            });
         }
 
         protected void OnPropertyChanged(string name)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
+        
+        // --- START OF CHANGES: New methods for preset logic ---
+        private void LoadPresets()
+        {
+            Presets.Clear();
+            if (_workflow.Presets.TryGetValue(Id, out var presets))
+            {
+                foreach (var preset in presets.OrderBy(p => p.Name))
+                {
+                    Presets.Add(new GroupPresetViewModel(preset));
+                }
+            }
+        }
+
+        private void ApplyPreset(GroupPresetViewModel presetVM)
+        {
+            foreach (var valuePair in presetVM.Model.Values)
+            {
+                var fieldPath = valuePair.Key;
+                var presetValue = valuePair.Value;
+
+                var prop = _workflow.GetPropertyByPath(fieldPath);
+                if (prop != null)
+                {
+                    // Update the value in the main JObject
+                    prop.Value = presetValue.DeepClone();
+
+                    // Find the corresponding ViewModel and notify the UI of the change
+                    var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
+                    
+                    // This is a simplified notification. In a real scenario, each ViewModel
+                    // might need a specific method to refresh its value from the JProperty.
+                    // For now, we rely on the fact that changing the JProperty is often enough.
+                    // We'll add a refresh method for robustness.
+                    (fieldVM as dynamic)?.RefreshValue();
+                }
+            }
+
+            // Deselect the item in the ComboBox to allow re-selection of the same preset
+            _selectedPreset = null;
+            OnPropertyChanged(nameof(SelectedPreset));
+        }
+
+        private void SaveCurrentStateAsPreset(string name)
+        {
+            var newPreset = new GroupPreset { Name = name };
+            foreach (var field in Fields)
+            {
+                // We save the value from the main JObject to ensure it's the most current one.
+                var prop = _workflow.GetPropertyByPath(field.Path);
+                if (prop != null)
+                {
+                    newPreset.Values[field.Path] = prop.Value.DeepClone();
+                }
+            }
+
+            if (!_workflow.Presets.ContainsKey(Id))
+            {
+                _workflow.Presets[Id] = new List<GroupPreset>();
+            }
+            
+            // Remove existing preset with the same name before adding
+            _workflow.Presets[Id].RemoveAll(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            _workflow.Presets[Id].Add(newPreset);
+            
+            // Refresh the UI list
+            LoadPresets();
+            IsPresetManagerOpen = false;
+            
+            // Raise the event to notify that a save is needed.
+            PresetsModified?.Invoke();
+        }
+
+        private void DeletePreset(GroupPresetViewModel presetVM)
+        {
+            if (_workflow.Presets.TryGetValue(Id, out var presets))
+            {
+                presets.Remove(presetVM.Model);
+                Presets.Remove(presetVM);
+                PresetsModified?.Invoke();
+                
+            }
+        }
+        // --- END OF CHANGES ---
     }
 
     // --- Базовый класс для всех полей ввода ---
@@ -128,6 +288,16 @@ namespace Comfizen
         protected void OnPropertyChanged(string name)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+        
+        /// <summary>
+        /// Forces the ViewModel to re-read its value from the underlying JProperty and notify the UI.
+        /// </summary>
+        public virtual void RefreshValue()
+        {
+            // Default implementation does nothing, needs to be overridden in derived classes.
+            // For example, in TextFieldViewModel:
+            // OnPropertyChanged(nameof(Value));
         }
     }
 
@@ -222,6 +392,11 @@ namespace Comfizen
         {
             Type = field.Type;
         }
+        
+        public override void RefreshValue()
+        {
+            OnPropertyChanged(nameof(Value));
+        }
     }
 
     public class MarkdownFieldViewModel : InputFieldViewModel
@@ -280,6 +455,11 @@ namespace Comfizen
         {
             Type = FieldType.Seed;
             _field = field;
+        }
+        
+        public override void RefreshValue()
+        {
+            OnPropertyChanged(nameof(Value));
         }
     }
 
@@ -350,6 +530,12 @@ namespace Comfizen
             StepValue = field.StepValue ?? (field.Type == FieldType.SliderInt ? 1 : 0.01);
             StringFormat = field.Type == FieldType.SliderInt ? "F0" : "F" + (field.Precision ?? 2);
         }
+        
+        public override void RefreshValue()
+        {
+            OnPropertyChanged(nameof(Value));
+            OnPropertyChanged(nameof(FormattedValue));
+        }
     }
 
     public class ComboBoxFieldViewModel : InputFieldViewModel
@@ -413,6 +599,11 @@ namespace Comfizen
             }
         }
         
+        public override void RefreshValue()
+        {
+            OnPropertyChanged(nameof(Value));
+        }
+        
         private readonly WorkflowField _field;
     }
     
@@ -433,6 +624,11 @@ namespace Comfizen
         public CheckBoxFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
         {
             Type = FieldType.Any; 
+        }
+        
+        public override void RefreshValue()
+        {
+            OnPropertyChanged(nameof(IsChecked));
         }
     }
     

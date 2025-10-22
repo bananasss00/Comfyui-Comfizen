@@ -108,6 +108,40 @@ namespace Comfizen
             {
                 SelectedSeedControl = _settings.LastSeedControlState
             };
+            
+            WorkflowInputsController.PresetsModifiedInGroup += OnPresetsModified;
+        }
+        
+        /// <summary>
+        /// Handles the event when presets are changed and triggers an auto-save of the workflow file.
+        /// </summary>
+        private void OnPresetsModified()
+        {
+            // Do not attempt to save if this is a virtual tab (e.g., loaded from an image)
+            // as it doesn't have a file path. The presets will be saved when the user
+            // eventually saves this virtual workflow to a file.
+            if (IsVirtual)
+            {
+                return;
+            }
+
+            try
+            {
+                var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, FilePath);
+                var relativePathWithoutExtension = Path.ChangeExtension(relativePath, null);
+            
+                // This method saves the *current* state of the workflow, including the new presets.
+                Workflow.SaveWorkflow(relativePathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/'));
+            
+                // Also, update the session file to keep everything in sync.
+                // _sessionManager.SaveSession(Workflow, FilePath);
+
+                Logger.Log($"Presets auto-saved to workflow file: '{Header}'");
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, $"Failed to auto-save workflow after preset change for '{Header}'.");
+            }
         }
         
         private async void InitializeAsync()

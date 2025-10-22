@@ -212,5 +212,12 @@
   "UIConstructor_AddMarkdownField": "Добавить поле Markdown",
   "UIConstructor_AddScriptButtonField": "Добавить кнопку-скрипт",
   "UIConstructor_Hook_on_before_prompt_queue": "Перед отправкой промпта в очередь",
-  "UIConstructor_Hook_on_batch_finished": "После завершения всей пачки"
+  "UIConstructor_Hook_on_batch_finished": "После завершения всей пачки",
+  "Presets_ManageTooltip": "Управление пресетами",
+  "Presets_LoadPlaceholder": "Загрузить пресет...",
+  "Presets_SaveCurrentState": "Сохранить текущее состояние",
+  "Presets_SaveButton": "Сохранить",
+  "Presets_ManageHeader": "Управление пресетами",
+  "Presets_LoadTooltip": "Загрузить пресет",
+  "Presets_DeleteTooltip": "Удалить пресет"
 }
