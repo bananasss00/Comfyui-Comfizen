@@ -32,6 +32,7 @@ namespace Comfizen
             if (DataContext is MainViewModel vm && vm.ConsoleLogMessages is INotifyCollectionChanged collection)
             {
                 collection.CollectionChanged += ConsoleLogMessages_CollectionChanged;
+                vm.GroupNavigationRequested += OnGroupNavigationRequested;
             }
             
             PositionSlider.AddHandler(PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(PositionSlider_PreviewMouseLeftButtonDown), true);
@@ -392,7 +393,12 @@ namespace Comfizen
         {
             if (DataContext is not MainViewModel viewModel) return;
             
-            if (e.Key == Key.NumPad6) viewModel.FullScreen.MoveNextCommand.Execute(null);
+            if (e.Key == Key.G && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                viewModel.OpenGroupNavigationCommand.Execute(null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.NumPad6) viewModel.FullScreen.MoveNextCommand.Execute(null);
             else if (e.Key == Key.NumPad4) viewModel.FullScreen.MovePreviousCommand.Execute(null);
             else if (e.Key == Key.NumPad5 && viewModel.FullScreen.IsFullScreenOpen) await System.Threading.Tasks.Task.Run(() => viewModel.FullScreen.SaveCurrentImageCommand.Execute(null));
             else if (e.Key == Key.Escape)
@@ -408,6 +414,58 @@ namespace Comfizen
             }
 
             base.OnKeyDown(e);
+        }
+        
+        private void OnGroupNavigationRequested(WorkflowGroupViewModel groupVm)
+        {
+            // The ItemsControl is what generates the UI for each group
+            var container = GroupsItemsControl.ItemContainerGenerator.ContainerFromItem(groupVm) as FrameworkElement;
+            if (container == null) return;
+            
+            // Find the Expander within the generated container
+            var expander = FindVisualChild<Expander>(container);
+            if (expander != null)
+            {
+                // Ensure the group is visible
+                expander.IsExpanded = true;
+                
+                // Scroll it into view
+                expander.BringIntoView();
+            }
+        }
+        
+        private void GroupNavigationListBoxItem_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is ListBoxItem item && 
+                item.DataContext is WorkflowGroupViewModel groupVm &&
+                this.DataContext is MainViewModel viewModel)
+            {
+                if (viewModel.GoToGroupCommand.CanExecute(groupVm))
+                {
+                    viewModel.GoToGroupCommand.Execute(groupVm);
+                }
+            }
+        }
+        
+        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                {
+                    return typedChild;
+                }
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                {
+                    return childOfChild;
+                }
+            }
+            return null;
         }
         
         private void FilterableComboBox_ItemSelected(object sender, string selectedItem)

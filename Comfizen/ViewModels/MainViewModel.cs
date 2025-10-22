@@ -112,6 +112,12 @@ namespace Comfizen
         public ICommand CloseTabCommand { get; }
         public ICommand BlockNodeCommand { get; }
         public ICommand ClearBlockedNodesCommand { get; }
+        public ICommand OpenGroupNavigationCommand { get; }
+        public ICommand GoToGroupCommand { get; }
+
+        public bool IsGroupNavigationPopupOpen { get; set; }
+        
+        public event Action<WorkflowGroupViewModel> GroupNavigationRequested;
         public ICommand RefreshModelsCommand { get; }
         
         
@@ -254,6 +260,23 @@ namespace Comfizen
                         MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }, _ => SelectedTab != null && SelectedTab.Workflow.BlockedNodeIds.Any());
+            
+            OpenGroupNavigationCommand = new RelayCommand(_ =>
+            {
+                if (SelectedTab?.WorkflowInputsController.InputGroups.Any() == true)
+                {
+                    IsGroupNavigationPopupOpen = true;
+                }
+            }, _ => SelectedTab != null);
+
+            GoToGroupCommand = new RelayCommand(p =>
+            {
+                if (p is WorkflowGroupViewModel groupVm)
+                {
+                    GroupNavigationRequested?.Invoke(groupVm);
+                    IsGroupNavigationPopupOpen = false;
+                }
+            });
             
             OpenWildcardBrowserCommand = new RelayCommand(param =>
             {

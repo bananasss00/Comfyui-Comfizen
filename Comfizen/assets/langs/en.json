@@ -184,6 +184,7 @@
   "ModelService_ErrorFetchModelTypes": "Failed to fetch model types: {0}",
   "TextField_Base64Placeholder": "[Base64 Image Data: {0} KB]",
   "GlobalSettings_Header": "Global Settings",
+  "GroupNavigation_Title": "Go to Group",
   "FilterableComboBox_ClearSearchTooltip": "Clear search",
   "Color_Red": "Red",
   "Color_Terracotta": "Terracotta",

@@ -184,6 +184,7 @@
   "ModelService_ErrorFetchModelTypes": "Не удалось получить типы моделей: {0}",
   "TextField_Base64Placeholder": "[Данные изображения Base64: {0} КБ]",
   "GlobalSettings_Header": "Глобальные настройки",
+  "GroupNavigation_Title": "Перейти к группе",
   "FilterableComboBox_ClearSearchTooltip": "Очистить поиск",
   "Color_Red": "Красный",
   "Color_Terracotta": "Терракотовый",
