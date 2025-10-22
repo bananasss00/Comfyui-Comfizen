@@ -21,6 +21,30 @@ namespace Comfizen
 
         public string Header { get; set; }
         public string? FilePath { get; }
+        
+        public string RelativePathTooltip
+        {
+            get
+            {
+                if (IsVirtual)
+                {
+                    // For virtual tabs (from imported images), just show the header.
+                    return Header;
+                }
+                try
+                {
+                    var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, FilePath);
+                    var pathWithoutExtension = Path.ChangeExtension(relativePath, null);
+                    // Ensure consistent path separators
+                    return pathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/');
+                }
+                catch
+                {
+                    // Fallback in case of any path errors
+                    return Header;
+                }
+            }
+        }
 
         public Workflow Workflow { get; private set; }
         

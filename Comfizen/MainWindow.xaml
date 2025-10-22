@@ -180,7 +180,7 @@
                 </TabControl.ItemContainerStyle>
                 <TabControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" ToolTip="{Binding RelativePathTooltip}">
                             <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
                             <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
                                     Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=TabControl}}"
