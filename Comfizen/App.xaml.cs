@@ -31,10 +31,29 @@ namespace Comfizen
         /// <returns>The found parent or null if not found.</returns>
         public static T TryFindParent2<T>(this DependencyObject child) where T : DependencyObject
         {
-            DependencyObject parentObject = VisualTreeHelper.GetParent(child);
+            DependencyObject parentObject = GetParent(child); // Use the new helper method
             if (parentObject == null) return null;
             T parent = parentObject as T;
             return parent ?? TryFindParent2<T>(parentObject);
+        }
+
+        // Add this new helper method inside the VisualTreeHelpers class
+        private static DependencyObject GetParent(DependencyObject child)
+        {
+            if (child == null) return null;
+
+            // ContentElement (like elements in FlowDocument) uses LogicalTreeHelper
+            if (child is ContentElement contentElement)
+            {
+                DependencyObject parent = LogicalTreeHelper.GetParent(contentElement);
+                if (parent != null) return parent;
+
+                FrameworkContentElement fce = contentElement as FrameworkContentElement;
+                return fce?.Parent;
+            }
+
+            // For Visual elements, use VisualTreeHelper
+            return VisualTreeHelper.GetParent(child);
         }
     }
     
@@ -551,10 +570,27 @@ namespace Comfizen
         /// <returns>The found parent or null if not found.</returns>
         public static T TryFindParent<T>(this DependencyObject child) where T : DependencyObject
         {
-            DependencyObject parentObject = VisualTreeHelper.GetParent(child);
+            DependencyObject parentObject = GetParent(child); // Use the new helper method
             if (parentObject == null) return null;
             T parent = parentObject as T;
             return parent ?? TryFindParent<T>(parentObject);
+        }
+
+        // Add this new helper method inside the Extensions class
+        private static DependencyObject GetParent(DependencyObject child)
+        {
+            if (child == null) return null;
+
+            if (child is ContentElement contentElement)
+            {
+                DependencyObject parent = LogicalTreeHelper.GetParent(contentElement);
+                if (parent != null) return parent;
+
+                FrameworkContentElement fce = contentElement as FrameworkContentElement;
+                return fce?.Parent;
+            }
+
+            return VisualTreeHelper.GetParent(child);
         }
     }
 }

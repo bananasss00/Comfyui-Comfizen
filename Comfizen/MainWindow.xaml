@@ -202,7 +202,8 @@
                 <!-- Column 0: Workflow Controls -->
                 <Border Grid.Column="0" Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,0,5" Margin="5,0,0,5">
                     <ScrollViewer x:Name="ControlsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                  Visibility="{Binding SelectedTab, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}">
+                                  Visibility="{Binding SelectedTab, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"
+                                  PreviewMouseWheel="ControlsScrollViewer_PreviewMouseWheel">
                         <StackPanel>
                             <StackPanel.Resources>
                                 <DataTemplate DataType="{x:Type local:GlobalSettingsViewModel}">

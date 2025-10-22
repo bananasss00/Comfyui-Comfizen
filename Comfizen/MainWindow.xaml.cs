@@ -447,6 +447,79 @@ namespace Comfizen
             }
         }
         
+        /// <summary>
+        /// Handles smart scrolling for the main controls area.
+        /// It allows the parent ScrollViewer to scroll when a child control (like a TextBox or InpaintEditor)
+        /// has reached its own scroll limit.
+        /// </summary>
+        private void ControlsScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (e.Handled)
+            {
+                return;
+            }
+
+            var mainScroller = sender as ScrollViewer;
+            if (mainScroller == null) return;
+
+            var sourceElement = e.OriginalSource as DependencyObject;
+            ScrollViewer innerScroller = null;
+
+            // --- UNIFIED SCROLLER DETECTION LOGIC ---
+
+            // First, check for the special case: MarkdownDisplay
+            var markdownDisplay = sourceElement.TryFindParent<MarkdownDisplay>();
+            if (markdownDisplay != null)
+            {
+                // Find the actual ScrollViewer INSIDE the FlowDocumentScrollViewer's template
+                innerScroller = FindVisualChild<ScrollViewer>(markdownDisplay);
+            }
+            else
+            {
+                // For all other controls (like InpaintEditor, etc.), use the standard parent search.
+                innerScroller = sourceElement.TryFindParent<ScrollViewer>();
+            }
+
+            // --- UNIFIED HANDLING LOGIC ---
+
+            // If there's no inner scroller, or if it's the main scroller itself, exit.
+            if (innerScroller == null || innerScroller.Equals(mainScroller))
+            {
+                return;
+            }
+            
+            // If scrolling DOWN
+            if (e.Delta < 0)
+            {
+                // And if the inner scroller CAN still scroll down
+                if (innerScroller.VerticalOffset < innerScroller.ScrollableHeight)
+                {
+                    // Then do nothing, let the inner scroller handle the event.
+                }
+                else
+                {
+                    // If it's already at the bottom, take control and scroll the main scroller.
+                    mainScroller.ScrollToVerticalOffset(mainScroller.VerticalOffset - e.Delta);
+                    e.Handled = true;
+                }
+            }
+            // If scrolling UP
+            else if (e.Delta > 0)
+            {
+                // And if the inner scroller CAN still scroll up
+                if (innerScroller.VerticalOffset > 0)
+                {
+                    // Then do nothing.
+                }
+                else
+                {
+                    // If it's already at the top, take control and scroll the main scroller.
+                    mainScroller.ScrollToVerticalOffset(mainScroller.VerticalOffset - e.Delta);
+                    e.Handled = true;
+                }
+            }
+        }
+        
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
             if (parent == null) return null;
