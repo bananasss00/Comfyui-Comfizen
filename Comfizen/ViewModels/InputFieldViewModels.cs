@@ -185,7 +185,7 @@ namespace Comfizen
             }
         }
 
-        private void ApplyPreset(GroupPresetViewModel presetVM)
+        public void ApplyPreset(GroupPresetViewModel presetVM)
         {
             foreach (var valuePair in presetVM.Model.Values)
             {

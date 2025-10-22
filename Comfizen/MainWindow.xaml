@@ -224,9 +224,52 @@
                                         </Grid>
                                     </Expander>
                                 </DataTemplate>
+                                <DataTemplate DataType="{x:Type local:GlobalPresetsViewModel}">
+                                    <Expander Header="{Binding Header}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" BorderBrush="#4CAF50" Margin="5">
+                                        <Grid Margin="5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{local:Translate GlobalPresets_Label}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <ComboBox Grid.Column="1" 
+                                                      ItemsSource="{Binding GlobalPresetNames}"
+                                                      SelectedItem="{Binding SelectedGlobalPreset, Mode=TwoWay}"
+                                                      x:Name="GlobalPresetsComboBox">
+                                                <ComboBox.Style>
+                                                    <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                                                        <Setter Property="IsEnabled" Value="True"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding GlobalPresetNames.Count}" Value="0">
+                                                                <Setter Property="IsEnabled" Value="False"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ComboBox.Style>
+                                            </ComboBox>
+                                            <TextBlock Text="{local:Translate Presets_LoadPlaceholder}" IsHitTestVisible="False" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Grid.Column="1" Margin="5,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding GlobalPresetNames.Count, Converter={StaticResource CountToBooleanConverter}}" Value="True"/>
+                                                                    <Condition Binding="{Binding SelectedItem, ElementName=GlobalPresetsComboBox}" Value="{x:Null}"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </Expander>
+                                </DataTemplate>
                             </StackPanel.Resources>
                             
                             <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalSettings}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalSettings.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalPresets}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalPresets.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             
                             <ItemsControl x:Name="GroupsItemsControl" ItemsSource="{Binding SelectedTab.WorkflowInputsController.InputGroups}">
                                 <ItemsControl.ItemTemplate>

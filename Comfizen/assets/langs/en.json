@@ -219,5 +219,7 @@
   "Presets_SaveButton": "Save",
   "Presets_ManageHeader": "Manage Presets",
   "Presets_LoadTooltip": "Load Preset",
-  "Presets_DeleteTooltip": "Delete Preset"
+  "Presets_DeleteTooltip": "Delete Preset",
+  "GlobalPresets_Header": "Global Presets",
+  "GlobalPresets_Label": "Apply Preset:"
 }

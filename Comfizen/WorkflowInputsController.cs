@@ -20,6 +20,45 @@ using System.Drawing.Imaging;
 namespace Comfizen;
 
 [AddINotifyPropertyChangedInterface]
+public class GlobalPresetsViewModel : INotifyPropertyChanged
+{
+    public string Header { get; set; } = LocalizationService.Instance["GlobalPresets_Header"];
+    public bool IsExpanded { get; set; } = true;
+    public bool IsVisible => GlobalPresetNames.Any();
+
+    public ObservableCollection<string> GlobalPresetNames { get; } = new();
+    
+    private readonly Action<string> _applyPresetAction;
+    private string _selectedGlobalPreset;
+
+    public string SelectedGlobalPreset
+    {
+        get => _selectedGlobalPreset;
+        set
+        {
+            // Only trigger if a new, valid item is selected.
+            if (_selectedGlobalPreset == value || value == null) return;
+            
+            _selectedGlobalPreset = value;
+            _applyPresetAction?.Invoke(value);
+            
+            // Immediately reset to null so the user can select the same preset again if needed.
+            _selectedGlobalPreset = null;
+            OnPropertyChanged(nameof(SelectedGlobalPreset));
+        }
+    }
+
+    public event PropertyChangedEventHandler PropertyChanged;
+    protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    
+    public GlobalPresetsViewModel(Action<string> applyPresetAction)
+    {
+        _applyPresetAction = applyPresetAction;
+        GlobalPresetNames.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsVisible));
+    }
+}
+
+[AddINotifyPropertyChangedInterface]
 public class WorkflowInputsController : INotifyPropertyChanged
 {
     private readonly WorkflowTabViewModel _parentTab; // Link to the parent
@@ -30,12 +69,14 @@ public class WorkflowInputsController : INotifyPropertyChanged
     private readonly List<InpaintFieldViewModel> _inpaintViewModels = new();
     
     public GlobalSettingsViewModel GlobalSettings { get; private set; }
+    public GlobalPresetsViewModel GlobalPresets { get; private set; }
     
     private readonly List<SeedFieldViewModel> _seedViewModels = new();
 
     private readonly List<string> _wildcardPropertyPaths = new();
     
     public ICommand ExecuteActionCommand { get; }
+    private bool _isUpdatingFromGlobalPreset = false; // Flag to prevent recursion
 
     public WorkflowInputsController(Workflow workflow, AppSettings settings, ModelService modelService, WorkflowTabViewModel parentTab)
     {
@@ -53,6 +94,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         });
         
         GlobalSettings = new GlobalSettingsViewModel();
+        GlobalPresets = new GlobalPresetsViewModel(ApplyGlobalPreset);
     }
     
     public ObservableCollection<WorkflowGroupViewModel> InputGroups { get; set; } = new();
@@ -178,29 +220,29 @@ public class WorkflowInputsController : INotifyPropertyChanged
         foreach (var group in _workflow.Groups)
         {
             var groupVm = new WorkflowGroupViewModel(group, _workflow);
-            // Subscribe to the event from the group ViewModel.
-            // When it fires, bubble it up through this controller's own event.
-            groupVm.PresetsModified += () => PresetsModifiedInGroup?.Invoke();
-            var processedFields = new HashSet<WorkflowField>(); // Отслеживаем уже обработанные поля
+            groupVm.PresetsModified += () =>
+            {
+                PresetsModifiedInGroup?.Invoke();
+                DiscoverGlobalPresets(); // Re-scan for global presets when local presets change
+            };
+            groupVm.PropertyChanged += OnGroupPresetChanged; // Subscribe to property changes
+
+            var processedFields = new HashSet<WorkflowField>(); // Keep track of fields that have been processed
 
             for (int i = 0; i < group.Fields.Count; i++)
             {
                 var field = group.Fields[i];
                 if (processedFields.Contains(field))
                 {
-                    continue; // Пропускаем, если это поле уже было обработано как часть пары
+                    continue; // Skip if this field was already handled as part of a pair
                 }
 
                 InputFieldViewModel fieldVm = null;
                 var property = _workflow.GetPropertyByPath(field.Path);
                 
-                // ========================================================== //
-                //     НАЧАЛО ИЗМЕНЕНИЯ: Логика "умного" группирования      //
-                // ========================================================== //
-
                 if (property != null)
                 {
-                    // Сценарий 1: Нашли ImageInput
+                    // Scenario 1: Found an ImageInput
                     if (field.Type == FieldType.ImageInput)
                     {
                         WorkflowField pairedMaskField = null;
@@ -214,15 +256,15 @@ public class WorkflowInputsController : INotifyPropertyChanged
                         processedFields.Add(field);
                         if (pairedMaskField != null) processedFields.Add(pairedMaskField);
                     }
-                    // Сценарий 2: Нашли MaskInput, которое не было частью пары
+                    // Scenario 2: Found a MaskInput that was not part of a pair
                     else if (field.Type == FieldType.MaskInput)
                     {
-                        // Создаем одиночный редактор только для маски
+                        // Create a standalone editor just for the mask
                         fieldVm = new InpaintFieldViewModel(field, null, property);
                         _inpaintViewModels.Add((InpaintFieldViewModel)fieldVm);
                         processedFields.Add(field);
                     }
-                    // Сценарий 3: Любое другое поле
+                    // Scenario 3: Any other field
                     else
                     {
                         fieldVm = CreateDefaultFieldViewModel(field, property);
@@ -243,10 +285,6 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     }
                 }
 
-                // ========================================================== //
-                //     КОНЕЦ ИЗМЕНЕНИЯ                                        //
-                // ========================================================== //
-
                 if (fieldVm != null)
                 {
                     groupVm.Fields.Add(fieldVm);
@@ -265,10 +303,112 @@ public class WorkflowInputsController : INotifyPropertyChanged
         }
         await Task.WhenAll(comboBoxLoadTasks);
         
+        DiscoverGlobalPresets(); 
+        
         // After loading all ViewModels, try to find a matching preset for each group.
         foreach (var groupVm in InputGroups)
         {
             TryAutoSelectPreset(groupVm);
+        }
+        
+        // After auto-selecting local presets, check if they form a global preset
+        SyncGlobalPresetFromGroups();
+    }
+    
+    /// <summary>
+    /// Handles the PropertyChanged event for a WorkflowGroupViewModel to sync the global preset selection.
+    /// </summary>
+    private void OnGroupPresetChanged(object sender, PropertyChangedEventArgs e)
+    {
+        // Check if the 'SelectedPreset' property of a group has changed
+        // and ensure we're not in the middle of a global update to prevent recursion.
+        if (e.PropertyName == nameof(WorkflowGroupViewModel.SelectedPreset) && !_isUpdatingFromGlobalPreset)
+        {
+            SyncGlobalPresetFromGroups();
+        }
+    }
+    
+    /// <summary>
+    /// Scans all presets in the workflow to find names that are shared across multiple groups.
+    /// Populates the GlobalPresets ViewModel with these names.
+    /// </summary>
+    private void DiscoverGlobalPresets()
+    {
+        GlobalPresets.GlobalPresetNames.Clear();
+
+        if (_workflow.Presets == null) return;
+
+        var sharedPresetNames = _workflow.Presets
+            .SelectMany(kvp => kvp.Value) // Flatten all presets from all groups into a single list
+            .GroupBy(preset => preset.Name)      // Group them by name
+            .Where(group => group.Count() > 1)  // Find names that appear more than once
+            .Select(group => group.Key)         // Select the name
+            .OrderBy(name => name);             // Order alphabetically
+
+        foreach (var name in sharedPresetNames)
+        {
+            GlobalPresets.GlobalPresetNames.Add(name);
+        }
+    }
+
+    /// <summary>
+    /// Checks all groups to see if they share a common selected preset. If so, updates the global preset ComboBox.
+    /// </summary>
+    private void SyncGlobalPresetFromGroups()
+    {
+        // Get all groups that can participate in global presets.
+        var participatingGroups = InputGroups
+            .Where(g => g.Presets.Any(p => GlobalPresets.GlobalPresetNames.Contains(p.Name)))
+            .ToList();
+
+        if (!participatingGroups.Any())
+        {
+            GlobalPresets.SelectedGlobalPreset = null;
+            return;
+        }
+
+        // Check the selected preset of the first participating group.
+        var firstPresetName = participatingGroups.First().SelectedPreset?.Name;
+
+        // If the first group has no preset selected, there's no common selection.
+        if (firstPresetName == null || !GlobalPresets.GlobalPresetNames.Contains(firstPresetName))
+        {
+            GlobalPresets.SelectedGlobalPreset = null;
+            return;
+        }
+
+        // Check if all other participating groups have the same preset selected.
+        bool allMatch = participatingGroups.Skip(1)
+            .All(g => g.SelectedPreset?.Name == firstPresetName);
+
+        // If all match, update the global selection. Otherwise, clear it.
+        GlobalPresets.SelectedGlobalPreset = allMatch ? firstPresetName : null;
+    }
+    
+    /// <summary>
+    /// Applies a preset of a given name to all groups that contain it.
+    /// </summary>
+    private void ApplyGlobalPreset(string presetName)
+    {
+        if (string.IsNullOrEmpty(presetName)) return;
+        
+        _isUpdatingFromGlobalPreset = true; // Set flag to prevent feedback loop
+
+        try
+        {
+            foreach (var groupVm in InputGroups)
+            {
+                var presetToApply = groupVm.Presets.FirstOrDefault(p => p.Name == presetName);
+                if (presetToApply != null)
+                {
+                    // This will apply the values and set the group's SelectedPreset
+                    groupVm.SelectedPreset = presetToApply; 
+                }
+            }
+        }
+        finally
+        {
+            _isUpdatingFromGlobalPreset = false; // Unset the flag
         }
     }
     
@@ -434,8 +574,14 @@ public class WorkflowInputsController : INotifyPropertyChanged
     {
         _seedViewModels.Clear();
         _wildcardPropertyPaths.Clear();
-        // _inpaintEditors.Clear(); // Заменено
         _inpaintViewModels.Clear();
+        
+        // Unsubscribe from events to prevent memory leaks when a tab is reloaded.
+        foreach (var groupVm in InputGroups)
+        {
+            groupVm.PropertyChanged -= OnGroupPresetChanged;
+        }
+        
         InputGroups.Clear();
         _hasWildcardFields = false;
         if (GlobalSettings != null)

@@ -451,6 +451,27 @@ namespace Comfizen
                 }
             }
         }
+        
+        /// <summary>
+        /// Saves the workflow file and raises a global event to notify the main window of the change.
+        /// This is used for auto-updates after modifying presets.
+        /// </summary>
+        private void TriggerWorkflowUpdate()
+        {
+            if (string.IsNullOrEmpty(NewWorkflowName)) return;
+
+            try
+            {
+                var workflowFullPath = Path.Combine(Workflow.WorkflowsDir, NewWorkflowName + ".json");
+                Workflow.SaveWorkflow(NewWorkflowName);
+                GlobalEventManager.RaiseWorkflowSaved(workflowFullPath, WorkflowSaveType.LayoutOnly);
+            }
+            catch (Exception ex)
+            {
+                // Log the error without showing a disruptive message box to the user.
+                Logger.Log(ex, "Failed to auto-save workflow during preset modification in UIConstructor.");
+            }
+        }
 
         public void CancelActionRename(ActionNameViewModel actionVm)
         {

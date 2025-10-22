@@ -219,5 +219,7 @@
   "Presets_SaveButton": "Сохранить",
   "Presets_ManageHeader": "Управление пресетами",
   "Presets_LoadTooltip": "Загрузить пресет",
-  "Presets_DeleteTooltip": "Удалить пресет"
+  "Presets_DeleteTooltip": "Удалить пресет",
+  "GlobalPresets_Header": "Глобальные пресеты",
+  "GlobalPresets_Label": "Применить пресет:"
 }
