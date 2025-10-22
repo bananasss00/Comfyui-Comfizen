@@ -106,20 +106,7 @@ namespace Comfizen
         public ObservableCollection<GroupPresetViewModel> Presets { get; } = new();
 
         private GroupPresetViewModel _selectedPreset;
-        public GroupPresetViewModel SelectedPreset
-        {
-            get => _selectedPreset;
-            set
-            {
-                _selectedPreset = value;
-                // When a preset is selected from the dropdown, apply it.
-                if (value != null)
-                {
-                    ApplyPreset(value);
-                }
-                OnPropertyChanged(nameof(SelectedPreset));
-            }
-        }
+        public GroupPresetViewModel SelectedPreset { get; set; }
 
         public ICommand SavePresetCommand { get; }
         public ICommand DeletePresetCommand { get; }
@@ -141,7 +128,14 @@ namespace Comfizen
             _workflow = workflow; // Store the reference
             Name = model.Name;
             HighlightColor = model.HighlightColor;
-
+            
+            this.PropertyChanged += (sender, args) =>
+            {
+                if (args.PropertyName == nameof(SelectedPreset) && SelectedPreset != null)
+                {
+                    ApplyPreset(SelectedPreset);
+                }
+            };
             LoadPresets();
 
             OpenPresetManagerCommand = new RelayCommand(_ => IsPresetManagerOpen = true);
@@ -206,18 +200,9 @@ namespace Comfizen
 
                     // Find the corresponding ViewModel and notify the UI of the change
                     var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
-                    
-                    // This is a simplified notification. In a real scenario, each ViewModel
-                    // might need a specific method to refresh its value from the JProperty.
-                    // For now, we rely on the fact that changing the JProperty is often enough.
-                    // We'll add a refresh method for robustness.
                     (fieldVM as dynamic)?.RefreshValue();
                 }
             }
-
-            // Deselect the item in the ComboBox to allow re-selection of the same preset
-            _selectedPreset = null;
-            OnPropertyChanged(nameof(SelectedPreset));
         }
 
         private void SaveCurrentStateAsPreset(string name)
