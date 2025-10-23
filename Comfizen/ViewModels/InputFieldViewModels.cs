@@ -235,15 +235,27 @@ namespace Comfizen
                 var fieldPath = valuePair.Key;
                 var presetValue = valuePair.Value;
 
-                var prop = _workflow.GetPropertyByPath(fieldPath);
-                if (prop != null)
-                {
-                    // Update the value in the main JObject
-                    prop.Value = presetValue.DeepClone();
+                // Find the ViewModel corresponding to the path from the preset
+                var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
+                if (fieldVM == null) continue;
 
-                    // Find the corresponding ViewModel and notify the UI of the change
-                    var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
-                    (fieldVM as dynamic)?.RefreshValue();
+                // START OF CHANGE: Handle Markdown fields separately
+                if (fieldVM is MarkdownFieldViewModel markdownVm)
+                {
+                    // For Markdown, directly set the value on the ViewModel.
+                    // The preset stores the value as a JValue(string).
+                    markdownVm.Value = presetValue.ToString();
+                }
+                // END OF CHANGE
+                else
+                {
+                    // For all other (non-virtual) fields, update the main JObject
+                    var prop = _workflow.GetPropertyByPath(fieldPath);
+                    if (prop != null)
+                    {
+                        prop.Value = presetValue.DeepClone();
+                        (fieldVM as dynamic)?.RefreshValue();
+                    }
                 }
             }
         }
@@ -253,19 +265,31 @@ namespace Comfizen
             var newPreset = new GroupPreset { Name = name };
             foreach (var field in Fields)
             {
-                // Ignore virtual fields (Markdown, Buttons) and Seed fields,
-                // as they should not be part of a preset.
-                if (field.Property == null || field.Type == FieldType.Seed)
+                // START OF CHANGE: Updated logic to include Markdown fields in presets
+                
+                // 1. Skip fields that should never be in a preset
+                if (field.Type == FieldType.ScriptButton || field.Type == FieldType.Seed)
                 {
                     continue;
                 }
-                
-                // We save the value from the main JObject to ensure it's the most current one.
-                var prop = _workflow.GetPropertyByPath(field.Path);
-                if (prop != null)
+
+                // 2. Handle Markdown fields (which are virtual and have no JProperty)
+                if (field is MarkdownFieldViewModel markdownVm)
                 {
-                    newPreset.Values[field.Path] = prop.Value.DeepClone();
+                    // Save the value directly from the ViewModel into the preset
+                    newPreset.Values[field.Path] = new JValue(markdownVm.Value);
                 }
+                // 3. Handle all other standard fields
+                else if (field.Property != null)
+                {
+                    // Save the value from the main JObject
+                    var prop = _workflow.GetPropertyByPath(field.Path);
+                    if (prop != null)
+                    {
+                        newPreset.Values[field.Path] = prop.Value.DeepClone();
+                    }
+                }
+                // END OF CHANGE
             }
 
             if (!_workflow.Presets.ContainsKey(Id))
@@ -273,24 +297,18 @@ namespace Comfizen
                 _workflow.Presets[Id] = new List<GroupPreset>();
             }
             
-            // Remove existing preset with the same name before adding
             _workflow.Presets[Id].RemoveAll(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
             _workflow.Presets[Id].Add(newPreset);
             
-            // Refresh the UI list
             LoadPresets();
             
-            // Raise the event to notify that a save is needed.
             PresetsModified?.Invoke();
 
-            // START OF FIX: Automatically select the newly saved preset
             var newlySavedPreset = Presets.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (newlySavedPreset != null)
             {
-                // This will update both the selected object and the text in the ComboBox
                 SelectedPreset = newlySavedPreset;
             }
-            // END OF FIX
         }
 
         private void DeletePreset(GroupPresetViewModel presetVM)

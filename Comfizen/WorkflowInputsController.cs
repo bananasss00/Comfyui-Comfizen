@@ -428,7 +428,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     /// <summary>
     /// Checks if the current state of a group's savable fields exactly matches one of its saved presets.
     /// If a match is found, updates the SelectedPreset property to reflect it in the UI.
-    /// Fields like Seed, Markdown, and Script Buttons are ignored in this comparison.
+    /// Fields like Seed and Script Buttons are ignored in this comparison.
     /// </summary>
     private void TryAutoSelectPreset(WorkflowGroupViewModel groupVm)
     {
@@ -437,11 +437,32 @@ public class WorkflowInputsController : INotifyPropertyChanged
             return; // No presets to check against.
         }
 
-        // 1. Get the current state of all "savable" fields in the group.
-        // Savable fields are those with a backing JProperty that are not of type Seed.
-        var currentSavableValues = groupVm.Fields
-            .Where(f => f.Property != null && f.Type != FieldType.Seed)
-            .ToDictionary(f => f.Path, f => f.Property.Value);
+        // START OF FIX: Rebuild how the current state dictionary is created
+        
+        // 1. Create a dictionary to hold the current values of all savable fields.
+        var currentSavableValues = new Dictionary<string, JToken>();
+
+        foreach (var fieldVm in groupVm.Fields)
+        {
+            // Skip fields that are never saved in presets.
+            if (fieldVm.Type == FieldType.ScriptButton || fieldVm.Type == FieldType.Seed)
+            {
+                continue;
+            }
+
+            // Handle virtual Markdown fields by getting the value from the ViewModel.
+            if (fieldVm is MarkdownFieldViewModel markdownVm)
+            {
+                currentSavableValues[markdownVm.Path] = new JValue(markdownVm.Value);
+            }
+            // Handle standard fields by getting the value from the JProperty.
+            else if (fieldVm.Property != null)
+            {
+                currentSavableValues[fieldVm.Path] = fieldVm.Property.Value;
+            }
+        }
+        
+        // END OF FIX
 
         // 2. Find the first preset that exactly matches this current state.
         var matchingPresetVm = groupVm.Presets.FirstOrDefault(presetVm =>
