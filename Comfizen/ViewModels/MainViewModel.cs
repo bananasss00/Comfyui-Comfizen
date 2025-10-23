@@ -263,7 +263,9 @@ namespace Comfizen
             
             OpenGroupNavigationCommand = new RelayCommand(_ =>
             {
-                if (SelectedTab?.WorkflowInputsController.InputGroups.Any() == true)
+                // --- START OF CHANGE: Check groups within all tabs ---
+                if (SelectedTab?.WorkflowInputsController.TabLayoouts.SelectMany(t => t.Groups).Any() == true)
+                    // --- END OF CHANGE ---
                 {
                     IsGroupNavigationPopupOpen = true;
                 }

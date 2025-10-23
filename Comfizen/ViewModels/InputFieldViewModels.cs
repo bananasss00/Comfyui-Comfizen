@@ -79,6 +79,8 @@ namespace Comfizen
     {
         private readonly WorkflowGroup _model;
         private readonly Workflow _workflow; 
+        
+        public WorkflowGroup Model => _model;
         public string Name { get; set; }
         public bool IsExpanded
         {

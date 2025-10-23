@@ -126,7 +126,32 @@ namespace Comfizen
         public UIConstructorView(string? workflowRelativePath) 
             : this(LoadWorkflowFromFile(workflowRelativePath), workflowRelativePath) { }
         
+        // --- START OF NEW PROPERTIES FOR TABS ---
+        public ObservableCollection<WorkflowGroup> UnassignedGroups { get; } = new();
+        public ObservableCollection<WorkflowGroup> SelectedTabGroups { get; } = new();
+
+        private WorkflowTabDefinition _selectedTab;
+        public WorkflowTabDefinition SelectedTab
+        {
+            get => _selectedTab;
+            set
+            {
+                if (_selectedTab != value)
+                {
+                    _selectedTab = value;
+                    OnPropertyChanged(nameof(SelectedTab));
+                    UpdateGroupAssignments();
+                }
+            }
+        }
         
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+        
+        public ICommand AddTabCommand { get; }
+        public ICommand RemoveTabCommand { get; }
         
         public UIConstructorView(Workflow liveWorkflow, string? workflowRelativePath)
         {
@@ -216,6 +241,23 @@ namespace Comfizen
             SelectedHookScript.TextChanged += (s, e) => SaveHookScript();
             SelectedActionScript.TextChanged += (s, e) => SaveActionScript();
             
+            // --- START OF NEW COMMANDS ---
+            AddTabCommand = new RelayCommand(_ => AddNewTab());
+            RemoveTabCommand = new RelayCommand(param => RemoveTab(param as WorkflowTabDefinition));
+            // --- END OF NEW COMMANDS ---
+
+            // Attach event handlers
+            this.PropertyChanged += (s, e) => {
+                if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
+                if (e.PropertyName == nameof(SelectedActionName)) OnSelectedActionChanged();
+                // --- MODIFIED: Update group assignments when workflow changes ---
+                if (e.PropertyName == nameof(SearchFilter) || e.PropertyName == nameof(Workflow))
+                {
+                    UpdateAvailableFields();
+                    UpdateGroupAssignments(); 
+                }
+            };
+            
             // Load initial data
             LoadModelSubTypesAsync();
             if (!string.IsNullOrEmpty(workflowRelativePath))
@@ -223,6 +265,10 @@ namespace Comfizen
                 NewWorkflowName = Path.ChangeExtension(workflowRelativePath, null);
                 UpdateAvailableFields();
                 RefreshActionNames();
+                // --- ADDED: Initialize tabs and groups ---
+                UpdateGroupAssignments();
+                SelectedTab = Workflow.Tabs.FirstOrDefault();
+                // ---
             }
         }
         
@@ -506,6 +552,9 @@ namespace Comfizen
             {
                 if (_itemBeingRenamed is WorkflowGroup g) g.IsRenaming = false;
                 if (_itemBeingRenamed is WorkflowField f) f.IsRenaming = false;
+                // --- START OF CHANGE ---
+                if (_itemBeingRenamed is WorkflowTabDefinition t) t.IsRenaming = false;
+                // --- END OF CHANGE ---
             }
 
             if (itemToRename is WorkflowGroup group)
@@ -513,12 +562,18 @@ namespace Comfizen
                 group.IsRenaming = !group.IsRenaming;
                 _itemBeingRenamed = group.IsRenaming ? group : null;
             }
-
-            if (itemToRename is WorkflowField field)
+            else if (itemToRename is WorkflowField field)
             {
                 field.IsRenaming = !field.IsRenaming;
                 _itemBeingRenamed = field.IsRenaming ? field : null;
             }
+            // --- START OF CHANGE ---
+            else if (itemToRename is WorkflowTabDefinition tab)
+            {
+                tab.IsRenaming = !tab.IsRenaming;
+                _itemBeingRenamed = tab.IsRenaming ? tab : null;
+            }
+            // --- END OF CHANGE ---
         }
 
         private void LoadApiWorkflow()
@@ -583,21 +638,163 @@ namespace Comfizen
                         MessageBoxImage.Error);
                 }
         }
+        
+        // --- START OF NEW/MODIFIED METHODS FOR TABS ---
+        private void UpdateGroupAssignments()
+        {
+            if (Workflow == null || Workflow.Groups == null) return;
+            
+            // Re-subscribe to collection changed events
+            Workflow.Groups.CollectionChanged -= OnWorkflowGroupsChanged;
+            Workflow.Groups.CollectionChanged += OnWorkflowGroupsChanged;
+            Workflow.Tabs.CollectionChanged -= OnWorkflowTabsChanged;
+            Workflow.Tabs.CollectionChanged += OnWorkflowTabsChanged;
+
+            var allGroupIdsInTabs = Workflow.Tabs.SelectMany(t => t.GroupIds).ToHashSet();
+            
+            // Update Unassigned Groups
+            UnassignedGroups.Clear();
+            foreach (var group in Workflow.Groups.Where(g => !allGroupIdsInTabs.Contains(g.Id)))
+            {
+                UnassignedGroups.Add(group);
+            }
+
+            // Update Groups for the Selected Tab
+            SelectedTabGroups.Clear();
+            if (SelectedTab != null)
+            {
+                // Ensure the tab exists in the main workflow collection
+                if (!Workflow.Tabs.Contains(SelectedTab))
+                {
+                    SelectedTab = null;
+                    return;
+                }
+
+                // Create a lookup for quick access
+                var groupLookup = Workflow.Groups.ToDictionary(g => g.Id);
+                
+                // Add groups in the order specified by the Tab's GroupIds
+                foreach (var groupId in SelectedTab.GroupIds)
+                {
+                    if (groupLookup.TryGetValue(groupId, out var group))
+                    {
+                        SelectedTabGroups.Add(group);
+                    }
+                }
+            }
+        }
+        
+        private void OnWorkflowGroupsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            UpdateGroupAssignments();
+        }
+
+        private void OnWorkflowTabsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            UpdateGroupAssignments();
+        }
+
+        private void AddNewTab()
+        {
+            var baseName = LocalizationService.Instance["UIConstructor_NewTabDefaultName"];
+            string newTabName = baseName;
+            int counter = 1;
+            while (Workflow.Tabs.Any(t => t.Name == newTabName))
+            {
+                newTabName = $"{baseName} {++counter}";
+            }
+            var newTab = new WorkflowTabDefinition { Name = newTabName };
+            Workflow.Tabs.Add(newTab);
+            SelectedTab = newTab;
+        }
+
+        private void RemoveTab(WorkflowTabDefinition tab)
+        {
+            if (tab == null || MessageBox.Show(string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteTabMessage"], tab.Name), 
+                LocalizationService.Instance["UIConstructor_ConfirmDeleteTabTitle"],
+                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            
+            int index = Workflow.Tabs.IndexOf(tab);
+            Workflow.Tabs.Remove(tab);
+            
+            // Select the next available tab or null
+            if (Workflow.Tabs.Any())
+            {
+                SelectedTab = Workflow.Tabs.ElementAtOrDefault(index) ?? Workflow.Tabs.Last();
+            }
+            else
+            {
+                SelectedTab = null;
+            }
+            
+            UpdateGroupAssignments();
+        }
+
+        public void MoveGroupToTab(WorkflowGroup group, WorkflowTabDefinition targetTab, int insertIndex = -1)
+        {
+            if (group == null) return;
+            
+            // 1. Remove from any previous tab
+            foreach (var tab in Workflow.Tabs)
+            {
+                if (tab.GroupIds.Contains(group.Id))
+                {
+                    tab.GroupIds.Remove(group.Id);
+                    break;
+                }
+            }
+
+            // 2. Add to the new tab if one is specified
+            if (targetTab != null)
+            {
+                if (insertIndex < 0 || insertIndex > targetTab.GroupIds.Count)
+                {
+                    targetTab.GroupIds.Add(group.Id);
+                }
+                else
+                {
+                    targetTab.GroupIds.Insert(insertIndex, group.Id);
+                }
+            }
+
+            // 3. Refresh UI
+            UpdateGroupAssignments();
+        }
+        
+        public void MoveTab(int oldIndex, int newIndex)
+        {
+            if (oldIndex < 0 || newIndex < 0 || oldIndex >= Workflow.Tabs.Count || newIndex > Workflow.Tabs.Count) return;
+            if (oldIndex < newIndex) newIndex--;
+            if (oldIndex == newIndex) return;
+            Workflow.Tabs.Move(oldIndex, newIndex);
+        }
+        // --- END OF NEW/MODIFIED METHODS FOR TABS ---
 
         private void AddGroup()
         {
             var newGroupName = string.Format(LocalizationService.Instance["UIConstructor_NewGroupDefaultName"], Workflow.Groups.Count + 1);
-            Workflow.Groups.Add(new WorkflowGroup { Name = newGroupName });
+            var newGroup = new WorkflowGroup { Name = newGroupName };
+            Workflow.Groups.Add(newGroup);
+
+            // --- START OF CHANGE: Add new group directly to the selected tab ---
+            if (SelectedTab != null)
+            {
+                MoveGroupToTab(newGroup, SelectedTab);
+            }
+            // --- END OF CHANGE ---
         }
 
         private void RemoveGroup(WorkflowGroup group)
         {
             if (group != null && MessageBox.Show(string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupMessage"], group.Name), 
-                LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupTitle"],
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                    LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupTitle"],
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
+                // --- MODIFIED: Also remove from any tab definition ---
+                MoveGroupToTab(group, null); 
                 Workflow.Groups.Remove(group);
                 UpdateAvailableFields();
+                // UpdateGroupAssignments() is called by the CollectionChanged event
             }
         }
 
@@ -643,9 +840,9 @@ namespace Comfizen
             AddFieldToGroupAtIndex(field, group);
         }
 
-        public void MoveField(WorkflowField field, WorkflowGroup sourceGroup, WorkflowGroup targetGroup,
-            int targetIndex = -1)
+        public void MoveField(WorkflowField field, WorkflowGroup sourceGroup, WorkflowGroup targetGroup, int targetIndex = -1)
         {
+            // Эта логика остается прежней, так как она работает на уровне полей внутри групп
             if (field == null || sourceGroup == null || targetGroup == null) return;
             var oldIndex = sourceGroup.Fields.IndexOf(field);
             if (oldIndex == -1) return;
@@ -747,6 +944,32 @@ namespace Comfizen
             HookScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
             ActionScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
         }
+        
+        // --- START OF NEW METHODS ---
+        private void TabContent_DragEnter(object sender, DragEventArgs e)
+        {
+            // Allow dropping a group if a tab is selected
+            if (e.Data.GetDataPresent(typeof(WorkflowGroup)) && _viewModel.SelectedTab != null)
+            {
+                e.Effects = DragDropEffects.Move;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        private void TabContent_Drop(object sender, DragEventArgs e)
+        {
+            // Handle dropping a group from the unassigned list onto the current tab content area
+            if (e.Data.GetData(typeof(WorkflowGroup)) is WorkflowGroup group && _viewModel.SelectedTab != null)
+            {
+                _viewModel.MoveGroupToTab(group, _viewModel.SelectedTab);
+                e.Handled = true;
+            }
+        }
+        // --- END OF NEW METHODS ---
         
         private void TextArea_TextEntered(object sender, TextCompositionEventArgs e)
         {
@@ -944,6 +1167,106 @@ namespace Comfizen
             if (sender is FrameworkElement element && element.DataContext is WorkflowField field)
                 DragDrop.DoDragDrop(element, field, DragDropEffects.Move);
         }
+        
+        private void TabDefinition_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement element && element.DataContext is WorkflowTabDefinition tabDef)
+            {
+                // Select the tab on click
+                _viewModel.SelectedTab = tabDef;
+
+                // Handle drag for reordering
+                if (e.LeftButton == MouseButtonState.Pressed)
+                {
+                    DragDrop.DoDragDrop(element, tabDef, DragDropEffects.Move);
+                }
+            }
+        }
+        
+        private void TabName_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2 && sender is FrameworkElement element && DataContext is UIConstructorView viewModel)
+            {
+                if (element.DataContext is WorkflowTabDefinition tabDef)
+                {
+                    viewModel.ToggleRenameCommand.Execute(tabDef);
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void TabList_DragOver(object sender, DragEventArgs e)
+        {
+            // Logic for showing drop indicator between tabs
+            // This is more complex and can be added as a refinement. For now, we handle drop.
+            e.Effects = e.Data.GetDataPresent(typeof(WorkflowTabDefinition)) ? DragDropEffects.Move : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void TabList_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetData(typeof(WorkflowTabDefinition)) is WorkflowTabDefinition draggedTab && _viewModel != null)
+            {
+                // This simplistic drop handler adds to the end. A better version would use indicators.
+                var oldIndex = _viewModel.Workflow.Tabs.IndexOf(draggedTab);
+                _viewModel.MoveTab(oldIndex, _viewModel.Workflow.Tabs.Count);
+            }
+        }
+
+        private void TabDefinition_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(typeof(WorkflowGroup)))
+            {
+                e.Effects = DragDropEffects.Move;
+                if(sender is FrameworkElement fe) fe.Opacity = 0.7;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+        
+        private void TabDefinition_DragLeave(object sender, DragEventArgs e)
+        {
+            if(sender is FrameworkElement fe) fe.Opacity = 1.0;
+        }
+
+        private void TabDefinition_Drop(object sender, DragEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.DataContext is WorkflowTabDefinition targetTab)
+            {
+                fe.Opacity = 1.0;
+                if (e.Data.GetData(typeof(WorkflowGroup)) is WorkflowGroup group)
+                {
+                    _viewModel.MoveGroupToTab(group, targetTab);
+                    e.Handled = true;
+                }
+            }
+        }
+        
+        private void UnassignedGroups_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)))
+            {
+                e.Effects = DragDropEffects.Move;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        private void UnassignedGroups_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)) is Tuple<WorkflowGroup, WorkflowTabDefinition> data)
+            {
+                // Move group to "unassigned" by passing a null target tab
+                _viewModel.MoveGroupToTab(data.Item1, null);
+                e.Handled = true;
+            }
+        }
 
         private void GroupHeader_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -955,7 +1278,19 @@ namespace Comfizen
             }
 
             if (sender is FrameworkElement element && element.DataContext is WorkflowGroup group)
-                DragDrop.DoDragDrop(element, group, DragDropEffects.Move);
+            {
+                // If the group is in the "unassigned" list, we just drag the group.
+                if (_viewModel.UnassignedGroups.Contains(group))
+                {
+                    DragDrop.DoDragDrop(element, group, DragDropEffects.Move);
+                }
+                // If it's in a tab, we drag a tuple containing the group and its tab.
+                else
+                {
+                    var dragData = new Tuple<WorkflowGroup, WorkflowTabDefinition>(group, _viewModel.SelectedTab);
+                    DragDrop.DoDragDrop(element, dragData, DragDropEffects.Move);
+                }
+            }
         }
 
         private void Group_DragOver(object sender, DragEventArgs e)
@@ -1181,22 +1516,21 @@ namespace Comfizen
 
             var dataContext = textBox.DataContext;
 
-            if (dataContext is ActionNameViewModel actionVm && actionVm.IsRenaming)
+            // --- START OF CHANGE ---
+            if (dataContext is WorkflowTabDefinition tabDef && tabDef.IsRenaming)
+            {
+                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                StopEditing(tabDef);
+            }
+            // --- END OF CHANGE ---
+            else if (dataContext is ActionNameViewModel actionVm && actionVm.IsRenaming)
             {
                 viewModel.CommitActionRename(actionVm, textBox.Text);
             }
-            // ==========================================================
-            //     НАЧАЛО ИСПРАВЛЕНИЙ: Восстановленная логика
-            // ==========================================================
             else if (dataContext is WorkflowGroup g && g.IsRenaming)
             {
                 textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
                 StopEditing(g);
-            }
-            else if (dataContext is WorkflowField f && f.IsRenaming)
-            {
-                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-                StopEditing(f);
             }
             // ==========================================================
             //     КОНЕЦ ИСПРАВЛЕНИЙ
@@ -1206,19 +1540,19 @@ namespace Comfizen
         private void InlineTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (sender is not TextBox textBox || DataContext is not UIConstructorView viewModel) return;
-            
+        
             var dataContext = textBox.DataContext;
 
             if (e.Key == Key.Enter)
             {
-                if (dataContext is ActionNameViewModel actionVm)
+                // --- START OF CHANGE ---
+                if (dataContext is WorkflowTabDefinition)
                 {
-                    viewModel.CommitActionRename(actionVm, textBox.Text);
+                    textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                    StopEditing(dataContext);
                 }
-                // ==========================================================
-                //     НАЧАЛО ИСПРАВЛЕНИЙ: Восстановленная логика
-                // ==========================================================
-                else if (dataContext is WorkflowGroup || dataContext is WorkflowField)
+                // --- END OF CHANGE ---
+                else if (dataContext is ActionNameViewModel actionVm)
                 {
                     // Принудительно обновляем источник привязки и выходим из режима редактирования
                     textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
@@ -1231,14 +1565,14 @@ namespace Comfizen
             }
             else if (e.Key == Key.Escape)
             {
-                if (dataContext is ActionNameViewModel actionVm)
+                // --- START OF CHANGE ---
+                if (dataContext is WorkflowTabDefinition)
                 {
-                    viewModel.CancelActionRename(actionVm);
+                    textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget(); // Revert changes
+                    StopEditing(dataContext);
                 }
-                // ==========================================================
-                //     НАЧАЛО ИСПРАВЛЕНИЙ: Восстановленная логика
-                // ==========================================================
-                else if (dataContext is WorkflowGroup || dataContext is WorkflowField)
+                // --- END OF CHANGE ---
+                else if (dataContext is ActionNameViewModel actionVm)
                 {
                     // Отменяем изменения и выходим из режима редактирования
                     textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
@@ -1271,6 +1605,9 @@ namespace Comfizen
         {
             if (dataContext is WorkflowGroup g) g.IsRenaming = false;
             if (dataContext is WorkflowField f) f.IsRenaming = false;
+            // --- START OF CHANGE ---
+            if (dataContext is WorkflowTabDefinition t) t.IsRenaming = false;
+            // --- END OF CHANGE ---
         }
 
         private void InlineTextBox_GotFocus(object sender, RoutedEventArgs e)

@@ -20,6 +20,13 @@ using System.Drawing.Imaging;
 namespace Comfizen;
 
 [AddINotifyPropertyChangedInterface]
+public class WorkflowUITabLayoutViewModel
+{
+    public string Header { get; set; }
+    public ObservableCollection<WorkflowGroupViewModel> Groups { get; } = new ObservableCollection<WorkflowGroupViewModel>();
+}
+
+[AddINotifyPropertyChangedInterface]
 public class GlobalPresetsViewModel : INotifyPropertyChanged
 {
     public string Header { get; set; } = LocalizationService.Instance["GlobalPresets_Header"];
@@ -110,7 +117,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         GlobalPresets = new GlobalPresetsViewModel(ApplyGlobalPreset);
     }
     
-    public ObservableCollection<WorkflowGroupViewModel> InputGroups { get; set; } = new();
+    public ObservableCollection<WorkflowUITabLayoutViewModel> TabLayoouts { get; set; } = new();
 
     public SeedControl SelectedSeedControl { get; set; }
     
@@ -225,22 +232,26 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         _hasWildcardFields = _workflow.Groups.SelectMany(g => g.Fields)
             .Any(f => f.Type == FieldType.WildcardSupportPrompt);
-        
         GlobalSettings.IsVisible = _hasWildcardFields;
 
+        // Create a lookup for all groups for quick access
+        var groupVmLookup = new Dictionary<Guid, WorkflowGroupViewModel>();
         var comboBoxLoadTasks = new List<Task>();
 
+        // First pass: Create all GroupViewModels and their fields
         foreach (var group in _workflow.Groups)
         {
             var groupVm = new WorkflowGroupViewModel(group, _workflow);
             groupVm.PresetsModified += () =>
             {
                 PresetsModifiedInGroup?.Invoke();
-                DiscoverGlobalPresets(); // Re-scan for global presets when local presets change
+                DiscoverGlobalPresets();
             };
-            groupVm.PropertyChanged += OnGroupPresetChanged; // Subscribe to property changes
+            groupVm.PropertyChanged += OnGroupPresetChanged;
+            groupVmLookup[group.Id] = groupVm;
 
-            var processedFields = new HashSet<WorkflowField>(); // Keep track of fields that have been processed
+            // (Этот код по обработке полей, Inpaint, ComboBox и т.д. остается без изменений)
+            var processedFields = new HashSet<WorkflowField>();
 
             for (int i = 0; i < group.Fields.Count; i++)
             {
@@ -309,22 +320,57 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 }
             }
             
-            if (groupVm.Fields.Any())
+            // if (groupVm.Fields.Any())
+            // {
+            //     InputGroups.Add(groupVm);
+            // }
+        }
+        
+        // Second pass: Arrange GroupViewModels into tabs
+        if (_workflow.Tabs.Any())
+        {
+            foreach (var tabDef in _workflow.Tabs)
             {
-                InputGroups.Add(groupVm);
+                var tabLayout = new WorkflowUITabLayoutViewModel { Header = tabDef.Name };
+                foreach (var groupId in tabDef.GroupIds)
+                {
+                    if (groupVmLookup.TryGetValue(groupId, out var groupVm))
+                    {
+                        tabLayout.Groups.Add(groupVm);
+                    }
+                }
+                if (tabLayout.Groups.Any())
+                {
+                    TabLayoouts.Add(tabLayout);
+                }
             }
         }
+        else
+        {
+            // Fallback for old workflows without tabs: create one default tab
+            var defaultTabLayout = new WorkflowUITabLayoutViewModel { Header = "Controls" }; // Or localize this
+            // --- START OF CHANGE: Use .Model property ---
+            foreach (var groupVm in groupVmLookup.Values.OrderBy(g => _workflow.Groups.IndexOf(g.Model)))
+                // --- END OF CHANGE ---
+            {
+                defaultTabLayout.Groups.Add(groupVm);
+            }
+            if (defaultTabLayout.Groups.Any())
+            {
+                TabLayoouts.Add(defaultTabLayout);
+            }
+        }
+
         await Task.WhenAll(comboBoxLoadTasks);
         
         DiscoverGlobalPresets(); 
         
         // After loading all ViewModels, try to find a matching preset for each group.
-        foreach (var groupVm in InputGroups)
+        foreach (var groupVm in groupVmLookup.Values)
         {
             TryAutoSelectPreset(groupVm);
         }
-        
-        // After auto-selecting local presets, check if they form a global preset
+            
         SyncGlobalPresetFromGroups();
     }
     
@@ -369,8 +415,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
     /// </summary>
     private void SyncGlobalPresetFromGroups()
     {
+        var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
+
         // Get all groups that can participate in global presets.
-        var participatingGroups = InputGroups
+        var participatingGroups = TabLayoouts.SelectMany(t => t.Groups)
             .Where(g => g.Presets.Any(p => GlobalPresets.GlobalPresetNames.Contains(p.Name)))
             .ToList();
 
@@ -409,7 +457,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         try
         {
-            foreach (var groupVm in InputGroups)
+            // --- START OF CHANGE: Iterate through groups in all tabs ---
+            foreach (var groupVm in TabLayoouts.SelectMany(t => t.Groups))
+                // --- END OF CHANGE ---
             {
                 var presetToApply = groupVm.Presets.FirstOrDefault(p => p.Name == presetName);
                 if (presetToApply != null)
@@ -610,13 +660,17 @@ public class WorkflowInputsController : INotifyPropertyChanged
         _wildcardPropertyPaths.Clear();
         _inpaintViewModels.Clear();
         
+        // --- START OF CHANGE: Correctly unsubscribe from events ---
         // Unsubscribe from events to prevent memory leaks when a tab is reloaded.
-        foreach (var groupVm in InputGroups)
+        var allGroups = TabLayoouts?.SelectMany(t => t.Groups) ?? Enumerable.Empty<WorkflowGroupViewModel>();
+        foreach (var groupVm in allGroups)
         {
             groupVm.PropertyChanged -= OnGroupPresetChanged;
         }
         
-        InputGroups.Clear();
+        TabLayoouts.Clear();
+        // --- END OF CHANGE ---
+
         _hasWildcardFields = false;
         if (GlobalSettings != null)
         {

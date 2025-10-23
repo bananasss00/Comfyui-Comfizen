@@ -124,42 +124,106 @@
         </Grid.RowDefinitions>
         
         <TabControl Grid.Row="0">
-            <TabItem Header="UI Designer">
+            <TabItem Header="{local:Translate UIConstructor_LayoutHeader}">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="3*" MinWidth="250"/>
+                        <ColumnDefinition Width="3*" MinWidth="300"/>
                         <ColumnDefinition Width="5"/>
-                        <ColumnDefinition Width="5*" MinWidth="350"/>
+                        <ColumnDefinition Width="5*" MinWidth="450"/>
                     </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0" Background="{StaticResource SecondaryBackground}" CornerRadius="5"
-                            AllowDrop="True" Drop="DeleteField_Drop" DragEnter="DeleteField_DragEnter">
-                        <DockPanel Margin="10">
-                            <Button DockPanel.Dock="Top" Content="{local:Translate UIConstructor_LoadApiFile}" Command="{Binding LoadCommand}" Margin="0,0,0,10"/>
-                            <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
-                                <TextBox x:Name="SearchBox" Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Text="{local:Translate UIConstructor_SearchPlaceholder}" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0" IsHitTestVisible="False" VerticalAlignment="Center">
-                                    <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
-                                </TextBlock>
+                    <!-- START OF CHANGES: Left Panel for Tabs and Unassigned Groups -->
+                    <DockPanel Grid.Column="0">
+                        <Button DockPanel.Dock="Top" Content="{local:Translate UIConstructor_LoadApiFile}" Command="{Binding LoadCommand}" Margin="0,0,0,10"/>
+                        
+                        <Border Background="{StaticResource SecondaryBackground}" CornerRadius="5">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <!-- ADDED: Row for Available Fields -->
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Tabs Management -->
+                                <DockPanel Grid.Row="0">
+                                    <Button DockPanel.Dock="Right" Content="+" Command="{Binding AddTabCommand}" ToolTip="{local:Translate UIConstructor_AddTab}" Margin="5" Width="30" Height="30"/>
+                                    <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_TabsHeader}" FontWeight="Bold" Margin="10,10,10,5"/>
+                                    <ItemsControl ItemsSource="{Binding Workflow.Tabs}" Margin="5,0,5,5"
+                                                  AllowDrop="True" Drop="TabList_Drop" DragOver="TabList_DragOver">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:WorkflowTabDefinition}">
+                                                <Border x:Name="TabBorder" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8"
+                                                        PreviewMouseLeftButtonDown="TabDefinition_PreviewMouseLeftButtonDown"
+                                                        AllowDrop="True" Drop="TabDefinition_Drop" DragEnter="TabDefinition_DragEnter" DragLeave="TabDefinition_DragLeave">
+                                                    <Grid>
+                                                        <TextBlock Text="{Binding Name}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}" MouseLeftButtonDown="TabName_MouseLeftButtonDown"/>
+                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                    </Grid>
+                                                </Border>
+                                                <DataTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="True">
+                                                        <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </DockPanel>
+
+                                <!-- Unassigned Groups -->
+                                <DockPanel Grid.Row="1" Margin="0,10,0,0">
+                                    <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_UnassignedGroupsHeader}" FontWeight="Bold" Margin="10,5,10,5"/>
+                                    <!-- (ListBox для нераспределенных групп остается без изменений) -->
+                                    <ListBox ItemsSource="{Binding UnassignedGroups}" Background="Transparent" BorderThickness="0" Margin="5"
+                                             AllowDrop="True" Drop="UnassignedGroups_Drop" DragEnter="UnassignedGroups_DragEnter">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:WorkflowGroup}">
+                                                <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown">
+                                                    <TextBlock Text="{Binding Name}" ToolTip="{local:Translate UIConstructor_DragGroupTooltip}"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                        <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+                                    </ListBox>
+                                </DockPanel>
+                                
+                                <!-- ADDED: GridSplitter and Available Fields section -->
+                                <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch" Background="Transparent" ResizeDirection="Rows" />
+                                
+                                <DockPanel Grid.Row="3" Margin="0,10,0,0">
+                                    <Grid DockPanel.Dock="Top" Margin="10,0,10,10">
+                                        <TextBox x:Name="SearchBox" Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <TextBlock Text="{local:Translate UIConstructor_SearchPlaceholder}" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0" IsHitTestVisible="False" VerticalAlignment="Center">
+                                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                    <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_AvailableFields}" FontWeight="Bold" Margin="10,5,10,5"/>
+                                    <ListBox ItemsSource="{Binding AvailableFields}" Background="Transparent" BorderThickness="0" Margin="5"
+                                             AllowDrop="True" Drop="DeleteField_Drop" DragEnter="DeleteField_DragEnter">
+                                        <ListBox.ItemTemplate><DataTemplate><Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="AvailableField_PreviewMouseLeftButtonDown"><TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/></Border></DataTemplate></ListBox.ItemTemplate>
+                                        <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+                                    </ListBox>
+                                </DockPanel>
                             </Grid>
-                            <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_AvailableFields}" FontWeight="Bold" Margin="0,5,0,5"/>
-                            <ListBox ItemsSource="{Binding AvailableFields}" Background="Transparent" BorderThickness="0">
-                                <ListBox.ItemTemplate><DataTemplate><Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="AvailableField_PreviewMouseLeftButtonDown"><TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/></Border></DataTemplate></ListBox.ItemTemplate>
-                                <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
-                            </ListBox>
-                        </DockPanel>
-                    </Border>
+                        </Border>
+                    </DockPanel>
+                    <!-- END OF CHANGES: Left Panel -->
 
                     <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent" />
 
+                    <!-- START OF CHANGES: Right Panel for Selected Tab's Content -->
                     <Border Grid.Column="2" Background="{StaticResource SecondaryBackground}" CornerRadius="5">
-                        <DockPanel Margin="10">
+                        <!-- ADDED: AllowDrop and Drop handler -->
+                        <DockPanel Margin="10" AllowDrop="True" Drop="TabContent_Drop" DragEnter="TabContent_DragEnter">
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                                <Button Content="{local:Translate UIConstructor_AddGroup}" Command="{Binding AddGroupCommand}" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding SelectedTab.Name, StringFormat='{}{0}'}" FontWeight="Bold" FontSize="16" Margin="15,0" VerticalAlignment="Center"/>
+                            </StackPanel>
                             
-                            <Button DockPanel.Dock="Top" Content="{local:Translate UIConstructor_AddGroup}" Command="{Binding AddGroupCommand}" HorizontalAlignment="Left" Margin="0,0,0,10"/>
-                            <!-- START OF CHANGES: Add Name and DragOver event to ScrollViewer -->
                             <ScrollViewer x:Name="GroupsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <!-- END OF CHANGES -->
-                                <ItemsControl ItemsSource="{Binding Workflow.Groups}">
+                                <ItemsControl ItemsSource="{Binding SelectedTabGroups}">
                                         
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -372,7 +436,7 @@
                 </Grid>
             </TabItem>
             
-            <TabItem Header="Scripts">
+            <TabItem Header="{local:Translate UIConstructor_ScriptsHeader}">
                 <Grid Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*" MinWidth="250"/>
@@ -481,7 +545,7 @@
             </TabItem>
         </TabControl>
         
-        <Border Grid.Row="1" DockPanel.Dock="Top" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Padding="8" Margin="0,0,0,10">
+        <Border Grid.Row="1" DockPanel.Dock="Top" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Padding="8" Margin="0,10,0,0">
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <TextBox Text="{Binding NewWorkflowName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>

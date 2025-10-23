@@ -276,10 +276,19 @@
                             <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalSettings}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalSettings.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalPresets}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalPresets.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             
-                            <ItemsControl x:Name="GroupsItemsControl" ItemsSource="{Binding SelectedTab.WorkflowInputsController.InputGroups}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
-                                        <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5">
+                            <!-- START OF REPLACEMENT: Use a TabControl for workflow tabs -->
+                            <TabControl x:Name="WorkflowTabsControl" ItemsSource="{Binding SelectedTab.WorkflowInputsController.TabLayoouts}" Margin="5">
+                                <TabControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Header}"/>
+                                    </DataTemplate>
+                                </TabControl.ItemTemplate>
+                                <TabControl.ContentTemplate>
+                                    <DataTemplate>
+                                        <ItemsControl ItemsSource="{Binding Groups}" Margin="0,5,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
+                                                    <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5">
                                             <Expander.Template>
                                                 <ControlTemplate TargetType="Expander">
                                                     <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Background="Transparent">
@@ -486,9 +495,14 @@
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
                                         </Expander>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                </TabControl.ContentTemplate>
+                            </TabControl>
+                            <!-- END OF REPLACEMENT -->
+                            
                         </StackPanel>
                     </ScrollViewer>
                 </Border>

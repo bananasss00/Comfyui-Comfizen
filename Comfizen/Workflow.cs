@@ -10,6 +10,19 @@ using System.Linq;
 
 namespace Comfizen
 {
+    [AddINotifyPropertyChangedInterface]
+    public class WorkflowTabDefinition : INotifyPropertyChanged
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Name { get; set; }
+        public ObservableCollection<Guid> GroupIds { get; set; } = new ObservableCollection<Guid>();
+
+        [JsonIgnore]
+        public bool IsRenaming { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+    }
+    
     // Add a new class to represent a single preset.
     // This class will be serialized into the workflow file.
     public class GroupPreset
@@ -60,7 +73,10 @@ namespace Comfizen
         /// </summary>
         public JObject OriginalApi { get; private set; }
 
-
+        // --- START OF NEW PROPERTY ---
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public ObservableCollection<WorkflowTabDefinition> Tabs { get; set; } = new ObservableCollection<WorkflowTabDefinition>();
+        // --- END OF NEW PROPERTY ---
         public ObservableCollection<WorkflowGroup> Groups { get; set; } = new();
         
         public ScriptCollection Scripts { get; set; } = new ScriptCollection();
@@ -159,6 +175,8 @@ namespace Comfizen
                 promptTemplate = Groups,
                 scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null,
                 presets = Presets.Any() ? Presets : null,
+                // --- ADDED: Save tabs information ---
+                tabs = Tabs.Any() ? Tabs : null 
             };
 
             var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
@@ -222,6 +240,8 @@ namespace Comfizen
                 promptTemplate = default(ObservableCollection<WorkflowGroup>),
                 scripts = default(ScriptCollection),
                 presets = default(Dictionary<Guid, List<GroupPreset>>),
+                // --- ADDED: Load tabs information ---
+                tabs = default(ObservableCollection<WorkflowTabDefinition>)
             });
 
             OriginalApi = data.prompt;
@@ -229,7 +249,8 @@ namespace Comfizen
 
             Groups.Clear();
             if (data.promptTemplate != null) { foreach (var group in data.promptTemplate) Groups.Add(group); }
-
+            
+            Tabs = data.tabs ?? new ObservableCollection<WorkflowTabDefinition>();
             Scripts = data.scripts ?? new ScriptCollection();
             Presets = data.presets ?? new Dictionary<Guid, List<GroupPreset>>();
 

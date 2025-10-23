@@ -418,20 +418,43 @@ namespace Comfizen
         
         private void OnGroupNavigationRequested(WorkflowGroupViewModel groupVm)
         {
-            // The ItemsControl is what generates the UI for each group
-            var container = GroupsItemsControl.ItemContainerGenerator.ContainerFromItem(groupVm) as FrameworkElement;
-            if (container == null) return;
-            
-            // Find the Expander within the generated container
-            var expander = FindVisualChild<Expander>(container);
-            if (expander != null)
+            // --- START OF COMPLETE REWRITE OF THIS METHOD ---
+            var mainVm = DataContext as MainViewModel;
+            if (mainVm?.SelectedTab?.WorkflowInputsController == null) return;
+        
+            // 1. Find the tab layout ViewModel that contains the target group.
+            var targetTabLayout = mainVm.SelectedTab.WorkflowInputsController.TabLayoouts
+                .FirstOrDefault(tabLayout => tabLayout.Groups.Contains(groupVm));
+        
+            if (targetTabLayout == null) return;
+        
+            // 2. Programmatically select the correct tab in the UI.
+            WorkflowTabsControl.SelectedItem = targetTabLayout;
+        
+            // 3. Defer the rest of the logic until the UI has updated to show the new tab's content.
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                // Ensure the group is visible
-                expander.IsExpanded = true;
-                
-                // Scroll it into view
-                expander.BringIntoView();
-            }
+                // 4. Find the ItemsControl inside the newly selected TabItem.
+                // It will be the one whose DataContext is our target group view model.
+                var tabItem = WorkflowTabsControl.ItemContainerGenerator.ContainerFromItem(targetTabLayout) as TabItem;
+                if (tabItem == null) return;
+        
+                var itemsControl = FindVisualChild<ItemsControl>(tabItem);
+                if (itemsControl == null) return;
+        
+                // 5. Find the Expander for the specific group within that ItemsControl.
+                var expanderContainer = itemsControl.ItemContainerGenerator.ContainerFromItem(groupVm) as FrameworkElement;
+                if (expanderContainer == null) return;
+        
+                var expander = FindVisualChild<Expander>(expanderContainer);
+                if (expander != null)
+                {
+                    // 6. Ensure the group is visible and scroll it into view.
+                    expander.IsExpanded = true;
+                    expander.BringIntoView();
+                }
+            }), DispatcherPriority.ContextIdle);
+            // --- END OF COMPLETE REWRITE ---
         }
         
         private void GroupNavigationListBoxItem_Click(object sender, MouseButtonEventArgs e)
