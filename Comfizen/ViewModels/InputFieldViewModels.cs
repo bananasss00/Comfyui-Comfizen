@@ -136,11 +136,13 @@ namespace Comfizen
                 }
             }
         }
-
+        
+        public bool IsSavePresetPopupOpen { get; set; }
+        public string NewPresetName { get; set; }
+        public ICommand OpenSavePresetPopupCommand { get; }
+        
         public ICommand SavePresetCommand { get; }
         public ICommand DeletePresetCommand { get; }
-        public ICommand OpenPresetManagerCommand { get; }
-        public bool IsPresetManagerOpen { get; set; }
         public ICommand ApplyPresetCommand { get; }
         
         /// <summary>
@@ -166,16 +168,23 @@ namespace Comfizen
                 }
             };
             LoadPresets();
-
-            OpenPresetManagerCommand = new RelayCommand(_ => IsPresetManagerOpen = true);
-        
-            SavePresetCommand = new RelayCommand(param =>
+            
+            OpenSavePresetPopupCommand = new RelayCommand(_ => 
             {
-                if (param is string presetName && !string.IsNullOrWhiteSpace(presetName))
-                {
-                    SaveCurrentStateAsPreset(presetName);
-                }
+                // Pre-fill the textbox with the currently selected name, if any
+                NewPresetName = SelectedPresetName;
+                IsSavePresetPopupOpen = true; 
             });
+            
+            SavePresetCommand = new RelayCommand(_ =>
+            {
+                if (!string.IsNullOrWhiteSpace(NewPresetName))
+                {
+                    SaveCurrentStateAsPreset(NewPresetName);
+                    IsSavePresetPopupOpen = false; // Close popup after saving
+                    NewPresetName = string.Empty; // Clear for next time
+                }
+            }, _ => !string.IsNullOrWhiteSpace(NewPresetName));
 
             DeletePresetCommand = new RelayCommand(param =>
             {
@@ -195,8 +204,6 @@ namespace Comfizen
                 if (param is GroupPresetViewModel presetVM)
                 {
                     ApplyPreset(presetVM);
-                    // Close the manager after applying a preset from it
-                    IsPresetManagerOpen = false; 
                 }
             });
         }
@@ -272,10 +279,18 @@ namespace Comfizen
             
             // Refresh the UI list
             LoadPresets();
-            IsPresetManagerOpen = false;
             
             // Raise the event to notify that a save is needed.
             PresetsModified?.Invoke();
+
+            // START OF FIX: Automatically select the newly saved preset
+            var newlySavedPreset = Presets.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (newlySavedPreset != null)
+            {
+                // This will update both the selected object and the text in the ComboBox
+                SelectedPreset = newlySavedPreset;
+            }
+            // END OF FIX
         }
 
         private void DeletePreset(GroupPresetViewModel presetVM)

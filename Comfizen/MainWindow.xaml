@@ -319,13 +319,12 @@
                                                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                                                                                                 Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
                                                                                         
-                                                                                        <!-- START OF CHANGE: Replace ComboBox with FilterableComboBox -->
                                                                                         <local:FilterableComboBox Margin="10,0,5,0" VerticalAlignment="Center"
-                                                                                                                  ItemsSource="{Binding PresetNames}"
-                                                                                                                  SelectedItem="{Binding SelectedPresetName, Mode=TwoWay}"
-                                                                                                                  MinWidth="120"
-                                                                                                                  Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"
-                                                                                                                  PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
+                                                                                            ItemsSource="{Binding PresetNames}"
+                                                                                            SelectedItem="{Binding SelectedPresetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                            MinWidth="120"
+                                                                                            Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"
+                                                                                            PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
                                                                                             <local:FilterableComboBox.ItemTemplate>
                                                                                                 <DataTemplate>
                                                                                                     <Grid>
@@ -335,7 +334,6 @@
                                                                                                         </Grid.ColumnDefinitions>
                                                                                                         <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"/>
                                                                                                         
-                                                                                                        <!-- START OF FIX: Replaced x:Name and external trigger with an inline Style -->
                                                                                                         <Button Grid.Column="1" Content="✕" 
                                                                                                                 Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
                                                                                                                 CommandParameter="{Binding}"
@@ -353,19 +351,18 @@
                                                                                                                 </Style>
                                                                                                             </Button.Style>
                                                                                                         </Button>
-                                                                                                        <!-- END OF FIX -->
                                                                                                     </Grid>
-                                                                                                    <!-- The old DataTemplate.Triggers section is now removed -->
                                                                                                 </DataTemplate>
                                                                                             </local:FilterableComboBox.ItemTemplate>
                                                                                         </local:FilterableComboBox>
-                                                                                        <!-- END OF CHANGE -->
                                                                                         
-                                                                                        <Button Content="&#xE713;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource IconButton}" Width="24" Height="24"
-                                                                                            Command="{Binding OpenPresetManagerCommand}"
-                                                                                            ToolTip="{local:Translate Presets_ManageTooltip}"/>
+                                                                                        <!-- START OF CHANGE: Replace settings button with a Save button -->
+                                                                                        <Button Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 
+                                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                                            Command="{Binding OpenSavePresetPopupCommand}"
+                                                                                            ToolTip="{local:Translate Presets_SaveButton}"/>
+                                                                                        <!-- END OF CHANGE -->
                                                                                     </StackPanel>
-                                                                                    <!-- END OF CHANGES -->
                                                                                 </Grid>
                                                                             </Border>
                                                                         </Grid>
@@ -378,56 +375,29 @@
                                                                 </ToggleButton.Template>
                                                             </ToggleButton>
                                                             
-                                                            <!-- START OF CHANGES: Popup for Preset Management -->
-                                                            <Popup IsOpen="{Binding IsPresetManagerOpen, Mode=TwoWay}" StaysOpen="False" Placement="Bottom" AllowsTransparency="True">
-                                                                    <Border Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Padding="10" MinWidth="300">
-                                                                        <StackPanel>
-                                                                            <TextBlock Text="{local:Translate Presets_SaveCurrentState}" FontWeight="Bold" Margin="0,0,0,5"/>
-                                                                            <Grid Margin="0,0,0,10">
-                                                                                <Grid.ColumnDefinitions>
-                                                                                    <ColumnDefinition Width="*"/>
-                                                                                    <ColumnDefinition Width="Auto"/>
-                                                                                </Grid.ColumnDefinitions>
-                                                                                <TextBox x:Name="NewPresetNameTextBox" Grid.Column="0" />
-                                                                                <Button Grid.Column="1" Content="{local:Translate Presets_SaveButton}" Margin="5,0,0,0"
-                                                                                    Command="{Binding SavePresetCommand}"
-                                                                                    CommandParameter="{Binding Text, ElementName=NewPresetNameTextBox}"/>
-                                                                            </Grid>
-
-                                                                            <TextBlock Text="{local:Translate Presets_ManageHeader}" FontWeight="Bold" Margin="0,5,0,5"/>
-                                                                            <ItemsControl ItemsSource="{Binding Presets}" MaxHeight="200">
-                                                                                <ItemsControl.ItemTemplate>
-                                                                                    <DataTemplate>
-                                                                                        <!-- START OF CHANGES: Add Load button -->
-                                                                                        <Grid Margin="0,2">
-                                                                                            <Grid.ColumnDefinitions>
-                                                                                                <ColumnDefinition Width="*"/>
-                                                                                                <ColumnDefinition Width="Auto"/>
-                                                                                                <ColumnDefinition Width="Auto"/>
-                                                                                            </Grid.ColumnDefinitions>
-                                                                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                                                                                            
-                                                                                            <Button Grid.Column="1" Content="&#xE898;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource IconButton}"
-                                                                                                Width="24" Height="24" Background="Transparent"
-                                                                                                ToolTip="{local:Translate Presets_LoadTooltip}"
-                                                                                                Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                                                CommandParameter="{Binding}"/>
-
-                                                                                            <Button Grid.Column="2" Content="&#xE74D;" Style="{StaticResource IconButton}"
-                                                                                                Width="24" Height="24" Background="Transparent"
-                                                                                                ToolTip="{local:Translate Presets_DeleteTooltip}"
-                                                                                                Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                                                CommandParameter="{Binding}"/>
-                                                                                        </Grid>
-                                                                                        <!-- END OF CHANGES -->
-                                                                                    </DataTemplate>
-                                                                                </ItemsControl.ItemTemplate>
-                                                                            </ItemsControl>
-                                                                        </StackPanel>
-                                                                    </Border>
-                                                                </Popup>
-                                                            
-                                                            
+                                                            <!-- START OF CHANGE: Add the Popup for saving presets -->
+                                                            <Popup IsOpen="{Binding IsSavePresetPopupOpen, Mode=TwoWay}" 
+                                                                   StaysOpen="False" 
+                                                                   Placement="Bottom" 
+                                                                   PlacementTarget="{Binding ElementName=HeaderToggleButton}"
+                                                                   AllowsTransparency="True">
+                                                                <Border Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,2,0,0">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="{local:Translate Presets_SaveCurrentState}" FontWeight="Bold" Margin="0,0,0,5"/>
+                                                                        <Grid>
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBox Grid.Column="0" MinWidth="150"
+                                                                                     Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" />
+                                                                            <Button Grid.Column="1" Content="{local:Translate Presets_SaveButton}" Margin="5,0,0,0"
+                                                                                    Command="{Binding SavePresetCommand}"/>
+                                                                        </Grid>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </Popup>
+                    
                                                             <Grid x:Name="ContentSite" DockPanel.Dock="Bottom" Visibility="Collapsed">
                                                                  <Border Opacity="0.2" Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}"/>
                                                                  <ContentPresenter ContentSource="Content" Margin="8"/>
