@@ -118,17 +118,9 @@
                              PreviewKeyDown="ItemListBox_PreviewKeyDown"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              Background="{StaticResource SecondaryBackground}"
-                             BorderThickness="0">
-                        
-                        <ListBox.Resources>
-                            <DataTemplate DataType="{x:Type local:WorkflowListHeader}">
-                                <TextBlock Text="{Binding Title}" FontWeight="Bold" Margin="2,5,2,2"
-                                           Foreground="{StaticResource TextSecondaryBrush}"/>
-                            </DataTemplate>
-                            <DataTemplate DataType="{x:Type sys:String}">
-                                <TextBlock Text="{Binding Converter={StaticResource FileNameTrimmerConverter}}"/>
-                            </DataTemplate>
-                        </ListBox.Resources>
+                             BorderThickness="0"
+                             ItemTemplate="{Binding ItemTemplate, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}"
+                             ItemTemplateSelector="{Binding ItemTemplateSelector, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}">
 
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">

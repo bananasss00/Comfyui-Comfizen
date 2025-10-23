@@ -27,6 +27,23 @@ namespace Comfizen
         }
 
         #region Dependency Properties
+        public static readonly DependencyProperty ItemTemplateSelectorProperty = DependencyProperty.Register(
+            "ItemTemplateSelector", typeof(DataTemplateSelector), typeof(FilterableComboBox), new PropertyMetadata(null));
+
+        public DataTemplateSelector ItemTemplateSelector
+        {
+            get => (DataTemplateSelector)GetValue(ItemTemplateSelectorProperty);
+            set => SetValue(ItemTemplateSelectorProperty, value);
+        }
+        
+        public static readonly DependencyProperty ItemTemplateProperty = DependencyProperty.Register(
+            "ItemTemplate", typeof(DataTemplate), typeof(FilterableComboBox), new PropertyMetadata(null));
+
+        public DataTemplate ItemTemplate
+        {
+            get => (DataTemplate)GetValue(ItemTemplateProperty);
+            set => SetValue(ItemTemplateProperty, value);
+        }
 
         public static readonly DependencyProperty ItemsSourceProperty = DependencyProperty.Register(
             "ItemsSource", typeof(IEnumerable), typeof(FilterableComboBox), new PropertyMetadata(null, OnItemsSourceChanged));

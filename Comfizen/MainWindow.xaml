@@ -19,7 +19,20 @@
         Drop="Window_Drop">
     <Window.DataContext>
         <local:MainViewModel/>
-    </Window.DataContext><Window.Resources>
+    </Window.DataContext>
+    <Window.Resources>
+        <DataTemplate x:Key="WorkflowItemTemplate" DataType="{x:Type sys:String}">
+            <TextBlock Text="{Binding Converter={StaticResource FileNameTrimmerConverter}}"/>
+        </DataTemplate>
+
+        <DataTemplate x:Key="WorkflowHeaderTemplate" DataType="{x:Type local:WorkflowListHeader}">
+            <TextBlock Text="{Binding Title}" FontWeight="Bold" Margin="2,5,2,2" Foreground="{StaticResource TextSecondaryBrush}"/>
+        </DataTemplate>
+
+        <local:WorkflowTemplateSelector x:Key="WorkflowTemplateSelector"
+                                        WorkflowTemplate="{StaticResource WorkflowItemTemplate}"
+                                        HeaderTemplate="{StaticResource WorkflowHeaderTemplate}"/>
+        
         <ControlTemplate x:Key="CustomContextMenuTemplate" TargetType="ContextMenu">
         <Border x:Name="Border" 
                 Background="{StaticResource SecondaryBackground}"
@@ -120,7 +133,8 @@
                     SelectedItem="{Binding SelectedWorkflow, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FileNameTrimmerConverter}}"
                     SearchFilter="{Binding WorkflowSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                     ItemSelected="FilterableComboBox_ItemSelected"
-                    PlaceholderText="{local:Translate FilterableComboBox_Placeholder}"/>
+                    PlaceholderText="{local:Translate FilterableComboBox_Placeholder}"
+                    ItemTemplateSelector="{StaticResource WorkflowTemplateSelector}"/>
             </DockPanel>
         </Border>
         
@@ -232,12 +246,19 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{local:Translate GlobalPresets_Label}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                            <ComboBox Grid.Column="1" 
-                                                      ItemsSource="{Binding GlobalPresetNames}"
-                                                      SelectedItem="{Binding SelectedGlobalPreset, Mode=TwoWay}"
-                                                      x:Name="GlobalPresetsComboBox">
-                                                <ComboBox.Style>
-                                                    <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                                            <local:FilterableComboBox Grid.Column="1"
+                                                                      ItemsSource="{Binding GlobalPresetNames}"
+                                                                      SelectedItem="{Binding SelectedGlobalPreset, Mode=TwoWay}"
+                                                                      PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
+                                                <!-- START OF CHANGE: Provide a simple text template -->
+                                                <local:FilterableComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding}" Padding="2"/>
+                                                    </DataTemplate>
+                                                </local:FilterableComboBox.ItemTemplate>
+                                                <!-- END OF CHANGE -->
+                                                <local:FilterableComboBox.Style>
+                                                    <Style TargetType="local:FilterableComboBox">
                                                         <Setter Property="IsEnabled" Value="True"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding GlobalPresetNames.Count}" Value="0">
@@ -245,25 +266,8 @@
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </ComboBox.Style>
-                                            </ComboBox>
-                                            <TextBlock Text="{local:Translate Presets_LoadPlaceholder}" IsHitTestVisible="False" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Grid.Column="1" Margin="5,0">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding GlobalPresetNames.Count, Converter={StaticResource CountToBooleanConverter}}" Value="True"/>
-                                                                    <!-- Use a binding to the ViewModel property instead of ElementName -->
-                                                                    <Condition Binding="{Binding SelectedGlobalPreset}" Value="{x:Null}"/>
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </MultiDataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
+                                                </local:FilterableComboBox.Style>
+                                            </local:FilterableComboBox>
                                         </Grid>
                                     </Expander>
                                 </DataTemplate>
@@ -315,49 +319,51 @@
                                                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                                                                                                 Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
                                                                                         
-                                                                                        <!-- START OF CHANGES: Add a placeholder text to the ComboBox -->
-                                                                                        <Grid Margin="10,0,5,0" VerticalAlignment="Center">
-                                                                                            <ComboBox x:Name="PresetsComboBox" 
-                                                                                                ItemsSource="{Binding Presets}"
-                                                                                                SelectedItem="{Binding SelectedPreset, Mode=TwoWay}"
-                                                                                                DisplayMemberPath="Name"
-                                                                                                MinWidth="120"
-                                                                                                Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"/>
-              
-                                                                                                
-                                                                                            <TextBlock Text="{local:Translate Presets_LoadPlaceholder}" 
-                                                                                                IsHitTestVisible="False" 
-                                                                                                Foreground="{StaticResource TextSecondaryBrush}" 
-                                                                                                VerticalAlignment="Center" 
-                                                                                                Margin="5,0">
-                                                                                                <TextBlock.Style>
-                                                                                                    <Style TargetType="TextBlock">
-                                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                                                                        <Style.Triggers>
-                                                                                                            <MultiDataTrigger>
-                                                                                                                <MultiDataTrigger.Conditions>
-                                                                                                                    <!-- Проверяем, есть ли пресеты -->
-                                                                                                                    <Condition Binding="{Binding Presets.Count, Converter={StaticResource CountToBooleanConverter}}" Value="True"/>
-                        
-                                                                                                                    <!-- Проверяем, что ничего НЕ выбрано -->
-                                                                                                                    <Condition Binding="{Binding SelectedPreset}" Value="{x:Null}"/>
-                                                                                                                </MultiDataTrigger.Conditions>
-                                                                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                                                            </MultiDataTrigger>
-                                                                                                        </Style.Triggers>
-                                                                                                    </Style>
-                                                                                                </TextBlock.Style>
-                                                                                            </TextBlock>
-
-
-                                                                                        </Grid>
-                                                                                        <!-- END OF CHANGES -->
-
-                                                                                        <!-- START OF CHANGES: Fix icon and add ToolTip -->
+                                                                                        <!-- START OF CHANGE: Replace ComboBox with FilterableComboBox -->
+                                                                                        <local:FilterableComboBox Margin="10,0,5,0" VerticalAlignment="Center"
+                                                                                                                  ItemsSource="{Binding PresetNames}"
+                                                                                                                  SelectedItem="{Binding SelectedPresetName, Mode=TwoWay}"
+                                                                                                                  MinWidth="120"
+                                                                                                                  Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"
+                                                                                                                  PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
+                                                                                            <local:FilterableComboBox.ItemTemplate>
+                                                                                                <DataTemplate>
+                                                                                                    <Grid>
+                                                                                                        <Grid.ColumnDefinitions>
+                                                                                                            <ColumnDefinition Width="*" />
+                                                                                                            <ColumnDefinition Width="Auto" />
+                                                                                                        </Grid.ColumnDefinitions>
+                                                                                                        <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"/>
+                                                                                                        
+                                                                                                        <!-- START OF FIX: Replaced x:Name and external trigger with an inline Style -->
+                                                                                                        <Button Grid.Column="1" Content="✕" 
+                                                                                                                Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
+                                                                                                                CommandParameter="{Binding}"
+                                                                                                                ToolTip="{local:Translate Presets_DeleteTooltip}">
+                                                                                                            <Button.Style>
+                                                                                                                <Style TargetType="Button" BasedOn="{StaticResource OverlayIconButton}">
+                                                                                                                    <Setter Property="Opacity" Value="0" />
+                                                                                                                    <Setter Property="IsHitTestVisible" Value="False" />
+                                                                                                                    <Style.Triggers>
+                                                                                                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                                                                                            <Setter Property="Opacity" Value="1" />
+                                                                                                                            <Setter Property="IsHitTestVisible" Value="True" />
+                                                                                                                        </DataTrigger>
+                                                                                                                    </Style.Triggers>
+                                                                                                                </Style>
+                                                                                                            </Button.Style>
+                                                                                                        </Button>
+                                                                                                        <!-- END OF FIX -->
+                                                                                                    </Grid>
+                                                                                                    <!-- The old DataTemplate.Triggers section is now removed -->
+                                                                                                </DataTemplate>
+                                                                                            </local:FilterableComboBox.ItemTemplate>
+                                                                                        </local:FilterableComboBox>
+                                                                                        <!-- END OF CHANGE -->
+                                                                                        
                                                                                         <Button Content="&#xE713;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource IconButton}" Width="24" Height="24"
                                                                                             Command="{Binding OpenPresetManagerCommand}"
                                                                                             ToolTip="{local:Translate Presets_ManageTooltip}"/>
-                                                                                        <!-- END OF CHANGES -->
                                                                                     </StackPanel>
                                                                                     <!-- END OF CHANGES -->
                                                                                 </Grid>

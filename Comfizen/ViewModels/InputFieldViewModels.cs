@@ -106,7 +106,36 @@ namespace Comfizen
         public ObservableCollection<GroupPresetViewModel> Presets { get; } = new();
 
         private GroupPresetViewModel _selectedPreset;
-        public GroupPresetViewModel SelectedPreset { get; set; }
+        public GroupPresetViewModel SelectedPreset
+        {
+            get => _selectedPreset;
+            set
+            {
+                if (_selectedPreset != value)
+                {
+                    _selectedPreset = value;
+                    OnPropertyChanged(nameof(SelectedPreset));
+                    // Notify that the name has also changed for the FilterableComboBox
+                    OnPropertyChanged(nameof(SelectedPresetName));
+                }
+            }
+        }
+        
+        public IEnumerable<string> PresetNames => Presets.Select(p => p.Name).ToList();
+
+        // NEW: Property to bind to the FilterableComboBox's string-based SelectedItem
+        public string SelectedPresetName
+        {
+            get => SelectedPreset?.Name;
+            set
+            {
+                if (SelectedPreset?.Name != value)
+                {
+                    // Find the full preset object by name and update the main property
+                    SelectedPreset = Presets.FirstOrDefault(p => p.Name == value);
+                }
+            }
+        }
 
         public ICommand SavePresetCommand { get; }
         public ICommand DeletePresetCommand { get; }
@@ -150,9 +179,14 @@ namespace Comfizen
 
             DeletePresetCommand = new RelayCommand(param =>
             {
-                if (param is GroupPresetViewModel presetVM)
+                // CHANGE: Command now receives a string (the preset name)
+                if (param is string presetName)
                 {
-                    DeletePreset(presetVM);
+                    var presetVM = Presets.FirstOrDefault(p => p.Name == presetName);
+                    if (presetVM != null)
+                    {
+                        DeletePreset(presetVM);
+                    }
                 }
             });
             
@@ -183,6 +217,8 @@ namespace Comfizen
                     Presets.Add(new GroupPresetViewModel(preset));
                 }
             }
+            // CHANGE: Notify that the names list has been updated
+            OnPropertyChanged(nameof(PresetNames));
         }
 
         public void ApplyPreset(GroupPresetViewModel presetVM)
@@ -249,7 +285,8 @@ namespace Comfizen
                 presets.Remove(presetVM.Model);
                 Presets.Remove(presetVM);
                 PresetsModified?.Invoke();
-                
+                // CHANGE: Notify that the names list has been updated
+                OnPropertyChanged(nameof(PresetNames));
             }
         }
         // --- END OF CHANGES ---
