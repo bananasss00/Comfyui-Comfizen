@@ -11,6 +11,8 @@
         <local:IsInpaintViewModelConverter x:Key="IsInpaintViewModelConverter"/>
         <local:IsMarkdownViewModelConverter x:Key="IsMarkdownViewModelConverter"/>
         <local:TaskCountToVisibilityConverter x:Key="TaskCountToVisibilityConverter" />
+        <local:TabCountToVisibilityConverter x:Key="TabCountToVisibilityConverter" />
+        <local:TabCountToHeaderHeightConverter x:Key="TabCountToHeaderHeightConverter" />
         <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <global:IsHeaderConverter x:Key="IsHeaderConverter"/>
         <local:StringListToStringConverter x:Key="StringListConverter"/>

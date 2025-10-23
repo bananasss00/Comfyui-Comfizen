@@ -42,7 +42,7 @@
                     <ControlTemplate TargetType="TabControl">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="{Binding Items.Count, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource TabCountToHeaderHeightConverter}}"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             <!-- This Border acts as the "tab bar" background -->
