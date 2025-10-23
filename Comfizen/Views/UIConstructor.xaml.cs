@@ -910,7 +910,8 @@ namespace Comfizen
         public UIConstructor()
         {
             InitializeComponent();
-            DataContext = new UIConstructorView();
+            _viewModel = new UIConstructorView();
+            DataContext = _viewModel;
             AttachCompletionEvents();
             ApplyHyperlinksColor();
         }
