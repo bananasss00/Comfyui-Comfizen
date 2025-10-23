@@ -22,7 +22,7 @@
     </Window.DataContext>
     <Window.Resources>
         <DataTemplate x:Key="WorkflowItemTemplate" DataType="{x:Type sys:String}">
-            <TextBlock Text="{Binding Converter={StaticResource FileNameTrimmerConverter}}"/>
+            <TextBlock Text="{Binding Converter={StaticResource FileNameTrimmerConverter}}" Padding="5,3"/>
         </DataTemplate>
 
         <DataTemplate x:Key="WorkflowHeaderTemplate" DataType="{x:Type local:WorkflowListHeader}">
@@ -319,22 +319,29 @@
                                                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                                                                                                 Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
                                                                                         
+                                                                                            
                                                                                         <local:FilterableComboBox Margin="10,0,5,0" VerticalAlignment="Center"
-                                                                                            ItemsSource="{Binding PresetNames}"
-                                                                                            SelectedItem="{Binding SelectedPresetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                                            MinWidth="120"
-                                                                                            Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"
-                                                                                            PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
+                                                                                                                  ItemsSource="{Binding PresetNames}"
+                                                                                                                  SelectedItem="{Binding SelectedPresetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                                  MinWidth="120"
+                                                                                                                  Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"
+                                                                                                                  PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
                                                                                             <local:FilterableComboBox.ItemTemplate>
                                                                                                 <DataTemplate>
+                                                                                                    <!-- Вот правильное решение с использованием Grid -->
                                                                                                     <Grid>
                                                                                                         <Grid.ColumnDefinitions>
                                                                                                             <ColumnDefinition Width="*" />
                                                                                                             <ColumnDefinition Width="Auto" />
                                                                                                         </Grid.ColumnDefinitions>
-                                                                                                        <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"/>
                                                                                                         
-                                                                                                        <Button Grid.Column="1" Content="✕" 
+                                                                                                        <TextBlock Grid.Column="0" Text="{Binding}" 
+                                                                                                                   VerticalAlignment="Center" 
+                                                                                                                   TextTrimming="CharacterEllipsis" 
+                                                                                                                   Padding="5,3"/>
+                                                                                                        
+                                                                                                        <Button Grid.Column="1" Content="✕"
+                                                                                                                Margin="5,0"
                                                                                                                 Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
                                                                                                                 CommandParameter="{Binding}"
                                                                                                                 ToolTip="{local:Translate Presets_DeleteTooltip}">
@@ -355,6 +362,8 @@
                                                                                                 </DataTemplate>
                                                                                             </local:FilterableComboBox.ItemTemplate>
                                                                                         </local:FilterableComboBox>
+
+  
                                                                                         
                                                                                         <!-- START OF CHANGE: Replace settings button with a Save button -->
                                                                                         <Button Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 

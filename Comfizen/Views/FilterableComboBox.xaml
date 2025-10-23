@@ -124,7 +124,10 @@
 
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
-                                <Setter Property="Padding" Value="5,3"/>
+                                <!-- START OF CHANGE: Remove default padding to allow content to span full width -->
+                                <Setter Property="Padding" Value="0"/>
+                                <!-- END OF CHANGE -->
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                 <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">

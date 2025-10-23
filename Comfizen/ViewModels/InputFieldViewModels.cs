@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
@@ -188,14 +189,21 @@ namespace Comfizen
 
             DeletePresetCommand = new RelayCommand(param =>
             {
-                // CHANGE: Command now receives a string (the preset name)
                 if (param is string presetName)
                 {
-                    var presetVM = Presets.FirstOrDefault(p => p.Name == presetName);
-                    if (presetVM != null)
+                    // START OF CHANGE: Add confirmation dialog
+                    var message = string.Format(LocalizationService.Instance["Presets_DeleteConfirmMessage"], presetName);
+                    var caption = LocalizationService.Instance["Presets_DeleteConfirmTitle"];
+                    
+                    if (MessageBox.Show(message, caption, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
                     {
-                        DeletePreset(presetVM);
+                        var presetVM = Presets.FirstOrDefault(p => p.Name == presetName);
+                        if (presetVM != null)
+                        {
+                            DeletePreset(presetVM);
+                        }
                     }
+                    // END OF CHANGE
                 }
             });
             

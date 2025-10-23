@@ -6,6 +6,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace Comfizen
 {
@@ -222,10 +223,35 @@ namespace Comfizen
         }
         
         /// <summary>
-        /// Обрабатывает клик мыши для выбора элемента.
+        /// Helper method to find a visual ancestor of a specific type.
+        /// </summary>
+        private static T FindAncestor<T>(DependencyObject current) where T : DependencyObject
+        {
+            do
+            {
+                if (current is T ancestor)
+                {
+                    return ancestor;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
+            while (current != null);
+            return null;
+        }
+        
+        /// <summary>
+        /// Handles mouse clicks to select an item, but ignores clicks on buttons within the item.
         /// </summary>
         private void ItemListBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            // Check if the click originated from within a Button.
+            // If it did, we do nothing and let the Button handle its own click/command.
+            if (FindAncestor<Button>(e.OriginalSource as DependencyObject) != null)
+            {
+                return;
+            }
+
+            // Original logic for selection
             if (e.OriginalSource is FrameworkElement element &&
                 element.DataContext is string selectedItem)
             {

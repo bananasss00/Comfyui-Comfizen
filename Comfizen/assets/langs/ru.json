@@ -220,6 +220,8 @@
   "Presets_ManageHeader": "Управление пресетами",
   "Presets_LoadTooltip": "Загрузить пресет",
   "Presets_DeleteTooltip": "Удалить пресет",
+  "Presets_DeleteConfirmTitle": "Подтвердите удаление",
+  "Presets_DeleteConfirmMessage": "Вы уверены, что хотите безвозвратно удалить пресет '{0}'?",
   "GlobalPresets_Header": "Глобальные пресеты",
   "GlobalPresets_Label": "Применить пресет:"
 }

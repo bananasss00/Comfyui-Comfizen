@@ -519,7 +519,7 @@ namespace Comfizen
                 }
             }
         }
-        
+
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
             if (parent == null) return null;

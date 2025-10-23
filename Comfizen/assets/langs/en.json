@@ -220,6 +220,8 @@
   "Presets_ManageHeader": "Manage Presets",
   "Presets_LoadTooltip": "Load Preset",
   "Presets_DeleteTooltip": "Delete Preset",
+  "Presets_DeleteConfirmTitle": "Confirm Deletion",
+  "Presets_DeleteConfirmMessage": "Are you sure you want to permanently delete the preset '{0}'?",
   "GlobalPresets_Header": "Global Presets",
   "GlobalPresets_Label": "Apply Preset:"
 }
