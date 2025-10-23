@@ -416,12 +416,34 @@ namespace Comfizen
         public void OpenOrSwitchToWorkflow(string relativePath)
         {
             if (string.IsNullOrEmpty(relativePath)) return;
+            
+            var normalizedPath = relativePath.Replace('\\', '/');
+            
+            if (Path.IsPathRooted(normalizedPath))
+            {
+                var workflowsDirFullPath = Path.GetFullPath(Workflow.WorkflowsDir);
+                var fileFullPath = Path.GetFullPath(normalizedPath);
+                
+                if (fileFullPath.StartsWith(workflowsDirFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    normalizedPath = Path.GetRelativePath(workflowsDirFullPath, fileFullPath).Replace('\\', '/');
+                }
+                else
+                {
+                    MessageBox.Show(
+                        string.Format(LocalizationService.Instance["MainVM_WorkflowPathError"], fileFullPath, workflowsDirFullPath),
+                        LocalizationService.Instance["General_Error"],
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    return;
+                }
+            }
 
-            var fullPath = Path.Combine(Workflow.WorkflowsDir, relativePath);
+            var fullPath = Path.Combine(Workflow.WorkflowsDir, normalizedPath);
             var fullPathNormalized = Path.GetFullPath(fullPath);
-
+            
             var existingTab = OpenTabs.FirstOrDefault(t => 
-                Path.GetFullPath(t.FilePath).Equals(fullPathNormalized, StringComparison.OrdinalIgnoreCase)
+                !t.IsVirtual && Path.GetFullPath(t.FilePath).Equals(fullPathNormalized, StringComparison.OrdinalIgnoreCase)
             );
             
             if (existingTab != null)
@@ -433,7 +455,7 @@ namespace Comfizen
                 var newTab = new WorkflowTabViewModel(fullPath, _comfyuiModel, _settings, _modelService, _sessionManager);
                 OpenTabs.Add(newTab);
                 SelectedTab = newTab;
-                AddWorkflowToRecents(relativePath);
+                AddWorkflowToRecents(normalizedPath);
                 UpdateWorkflowDisplayList();
             }
             
