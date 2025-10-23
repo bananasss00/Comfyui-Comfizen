@@ -157,14 +157,27 @@
                                                       AllowDrop="True" Drop="TabList_Drop" DragOver="TabList_DragOver">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:WorkflowTabDefinition}">
-                                                    <Border x:Name="TabBorder" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8"
-                                                            PreviewMouseLeftButtonDown="TabDefinition_PreviewMouseLeftButtonDown"
-                                                            AllowDrop="True" Drop="TabDefinition_Drop" DragEnter="TabDefinition_DragEnter" DragLeave="TabDefinition_DragLeave">
-                                                        <Grid>
-                                                            <TextBlock Text="{Binding Name}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}" MouseLeftButtonDown="TabName_MouseLeftButtonDown"/>
-                                                            <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                        </Grid>
-                                                    </Border>
+                                                    <!-- START OF CHANGES: Added StackPanel and drop indicators for reordering -->
+                                                    <StackPanel AllowDrop="True" 
+                                                                Drop="Tab_Drop" 
+                                                                DragOver="Tab_DragOver" 
+                                                                DragLeave="Tab_DragLeave" 
+                                                                Background="Transparent">
+                                                        
+                                                        <Border x:Name="TabDropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
+
+                                                        <Border x:Name="TabBorder" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8"
+                                                                PreviewMouseLeftButtonDown="TabDefinition_PreviewMouseLeftButtonDown"
+                                                                AllowDrop="True" Drop="TabDefinition_Drop" DragEnter="TabDefinition_DragEnter" DragLeave="TabDefinition_DragLeave">
+                                                            <Grid>
+                                                                <TextBlock Text="{Binding Name}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}" MouseLeftButtonDown="TabName_MouseLeftButtonDown"/>
+                                                                <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                            </Grid>
+                                                        </Border>
+                                                        
+                                                        <Border x:Name="TabDropIndicatorAfter" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                                    </StackPanel>
+                                                    <!-- END OF CHANGES -->
                                                     <DataTemplate.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="True">
                                                             <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>

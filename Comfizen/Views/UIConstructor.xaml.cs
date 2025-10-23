@@ -879,6 +879,7 @@ namespace Comfizen
         private Border? _currentGroupHighlight;
         private Border? _lastFieldIndicator;
         private Border? _lastGroupIndicator;
+        private Border? _lastTabIndicator;
         private Border? _lastIndicator;
         private CompletionWindow _completionWindow;
         
@@ -1206,14 +1207,73 @@ namespace Comfizen
             e.Effects = e.Data.GetDataPresent(typeof(WorkflowTabDefinition)) ? DragDropEffects.Move : DragDropEffects.None;
             e.Handled = true;
         }
+        
+        private void Tab_DragOver(object sender, DragEventArgs e)
+        {
+            HideTabDropIndicator();
+
+            if (e.Data.GetDataPresent(typeof(WorkflowTabDefinition)) && sender is StackPanel element)
+            {
+                var position = e.GetPosition(element);
+
+                var indicator = position.Y < element.ActualHeight / 2
+                    ? FindVisualChild<Border>(element, "TabDropIndicatorBefore")
+                    : FindVisualChild<Border>(element, "TabDropIndicatorAfter");
+            
+                if (indicator != null)
+                {
+                    indicator.Visibility = Visibility.Visible;
+                    _lastTabIndicator = indicator;
+                }
+                e.Effects = DragDropEffects.Move;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        private void Tab_DragLeave(object sender, DragEventArgs e)
+        {
+            HideTabDropIndicator();
+            e.Handled = true;
+        }
+
+        private void Tab_Drop(object sender, DragEventArgs e)
+        {
+            if (sender is not StackPanel dropTarget ||
+                dropTarget.DataContext is not WorkflowTabDefinition targetTab ||
+                e.Data.GetData(typeof(WorkflowTabDefinition)) is not WorkflowTabDefinition draggedTab ||
+                draggedTab == targetTab ||
+                _viewModel == null)
+            {
+                HideAllIndicators();
+                return;
+            }
+
+            var oldIndex = _viewModel.Workflow.Tabs.IndexOf(draggedTab);
+            var targetIndex = _viewModel.Workflow.Tabs.IndexOf(targetTab);
+
+            var indicatorAfter = FindVisualChild<Border>(dropTarget, "TabDropIndicatorAfter");
+            if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible)
+            {
+                targetIndex++;
+            }
+        
+            _viewModel.MoveTab(oldIndex, targetIndex);
+        
+            HideAllIndicators();
+            e.Handled = true;
+        }
 
         private void TabList_Drop(object sender, DragEventArgs e)
         {
             if (e.Data.GetData(typeof(WorkflowTabDefinition)) is WorkflowTabDefinition draggedTab && _viewModel != null)
             {
-                // This simplistic drop handler adds to the end. A better version would use indicators.
                 var oldIndex = _viewModel.Workflow.Tabs.IndexOf(draggedTab);
                 _viewModel.MoveTab(oldIndex, _viewModel.Workflow.Tabs.Count);
+                e.Handled = true;
             }
         }
 
@@ -1486,10 +1546,22 @@ namespace Comfizen
         {
             HideFieldDropIndicator();
             HideGroupDropIndicator();
+            // START OF CHANGES: Hide tab indicators as well
+            HideTabDropIndicator();
+            // END OF CHANGES
             if (_currentGroupHighlight != null)
             {
                 _currentGroupHighlight.Background = Brushes.Transparent;
                 _currentGroupHighlight = null;
+            }
+        }
+        
+        private void HideTabDropIndicator()
+        {
+            if (_lastTabIndicator != null)
+            {
+                _lastTabIndicator.Visibility = Visibility.Collapsed;
+                _lastTabIndicator = null;
             }
         }
 
