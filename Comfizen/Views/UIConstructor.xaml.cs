@@ -250,11 +250,15 @@ namespace Comfizen
             this.PropertyChanged += (s, e) => {
                 if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
                 if (e.PropertyName == nameof(SelectedActionName)) OnSelectedActionChanged();
-                // --- MODIFIED: Update group assignments when workflow changes ---
+                // --- MODIFIED: Update group assignments only when workflow changes ---
+                if (e.PropertyName == nameof(Workflow))
+                {
+                    UpdateGroupAssignments(); 
+                }
+                // --- MODIFIED: Update available fields when search filter or workflow changes ---
                 if (e.PropertyName == nameof(SearchFilter) || e.PropertyName == nameof(Workflow))
                 {
                     UpdateAvailableFields();
-                    UpdateGroupAssignments(); 
                 }
             };
             
@@ -1301,8 +1305,10 @@ namespace Comfizen
             e.Effects = DragDropEffects.None;
 
             if (sender is not StackPanel dropTarget) return;
-
-            if (e.Data.GetDataPresent(typeof(WorkflowGroup)))
+            
+            // --- START OF CHANGE: Accept both group types for drag operations ---
+            if (e.Data.GetDataPresent(typeof(WorkflowGroup)) || e.Data.GetDataPresent(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)))
+                // --- END OF CHANGE ---
             {
                 var position = e.GetPosition(dropTarget);
                 var indicator = position.Y < dropTarget.ActualHeight / 2
@@ -1353,17 +1359,30 @@ namespace Comfizen
                 return;
             }
 
-            if (e.Data.GetData(typeof(WorkflowGroup)) is WorkflowGroup sourceGroup && sourceGroup != targetGroup)
+            // --- START OF CHANGE: Unified logic for moving/reordering groups ---
+            WorkflowGroup sourceGroup = null;
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)) is Tuple<WorkflowGroup, WorkflowTabDefinition> draggedTuple)
             {
-                var oldIndex = viewModel.Workflow.Groups.IndexOf(sourceGroup);
-                var targetIndex = viewModel.Workflow.Groups.IndexOf(targetGroup);
+                sourceGroup = draggedTuple.Item1;
+            }
+            else if (e.Data.GetData(typeof(WorkflowGroup)) is WorkflowGroup draggedGroup)
+            {
+                sourceGroup = draggedGroup;
+            }
+
+            if (sourceGroup != null && sourceGroup != targetGroup)
+            {
+                var targetIndex = viewModel.SelectedTabGroups.IndexOf(targetGroup);
                 
                 var indicatorAfter = FindVisualChild<Border>(dropTarget, "GroupDropIndicatorAfter");
+                if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible)
+                {
+                    targetIndex++;
+                }
                 
-                if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible) targetIndex++;
-                
-                viewModel.MoveGroup(oldIndex, targetIndex);
+                viewModel.MoveGroupToTab(sourceGroup, viewModel.SelectedTab, targetIndex);
             }
+            // --- END OF CHANGE ---
             else if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> draggedData)
             {
                 viewModel.MoveField(draggedData.Item1, draggedData.Item2, targetGroup);
@@ -1513,76 +1532,56 @@ namespace Comfizen
         private void InlineTextBox_LostFocus(object sender, RoutedEventArgs e)
         {
             if (sender is not TextBox textBox || DataContext is not UIConstructorView viewModel) return;
-
             var dataContext = textBox.DataContext;
 
-            // --- START OF CHANGE ---
-            if (dataContext is WorkflowTabDefinition tabDef && tabDef.IsRenaming)
-            {
-                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-                StopEditing(tabDef);
-            }
-            // --- END OF CHANGE ---
-            else if (dataContext is ActionNameViewModel actionVm && actionVm.IsRenaming)
+            // --- START OF CHANGE: Unified and corrected logic for all renameable types ---
+            if (dataContext is ActionNameViewModel actionVm && actionVm.IsRenaming)
             {
                 viewModel.CommitActionRename(actionVm, textBox.Text);
             }
-            else if (dataContext is WorkflowGroup g && g.IsRenaming)
+            else if ((dataContext is WorkflowGroup g && g.IsRenaming) ||
+                     (dataContext is WorkflowField f && f.IsRenaming) ||
+                     (dataContext is WorkflowTabDefinition t && t.IsRenaming))
             {
                 textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-                StopEditing(g);
+                StopEditing(dataContext);
             }
-            // ==========================================================
-            //     КОНЕЦ ИСПРАВЛЕНИЙ
-            // ==========================================================
+            // --- END OF CHANGE ---
         }
 
         private void InlineTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (sender is not TextBox textBox || DataContext is not UIConstructorView viewModel) return;
-        
             var dataContext = textBox.DataContext;
-
+            
+            // --- START OF CHANGE: Unified and corrected logic for all renameable types ---
             if (e.Key == Key.Enter)
             {
-                // --- START OF CHANGE ---
-                if (dataContext is WorkflowTabDefinition)
+                if (dataContext is ActionNameViewModel actionVm)
+                {
+                    viewModel.CommitActionRename(actionVm, textBox.Text);
+                }
+                else if (dataContext is WorkflowGroup || dataContext is WorkflowField || dataContext is WorkflowTabDefinition)
                 {
                     textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
                     StopEditing(dataContext);
                 }
-                // --- END OF CHANGE ---
-                else if (dataContext is ActionNameViewModel actionVm)
-                {
-                    // Принудительно обновляем источник привязки и выходим из режима редактирования
-                    textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-                    StopEditing(dataContext);
-                }
-                // ==========================================================
-                //     КОНЕЦ ИСПРАВЛЕНИЙ
-                // ==========================================================
                 e.Handled = true;
             }
             else if (e.Key == Key.Escape)
             {
-                // --- START OF CHANGE ---
-                if (dataContext is WorkflowTabDefinition)
+                if (dataContext is ActionNameViewModel actionVm)
+                {
+                    viewModel.CancelActionRename(actionVm);
+                }
+                else if (dataContext is WorkflowGroup || dataContext is WorkflowField || dataContext is WorkflowTabDefinition)
                 {
                     textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget(); // Revert changes
                     StopEditing(dataContext);
                 }
-                // --- END OF CHANGE ---
-                else if (dataContext is ActionNameViewModel actionVm)
-                {
-                    // Отменяем изменения и выходим из режима редактирования
-                    textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
-                    StopEditing(dataContext);
-                }
-                // ==========================================================
-                //     КОНЕЦ ИСПРАВЛЕНИЙ
-                // ==========================================================
                 e.Handled = true;
             }
+            // --- END OF CHANGE ---
         }
         
         private void ActionItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
