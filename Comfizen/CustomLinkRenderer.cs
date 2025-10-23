@@ -4,39 +4,37 @@ using Markdig.Renderers.Wpf;
 using Markdig.Renderers.Wpf.Inlines;
 using Markdig.Syntax.Inlines;
 using System;
+using System.Windows; // Required for FrameworkContentElement
 using System.Windows.Documents;
 using Markdig.Renderers;
+using Markdig.Wpf; // Required for the Styles class
 
 namespace Comfizen
 {
     /// <summary>
     /// A custom renderer for LinkInline elements.
     /// This implementation overrides the default link creation process to ensure the original,
-    /// raw URL from the markdown is always stored in the Hyperlink's Tag property.
-    /// This is essential for custom URI schemes like "wf://" that System.Uri cannot parse.
+    /// raw URL from the markdown is always stored in the Hyperlink's Tag property
+    /// AND that the correct style from the document resources is applied.
     /// </summary>
     public class CustomLinkRenderer : LinkInlineRenderer
     {
         protected override void Write(WpfRenderer renderer, LinkInline obj)
         {
-            // FIX: Use Uri.TryCreate for safe parsing without exceptions.
-            // This correctly handles both valid URIs (http) and our custom ones (wf://).
             Uri.TryCreate(obj.Url, UriKind.RelativeOrAbsolute, out Uri uri);
             
             var hyperlink = new Hyperlink
             {
-                // Assign the Uri object if it was successfully created, otherwise it will be null.
-                NavigateUri = uri 
+                NavigateUri = uri,
+                Tag = obj.Url
             };
-            
-            // THE CRITICAL FIX: Always store the original, raw URL string from the markdown
-            // into the Tag property. This is the source of truth for our click handler.
-            hyperlink.Tag = obj.Url;
 
-            // This part replicates the base renderer's logic:
-            // 1. Push the hyperlink onto the stack to act as a container for its children (the link text).
-            // 2. Render the children.
-            // 3. Pop the hyperlink from the stack.
+            // THE FIX: Explicitly apply the style defined by the key in our XAML.
+            // This tells the new hyperlink to find the style resource associated
+            // with Styles.HyperlinkStyleKey and apply it.
+            hyperlink.SetResourceReference(FrameworkContentElement.StyleProperty, Styles.HyperlinkStyleKey);
+            
+            // This part remains the same
             renderer.Push(hyperlink);
             renderer.WriteChildren(obj);
             renderer.Pop();
