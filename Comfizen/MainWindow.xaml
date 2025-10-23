@@ -557,8 +557,12 @@
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
-
-                <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+                
+                <GridSplitter Grid.Column="1" 
+                              Style="{StaticResource VerticalGridSplitterStyle}"
+                              ResizeBehavior="PreviousAndNext"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Stretch"/>
             
                 <Grid Grid.Column="2">
                     <Border Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,5,0" Margin="0,0,5,5">
