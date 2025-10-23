@@ -16,6 +16,7 @@ namespace Comfizen
         public JObject ApiState { get; set; }
         public ObservableCollection<WorkflowGroup> GroupsState { get; set; }
         public HashSet<string> BlockedNodeIds { get; set; }
+        public string LastActiveTabName { get; set; }
     }
 
     public class SessionManager
@@ -153,7 +154,7 @@ namespace Comfizen
             File.WriteAllText(sessionFilePath, json);
         }
         
-        public void SaveSession(Workflow workflow, string workflowFullPath)
+        public void SaveSession(Workflow workflow, string workflowFullPath, string activeTabName)
         {
             if (string.IsNullOrEmpty(workflowFullPath) || workflow.LoadedApi == null) return;
 
@@ -161,7 +162,10 @@ namespace Comfizen
             {
                 ApiState = workflow.LoadedApi,
                 GroupsState = workflow.Groups,
-                BlockedNodeIds = workflow.BlockedNodeIds
+                BlockedNodeIds = workflow.BlockedNodeIds,
+                // START OF CHANGE: Save the active tab's name
+                LastActiveTabName = activeTabName
+                // END OF CHANGE
             };
 
             string sessionFileName = GetSessionFileName(workflowFullPath);

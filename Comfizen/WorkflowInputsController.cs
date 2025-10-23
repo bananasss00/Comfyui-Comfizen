@@ -121,6 +121,8 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
     public SeedControl SelectedSeedControl { get; set; }
     
+    public WorkflowUITabLayoutViewModel SelectedTabLayout { get; set; }
+    
     /// <summary>
     /// Bubbles up the PresetsModified event from any of the child WorkflowGroupViewModels.
     /// </summary>
@@ -226,15 +228,14 @@ public class WorkflowInputsController : INotifyPropertyChanged
         }
     }
 
-    public async Task LoadInputs()
+    public async Task LoadInputs(string lastActiveTabName = null)
     {
         CleanupInputs();
 
         _hasWildcardFields = _workflow.Groups.SelectMany(g => g.Fields)
             .Any(f => f.Type == FieldType.WildcardSupportPrompt);
         GlobalSettings.IsVisible = _hasWildcardFields;
-
-        // Create a lookup for all groups for quick access
+        
         var groupVmLookup = new Dictionary<Guid, WorkflowGroupViewModel>();
         var comboBoxLoadTasks = new List<Task>();
 
@@ -365,13 +366,24 @@ public class WorkflowInputsController : INotifyPropertyChanged
         
         DiscoverGlobalPresets(); 
         
-        // After loading all ViewModels, try to find a matching preset for each group.
         foreach (var groupVm in groupVmLookup.Values)
         {
             TryAutoSelectPreset(groupVm);
         }
             
         SyncGlobalPresetFromGroups();
+
+        // --- START OF NEW LOGIC ---
+        // After all tab layouts are created, select the active one.
+        WorkflowUITabLayoutViewModel tabToSelect = null;
+        if (!string.IsNullOrEmpty(lastActiveTabName))
+        {
+            // Try to find the tab with the saved name.
+            tabToSelect = TabLayoouts.FirstOrDefault(t => t.Header == lastActiveTabName);
+        }
+
+        // If no saved tab was found (e.g., first load, or tab was renamed/deleted), default to the first one.
+        SelectedTabLayout = tabToSelect ?? TabLayoouts.FirstOrDefault();
     }
     
     /// <summary>

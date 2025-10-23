@@ -343,6 +343,7 @@
                             <!-- START OF REPLACEMENT: Use a TabControl for workflow tabs -->
                             <TabControl x:Name="WorkflowTabsControl" 
                                         ItemsSource="{Binding SelectedTab.WorkflowInputsController.TabLayoouts}" 
+                                        SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedTabLayout, Mode=TwoWay}"
                                         Margin="5,0,5,5"
                                         Style="{StaticResource WorkflowTabControlStyle}"
                                         ItemContainerStyle="{StaticResource WorkflowTabItemStyle}">

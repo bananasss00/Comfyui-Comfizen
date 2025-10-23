@@ -146,25 +146,14 @@ namespace Comfizen
         {
             try
             {
-                // 1. Загружаем базовую структуру воркфлоу из файла
                 Workflow.LoadWorkflow(FilePath);
                 
-                // 2. Пытаемся загрузить и применить данные сессии поверх базовой структуры
                 var sessionData = _sessionManager.LoadSession(FilePath);
                 if (sessionData != null)
                 {
-                    if (sessionData.ApiState != null)
-                    {
-                        Workflow.LoadedApi = sessionData.ApiState;
-                    }
-                    if (sessionData.GroupsState != null)
-                    {
-                        Workflow.Groups = sessionData.GroupsState;
-                    }
-                    if (sessionData.BlockedNodeIds != null)
-                    {
-                        Workflow.BlockedNodeIds = sessionData.BlockedNodeIds;
-                    }
+                    if (sessionData.ApiState != null) Workflow.LoadedApi = sessionData.ApiState;
+                    if (sessionData.GroupsState != null) Workflow.Groups = sessionData.GroupsState;
+                    if (sessionData.BlockedNodeIds != null) Workflow.BlockedNodeIds = sessionData.BlockedNodeIds;
                 }
 
                 // --- НАЧАЛО ИЗМЕНЕНИЯ: Добавлена миграция после загрузки сессии ---
@@ -191,7 +180,7 @@ namespace Comfizen
                 // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
                 // 4. Загружаем контролы в UI
-                await WorkflowInputsController.LoadInputs();
+                await WorkflowInputsController.LoadInputs(sessionData?.LastActiveTabName);
                 ExecuteHook("on_workflow_load", Workflow.LoadedApi);
             }
             catch (Exception ex)
@@ -282,7 +271,32 @@ namespace Comfizen
                 }
             }
             
-            await WorkflowInputsController.LoadInputs();
+            // START OF CHANGE: Also update Reload to pass the last active tab from the reloaded session
+            var sessionData = _sessionManager.LoadSession(this.FilePath);
+            // END OF CHANGE
+
+            if (saveType == WorkflowSaveType.LayoutOnly && currentWidgetState != null)
+            {
+                Utils.MergeJsonObjects(Workflow.LoadedApi, currentWidgetState);
+            }
+            else
+            {
+                if (!IsVirtual)
+                {
+                    // sessionJObject is renamed to sessionData
+                    if (sessionData != null)
+                    {
+                        Workflow.LoadedApi = sessionData.ApiState;
+                        if (sessionData.GroupsState != null)
+                        {
+                            Workflow.Groups = sessionData.GroupsState;
+                        }
+                    }
+                }
+            }
+            
+            // Pass the loaded tab name here as well
+            await WorkflowInputsController.LoadInputs(sessionData?.LastActiveTabName);
         }
 
         public void UpdateAfterSettingsChange(AppSettings newSettings, ComfyuiModel newComfyModel, ModelService newModelService, SessionManager newSessionManager)

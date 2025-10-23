@@ -49,10 +49,12 @@ namespace Comfizen
             {
                 if (_selectedTab == value) return;
 
-                // If the previously selected tab exists, is loaded, AND IS NOT VIRTUAL, save its session.
                 if (_selectedTab != null && _selectedTab.Workflow.IsLoaded && !_selectedTab.IsVirtual)
                 {
-                    _sessionManager.SaveSession(_selectedTab.Workflow, _selectedTab.FilePath);
+                    // START OF CHANGE: Pass the active inner tab name
+                    string activeInnerTabName = _selectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
+                    _sessionManager.SaveSession(_selectedTab.Workflow, _selectedTab.FilePath, activeInnerTabName);
+                    // END OF CHANGE
                 }
 
                 _selectedTab = value;
@@ -392,9 +394,12 @@ namespace Comfizen
         {
             var savedFilePathNormalized = Path.GetFullPath(e.FilePath);
 
+            // START OF FIX: Filter out virtual tabs before comparing file paths.
+            // A virtual tab has no FilePath, so Path.GetFullPath would throw an exception.
             var tabToUpdate = OpenTabs.FirstOrDefault(t => 
-                Path.GetFullPath(t.FilePath).Equals(savedFilePathNormalized, StringComparison.OrdinalIgnoreCase)
+                !t.IsVirtual && Path.GetFullPath(t.FilePath).Equals(savedFilePathNormalized, StringComparison.OrdinalIgnoreCase)
             );
+            // END OF FIX
             
             if (tabToUpdate != null)
             {
@@ -444,11 +449,12 @@ namespace Comfizen
                 FullScreen.IsFullScreenOpen = false;
             }
 
-            // Only save session if the tab is NOT virtual (i.e., has a file path).
             if (!tabToClose.IsVirtual && tabToClose.Workflow.IsLoaded)
             {
-                // _sessionManager.SaveSession(tabToClose.Workflow.LoadedApi, tabToClose.Workflow.Groups, tabToClose.FilePath);
-                _sessionManager.SaveSession(tabToClose.Workflow, tabToClose.FilePath);
+                // START OF CHANGE: Pass the active inner tab name
+                string activeInnerTabName = tabToClose.WorkflowInputsController.SelectedTabLayout?.Header;
+                _sessionManager.SaveSession(tabToClose.Workflow, tabToClose.FilePath, activeInnerTabName);
+                // END OF CHANGE
             }
             
             OpenTabs.Remove(tabToClose);
@@ -459,7 +465,8 @@ namespace Comfizen
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
 
             var workflowToReload = SelectedTab.FilePath;
-            _sessionManager.SaveSession(SelectedTab.Workflow, workflowToReload);
+            string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
+            _sessionManager.SaveSession(SelectedTab.Workflow, workflowToReload, activeInnerTabName);
             
             ModelService.ResetConnectionErrorFlag();
             ModelService.ClearCache();
@@ -491,7 +498,8 @@ namespace Comfizen
                 var relativePathWithoutExtension = Path.ChangeExtension(relativePath, null);
                 
                 SelectedTab.Workflow.SaveWorkflowWithCurrentState(relativePathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/'));
-                _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath);
+                string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
+                _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName);
 
                 MessageBox.Show(LocalizationService.Instance["MainVM_ValuesSavedMessage"],
                     LocalizationService.Instance["MainVM_ValuesSavedTitle"],
@@ -939,10 +947,12 @@ namespace Comfizen
 
             foreach (var tab in OpenTabs)
             {
-                // Also add the !tab.IsVirtual check here for robustness.
                 if (!tab.IsVirtual && tab.Workflow.IsLoaded && tab.Workflow.LoadedApi != null)
                 {
-                    _sessionManager.SaveSession(tab.Workflow, tab.FilePath);
+                    // START OF CHANGE: Pass the active inner tab name
+                    string activeInnerTabName = tab.WorkflowInputsController.SelectedTabLayout?.Header;
+                    _sessionManager.SaveSession(tab.Workflow, tab.FilePath, activeInnerTabName);
+                    // END OF CHANGE
                 }
             }
             
