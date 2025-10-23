@@ -45,8 +45,11 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <TabPanel Grid.Row="0" IsItemsHost="True" Background="Transparent"/>
-                            <Border Grid.Row="1" Background="{TemplateBinding Background}" BorderThickness="0" CornerRadius="0">
+                            <!-- This Border acts as the "tab bar" background -->
+                            <Border Grid.Row="0" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Padding="5,5,5,0">
+                                <TabPanel IsItemsHost="True" Background="Transparent"/>
+                            </Border>
+                            <Border Grid.Row="1" Background="Transparent" BorderThickness="0">
                                 <ContentPresenter ContentSource="SelectedContent"/>
                             </Border>
                         </Grid>
@@ -62,17 +65,31 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="Border" BorderThickness="0,0,0,2" BorderBrush="Transparent" Margin="0,0,5,0">
+                        <!-- This Border is the clickable tab itself -->
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}" 
+                                BorderThickness="0" 
+                                CornerRadius="3,3,0,0" 
+                                Margin="0,0,2,0"
+                                Padding="{TemplateBinding Padding}">
                             <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <!-- Style for the selected tab -->
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                                <!-- The background matches the content area, making it look connected -->
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource SecondaryBackground}"/>
                             </Trigger>
-                             <Trigger Property="IsMouseOver" Value="True">
+                            <!-- Style for hovering over an unselected tab -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="False"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
                                 <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                            </Trigger>
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBackground}"/>
+                            </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
