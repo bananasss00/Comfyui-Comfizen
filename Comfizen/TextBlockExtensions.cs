@@ -41,7 +41,10 @@ namespace Comfizen
                     // Set the color for the specific segment
                     run.Foreground = new SolidColorBrush(segment.Color.Value);
                 }
-                // If the color is null, it will inherit the color from the TextBlock (set by the style)
+        
+                run.FontWeight = segment.FontWeight;
+                run.TextDecorations = segment.TextDecorations;
+
                 textBlock.Inlines.Add(run);
             }
         }

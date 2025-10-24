@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Windows;
 using System.Windows.Media;
 
 namespace Comfizen
@@ -15,6 +16,8 @@ namespace Comfizen
     {
         public string Text { get; set; }
         public Color? Color { get; set; } // Nullable to allow using the default color
+        public FontWeight FontWeight { get; set; } = FontWeights.Normal;
+        public TextDecorationCollection TextDecorations { get; set; } = null;
     }
 
     [AddINotifyPropertyChangedInterface]

@@ -5,8 +5,11 @@ using System.IO;
 using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Media;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
 
@@ -24,6 +27,9 @@ namespace Comfizen
 
         public ObservableCollection<LogMessage> LogMessages { get; } = new ObservableCollection<LogMessage>();
         public bool IsConnected => _ws?.State == WebSocketState.Open;
+        
+        // Regex to detect the execution time message.
+        private static readonly Regex ExecutionTimeRegex = new Regex(@"^Prompt executed in [\d\.]+ seconds$", RegexOptions.Compiled);
 
         public ConsoleLogService(AppSettings settings)
         {
@@ -205,11 +211,24 @@ namespace Comfizen
                     {
                         // Trim the carriage return that often comes with newlines (\r\n)
                         var processedLine = line.TrimEnd('\r');
+                        var segments = AnsiColorParser.Parse(processedLine);
+                        
+                        string fullLineText = string.Concat(segments.Select(s => s.Text));
+                        if (ExecutionTimeRegex.IsMatch(fullLineText))
+                        {
+                            // If it matches, override the styling for all segments in this line.
+                            foreach (var segment in segments)
+                            {
+                                segment.Color = Colors.LightGreen;
+                                segment.FontWeight = FontWeights.Bold;
+                                segment.TextDecorations = TextDecorations.Underline;
+                            }
+                        }
                         
                         // Add each line as a separate LogMessage
                         LogMessages.Add(new LogMessage
                         {
-                            Segments = AnsiColorParser.Parse(processedLine),
+                            Segments = segments,
                             Level = level,
                             IsProgress = false
                         });
