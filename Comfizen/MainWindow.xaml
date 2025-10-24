@@ -385,38 +385,52 @@
                                                                                                                   MinWidth="120"
                                                                                                                   Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"
                                                                                                                   PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
+                                                                                                
                                                                                             <local:FilterableComboBox.ItemTemplate>
                                                                                                 <DataTemplate>
-                                                                                                    <!-- START OF CHANGE: Simplified Grid to an overlay layout -->
                                                                                                     <Grid>
-                                                                                                        <TextBlock Text="{Binding}" 
-                                                                                                            VerticalAlignment="Center" 
-                                                                                                            TextTrimming="CharacterEllipsis" 
-                                                                                                            Padding="5,3"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="{Binding}" 
+                       VerticalAlignment="Center" 
+                       TextTrimming="CharacterEllipsis" 
+                       Padding="5,3"/>
             
-                                                                                                        <Button Content="✕"
-                                                                                                            HorizontalAlignment="Right"
-                                                                                                            Margin="5,0"
-                                                                                                            Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
-                                                                                                            CommandParameter="{Binding}"
-                                                                                                            ToolTip="{local:Translate Presets_DeleteTooltip}">
-                                                                                                            <!-- END OF CHANGE -->
-                                                                                                            <Button.Style>
-                                                                                                                <Style TargetType="Button" BasedOn="{StaticResource OverlayIconButton}">
-                                                                                                                    <Setter Property="Opacity" Value="0" />
-                                                                                                                    <Setter Property="IsHitTestVisible" Value="False" />
-                                                                                                                    <Style.Triggers>
-                                                                                                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                                                                                            <Setter Property="Opacity" Value="1" />
-                                                                                                                            <Setter Property="IsHitTestVisible" Value="True" />
-                                                                                                                        </DataTrigger>
-                                                                                                                    </Style.Triggers>
-                                                                                                                </Style>
-                                                                                                            </Button.Style>
-                                                                                                        </Button>
-                                                                                                    </Grid>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5,0">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <!-- Reserve space but hide the buttons by default -->
+                        <Setter Property="Visibility" Value="Hidden"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                <!-- Show buttons on hover -->
+                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+
+                <Button Content="&#xE70F;"
+                        Command="{Binding DataContext.StartRenamePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
+                        CommandParameter="{Binding}"
+                        ToolTip="{local:Translate Presets_RenameTooltip}"
+                        Style="{StaticResource IconButton}"/>
+                
+                <!-- FIX: Use the correct icon character code for the delete button -->
+                <Button Content="&#xE74D;" 
+                        Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
+                        CommandParameter="{Binding}"
+                        ToolTip="{local:Translate Presets_DeleteTooltip}"
+                        Style="{StaticResource IconButton}"/>
+            </StackPanel>
+        </Grid>
                                                                                                 </DataTemplate>
                                                                                             </local:FilterableComboBox.ItemTemplate>
+
+                                                                                              
                                                                                         </local:FilterableComboBox>
 
                                                                                         <Button Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 
@@ -452,7 +466,8 @@
                                                                             <TextBox Grid.Column="0" MinWidth="150"
                                                                                      Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" />
                                                                             <Button Grid.Column="1" Content="{local:Translate Presets_SaveButton}" Margin="5,0,0,0"
-                                                                                    Command="{Binding SavePresetCommand}"/>
+                                                                                Command="{Binding SavePresetCommand}"
+                                                                                IsDefault="True"/>
                                                                         </Grid>
                                                                     </StackPanel>
                                                                 </Border>
