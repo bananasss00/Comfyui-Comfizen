@@ -1,0 +1,43 @@
+﻿<!-- File: App.xaml -->
+<Application x:Class="MetaRemover.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <!-- Color Palette -->
+        <SolidColorBrush x:Key="PrimaryBackground" Color="#FF2D2D30"/>
+        <SolidColorBrush x:Key="SecondaryBackground" Color="#FF3F3F46"/>
+        <SolidColorBrush x:Key="TertiaryBackground" Color="#FF52525B"/>
+        <SolidColorBrush x:Key="PrimaryAccentBrush" Color="#FF007ACC"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#FFE0E0E0"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#FFA0A0A0"/>
+
+        <!-- Base Window Style -->
+        <Style TargetType="Window">
+            <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+
+        <!-- Base Button Style -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#FF3C90D1"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.6"/></Trigger>
+            </Style.Triggers>
+        </Style>
+    </Application.Resources>
+</Application>
