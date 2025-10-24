@@ -308,7 +308,6 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{local:Translate GlobalPresets_Label}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                             <local:FilterableComboBox Grid.Column="1"
@@ -331,11 +330,6 @@
                                                     </Style>
                                                 </local:FilterableComboBox.Style>
                                             </local:FilterableComboBox>
-                                            
-                                            <Button Grid.Column="2" Content="&#xE73E;" FontFamily="Segoe MDL2 Assets" 
-                                                    Style="{StaticResource IconButton}" Width="24" Height="24" Margin="5,0,0,0"
-                                                    Command="{Binding ApplySelectedGlobalPresetCommand}"
-                                                    ToolTip="{local:Translate Presets_ApplyTooltip}"/>
                                         </Grid>
                                     </Expander>
                                 </DataTemplate>
@@ -444,12 +438,6 @@
                                                                                                 </DataTemplate>
                                                                                             </local:FilterableComboBox.ItemTemplate>
                                                                                         </local:FilterableComboBox>
-
-                                                                                        <Button Content="&#xE73E;" FontFamily="Segoe MDL2 Assets" 
-                                                                                            Style="{StaticResource IconButton}" Width="24" Height="24" Margin="0,0,5,0"
-                                                                                            Command="{Binding ApplySelectedPresetCommand}"
-                                                                                            ToolTip="{local:Translate Presets_ApplyTooltip}"
-                                                                                            Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"/>
                                                                                         
                                                                                         <!-- START OF CHANGE: Replace settings button with a Save button -->
                                                                                         <Button Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 

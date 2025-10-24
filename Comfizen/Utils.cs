@@ -21,6 +21,7 @@ using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
 using Directory = System.IO.Directory;
 using System.ComponentModel;
+using System.Globalization;
 
 namespace Comfizen
 {
@@ -64,7 +65,7 @@ namespace Comfizen
         private static readonly byte[] MagicMarkerBytes = Encoding.UTF8.GetBytes(MagicMarker);
         
         private static bool? _isFfmpegAvailable;
-
+        
         public static bool IsFfmpegAvailable()
         {
             if (_isFfmpegAvailable.HasValue)
@@ -541,6 +542,33 @@ namespace Comfizen
                 return cleanedJObject?.ToString(Formatting.None); // Save compressed
             }
             catch (JsonReaderException) { return jsonString; }
+        }
+        
+        /// <summary>
+        /// Compares two JTokens for equivalence, with special handling for floating-point precision.
+        /// </summary>
+        /// <param name="t1">The first JToken.</param>
+        /// <param name="t2">The second JToken.</param>
+        /// <returns>True if the tokens are equivalent, otherwise false.</returns>
+        public static bool AreJTokensEquivalent(JToken t1, JToken t2)
+        {
+            // Define a small tolerance for float comparisons.
+            const double epsilon = 1e-6;
+
+            if (t1.Type == JTokenType.Float || t2.Type == JTokenType.Float)
+            {
+                // If either token is a float, convert both to double for comparison.
+                // This correctly handles comparing an integer (e.g., 5) with a float (e.g., 5.0).
+                if (double.TryParse(t1.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var d1) &&
+                    double.TryParse(t2.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var d2))
+                {
+                    // Compare the absolute difference against the tolerance.
+                    return Math.Abs(d1 - d2) < epsilon;
+                }
+            }
+
+            // For all other types (string, boolean, integer vs integer, etc.), use the strict DeepEquals.
+            return JToken.DeepEquals(t1, t2);
         }
     }
 }

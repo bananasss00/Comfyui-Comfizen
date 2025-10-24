@@ -157,6 +157,8 @@ namespace Comfizen
         
         public event PropertyChangedEventHandler PropertyChanged;
         
+        private bool _isApplyingPreset = false; // Flag to prevent re-entrancy issues
+        
         public WorkflowGroupViewModel(WorkflowGroup model, Workflow workflow)
         {
             _model = model;
@@ -166,9 +168,12 @@ namespace Comfizen
             
             this.PropertyChanged += (sender, args) =>
             {
-                if (args.PropertyName == nameof(SelectedPreset) && SelectedPreset != null)
+                // Apply the preset only if it's a new, valid selection and we're not already in the process.
+                if (args.PropertyName == nameof(SelectedPreset) && SelectedPreset != null && !_isApplyingPreset)
                 {
+                    _isApplyingPreset = true;
                     ApplyPreset(SelectedPreset);
+                    _isApplyingPreset = false;
                 }
             };
             LoadPresets();
@@ -246,33 +251,36 @@ namespace Comfizen
 
         public void ApplyPreset(GroupPresetViewModel presetVM)
         {
-            foreach (var valuePair in presetVM.Model.Values)
+            _isApplyingPreset = true; // Set flag at the beginning
+            try
             {
-                var fieldPath = valuePair.Key;
-                var presetValue = valuePair.Value;
-
-                // Find the ViewModel corresponding to the path from the preset
-                var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
-                if (fieldVM == null) continue;
-
-                // START OF CHANGE: Handle Markdown fields separately
-                if (fieldVM is MarkdownFieldViewModel markdownVm)
+                foreach (var valuePair in presetVM.Model.Values)
                 {
-                    // For Markdown, directly set the value on the ViewModel.
-                    // The preset stores the value as a JValue(string).
-                    markdownVm.Value = presetValue.ToString();
-                }
-                // END OF CHANGE
-                else
-                {
-                    // For all other (non-virtual) fields, update the main JObject
-                    var prop = _workflow.GetPropertyByPath(fieldPath);
-                    if (prop != null)
+                    var fieldPath = valuePair.Key;
+                    var presetValue = valuePair.Value;
+    
+                    // Find the ViewModel corresponding to the path from the preset
+                    var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
+                    if (fieldVM == null) continue;
+    
+                    if (fieldVM is MarkdownFieldViewModel markdownVm)
                     {
-                        prop.Value = presetValue.DeepClone();
-                        (fieldVM as dynamic)?.RefreshValue();
+                        markdownVm.Value = presetValue.ToString();
+                    }
+                    else
+                    {
+                        var prop = _workflow.GetPropertyByPath(fieldPath);
+                        if (prop != null)
+                        {
+                            prop.Value = presetValue.DeepClone();
+                            (fieldVM as dynamic)?.RefreshValue();
+                        }
                     }
                 }
+            }
+            finally
+            {
+                _isApplyingPreset = false; // Unset flag at the end
             }
         }
 

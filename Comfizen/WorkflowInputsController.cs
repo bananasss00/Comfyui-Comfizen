@@ -37,9 +37,7 @@ public class GlobalPresetsViewModel : INotifyPropertyChanged
     
     private readonly Action<string> _applyPresetAction;
     private string _selectedGlobalPreset;
-    private bool _isInternalSet = false; // Flag to prevent re-applying preset when the UI is synced from the model
-
-    public ICommand ApplySelectedGlobalPresetCommand { get; }
+    private bool _isInternalSet = false; // Flag to prevent action trigger on internal updates
 
     public string SelectedGlobalPreset
     {
@@ -52,7 +50,6 @@ public class GlobalPresetsViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(SelectedGlobalPreset));
 
             // Only trigger the action if the change was made by the user (not internally)
-            // and a valid preset is selected.
             if (!_isInternalSet && value != null)
             {
                 _applyPresetAction?.Invoke(value);
@@ -67,17 +64,6 @@ public class GlobalPresetsViewModel : INotifyPropertyChanged
     {
         _applyPresetAction = applyPresetAction;
         GlobalPresetNames.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsVisible));
-        
-        // The button command will re-apply the currently selected preset.
-        ApplySelectedGlobalPresetCommand = new RelayCommand(
-            _ => {
-                if (!string.IsNullOrEmpty(SelectedGlobalPreset))
-                {
-                    _applyPresetAction?.Invoke(SelectedGlobalPreset);
-                }
-            },
-            _ => !string.IsNullOrEmpty(SelectedGlobalPreset)
-        );
     }
     
     /// <summary>
@@ -111,6 +97,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     
     public ICommand ExecuteActionCommand { get; }
     private bool _isUpdatingFromGlobalPreset = false; // Flag to prevent recursion
+    private bool _isApplyingPreset = false; // NEW FLAG to prevent TryAutoSelectPreset during preset application
 
     public WorkflowInputsController(Workflow workflow, AppSettings settings, ModelService modelService, WorkflowTabViewModel parentTab)
     {
@@ -328,6 +315,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 {
                     groupVm.Fields.Add(fieldVm);
 
+                    // --- START OF NEW LOGIC ---
+                    // Subscribe to value changes in the field to trigger auto-preset selection.
+                    fieldVm.PropertyChanged += OnFieldViewModelPropertyChanged;
+                    // --- END OF NEW LOGIC ---
+
                     if (fieldVm is ComboBoxFieldViewModel comboBoxVm)
                     {
                         comboBoxLoadTasks.Add(comboBoxVm.LoadItemsAsync(_modelService, _settings));
@@ -398,6 +390,41 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         // If no saved tab was found (e.g., first load, or tab was renamed/deleted), default to the first one.
         SelectedTabLayout = tabToSelect ?? TabLayoouts.FirstOrDefault();
+    }
+    
+    /// <summary>
+    /// When any field's value changes, find its parent group and check if the group's
+    /// state now matches any of its saved presets.
+    /// </summary>
+    private void OnFieldViewModelPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        // We only care about properties that represent the field's actual value.
+        if (e.PropertyName != "Value" && e.PropertyName != "IsChecked")
+            return;
+    
+        // If a preset is currently being applied, do nothing to avoid loops.
+        if (_isApplyingPreset || _isUpdatingFromGlobalPreset)
+            return;
+
+        if (sender is InputFieldViewModel fieldVm)
+        {
+            var groupVm = FindGroupForField(fieldVm);
+            if (groupVm != null)
+            {
+                // The state has changed, so we try to match it against existing presets.
+                // This will either select a matching preset or clear the selection if no match is found.
+                TryAutoSelectPreset(groupVm);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Finds the WorkflowGroupViewModel that contains the specified InputFieldViewModel.
+    /// </summary>
+    private WorkflowGroupViewModel FindGroupForField(InputFieldViewModel fieldVm)
+    {
+        return TabLayoouts.SelectMany(tab => tab.Groups)
+            .FirstOrDefault(group => group.Fields.Contains(fieldVm));
     }
     
     /// <summary>
@@ -489,14 +516,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 var presetToApply = groupVm.Presets.FirstOrDefault(p => p.Name == presetName);
                 if (presetToApply != null)
                 {
-                    // Force the re-application of the preset.
-                    // By setting it to null first, we ensure the PropertyChanged event fires
-                    // even if the same preset is being re-applied. This triggers the
-                    // logic in WorkflowGroupViewModel that calls the ApplyPreset method.
-                    if (groupVm.SelectedPreset == presetToApply)
-                    {
-                        groupVm.SelectedPreset = null;
-                    }
+                    // This will apply the values and set the group's SelectedPreset
                     groupVm.SelectedPreset = presetToApply; 
                 }
             }
@@ -510,17 +530,16 @@ public class WorkflowInputsController : INotifyPropertyChanged
     /// <summary>
     /// Checks if the current state of a group's savable fields exactly matches one of its saved presets.
     /// If a match is found, updates the SelectedPreset property to reflect it in the UI.
-    /// Fields like Seed and Script Buttons are ignored in this comparison.
+    /// If no match is found, it clears the SelectedPreset.
     /// </summary>
     private void TryAutoSelectPreset(WorkflowGroupViewModel groupVm)
     {
         if (!groupVm.Presets.Any())
         {
-            return; // No presets to check against.
+            groupVm.SelectedPreset = null; // Ensure selection is cleared if no presets exist
+            return;
         }
 
-        // START OF FIX: Rebuild how the current state dictionary is created
-        
         // 1. Create a dictionary to hold the current values of all savable fields.
         var currentSavableValues = new Dictionary<string, JToken>();
 
@@ -544,8 +563,6 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
         
-        // END OF FIX
-
         // 2. Find the first preset that exactly matches this current state.
         var matchingPresetVm = groupVm.Presets.FirstOrDefault(presetVm =>
         {
@@ -560,15 +577,15 @@ public class WorkflowInputsController : INotifyPropertyChanged
             // 4. Every key/value pair in the preset must exist and be equal in the current state.
             return presetValues.All(presetPair =>
                 currentSavableValues.TryGetValue(presetPair.Key, out var currentValue) &&
-                JToken.DeepEquals(presetPair.Value, currentValue)
+                // --- START OF FIX ---
+                // Use the new custom comparison method that handles float precision.
+                Utils.AreJTokensEquivalent(presetPair.Value, currentValue)
+                // --- END OF FIX ---
             );
         });
 
-        if (matchingPresetVm != null)
-        {
-            // A match was found. Set it as the selected preset.
-            groupVm.SelectedPreset = matchingPresetVm;
-        }
+        // 5. Update the SelectedPreset. This will be null if no match was found.
+        groupVm.SelectedPreset = matchingPresetVm;
     }
 
     private InputFieldViewModel CreateDefaultFieldViewModel(WorkflowField field, JProperty? prop)
@@ -692,16 +709,21 @@ public class WorkflowInputsController : INotifyPropertyChanged
         _wildcardPropertyPaths.Clear();
         _inpaintViewModels.Clear();
         
-        // --- START OF CHANGE: Correctly unsubscribe from events ---
         // Unsubscribe from events to prevent memory leaks when a tab is reloaded.
         var allGroups = TabLayoouts?.SelectMany(t => t.Groups) ?? Enumerable.Empty<WorkflowGroupViewModel>();
         foreach (var groupVm in allGroups)
         {
             groupVm.PropertyChanged -= OnGroupPresetChanged;
+            // --- START OF NEW LOGIC ---
+            // Unsubscribe from all field events within the group.
+            foreach (var fieldVm in groupVm.Fields)
+            {
+                fieldVm.PropertyChanged -= OnFieldViewModelPropertyChanged;
+            }
+            // --- END OF NEW LOGIC ---
         }
         
         TabLayoouts.Clear();
-        // --- END OF CHANGE ---
 
         _hasWildcardFields = false;
         if (GlobalSettings != null)
