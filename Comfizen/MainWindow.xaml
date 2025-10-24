@@ -387,22 +387,20 @@
                                                                                                                   PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
                                                                                             <local:FilterableComboBox.ItemTemplate>
                                                                                                 <DataTemplate>
+                                                                                                    <!-- START OF CHANGE: Simplified Grid to an overlay layout -->
                                                                                                     <Grid>
-                                                                                                        <Grid.ColumnDefinitions>
-                                                                                                            <ColumnDefinition Width="*" />
-                                                                                                            <ColumnDefinition Width="Auto" />
-                                                                                                        </Grid.ColumnDefinitions>
-                                                                                                        
-                                                                                                        <TextBlock Grid.Column="0" Text="{Binding}" 
-                                                                                                                   VerticalAlignment="Center" 
-                                                                                                                   TextTrimming="CharacterEllipsis" 
-                                                                                                                   Padding="5,3"/>
-                                                                                                        
-                                                                                                        <Button Grid.Column="1" Content="✕"
-                                                                                                                Margin="5,0"
-                                                                                                                Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
-                                                                                                                CommandParameter="{Binding}"
-                                                                                                                ToolTip="{local:Translate Presets_DeleteTooltip}">
+                                                                                                        <TextBlock Text="{Binding}" 
+                                                                                                            VerticalAlignment="Center" 
+                                                                                                            TextTrimming="CharacterEllipsis" 
+                                                                                                            Padding="5,3"/>
+            
+                                                                                                        <Button Content="✕"
+                                                                                                            HorizontalAlignment="Right"
+                                                                                                            Margin="5,0"
+                                                                                                            Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
+                                                                                                            CommandParameter="{Binding}"
+                                                                                                            ToolTip="{local:Translate Presets_DeleteTooltip}">
+                                                                                                            <!-- END OF CHANGE -->
                                                                                                             <Button.Style>
                                                                                                                 <Style TargetType="Button" BasedOn="{StaticResource OverlayIconButton}">
                                                                                                                     <Setter Property="Opacity" Value="0" />

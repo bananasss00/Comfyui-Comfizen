@@ -170,8 +170,19 @@
                                                                 PreviewMouseLeftButtonDown="TabDefinition_PreviewMouseLeftButtonDown"
                                                                 AllowDrop="True" Drop="TabDefinition_Drop" DragEnter="TabDefinition_DragEnter" DragLeave="TabDefinition_DragLeave">
                                                             <Grid>
-                                                                <TextBlock Text="{Binding Name}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}" MouseLeftButtonDown="TabName_MouseLeftButtonDown"/>
-                                                                <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                
+                                                                <Grid Grid.Column="0" Margin="0,0,5,0">
+                                                                    <TextBlock Text="{Binding Name}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}" MouseLeftButtonDown="TabName_MouseLeftButtonDown"/>
+                                                                    <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                </Grid>
+                                                                
+                                                                <Button Grid.Column="1" Content="&#xE74D;" Style="{StaticResource IconButton}" Width="20" Height="20" 
+                                                                        Command="{Binding DataContext.RemoveTabCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" 
+                                                                        CommandParameter="{Binding}"/>
                                                             </Grid>
                                                         </Border>
                                                         

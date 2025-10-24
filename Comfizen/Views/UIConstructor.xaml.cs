@@ -1174,8 +1174,28 @@ namespace Comfizen
                 DragDrop.DoDragDrop(element, field, DragDropEffects.Move);
         }
         
+        private static T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var parentObject = VisualTreeHelper.GetParent(child);
+            if (parentObject == null) return null;
+            if (parentObject is T parent) return parent;
+            return FindVisualParent<T>(parentObject);
+        }
+
         private void TabDefinition_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // START OF CHANGE: Check if the click originated on a button. If so, do nothing.
+            // This allows button commands to fire without being intercepted by the drag-drop logic.
+            if (e.OriginalSource is DependencyObject source)
+            {
+                var button = FindVisualParent<Button>(source);
+                if (button != null)
+                {
+                    return;
+                }
+            }
+            // END OF CHANGE
+
             if (sender is FrameworkElement element && element.DataContext is WorkflowTabDefinition tabDef)
             {
                 // Select the tab on click

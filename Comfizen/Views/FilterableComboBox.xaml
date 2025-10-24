@@ -75,8 +75,7 @@
         <Popup x:Name="ItemPopup"
                PlacementTarget="{Binding ElementName=DropDownToggle}"
                StaysOpen="False"
-               Opened="ItemPopup_Opened" 
-               Width="{Binding ActualWidth, ElementName=DropDownToggle}">
+               Opened="ItemPopup_Opened">
             <Border Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" Margin="0,1,0,0">
                 <DockPanel MaxHeight="300">
                     <!-- ========================================================== -->
