@@ -29,6 +29,7 @@
         <local:PriorityColorToBrushConverter x:Key="PriorityColorToBrushConverter"/>
         <local:MultiValueToArrayConverter x:Key="MultiValueToArrayConverter"/>
         <local:ExpanderCornerRadiusConverter x:Key="ExpanderCornerRadiusConverter"/>
+        <local:EqualityConverter x:Key="EqualityConverter" />
 
         <!-- Color Palette -->
         <SolidColorBrush x:Key="PrimaryBackground" Color="#FF2D2D30"/>

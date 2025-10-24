@@ -166,9 +166,28 @@
                                                         
                                                         <Border x:Name="TabDropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
 
-                                                        <Border x:Name="TabBorder" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8"
+                                                        <Border x:Name="TabBorder" CornerRadius="3" Margin="0,2" Padding="8"
                                                                 PreviewMouseLeftButtonDown="TabDefinition_PreviewMouseLeftButtonDown"
                                                                 AllowDrop="True" Drop="TabDefinition_Drop" DragEnter="TabDefinition_DragEnter" DragLeave="TabDefinition_DragLeave">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <!-- Default background color -->
+                                                                    <Setter Property="Background" Value="{StaticResource TertiaryBackground}" />
+                                                                    <Style.Triggers>
+                                                                        <!-- Trigger to highlight the selected tab -->
+                                                                        <DataTrigger Value="True">
+                                                                            <DataTrigger.Binding>
+                                                                                <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                                                                    <Binding /> <!-- The current WorkflowTabDefinition -->
+                                                                                    <Binding Path="DataContext.SelectedTab" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                                                                                </MultiBinding>
+                                                                            </DataTrigger.Binding>
+                                                                            <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            
                                                             <Grid>
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="*"/>
