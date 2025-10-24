@@ -49,4 +49,81 @@
     <EmbeddedResource Include="Resources\Python-Dark.xshd" />
   </ItemGroup>
 
+  <!-- 
+  This MSBuild Target removes empty localization folders after the build in Release mode.
+  -->
+  <Target Name="RemoveEmptyLocalizationDirs" AfterTargets="AfterBuild">
+
+    <!-- 1. Define the list of culture folder names. -->
+    <ItemGroup>
+      <CultureFolder Include="cs-CZ;de;es;fr;hu;it;ja-JP;pt-BR;ro;ru;sv;zh-Hans" />
+    </ItemGroup>
+
+    <!-- 2. Create a new item list containing the full paths to these folders. -->
+    <ItemGroup>
+      <CultureFoldersFullPath Include="@(CultureFolder->'$(TargetDir)%(Identity)')" />
+    </ItemGroup>
+
+    <!-- 
+    3. For each potential folder, get a list of all nested files.
+       We create a new item, FilesInCultureDir, which will hold the path 
+       to the parent folder in its metadata.
+  -->
+    <ItemGroup>
+      <FilesInCultureDir Include="%(CultureFoldersFullPath.Identity)\**\*.*">
+        <CultureDir>%(CultureFoldersFullPath.Identity)</CultureDir>
+      </FilesInCultureDir>
+    </ItemGroup>
+
+    <!-- 
+    4. Create a list of UNIQUE folders that contain files.
+       This uses the metadata created in the previous step.
+  -->
+    <ItemGroup>
+      <NonEmptyCultureFolders Include="@(FilesInCultureDir->'%(CultureDir)')" />
+    </ItemGroup>
+
+    <!-- 
+    5. Create the FINAL list of empty folders.
+       To do this, we subtract the list of NON-EMPTY folders (NonEmptyCultureFolders)
+       from the full list of potential folders (CultureFoldersFullPath).
+       We also add a condition to ensure the folder actually exists.
+  -->
+    <ItemGroup>
+      <EmptyCultureFolders Include="@(CultureFoldersFullPath)"
+        Exclude="@(NonEmptyCultureFolders)"
+        Condition="Exists('%(Identity)')" />
+    </ItemGroup>
+
+    <!-- 6. If the final list is not empty, remove the directories. -->
+    <RemoveDir Directories="@(EmptyCultureFolders)" />
+
+  </Target>
+  
+      
+    <!-- 
+    This MSBuild Target removes the entire 'runtimes' folder after the build.
+    It's useful for Windows-only applications to reduce deployment size,
+    as this folder contains native libraries for other platforms (Linux, macOS, etc.).
+  -->
+  <Target Name="RemoveUnusedRuntimes" AfterTargets="AfterBuild">
+    
+    <!-- 1. Define a property for the path to the runtimes directory for clarity. -->
+    <PropertyGroup>
+      <RuntimesDirToDelete>$(TargetDir)runtimes</RuntimesDirToDelete>
+    </PropertyGroup>
+
+    <!-- 2. Log a message to the build output so you know the task is running. -->
+    <!--    The 'Condition' ensures the message only appears if the directory actually exists. -->
+    <Message Text="Removing unused runtimes folder: $(RuntimesDirToDelete)" Importance="high" Condition="Exists('$(RuntimesDirToDelete)')" />
+    
+    <!-- 3. Remove the directory and all its contents. -->
+    <!--    The RemoveDir task is recursive and will delete all files and subfolders. -->
+    <!--    The 'Condition' prevents an error if the folder doesn't exist for some reason. -->
+    <RemoveDir Directories="$(RuntimesDirToDelete)" Condition="Exists('$(RuntimesDirToDelete)')" />
+
+  </Target>
+
+  
+
 </Project>
