@@ -603,7 +603,12 @@ namespace Comfizen
                 _sessionManager.ClearSession(workflowFullPath);
             }
             
-            Workflow.SaveWorkflow(NewWorkflowName);
+            // --- START OF CHANGE: Use the correct save method ---
+            // Replaced SaveWorkflow with SaveWorkflowWithCurrentState to ensure
+            // that the live API definition (LoadedApi) is saved, not the original one.
+            // This is crucial when loading a new API file or creating a workflow from scratch.
+            Workflow.SaveWorkflowWithCurrentState(NewWorkflowName);
+            // --- END OF CHANGE ---
             
             GlobalEventManager.RaiseWorkflowSaved(workflowFullPath, saveType);
             

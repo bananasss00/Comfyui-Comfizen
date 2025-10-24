@@ -395,6 +395,8 @@ namespace Comfizen
         
         public static void MergeJsonObjects(JObject target, JObject source)
         {
+            if (target == null || source == null) return;
+            
             foreach (var sp in source.Properties())
             {
                 var tp = target.Property(sp.Name);

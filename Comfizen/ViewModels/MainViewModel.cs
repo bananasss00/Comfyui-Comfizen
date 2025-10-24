@@ -203,8 +203,12 @@ namespace Comfizen
                     ? Path.GetRelativePath(Workflow.WorkflowsDir, SelectedTab.FilePath)
                     : SelectedTab.Header;
 
-                var liveWorkflow = SelectedTab.Workflow;
-                new UIConstructor(liveWorkflow, relativePath).ShowDialog();
+                // START OF CHANGE: Create a clone of the workflow for editing
+                // instead of passing the live object directly. This prevents
+                // the original tab's state from being modified until the changes are explicitly saved.
+                var workflowClone = SelectedTab.Workflow.Clone();
+                new UIConstructor(workflowClone, relativePath).ShowDialog();
+                // END OF CHANGE
                 UpdateWorkflows();
             }, o => SelectedTab != null);
 

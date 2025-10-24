@@ -98,6 +98,21 @@ namespace Comfizen
         public JToken Json() => _loadedApi;
         public JObject? JsonClone() => _loadedApi?.DeepClone() as JObject;
         
+        /// <summary>
+        /// Creates a deep copy of the entire Workflow object.
+        /// This is achieved by serializing the current instance to JSON and deserializing it into a new object.
+        /// This ensures that the clone is completely independent of the original.
+        /// </summary>
+        /// <returns>A new, deep-cloned Workflow instance.</returns>
+        public Workflow Clone()
+        {
+            // Serialize the current object to a JSON string.
+            var serialized = JsonConvert.SerializeObject(this);
+            // Deserialize the string back into a new Workflow object.
+            var cloned = JsonConvert.DeserializeObject<Workflow>(serialized);
+            return cloned;
+        }
+        
         // New public method to initialize a workflow object from parts.
         public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts)
         {
@@ -193,6 +208,9 @@ namespace Comfizen
                 promptTemplate = Groups,
                 scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null,
                 presets = Presets.Any() ? Presets : null,
+                // --- START OF CHANGE: Add tabs serialization ---
+                tabs = Tabs.Any() ? Tabs : null
+                // --- END OF CHANGE ---
             };
 
             var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
