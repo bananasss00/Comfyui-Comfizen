@@ -477,6 +477,14 @@ namespace Comfizen
         /// </summary>
         private void ControlsScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            // If the Ctrl key is held down, do nothing here.
+            // This allows child controls (like InpaintEditor) to handle this specific hotkey
+            // for features like changing brush size, without interference from this parent handler.
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                return;
+            }
+            
             if (e.Handled)
             {
                 return;

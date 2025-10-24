@@ -887,5 +887,29 @@ namespace Comfizen
                 MaskCanvas.Visibility = originalMaskVisibility;
             }
         }
+
+        /// <summary>
+        /// Handles the mouse wheel event on any of the sliders to adjust their value.
+        /// Marks the event as handled to prevent the parent ScrollViewer from scrolling.
+        /// </summary>
+        private void Slider_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (sender is not Slider slider) return;
+
+            // Determine the step based on the SmallChange property
+            double change = slider.SmallChange;
+        
+            // Calculate the new value
+            double newValue = slider.Value + (e.Delta > 0 ? change : -change);
+        
+            // Clamp the value to the slider's min and max range
+            newValue = Math.Max(slider.Minimum, Math.Min(slider.Maximum, newValue));
+
+            // Set the new value
+            slider.Value = newValue;
+
+            // Mark the event as handled to stop it from bubbling up to the ScrollViewer
+            e.Handled = true;
+        }
     }
 }

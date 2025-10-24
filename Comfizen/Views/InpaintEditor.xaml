@@ -73,15 +73,18 @@
                     </Grid.ColumnDefinitions>
                     
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="{local:Translate Inpaint_Zoom}" VerticalAlignment="Center"/>
-                    <Slider Grid.Row="0" Grid.Column="1" x:Name="ZoomSlider" Minimum="0.1" Maximum="3" Value="1" VerticalAlignment="Center" Margin="5,0" IsMoveToPointEnabled="True"/>
+                    <Slider Grid.Row="0" Grid.Column="1" x:Name="ZoomSlider" Minimum="0.1" Maximum="3" Value="1" VerticalAlignment="Center" Margin="5,0" IsMoveToPointEnabled="True" 
+                            SmallChange="0.1" PreviewMouseWheel="Slider_PreviewMouseWheel"/>
                     <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding ElementName=ZoomSlider, Path=Value, StringFormat={}{0:F1}x}" MinWidth="30"/>
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="{local:Translate Inpaint_BrushSize}" VerticalAlignment="Center"/>
-                    <Slider Grid.Row="1" Grid.Column="1" x:Name="BrushSizeSlider" Minimum="2" Maximum="150" Value="30" VerticalAlignment="Center" Margin="5,0" IsMoveToPointEnabled="True"/>
+                    <Slider Grid.Row="1" Grid.Column="1" x:Name="BrushSizeSlider" Minimum="2" Maximum="150" Value="30" VerticalAlignment="Center" Margin="5,0" IsMoveToPointEnabled="True"
+                            SmallChange="1" PreviewMouseWheel="Slider_PreviewMouseWheel"/>
                     <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ElementName=BrushSizeSlider, Path=Value, StringFormat={}{0:F0}}" MinWidth="30"/>
-                    
+
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="{local:Translate Inpaint_Opacity}" VerticalAlignment="Center"/>
-                    <Slider Grid.Row="2" Grid.Column="1" x:Name="OpacitySlider" Minimum="0.01" Maximum="1" Value="1" VerticalAlignment="Center" Margin="5,0" ValueChanged="OpacitySlider_OnValueChanged" IsMoveToPointEnabled="True" />
+                    <Slider Grid.Row="2" Grid.Column="1" x:Name="OpacitySlider" Minimum="0.01" Maximum="1" Value="1" VerticalAlignment="Center" Margin="5,0" ValueChanged="OpacitySlider_OnValueChanged" IsMoveToPointEnabled="True"
+                            SmallChange="0.05" PreviewMouseWheel="Slider_PreviewMouseWheel"/>
                     <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding ElementName=OpacitySlider, Path=Value, StringFormat={}{0:P0}}" MinWidth="30"/>
                 </Grid>
             </GroupBox>
@@ -89,7 +92,8 @@
             <Grid Margin="0,5,0,0">
                 <StackPanel x:Name="FeatherPanel" Orientation="Horizontal">
                     <TextBlock Text="{local:Translate Inpaint_Feather}" VerticalAlignment="Center" Margin="0,0,5,0" />
-                    <Slider x:Name="FeatherSlider" Minimum="0" Maximum="50" Value="0" Width="100" VerticalAlignment="Center" IsMoveToPointEnabled="True" />
+                    <Slider x:Name="FeatherSlider" Minimum="0" Maximum="100" Value="0" Width="100" VerticalAlignment="Center" IsMoveToPointEnabled="True"
+                            SmallChange="1" PreviewMouseWheel="Slider_PreviewMouseWheel"/>
                     <TextBlock Text="{Binding ElementName=FeatherSlider, Path=Value, StringFormat={}{0:F0}}" Margin="5,0,0,0"/>
                 </StackPanel>
 
