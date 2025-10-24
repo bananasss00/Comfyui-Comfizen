@@ -37,7 +37,9 @@ public class GlobalPresetsViewModel : INotifyPropertyChanged
     
     private readonly Action<string> _applyPresetAction;
     private string _selectedGlobalPreset;
-    private bool _isInternalSet = false; // Flag to prevent action trigger on internal updates
+    private bool _isInternalSet = false; // Flag to prevent re-applying preset when the UI is synced from the model
+
+    public ICommand ApplySelectedGlobalPresetCommand { get; }
 
     public string SelectedGlobalPreset
     {
@@ -50,6 +52,7 @@ public class GlobalPresetsViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(SelectedGlobalPreset));
 
             // Only trigger the action if the change was made by the user (not internally)
+            // and a valid preset is selected.
             if (!_isInternalSet && value != null)
             {
                 _applyPresetAction?.Invoke(value);
@@ -64,6 +67,17 @@ public class GlobalPresetsViewModel : INotifyPropertyChanged
     {
         _applyPresetAction = applyPresetAction;
         GlobalPresetNames.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsVisible));
+        
+        // The button command will re-apply the currently selected preset.
+        ApplySelectedGlobalPresetCommand = new RelayCommand(
+            _ => {
+                if (!string.IsNullOrEmpty(SelectedGlobalPreset))
+                {
+                    _applyPresetAction?.Invoke(SelectedGlobalPreset);
+                }
+            },
+            _ => !string.IsNullOrEmpty(SelectedGlobalPreset)
+        );
     }
     
     /// <summary>
@@ -469,14 +483,20 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         try
         {
-            // --- START OF CHANGE: Iterate through groups in all tabs ---
+            // Iterate through groups in all tabs
             foreach (var groupVm in TabLayoouts.SelectMany(t => t.Groups))
-                // --- END OF CHANGE ---
             {
                 var presetToApply = groupVm.Presets.FirstOrDefault(p => p.Name == presetName);
                 if (presetToApply != null)
                 {
-                    // This will apply the values and set the group's SelectedPreset
+                    // Force the re-application of the preset.
+                    // By setting it to null first, we ensure the PropertyChanged event fires
+                    // even if the same preset is being re-applied. This triggers the
+                    // logic in WorkflowGroupViewModel that calls the ApplyPreset method.
+                    if (groupVm.SelectedPreset == presetToApply)
+                    {
+                        groupVm.SelectedPreset = null;
+                    }
                     groupVm.SelectedPreset = presetToApply; 
                 }
             }

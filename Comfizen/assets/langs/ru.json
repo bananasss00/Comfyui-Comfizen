@@ -233,6 +233,7 @@
   "Presets_DeleteTooltip": "Удалить пресет",
   "Presets_DeleteConfirmTitle": "Подтвердите удаление",
   "Presets_DeleteConfirmMessage": "Вы уверены, что хотите безвозвратно удалить пресет '{0}'?",
+  "Presets_ApplyTooltip": "Применить выбранный пресет повторно",
   "GlobalPresets_Header": "Глобальные пресеты",
   "GlobalPresets_Label": "Применить пресет:"
 }

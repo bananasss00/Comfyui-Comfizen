@@ -233,6 +233,7 @@
   "Presets_DeleteTooltip": "Delete Preset",
   "Presets_DeleteConfirmTitle": "Confirm Deletion",
   "Presets_DeleteConfirmMessage": "Are you sure you want to permanently delete the preset '{0}'?",
+  "Presets_ApplyTooltip": "Re-apply selected preset",
   "GlobalPresets_Header": "Global Presets",
   "GlobalPresets_Label": "Apply Preset:"
 }

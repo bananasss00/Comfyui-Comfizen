@@ -147,6 +147,7 @@ namespace Comfizen
         public ICommand SavePresetCommand { get; }
         public ICommand DeletePresetCommand { get; }
         public ICommand ApplyPresetCommand { get; }
+        public ICommand ApplySelectedPresetCommand { get; }
         
         /// <summary>
         /// This event is raised whenever presets are added or removed, signaling a need to save the workflow.
@@ -171,6 +172,11 @@ namespace Comfizen
                 }
             };
             LoadPresets();
+            
+            ApplySelectedPresetCommand = new RelayCommand(
+                _ => ApplyPreset(SelectedPreset), 
+                _ => SelectedPreset != null 
+            );
             
             OpenSavePresetPopupCommand = new RelayCommand(_ => 
             {
