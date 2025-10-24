@@ -33,7 +33,6 @@
                                         WorkflowTemplate="{StaticResource WorkflowItemTemplate}"
                                         HeaderTemplate="{StaticResource WorkflowHeaderTemplate}"/>
         
-        <!-- START OF NEW STYLE FOR WORKFLOW TABS -->
         <Style x:Key="WorkflowTabControlStyle" TargetType="TabControl">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -95,7 +94,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <!-- END OF NEW STYLE -->
         
         <ControlTemplate x:Key="CustomContextMenuTemplate" TargetType="ContextMenu">
         <Border x:Name="Border" 
@@ -111,22 +109,14 @@
             </Trigger>
         </ControlTemplate.Triggers>
     </ControlTemplate>
-
-    <!--
-      ОБНОВЛЕННЫЙ стиль для ContextMenu.
-      Теперь он использует наш новый ControlTemplate.
-    -->
+    
     <Style x:Key="AppContextMenuStyle" TargetType="ContextMenu">
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
         <Setter Property="Template" Value="{StaticResource CustomContextMenuTemplate}"/>
     </Style>
-
-    <!--
-      ОБНОВЛЕННЫЙ стиль для MenuItem, который теперь будет работать корректно
-      внутри нашего нового ContextMenu.
-    -->
+    
     <Style TargetType="MenuItem">
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Setter Property="Padding" Value="8,5"/>
@@ -207,8 +197,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-
-            <!-- Row 0: The TabControl for the tab headers ONLY -->
+            
             <TabControl Grid.Row="0" ItemsSource="{Binding OpenTabs}" SelectedItem="{Binding SelectedTab, Mode=TwoWay}" Margin="5,0,5,0" Background="Transparent" BorderThickness="0">
                 <TabControl.ContentTemplate>
                     <DataTemplate />
@@ -268,16 +257,14 @@
                     </DataTemplate>
                 </TabControl.ItemTemplate>
             </TabControl>
-
-            <!-- Row 1: The main content area with three columns -->
+            
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="1.2*" MinWidth="350"/>
                     <ColumnDefinition Width="5" />
                     <ColumnDefinition Width="2*" MinWidth="400" />
                 </Grid.ColumnDefinitions>
-
-                <!-- Column 0: Workflow Controls -->
+                
                 <Border Grid.Column="0" Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,0,5" Margin="5,0,0,5">
                     <ScrollViewer x:Name="ControlsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                   Visibility="{Binding SelectedTab, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"
@@ -338,7 +325,6 @@
                             <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalSettings}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalSettings.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalPresets}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalPresets.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             
-                            <!-- START OF REPLACEMENT: Use a TabControl for workflow tabs -->
                             <TabControl x:Name="WorkflowTabsControl" 
                                         ItemsSource="{Binding SelectedTab.WorkflowInputsController.TabLayoouts}" 
                                         SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedTabLayout, Mode=TwoWay}"
@@ -385,17 +371,14 @@
                                                                                         <ColumnDefinition Width="Auto"/>
                                                                                     </Grid.ColumnDefinitions>
                                                                                     
-                                                                                    <!-- Arrow and Group Name -->
                                                                                     <StackPanel Grid.Column="0" Orientation="Horizontal">
                                                                                         <TextBlock x:Name="Arrow" Text="▶" VerticalAlignment="Center" Margin="0,0,5,0"/>
                                                                                         <ContentPresenter Grid.Column="1" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" RecognizesAccessKey="True"/>
                                                                                     </StackPanel>
                                                                                     
-                                                                                    <!-- START OF CHANGES: Preset Controls -->
                                                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                                                                                                 Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
                                                                                         
-                                                                                            
                                                                                         <local:FilterableComboBox Margin="10,0,5,0" VerticalAlignment="Center"
                                                                                                                   ItemsSource="{Binding PresetNames}"
                                                                                                                   SelectedItem="{Binding SelectedPresetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -404,7 +387,6 @@
                                                                                                                   PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
                                                                                             <local:FilterableComboBox.ItemTemplate>
                                                                                                 <DataTemplate>
-                                                                                                    <!-- Вот правильное решение с использованием Grid -->
                                                                                                     <Grid>
                                                                                                         <Grid.ColumnDefinitions>
                                                                                                             <ColumnDefinition Width="*" />
@@ -438,13 +420,11 @@
                                                                                                 </DataTemplate>
                                                                                             </local:FilterableComboBox.ItemTemplate>
                                                                                         </local:FilterableComboBox>
-                                                                                        
-                                                                                        <!-- START OF CHANGE: Replace settings button with a Save button -->
+
                                                                                         <Button Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 
                                                                                             Style="{StaticResource IconButton}" Width="24" Height="24"
                                                                                             Command="{Binding OpenSavePresetPopupCommand}"
                                                                                             ToolTip="{local:Translate Presets_SaveButton}"/>
-                                                                                        <!-- END OF CHANGE -->
                                                                                     </StackPanel>
                                                                                 </Grid>
                                                                             </Border>
@@ -458,7 +438,6 @@
                                                                 </ToggleButton.Template>
                                                             </ToggleButton>
                                                             
-                                                            <!-- START OF CHANGE: Add the Popup for saving presets -->
                                                             <Popup IsOpen="{Binding IsSavePresetPopupOpen, Mode=TwoWay}" 
                                                                    StaysOpen="False" 
                                                                    Placement="Bottom" 
@@ -566,7 +545,6 @@
                                     </DataTemplate>
                                 </TabControl.ContentTemplate>
                             </TabControl>
-                            <!-- END OF REPLACEMENT -->
                             
                         </StackPanel>
                     </ScrollViewer>
@@ -598,10 +576,118 @@
                                 </Grid>
                             </Border>
                             <Border DockPanel.Dock="Bottom" Padding="8" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,1,0,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{local:Translate Tab_GalleryThumbnailSize}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                    <Slider x:Name="ThumbnailSizeSlider" Minimum="64" Maximum="256" Value="128" Width="100"/>
-                                </StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{local:Translate Tab_GalleryThumbnailSize}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <Slider x:Name="ThumbnailSizeSlider" Minimum="64" Maximum="256" Value="128" Width="100"/>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0"
+                                                Visibility="{Binding TotalTasks, Converter={StaticResource TaskCountToVisibilityConverter}}">
+                                        <ProgressBar Value="{Binding CurrentProgress}" Maximum="100" Height="5" MinWidth="200" />
+                                        <TextBlock HorizontalAlignment="Center" Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}">
+                                            <TextBlock.Text>
+                                                <MultiBinding Converter="{StaticResource MultiBindingStringFormatConverter}">
+                                                    <Binding Path="[Tab_CompletedTasks]" Source="{x:Static local:LocalizationService.Instance}" Mode="OneWay"/>
+                                                    <Binding Path="CompletedTasks"/>
+                                                    <Binding Path="TotalTasks"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                                            <TextBlock Text="🎲" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0" ToolTip="{local:Translate Tab_SeedControl}"/>
+                                            <ComboBox x:Name="SeedControlComboBox" ItemsSource="{Binding SeedControlEnumValues}" SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedSeedControl}" MinWidth="100"/>
+                                        </StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                
+                                            <Border Grid.Column="0" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Height="30">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                
+                                                    <Button Grid.Column="0"
+                                                            Content="{local:Translate Tab_Queue}"
+                                                            Background="{StaticResource SuccessBrush}"
+                                                            Command="{Binding QueueCommand}"
+                                                            BorderThickness="0"
+                                                            Padding="10,0">
+                                                        <Button.Template>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="{TemplateBinding Background}" CornerRadius="3,0,0,3">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Button.Template>
+                                                    </Button>
+                                                    
+                                                    <Border Grid.Column="1" Width="1" Background="{StaticResource TertiaryBackground}" />
+                
+                                                    <ToggleButton Grid.Column="1" Margin="1,0,0,0"
+                                                                  Content="&#xE8EE;" 
+                                                                  FontFamily="Segoe MDL2 Assets"
+                                                                  Style="{StaticResource IconToggleButton}"
+                                                                  ToolTip="{local:Translate Tab_ToggleInfiniteQueue}"
+                                                                  IsChecked="{Binding IsInfiniteQueueEnabled, Mode=TwoWay}"
+                                                                  Width="30">
+                                                        <ToggleButton.Template>
+                                                            <ControlTemplate TargetType="ToggleButton">
+                                                                <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="0,3,3,0">
+                                                                    <TextBlock Text="{TemplateBinding Content}" FontFamily="{TemplateBinding FontFamily}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{TemplateBinding Foreground}"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="Bg" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsChecked" Value="True">
+                                                                        <Setter TargetName="Bg" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                                        <Setter Property="Foreground" Value="White"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </ToggleButton.Template>
+                                                    </ToggleButton>
+                                                </Grid>
+                                            </Border>
+                
+                                            <xctk:IntegerUpDown Grid.Column="1" Margin="5,0,0,0"
+                                                                Value="{Binding QueueSize}"
+                                                                Minimum="1"
+                                                                Maximum="{Binding MaxQueueSize}"
+                                                                Spinned="QueueSizeUpDown_OnSpinned"
+                                                                Width="60"/>
+                
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
+                                                <Button Content="&#xE8BB;" 
+                                                        Style="{StaticResource IconButton}"
+                                                        Background="{StaticResource ErrorBrush}"
+                                                        Command="{Binding InterruptCommand}"
+                                                        ToolTip="{local:Translate Tab_InterruptGeneration}"/>
+                                                <Button Content="&#xE71A;" 
+                                                        Style="{StaticResource IconButton}"
+                                                        Background="{StaticResource ErrorBrush}"
+                                                        Command="{Binding ClearLocalQueueCommand}"
+                                                        Margin="5,0,0,0"
+                                                        ToolTip="{local:Translate Tab_ClearLocalQueue}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
                             <Grid>
                             <ListView x:Name="lvOutputs" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -655,8 +741,6 @@
                                         
                                         <Setter Property="Tag" Value="{Binding DataContext, ElementName=lvOutputs}"/>
                                         
-                                            
-                                            
                                         <Setter Property="ContextMenu">
                                             <Setter.Value>
                                                 <ContextMenu Style="{StaticResource AppContextMenuStyle}">
@@ -666,108 +750,9 @@
                                                 </ContextMenu>
                                             </Setter.Value>
                                         </Setter>
-
-
-
-
                                     </Style>
                                 </ListView.ItemContainerStyle>
                             </ListView>
-                            
-                            <Border CornerRadius="5" Background="#DD3F3F46" Padding="10" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0">
-                                <StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                        <TextBlock Text="🎲" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0" ToolTip="{local:Translate Tab_SeedControl}"/>
-                                        <!-- This still binds to the selected tab's controller, which is correct -->
-                                        <ComboBox x:Name="SeedControlComboBox" ItemsSource="{Binding SeedControlEnumValues}" SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedSeedControl}" MinWidth="100"/>
-                                    </StackPanel>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <Border Grid.Column="0" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Height="30">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <Button Grid.Column="0"
-                                                        Content="{local:Translate Tab_Queue}"
-                                                        Background="{StaticResource SuccessBrush}"
-                                                        Command="{Binding QueueCommand}"
-                                                        BorderThickness="0"
-                                                        Padding="10,0">
-                                                    <Button.Template>
-                                                        <ControlTemplate TargetType="Button">
-                                                            <Border Background="{TemplateBinding Background}" CornerRadius="3,0,0,3">
-                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                            </Border>
-                                                        </ControlTemplate>
-                                                    </Button.Template>
-                                                </Button>
-                                                
-                                                <Border Grid.Column="1" Width="1" Background="{StaticResource TertiaryBackground}" />
-
-                                                <ToggleButton Grid.Column="1" Margin="1,0,0,0"
-                                                              Content="&#xE8EE;" 
-                                                              FontFamily="Segoe MDL2 Assets"
-                                                              Style="{StaticResource IconToggleButton}"
-                                                              ToolTip="{local:Translate Tab_ToggleInfiniteQueue}"
-                                                              IsChecked="{Binding IsInfiniteQueueEnabled, Mode=TwoWay}"
-                                                              Width="30">
-                                                    <ToggleButton.Template>
-                                                        <ControlTemplate TargetType="ToggleButton">
-                                                            <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="0,3,3,0">
-                                                                <TextBlock Text="{TemplateBinding Content}" FontFamily="{TemplateBinding FontFamily}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{TemplateBinding Foreground}"/>
-                                                            </Border>
-                                                            <ControlTemplate.Triggers>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="Bg" Property="Background" Value="{StaticResource TertiaryBackground}"/>
-                                                                </Trigger>
-                                                                <Trigger Property="IsChecked" Value="True">
-                                                                    <Setter TargetName="Bg" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
-                                                                    <Setter Property="Foreground" Value="White"/>
-                                                                </Trigger>
-                                                            </ControlTemplate.Triggers>
-                                                        </ControlTemplate>
-                                                    </ToggleButton.Template>
-                                                </ToggleButton>
-                                            </Grid>
-                                        </Border>
-
-                                        <xctk:IntegerUpDown Grid.Column="1" Margin="5,0,0,0"
-                                                            Value="{Binding QueueSize}"
-                                                            Minimum="1"
-                                                            Maximum="{Binding MaxQueueSize}"
-                                                            Spinned="QueueSizeUpDown_OnSpinned"
-                                                            Width="60"/>
-
-                                        <Button Grid.Column="2"
-                                                Content="&#xE74D;"
-                                                Style="{StaticResource IconButton}"
-                                                Background="{StaticResource ErrorBrush}"
-                                                Command="{Binding ClearQueueCommand}"
-                                                Margin="5,0,0,0"
-                                                ToolTip="{local:Translate Tab_ClearQueue}"/>
-                                    </Grid>
-                                    <StackPanel Visibility="{Binding TotalTasks, Converter={StaticResource TaskCountToVisibilityConverter}}" Margin="0,5,0,0">
-                                        <ProgressBar Value="{Binding CurrentProgress}" Maximum="100" Height="5" />
-                                        <TextBlock HorizontalAlignment="Right" Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}">
-                                            <TextBlock.Text>
-                                                <MultiBinding Converter="{StaticResource MultiBindingStringFormatConverter}">
-                                                    <Binding Path="[Tab_CompletedTasks]" Source="{x:Static local:LocalizationService.Instance}" Mode="OneWay"/>
-                                                    <Binding Path="CompletedTasks"/>
-                                                    <Binding Path="TotalTasks"/>
-                                                </MultiBinding>
-                                            </TextBlock.Text>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
                             
                             <Border Background="#DD3F3F46" CornerRadius="5" Padding="10"
                                     HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,10"
@@ -1067,7 +1052,6 @@
             <Border x:Name="SafeZone" Background="Transparent" Margin="120, 80, 120, 100"/>
         </Grid>
         
-        <!-- START: Add Group Navigation Popup -->
         <Popup x:Name="GroupNavigationPopup"
            IsOpen="{Binding IsGroupNavigationPopupOpen}"
            StaysOpen="False"
@@ -1103,10 +1087,6 @@
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
-                            <!-- 
-                                ЗАМЕНА: Вместо сложного EventTrigger используем простой EventSetter,
-                                который вызывает метод в коде. Это надежно и просто.
-                            -->
                             <EventSetter Event="PreviewMouseLeftButtonUp" Handler="GroupNavigationListBoxItem_Click" />
                         </Style>
                     </ListBox.ItemContainerStyle>
@@ -1119,7 +1099,6 @@
             </DockPanel>
         </Border>
     </Popup>
-        <!-- END: Add Group Navigation Popup -->
             
     </Grid>
 </Window>

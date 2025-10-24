@@ -235,5 +235,7 @@
   "Presets_DeleteConfirmMessage": "Are you sure you want to permanently delete the preset '{0}'?",
   "Presets_ApplyTooltip": "Re-apply selected preset",
   "GlobalPresets_Header": "Global Presets",
-  "GlobalPresets_Label": "Apply Preset:"
+  "GlobalPresets_Label": "Apply Preset:",
+  "Tab_InterruptGeneration": "Interrupt generation on server",
+  "Tab_ClearLocalQueue": "Clear local queue"
 }

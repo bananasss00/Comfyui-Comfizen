@@ -113,6 +113,7 @@ namespace Comfizen
         public ICommand PasteImageCommand { get; }
         public ICommand CloseTabCommand { get; }
         public ICommand BlockNodeCommand { get; }
+        public ICommand ClearLocalQueueCommand { get; }
         public ICommand ClearBlockedNodesCommand { get; }
         public ICommand OpenGroupNavigationCommand { get; }
         public ICommand GoToGroupCommand { get; }
@@ -319,6 +320,17 @@ namespace Comfizen
                     UpdateWorkflowDisplayList();
                 }
             };
+            
+            ClearLocalQueueCommand = new RelayCommand(x =>
+            {
+                // This command now only clears pending tasks and sets a flag.
+                // It lets the processing loop finish the current task gracefully.
+                _cancellationRequested = true;
+                IsInfiniteQueueEnabled = false;
+                _promptsQueue.Clear(); // Immediately remove all waiting tasks.
+
+            }, canExecute: x => _promptsQueue.Any() || (_isProcessing && TotalTasks > CompletedTasks)); // Allow clearing even if only one task is running
+            
             QueueCommand = new RelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
         }
         
@@ -624,23 +636,7 @@ namespace Comfizen
         }
 
         private ConcurrentQueue<PromptTask> _promptsQueue = new();
-        private bool _canceledTasks = false;
-        public ICommand ClearQueueCommand => new RelayCommand(x =>
-        {
-            _canceledTasks = true;
-            InterruptCommand.Execute(null);
-            IsInfiniteQueueEnabled = false;
-        
-            lock (_processingLock)
-            {
-                if (!_isProcessing)
-                {
-                    _promptsQueue.Clear();
-                    TotalTasks = CompletedTasks = 0;
-                    CurrentProgress = 0;
-                }
-            }
-        }, canExecute: x => TotalTasks > 0 && CompletedTasks < TotalTasks);
+        private bool _cancellationRequested = false;
 
         private readonly object _processingLock = new object();
         private bool _isProcessing = false;
@@ -726,13 +722,13 @@ namespace Comfizen
             var promptTasks = CreatePromptTasks(SelectedTab);
             if (promptTasks.Count == 0) return;
             
-            if (_canceledTasks || (_promptsQueue.IsEmpty && !_isProcessing))
+            if (_cancellationRequested || (_promptsQueue.IsEmpty && !_isProcessing))
             {
                 CompletedTasks = 0;
                 TotalTasks = 0;
                 CurrentProgress = 0;
             }
-            _canceledTasks = false;
+            _cancellationRequested = false;
         
             foreach (var task in promptTasks)
             {
@@ -758,8 +754,8 @@ namespace Comfizen
             {
                 while (true)
                 {
-                    if (_canceledTasks) break;
-        
+                    if (_cancellationRequested) break;
+    
                     if (_promptsQueue.TryDequeue(out var task))
                     {
                         lastTaskOriginTab = task.OriginTab;
@@ -770,17 +766,16 @@ namespace Comfizen
                             
                             await foreach (var io in _comfyuiModel.QueuePrompt(task.JsonPromptForApi))
                             {
-                                if (_canceledTasks) break;
-                                
+                                // A check here is no longer needed as we want the task to finish
                                 io.Prompt = task.FullWorkflowStateJson;
 
                                 Application.Current.Dispatcher.Invoke(() =>
                                 {
                                     if (task.OriginTab.Workflow.BlockedNodeIds.Contains(io.NodeId))
                                     {
-                                        return; // Skip adding this image
+                                        return;
                                     }
-                                    
+                                
                                     if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.FilePath == io.FilePath))
                                     {
                                         this.ImageProcessing.ImageOutputs.Insert(0, io);
@@ -789,12 +784,10 @@ namespace Comfizen
                                     task.OriginTab?.ExecuteHook("on_output_received", promptForTask, io);
                                 });
                             }
-        
-                            if (_canceledTasks) break;
-        
+                        
                             CompletedTasks++;
                             CurrentProgress = (TotalTasks > 0) ? (CompletedTasks * 100) / TotalTasks : 0;
-                            
+                        
                             task.OriginTab?.ExecuteHook("on_queue_finish", promptForTask);
                         }
                         catch (Exception ex)
@@ -807,14 +800,14 @@ namespace Comfizen
                                     LocalizationService.Instance["MainVM_ConnectionErrorTitle"],
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                             });
-                            
-                            _canceledTasks = true;
+                        
+                            _cancellationRequested = true; // Set flag on error
                             break;
                         }
                     }
                     else
                     {
-                        if (IsInfiniteQueueEnabled && !_canceledTasks && lastTaskOriginTab != null)
+                        if (IsInfiniteQueueEnabled && !_cancellationRequested && lastTaskOriginTab != null)
                         {
                             List<PromptTask> newTasks = null;
                             await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -846,14 +839,14 @@ namespace Comfizen
                     _isProcessing = false;
                 }
         
-                if (_canceledTasks)
+                if (_cancellationRequested)
                 {
-                    _promptsQueue.Clear();
+                    _promptsQueue.Clear(); // Final redundant clear just in case
                     TotalTasks = CompletedTasks = 0;
                     CurrentProgress = 0;
                     IsInfiniteQueueEnabled = false;
                 }
-                else if (lastTaskOriginTab != null) // Queue batch finished
+                else if (lastTaskOriginTab != null) // Queue batch finished naturally
                 {
                     lastTaskOriginTab.ExecuteHook("on_batch_finished", lastTaskOriginTab.Workflow.LoadedApi);
                 }

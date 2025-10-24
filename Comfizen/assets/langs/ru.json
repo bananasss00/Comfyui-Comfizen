@@ -235,5 +235,7 @@
   "Presets_DeleteConfirmMessage": "Вы уверены, что хотите безвозвратно удалить пресет '{0}'?",
   "Presets_ApplyTooltip": "Применить выбранный пресет повторно",
   "GlobalPresets_Header": "Глобальные пресеты",
-  "GlobalPresets_Label": "Применить пресет:"
+  "GlobalPresets_Label": "Применить пресет:",
+  "Tab_InterruptGeneration": "Прервать генерацию на сервере",
+  "Tab_ClearLocalQueue": "Очистить локальную очередь"
 }
