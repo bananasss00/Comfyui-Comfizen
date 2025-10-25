@@ -44,6 +44,13 @@ namespace Comfizen
         
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string DefaultValue { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Список ID нод, которые будут обойдены, если это поле выключено.
+        /// Используется только когда Type равен NodeBypass.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public List<string> BypassNodeIds { get; set; } = new List<string>();
 
         [JsonIgnore]
         public bool IsRenaming { get; set; } = false;

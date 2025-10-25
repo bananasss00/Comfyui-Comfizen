@@ -12,5 +12,6 @@
     ComboBox,
     Model,
     Markdown,
-    ScriptButton // New type for scriptable buttons
+    ScriptButton,
+    NodeBypass
 }

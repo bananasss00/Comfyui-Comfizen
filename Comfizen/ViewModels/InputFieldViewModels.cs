@@ -842,4 +842,48 @@ namespace Comfizen
             ExecuteScriptCommand = command;
         }
     }
+    
+    public class NodeBypassFieldViewModel : InputFieldViewModel
+    {
+        /// <summary>
+        /// Состояние чекбокса в UI. True = ноды работают, False = ноды обходятся.
+        /// </summary>
+        public bool IsEnabled
+        {
+            get => _field.DefaultValue?.ToLower() == "true";
+            set
+            {
+                if ((_field.DefaultValue?.ToLower() == "true") != value)
+                {
+                    _field.DefaultValue = value.ToString();
+                    OnPropertyChanged(nameof(IsEnabled));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Список ID нод, которыми управляет это поле.
+        /// </summary>
+        public List<string> BypassNodeIds { get; }
+
+        private readonly WorkflowField _field;
+
+        public NodeBypassFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
+        {
+            _field = field;
+            Type = FieldType.NodeBypass;
+            BypassNodeIds = field.BypassNodeIds ?? new List<string>();
+
+            // Устанавливаем значение по умолчанию, если оно не задано
+            if (string.IsNullOrEmpty(_field.DefaultValue))
+            {
+                _field.DefaultValue = "true";
+            }
+        }
+    
+        public override void RefreshValue()
+        {
+            OnPropertyChanged(nameof(IsEnabled));
+        }
+    }
 }

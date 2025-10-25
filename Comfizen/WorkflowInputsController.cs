@@ -140,9 +140,87 @@ public class WorkflowInputsController : INotifyPropertyChanged
     
     public void ProcessSpecialFields(JToken prompt)
     {
+        ApplyNodeBypass((JObject)prompt);
         ApplyWildcards(prompt);
         ApplyInpaintData(prompt);
         ApplySeedControl(prompt);
+    }
+    
+    private void ApplyNodeBypass(JObject prompt)
+    {
+        // 1. Собираем все ID нод, которые нужно обойти в этом запуске
+        var nodesToBypassThisRun = new HashSet<string>();
+        var bypassViewModels = TabLayoouts
+            .SelectMany(t => t.Groups)
+            .SelectMany(g => g.Fields)
+            .OfType<NodeBypassFieldViewModel>();
+
+        foreach (var vm in bypassViewModels)
+        {
+            if (!vm.IsEnabled) // Если чекбокс выключен
+            {
+                foreach (var nodeId in vm.BypassNodeIds)
+                {
+                    nodesToBypassThisRun.Add(nodeId);
+                }
+            }
+        }
+
+        if (!nodesToBypassThisRun.Any())
+        {
+            return; // Ничего не байпасим
+        }
+
+        // 2. Создаем карту перенаправлений (какой выход какой вход заменяет)
+        var redirectionMap = new Dictionary<string, JArray>();
+
+        foreach (var mutedNodeId in nodesToBypassThisRun)
+        {
+            var mutedNode = prompt[mutedNodeId] as JObject;
+            var mutedNodeInputs = mutedNode?["inputs"] as JObject;
+            if (mutedNodeInputs == null) continue;
+
+            // Эвристика: проходим по входам и выходам.
+            // Для нод типа LoraLoader (model->model) или ControlNetApply (cond->cond)
+            // порядковый номер входа часто соответствует порядковому номеру выхода.
+            // TODO: review
+            int outputIndex = 0;
+            foreach (var inputProp in mutedNodeInputs.Properties())
+            {
+                if (inputProp.Value is JArray sourceLink)
+                {
+                    // Ключ карты - это "ID_ноды.индекс_выхода"
+                    string outputKey = $"{mutedNodeId}.{outputIndex}";
+                    redirectionMap[outputKey] = sourceLink;
+                    outputIndex++;
+                }
+            }
+        }
+
+        // 3. Проходим по всему промпту и "перешиваем" связи
+        foreach (var nodeProperty in prompt.Properties())
+        {
+            var node = nodeProperty.Value as JObject;
+            var nodeInputs = node?["inputs"] as JObject;
+            if (nodeInputs == null) continue;
+
+            foreach (var inputProperty in nodeInputs.Properties())
+            {
+                if (inputProperty.Value is JArray targetLink && targetLink.Count == 2)
+                {
+                    string sourceNodeId = targetLink[0].ToString();
+                    string sourceOutputIndex = targetLink[1].ToString();
+                    string sourceKey = $"{sourceNodeId}.{sourceOutputIndex}";
+
+                    // Если вход текущей ноды ссылается на выход обойденной ноды...
+                    if (redirectionMap.TryGetValue(sourceKey, out var newSourceLink))
+                    {
+                        // ...то меняем его на вход обойденной ноды.
+                        inputProperty.Value = newSourceLink.DeepClone();
+                    }
+                }
+            }
+        }
     }
 
     private void ApplyWildcards(JToken prompt)
@@ -307,6 +385,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     else if (field.Type == FieldType.ScriptButton)
                     {
                         fieldVm = new ScriptButtonFieldViewModel(field, this.ExecuteActionCommand);
+                        processedFields.Add(field);
+                    }
+                    else if (field.Type == FieldType.NodeBypass)
+                    {
+                        fieldVm = new NodeBypassFieldViewModel(field, null);
                         processedFields.Add(field);
                     }
                 }
@@ -564,7 +647,8 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 var seedVm = new SeedFieldViewModel(field, prop);
                 _seedViewModels.Add(seedVm);
                 return seedVm;
-                
+            // case FieldType.NodeBypass:
+            //     return new NodeBypassFieldViewModel(field, null);
             case FieldType.Model:
             case FieldType.Sampler:
             case FieldType.Scheduler:

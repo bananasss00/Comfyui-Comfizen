@@ -235,5 +235,6 @@
   "GlobalPresets_Header": "Global Presets",
   "GlobalPresets_Label": "Apply Preset:",
   "Tab_InterruptGeneration": "Interrupt generation on server",
-  "Tab_ClearLocalQueue": "Clear local queue"
+  "Tab_ClearLocalQueue": "Clear local queue",
+  "UIConstructor_AddNodeBypassField": "Add Bypass Switch"
 }

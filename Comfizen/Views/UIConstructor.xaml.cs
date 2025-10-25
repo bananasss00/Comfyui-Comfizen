@@ -84,6 +84,14 @@ namespace Comfizen
         }
     }
     
+    public class NodeInfo : INotifyPropertyChanged
+    {
+        public string Id { get; set; }
+        public string Title { get; set; }
+        public bool IsSelected { get; set; }
+        public event PropertyChangedEventHandler PropertyChanged;
+    }
+    
     /// <summary>
     /// ViewModel for the UIConstructor window.
     /// Handles the logic for creating and modifying workflow UI layouts.
@@ -118,6 +126,7 @@ namespace Comfizen
         
         public ICommand AddMarkdownFieldCommand { get; }
         public ICommand AddScriptButtonFieldCommand { get; }
+        public ICommand AddNodeBypassFieldCommand { get; }
         
         // Constructor for a NEW workflow.
         public UIConstructorView() : this(new Workflow(), null) { }
@@ -194,6 +203,7 @@ namespace Comfizen
             // --- Other initializations ---
             AddMarkdownFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.Markdown));
             AddScriptButtonFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.ScriptButton));
+            AddNodeBypassFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.NodeBypass));
             ColorPalette = new ObservableCollection<ColorInfo>
             {
                 // --- Warm Tones (Reds, Oranges, Browns) ---
@@ -268,6 +278,7 @@ namespace Comfizen
             {
                 NewWorkflowName = Path.ChangeExtension(workflowRelativePath, null);
                 UpdateAvailableFields();
+                UpdateWorkflowNodesList();
                 RefreshActionNames();
                 // --- ADDED: Initialize tabs and groups ---
                 UpdateGroupAssignments();
@@ -293,10 +304,11 @@ namespace Comfizen
         public string SearchFilter { get; set; }
 
         public ObservableCollection<WorkflowField> AvailableFields { get; } = new();
+        public ObservableCollection<NodeInfo> WorkflowNodes { get; } = new();
 
         public ObservableCollection<FieldType> FieldTypes { get; } =
             new(Enum.GetValues(typeof(FieldType)).Cast<FieldType>()
-                .Where(t => t != FieldType.Markdown && t != FieldType.ScriptButton));
+                .Where(t => t != FieldType.Markdown && t != FieldType.ScriptButton && t != FieldType.NodeBypass));
 
         public event PropertyChangedEventHandler? PropertyChanged;
         
@@ -319,7 +331,19 @@ namespace Comfizen
         {
             if (group == null) return;
 
-            string baseName = type == FieldType.Markdown ? "Markdown Block" : "New Action Button";
+            string baseName = "New Field";
+            switch (type)
+            {
+                case FieldType.Markdown:
+                    baseName = "Markdown Block";
+                    break;
+                case FieldType.ScriptButton:
+                    baseName = "New Action Button";
+                    break;
+                case FieldType.NodeBypass:
+                    baseName = "New Bypass Switch";
+                    break;
+            }
             string newName = baseName;
             int counter = 1;
     
@@ -587,9 +611,40 @@ namespace Comfizen
             {
                 Workflow.LoadApiWorkflow(dialog.FileName);
                 UpdateAvailableFields();
+                UpdateWorkflowNodesList();
                 _apiWasReplaced = true;
             }
             RefreshActionNames();
+        }
+        
+        private void UpdateWorkflowNodesList()
+        {
+            WorkflowNodes.Clear();
+            if (Workflow.LoadedApi == null) return;
+
+            foreach (var prop in Workflow.LoadedApi.Properties())
+            {
+                var nodeId = prop.Name;
+                var nodeTitle = prop.Value["_meta"]?["title"]?.ToString() ?? "Untitled";
+                WorkflowNodes.Add(new NodeInfo { Id = nodeId, Title = nodeTitle });
+            }
+        }
+        
+        public void OnNodeSelectionChanged(WorkflowField field, NodeInfo nodeInfo)
+        {
+            if (field == null || nodeInfo == null) return;
+
+            if (nodeInfo.IsSelected)
+            {
+                if (!field.BypassNodeIds.Contains(nodeInfo.Id))
+                {
+                    field.BypassNodeIds.Add(nodeInfo.Id);
+                }
+            }
+            else
+            {
+                field.BypassNodeIds.Remove(nodeInfo.Id);
+            }
         }
 
         private void SaveWorkflow(Window window)
@@ -954,6 +1009,18 @@ namespace Comfizen
         {
             HookScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
             ActionScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
+        }
+        
+        private void NodeSelectionCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox &&
+                checkBox.DataContext is NodeInfo nodeInfo &&
+                _viewModel != null)
+            {
+                // Находим поле, к которому относится этот список нод
+                var field = (checkBox.TryFindParent<ItemsControl>()).DataContext as WorkflowField;
+                _viewModel.OnNodeSelectionChanged(field, nodeInfo);
+            }
         }
         
         // --- START OF NEW METHODS ---

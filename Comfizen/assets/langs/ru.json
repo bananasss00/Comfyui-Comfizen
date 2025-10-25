@@ -235,5 +235,6 @@
   "GlobalPresets_Header": "Глобальные пресеты",
   "GlobalPresets_Label": "Применить пресет:",
   "Tab_InterruptGeneration": "Прервать генерацию на сервере",
-  "Tab_ClearLocalQueue": "Очистить локальную очередь"
+  "Tab_ClearLocalQueue": "Очистить локальную очередь",
+  "UIConstructor_AddNodeBypassField": "Добавить переключатель обхода (Bypass)"
 }

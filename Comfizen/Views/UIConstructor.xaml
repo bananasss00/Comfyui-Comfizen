@@ -13,6 +13,8 @@
         Style="{StaticResource CustomWindowStyle}">
 
     <Window.Resources>
+        <local:IsNodeIdInListConverter x:Key="IsNodeIdInListConverter"/>
+        
         <Popup x:Key="ColorPickerPopup"
                StaysOpen="False"
                Placement="MousePoint"
@@ -341,6 +343,11 @@
                                                                             ToolTip="{local:Translate UIConstructor_AddScriptButtonField}"
                                                                             Command="{Binding DataContext.AddScriptButtonFieldCommand, ElementName=RootGrid}"
                                                                             CommandParameter="{Binding}"/>
+                                                                    <Button Content="&#xE775;" FontFamily="Segoe MDL2 Assets" 
+                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                            ToolTip="{local:Translate UIConstructor_AddNodeBypassField}"
+                                                                            Command="{Binding DataContext.AddNodeBypassFieldCommand, ElementName=RootGrid}"
+                                                                            CommandParameter="{Binding}"/>
                                                                     <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Width="24" Height="24" 
                                                                             ToolTip="{local:Translate UIConstructor_DeleteGroup}" 
                                                                             Command="{Binding DataContext.RemoveGroupCommand, ElementName=RootGrid}" 
@@ -418,6 +425,7 @@
                                                                                                                 <Style.Triggers>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Markdown"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="ScriptButton"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="NodeBypass"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                 </Style.Triggers>
                                                                                                             </Style>
                                                                                                         </TextBlock.Style>
@@ -431,6 +439,7 @@
                                                                                                                 <Style.Triggers>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Markdown"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="ScriptButton"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="NodeBypass"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                 </Style.Triggers>
                                                                                                             </Style>
                                                                                                         </ComboBox.Style>
@@ -478,6 +487,55 @@
                                                                                                 DisplayMemberPath="Name" 
                                                                                                 SelectedValuePath="Name"
                                                                                                 Margin="0,2,0,0" />
+                                                                                        </StackPanel>
+                                                                                        <StackPanel Grid.Row="2" Margin="0,5,0,0">
+                                                                                            <StackPanel.Style>
+                                                                                                <Style TargetType="StackPanel">
+                                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                    <Style.Triggers>
+                                                                                                        <DataTrigger Binding="{Binding Type}" Value="NodeBypass">
+                                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                                        </DataTrigger>
+                                                                                                    </Style.Triggers>
+                                                                                                </Style>
+                                                                                            </StackPanel.Style>
+                                                                                            <TextBlock Text="Ноды для обхода (Bypass):"/>
+                                                                                            <CheckBox Content="Включено по умолчанию" IsChecked="{Binding DefaultValue, Converter={StaticResource StringToBoolConverter}}" Margin="0,5,0,5"/>
+                                                                                            <ListView ItemsSource="{Binding DataContext.WorkflowNodes, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                                                                MaxHeight="150" Background="{StaticResource SecondaryBackground}" BorderThickness="1" BorderBrush="{StaticResource TertiaryBackground}">
+                                                                                                <ListView.View>
+                                                                                                    <GridView>
+                                                                                                        <GridViewColumn Width="40">
+                                                                                                            <GridViewColumn.CellTemplate>
+                                                                                                                <DataTemplate>
+                                                                                                                    <CheckBox Click="NodeSelectionCheckBox_Click">
+                                                                                                                        <CheckBox.IsChecked>
+                                                                                                                            <MultiBinding Converter="{StaticResource IsNodeIdInListConverter}" Mode="OneWay">
+                                                                                                                                <Binding Path="Id"/>
+                                                                                                                                <Binding Path="DataContext.BypassNodeIds" RelativeSource="{RelativeSource AncestorType=ListView}"/>
+                                                                                                                            </MultiBinding>
+                                                                                                                        </CheckBox.IsChecked>
+                                                                                                                    </CheckBox>
+                                                                                                                </DataTemplate>
+                                                                                                            </GridViewColumn.CellTemplate>
+                                                                                                        </GridViewColumn>
+                                                                                                        <GridViewColumn Header="ID" Width="50">
+                                                                                                            <GridViewColumn.CellTemplate>
+                                                                                                                <DataTemplate>
+                                                                                                                    <TextBlock Text="{Binding Id}" />
+                                                                                                                </DataTemplate>
+                                                                                                            </GridViewColumn.CellTemplate>
+                                                                                                        </GridViewColumn>
+                                                                                                        <GridViewColumn Header="Title" Width="200">
+                                                                                                            <GridViewColumn.CellTemplate>
+                                                                                                                <DataTemplate>
+                                                                                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                                                                                </DataTemplate>
+                                                                                                            </GridViewColumn.CellTemplate>
+                                                                                                        </GridViewColumn>
+                                                                                                    </GridView>
+                                                                                                </ListView.View>
+                                                                                            </ListView>
                                                                                         </StackPanel>
                                                                                     </Grid>
                                                                                 </Grid>
