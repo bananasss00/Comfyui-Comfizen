@@ -89,6 +89,11 @@ namespace Comfizen
         public string Id { get; set; }
         public string Title { get; set; }
         public event PropertyChangedEventHandler PropertyChanged;
+        
+        public override string ToString()
+        {
+            return $"{Title} ({Id})";
+        }
     }
     
     /// <summary>
@@ -240,6 +245,33 @@ namespace Comfizen
                 if (param is WorkflowGroup group) group.HighlightColor = null;
                 else if (param is WorkflowField field) field.HighlightColor = null;
             });
+            
+            AddBypassNodeIdCommand = new RelayCommand(param =>
+            {
+                if (param is Tuple<object, object> tuple &&
+                    tuple.Item1 is NodeInfo selectedNode &&
+                    tuple.Item2 is WorkflowField field)
+                {
+                    if (!field.BypassNodeIds.Contains(selectedNode.Id))
+                    {
+                        field.BypassNodeIds.Add(selectedNode.Id);
+                        // --- NEW: Notify the UI about the change ---
+                        field.NotifyBypassNodeIdsChanged();
+                    }
+                }
+            });
+
+            RemoveBypassNodeIdCommand = new RelayCommand(param =>
+            {
+                if (param is object[] args && args.Length == 2 && 
+                    args[0] is WorkflowField field && 
+                    args[1] is NodeInfo nodeToRemove)
+                {
+                    field.BypassNodeIds.Remove(nodeToRemove.Id);
+                    // --- NEW: Notify the UI about the change ---
+                    field.NotifyBypassNodeIdsChanged();
+                }
+            });
 
             // Attach event handlers
             this.PropertyChanged += (s, e) => {
@@ -297,6 +329,8 @@ namespace Comfizen
         public ICommand ToggleRenameCommand { get; }
         public ICommand SetHighlightColorCommand { get; }
         public ICommand ClearHighlightColorCommand { get; }
+        public ICommand RemoveBypassNodeIdCommand { get; }
+        public ICommand AddBypassNodeIdCommand { get; }
         public ObservableCollection<ColorInfo> ColorPalette { get; }
 
         public string NewWorkflowName { get; set; }
@@ -1009,27 +1043,6 @@ namespace Comfizen
         {
             HookScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
             ActionScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
-        }
-        
-        private void NodeSelectionCheckBox_Click(object sender, RoutedEventArgs e)
-        {
-            // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
-            if (sender is not CheckBox checkBox ||
-                checkBox.DataContext is not NodeInfo nodeInfo ||
-                _viewModel == null)
-            {
-                return;
-            }
-
-            // Находим поле, к которому относится этот список нод
-            var field = (checkBox.TryFindParent<ItemsControl>()).DataContext as WorkflowField;
-
-            // Получаем НОВОЕ состояние чекбокса (true или false)
-            bool isNowSelected = checkBox.IsChecked ?? false;
-
-            // Передаем это состояние в ViewModel
-            _viewModel.OnNodeSelectionChanged(field, nodeInfo, isNowSelected);
-            // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
         }
         
         // --- START OF NEW METHODS ---

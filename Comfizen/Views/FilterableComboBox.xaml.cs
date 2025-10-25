@@ -28,6 +28,24 @@ namespace Comfizen
         }
 
         #region Dependency Properties
+        public static readonly DependencyProperty ItemSelectedCommandProperty = DependencyProperty.Register(
+            "ItemSelectedCommand", typeof(ICommand), typeof(FilterableComboBox), new PropertyMetadata(null));
+
+        public ICommand ItemSelectedCommand
+        {
+            get => (ICommand)GetValue(ItemSelectedCommandProperty);
+            set => SetValue(ItemSelectedCommandProperty, value);
+        }
+        
+        public static readonly DependencyProperty ItemSelectedCommandParameterProperty = DependencyProperty.Register(
+            "ItemSelectedCommandParameter", typeof(object), typeof(FilterableComboBox), new PropertyMetadata(null));
+
+        public object ItemSelectedCommandParameter
+        {
+            get => GetValue(ItemSelectedCommandParameterProperty);
+            set => SetValue(ItemSelectedCommandParameterProperty, value);
+        }
+        
         public static readonly DependencyProperty ItemTemplateSelectorProperty = DependencyProperty.Register(
             "ItemTemplateSelector", typeof(DataTemplateSelector), typeof(FilterableComboBox), new PropertyMetadata(null));
 
@@ -159,18 +177,13 @@ namespace Comfizen
                 IsValueValid = true;
                 return;
             }
-        
-            // Проверяем, содержится ли выбранный элемент в списке,
-            // учитывая, что SelectedItem может быть без расширения .json
-            var source = ItemsSource.OfType<string>();
-            IsValueValid = source.Any(s =>
-            {
-                // TODO: better fix. processes displayed without extensions 
-                var sWithoutExtension = s.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
-                                        ? s.Substring(0, s.Length - 5)
-                                        : s;
-                return sWithoutExtension.Equals(SelectedItem, StringComparison.OrdinalIgnoreCase);
-            });
+
+            // --- START OF MODIFICATION ---
+            // The ItemsSource can contain any object, not just strings.
+            // We need to cast to object and compare using ToString(), which is what the user sees.
+            var source = ItemsSource.Cast<object>();
+            IsValueValid = source.Any(s => s.ToString().Equals(SelectedItem, StringComparison.OrdinalIgnoreCase));
+            // --- END OF MODIFICATION ---
         }
         
         private void FilterItems()
@@ -192,10 +205,10 @@ namespace Comfizen
             {
                 // --- MODIFIED: Split search filter by spaces for multi-word search ---
                 string[] searchTerms = SearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        
-                // Берем ТОЛЬКО строки и проверяем, что каждая из них содержит ВСЕ поисковые слова
-                var filtered = source.OfType<string>()
-                    .Where(item => searchTerms.All(term => item.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
+                
+                var filtered = source
+                    .Where(item => searchTerms.All(term => 
+                        item.ToString().IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
 
                 foreach (var item in filtered)
                 {
@@ -206,12 +219,10 @@ namespace Comfizen
 
         private void ItemListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (e.AddedItems.Count > 0 && e.AddedItems[0] is string selectedItem)
+            if (e.AddedItems.Count > 0)
             {
-                // Устанавливаем SelectedItem, который привязан к TextBox
-                SetValue(SelectedItemProperty, selectedItem); 
-                ItemPopup.IsOpen = false; // Закрываем Popup после выбора
-                ItemSelected?.Invoke(this, selectedItem);
+                // This makes the control work with any object type, not just strings.
+                CommitSelection(e.AddedItems[0]);
             }
         }
         
@@ -250,12 +261,12 @@ namespace Comfizen
             {
                 return;
             }
-
-            // Original logic for selection
+            
+            // This allows selection of any object type bound to the ListBox.
             if (e.OriginalSource is FrameworkElement element &&
-                element.DataContext is string selectedItem)
+                element.DataContext != null)
             {
-                CommitSelection(selectedItem);
+                CommitSelection(element.DataContext);
             }
         }
         
@@ -297,9 +308,9 @@ namespace Comfizen
             if (e.Key == Key.Enter)
             {
                 e.Handled = true;
-                if (ItemListBox.SelectedItem is string selectedItem)
+                if (ItemListBox.SelectedItem != null)
                 {
-                    CommitSelection(selectedItem);
+                    CommitSelection(ItemListBox.SelectedItem);
                 }
             }
             else if (e.Key == Key.Escape)
@@ -340,11 +351,32 @@ namespace Comfizen
         /// <summary>
         /// Вспомогательный метод для завершения выбора.
         /// </summary>
-        private void CommitSelection(string selectedItem)
+        private void CommitSelection(object selectedItem)
         {
-            SelectedItem = selectedItem;
+            if (selectedItem == null) return;
+            
+            var selectedItemString = selectedItem.ToString();
+            
+            SetValue(SelectedItemProperty, selectedItemString);
             ItemPopup.IsOpen = false;
-            ItemSelected?.Invoke(this, selectedItem);
+            ItemSelected?.Invoke(this, selectedItemString);
+
+            // --- MODIFIED: Package the selected item and the command parameter into a Tuple ---
+            if (ItemSelectedCommand != null)
+            {
+                // We create a tuple to send both the selected item and the context parameter to the command.
+                var commandParameterTuple = Tuple.Create(selectedItem, ItemSelectedCommandParameter);
+                if (ItemSelectedCommand.CanExecute(commandParameterTuple))
+                {
+                    ItemSelectedCommand.Execute(commandParameterTuple);
+                    
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        SearchFilter = string.Empty;
+                        SetValue(SelectedItemProperty, string.Empty);
+                    }));
+                }
+            }
         }
     }
 }

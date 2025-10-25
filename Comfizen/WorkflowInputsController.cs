@@ -148,7 +148,6 @@ public class WorkflowInputsController : INotifyPropertyChanged
     
     private void ApplyNodeBypass(JObject prompt)
     {
-        // 1. Собираем все ID нод, которые нужно обойти в этом запуске
         var nodesToBypassThisRun = new HashSet<string>();
         var bypassViewModels = TabLayoouts
             .SelectMany(t => t.Groups)
@@ -157,13 +156,18 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         foreach (var vm in bypassViewModels)
         {
-            if (!vm.IsEnabled) // Если чекбокс выключен
+            // --- START OF FIX ---
+            // The bypass should only be active when the checkbox is UNCHECKED.
+            // The property IsEnabled is true when the checkbox is checked (meaning "bypass is off").
+            // Therefore, we only add nodes to the bypass list if IsEnabled is false.
+            if (!vm.IsEnabled)
             {
                 foreach (var nodeId in vm.BypassNodeIds)
                 {
                     nodesToBypassThisRun.Add(nodeId);
                 }
             }
+            // --- END OF FIX ---
         }
 
         if (!nodesToBypassThisRun.Any())

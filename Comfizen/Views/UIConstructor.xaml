@@ -13,7 +13,8 @@
         Style="{StaticResource CustomWindowStyle}">
 
     <Window.Resources>
-        <local:IsNodeIdInListConverter x:Key="IsNodeIdInListConverter"/>
+        <local:NodeIdsToInfoConverter x:Key="NodeIdsToInfoConverter"/>
+        <local:AvailableNodesConverter  x:Key="AvailableNodesConverter"/>
         
         <Popup x:Key="ColorPickerPopup"
                StaysOpen="False"
@@ -501,41 +502,73 @@
                                                                                             </StackPanel.Style>
                                                                                             <TextBlock Text="Ноды для обхода (Bypass):"/>
                                                                                             <CheckBox Content="Включено по умолчанию" IsChecked="{Binding DefaultValue, Converter={StaticResource StringToBoolConverter}}" Margin="0,5,0,5"/>
-                                                                                            <ListView ItemsSource="{Binding DataContext.WorkflowNodes, RelativeSource={RelativeSource AncestorType=Window}}" 
-                                                                                                MaxHeight="150" Background="{StaticResource SecondaryBackground}" BorderThickness="1" BorderBrush="{StaticResource TertiaryBackground}">
-                                                                                                <ListView.View>
-                                                                                                    <GridView>
-                                                                                                        <GridViewColumn Width="40">
-                                                                                                            <GridViewColumn.CellTemplate>
-                                                                                                                <DataTemplate>
-                                                                                                                    <CheckBox Click="NodeSelectionCheckBox_Click">
-                                                                                                                        <CheckBox.IsChecked>
-                                                                                                                            <MultiBinding Converter="{StaticResource IsNodeIdInListConverter}" Mode="OneWay">
-                                                                                                                                <Binding Path="Id"/>
-                                                                                                                                <Binding Path="DataContext.BypassNodeIds" RelativeSource="{RelativeSource AncestorType=ListView}"/>
-                                                                                                                            </MultiBinding>
-                                                                                                                        </CheckBox.IsChecked>
-                                                                                                                    </CheckBox>
-                                                                                                                </DataTemplate>
-                                                                                                            </GridViewColumn.CellTemplate>
-                                                                                                        </GridViewColumn>
-                                                                                                        <GridViewColumn Header="ID" Width="50">
-                                                                                                            <GridViewColumn.CellTemplate>
-                                                                                                                <DataTemplate>
-                                                                                                                    <TextBlock Text="{Binding Id}" />
-                                                                                                                </DataTemplate>
-                                                                                                            </GridViewColumn.CellTemplate>
-                                                                                                        </GridViewColumn>
-                                                                                                        <GridViewColumn Header="Title" Width="200">
-                                                                                                            <GridViewColumn.CellTemplate>
-                                                                                                                <DataTemplate>
-                                                                                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-                                                                                                                </DataTemplate>
-                                                                                                            </GridViewColumn.CellTemplate>
-                                                                                                        </GridViewColumn>
-                                                                                                    </GridView>
-                                                                                                </ListView.View>
-                                                                                            </ListView>
+
+                                                                                            <!-- Поиск и добавление нод -->
+                                                                                            <local:FilterableComboBox 
+                                                                                                PlaceholderText="Найти и добавить ноду по ID или названию..."
+                                                                                                Margin="0,0,0,5"
+                                                                                                ItemSelectedCommand="{Binding DataContext.AddBypassNodeIdCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                                ItemSelectedCommandParameter="{Binding}"> <!-- The DataContext here is the WorkflowField -->
+    
+                                                                                                <local:FilterableComboBox.ItemsSource>
+                                                                                                    <MultiBinding Converter="{StaticResource AvailableNodesConverter}">
+                                                                                                        <Binding Path="DataContext.WorkflowNodes" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                                                        <Binding Path="BypassNodeIds"/>
+                                                                                                    </MultiBinding>
+                                                                                                </local:FilterableComboBox.ItemsSource>
+
+                                                                                                <local:FilterableComboBox.ItemTemplate>
+                                                                                                    <DataTemplate DataType="{x:Type local:NodeInfo}">
+                                                                                                        <StackPanel Orientation="Horizontal">
+                                                                                                            <TextBlock Text="{Binding Title}" FontWeight="Bold"/>
+                                                                                                            <TextBlock Text="{Binding Id, StringFormat=' ({0})'}" Foreground="{StaticResource TextSecondaryBrush}" Margin="5,0,0,0"/>
+                                                                                                        </StackPanel>
+                                                                                                    </DataTemplate>
+                                                                                                </local:FilterableComboBox.ItemTemplate>
+                                                                                            </local:FilterableComboBox>
+
+                                                                                            <!-- Список уже добавленных нод -->
+                                                                                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="100">
+                                                                                                    <ItemsControl>
+                                                                                                        <ItemsControl.ItemsSource>
+                                                                                                            <MultiBinding Converter="{StaticResource NodeIdsToInfoConverter}">
+                                                                                                                <Binding Path="BypassNodeIds" />
+                                                                                                                <Binding Path="DataContext.WorkflowNodes" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                                                                            </MultiBinding>
+                                                                                                        </ItemsControl.ItemsSource>
+                                                                                                        <ItemsControl.ItemTemplate>
+                                                                                                            <DataTemplate DataType="{x:Type local:NodeInfo}">
+                                                                                                                <!-- Made the border more compact by reducing padding and margin -->
+                                                                                                                <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,1" Padding="8,2">
+                                                                                                                    <Grid>
+                                                                                                                        <Grid.ColumnDefinitions>
+                                                                                                                            <ColumnDefinition Width="*"/>
+                                                                                                                            <ColumnDefinition Width="Auto"/>
+                                                                                                                        </Grid.ColumnDefinitions>
+
+                                                                                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                                                                                            <TextBlock Text="{Binding Id, StringFormat=' ({0})'}" Foreground="{StaticResource TextSecondaryBrush}" Margin="5,0,0,0"/>
+                                                                                                                        </StackPanel>
+
+                                                                                                                        <Button Grid.Column="1" Content="&#xE74D;" Style="{StaticResource IconButton}" Width="20" Height="20"
+                                                                                                                                ToolTip="Удалить эту ноду из списка байпаса">
+                                                                                                                            <Button.Command>
+                                                                                                                                <Binding Path="DataContext.RemoveBypassNodeIdCommand" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                                                                            </Button.Command>
+                                                                                                                            <Button.CommandParameter>
+                                                                                                                                <MultiBinding Converter="{StaticResource MultiValueToArrayConverter}">
+                                                                                                                                    <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                                                                                                    <Binding/>
+                                                                                                                                </MultiBinding>
+                                                                                                                            </Button.CommandParameter>
+                                                                                                                        </Button>
+                                                                                                                    </Grid>
+                                                                                                                </Border>
+                                                                                                            </DataTemplate>
+                                                                                                        </ItemsControl.ItemTemplate>
+                                                                                                    </ItemsControl>
+                                                                                                </ScrollViewer>
                                                                                         </StackPanel>
                                                                                     </Grid>
                                                                                 </Grid>

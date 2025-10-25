@@ -850,9 +850,14 @@ namespace Comfizen
         /// </summary>
         public bool IsEnabled
         {
-            get => _field.DefaultValue?.ToLower() == "true";
+            // --- START OF FIX: Use robust boolean parsing instead of string comparison ---
+            // This correctly handles "True", "true", "False", "false", and returns false for any other value.
+            // It ensures the getter always reports the correct state of the underlying model value.
+            get => bool.TryParse(_field.DefaultValue, out var result) && result;
+            // --- END OF FIX ---
             set
             {
+                // The setter logic was already correct.
                 if ((_field.DefaultValue?.ToLower() == "true") != value)
                 {
                     _field.DefaultValue = value.ToString();
@@ -864,7 +869,7 @@ namespace Comfizen
         /// <summary>
         /// Список ID нод, которыми управляет это поле.
         /// </summary>
-        public List<string> BypassNodeIds { get; }
+        public ObservableCollection<string> BypassNodeIds { get; }
 
         private readonly WorkflowField _field;
 
@@ -872,7 +877,7 @@ namespace Comfizen
         {
             _field = field;
             Type = FieldType.NodeBypass;
-            BypassNodeIds = field.BypassNodeIds ?? new List<string>();
+            BypassNodeIds = field.BypassNodeIds ?? new ObservableCollection<string>();
 
             // Устанавливаем значение по умолчанию, если оно не задано
             if (string.IsNullOrEmpty(_field.DefaultValue))
