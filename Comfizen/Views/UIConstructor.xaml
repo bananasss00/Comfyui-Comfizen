@@ -500,12 +500,12 @@
                                                                                                     </Style.Triggers>
                                                                                                 </Style>
                                                                                             </StackPanel.Style>
-                                                                                            <TextBlock Text="Ноды для обхода (Bypass):"/>
-                                                                                            <CheckBox Content="Включено по умолчанию" IsChecked="{Binding DefaultValue, Converter={StaticResource StringToBoolConverter}}" Margin="0,5,0,5"/>
+                                                                                            <TextBlock Text="{local:Translate UIConstructor_NodeBypass_Header}"/>
+                                                                                            <CheckBox Content="{local:Translate UIConstructor_NodeBypass_EnabledByDefault}" IsChecked="{Binding DefaultValue, Converter={StaticResource StringToBoolConverter}}" Margin="0,5,0,5"/>
 
                                                                                             <!-- Поиск и добавление нод -->
                                                                                             <local:FilterableComboBox 
-                                                                                                PlaceholderText="Найти и добавить ноду по ID или названию..."
+                                                                                                PlaceholderText="{local:Translate UIConstructor_NodeBypass_SearchPlaceholder}"
                                                                                                 Margin="0,0,0,5"
                                                                                                 ItemSelectedCommand="{Binding DataContext.AddBypassNodeIdCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                                                 ItemSelectedCommandParameter="{Binding}"> <!-- The DataContext here is the WorkflowField -->
@@ -552,7 +552,7 @@
                                                                                                                         </StackPanel>
 
                                                                                                                         <Button Grid.Column="1" Content="&#xE74D;" Style="{StaticResource IconButton}" Width="20" Height="20"
-                                                                                                                                ToolTip="Удалить эту ноду из списка байпаса">
+                                                                                                                                ToolTip="{local:Translate UIConstructor_NodeBypass_RemoveTooltip}">
                                                                                                                             <Button.Command>
                                                                                                                                 <Binding Path="DataContext.RemoveBypassNodeIdCommand" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                                                                                                             </Button.Command>

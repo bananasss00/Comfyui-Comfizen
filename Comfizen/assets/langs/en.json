@@ -236,5 +236,17 @@
   "GlobalPresets_Label": "Apply Preset:",
   "Tab_InterruptGeneration": "Interrupt generation on server",
   "Tab_ClearLocalQueue": "Clear local queue",
-  "UIConstructor_AddNodeBypassField": "Add Bypass Switch"
+  "UIConstructor_AddNodeBypassField": "Add Bypass Switch",
+  "MainVM_WorkflowPathError": "The specified workflow path '{0}' is outside of the configured '{1}' directory.",
+  "MainVM_ImportNoMetadataError": "No Comfizen state metadata was found in the file.",
+  "MainVM_ImportFailedTitle": "Import Failed",
+  "MainVM_ImportGenericError": "An error occurred while importing the state file: {0}",
+  "MainVM_ImportErrorTitle": "Import Error",
+  "MainVM_ImportInvalidFileError": "The imported file is not a valid Comfizen state file or is corrupted.",
+  "MainVM_ImportInvalidFileTitle": "Invalid File",
+  "Presets_RenameTooltip": "Rename Preset",
+  "UIConstructor_NodeBypass_Header": "Nodes to Bypass:",
+  "UIConstructor_NodeBypass_EnabledByDefault": "Enabled by default",
+  "UIConstructor_NodeBypass_SearchPlaceholder": "Find and add a node by ID or title...",
+  "UIConstructor_NodeBypass_RemoveTooltip": "Remove this node from the bypass list"
 }

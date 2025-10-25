@@ -361,7 +361,7 @@ namespace Comfizen
                     }
                     else
                     {
-                        MessageBox.Show("No Comfizen state metadata was found in the file.", "Import Failed", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show(LocalizationService.Instance["MainVM_ImportNoMetadataError"], LocalizationService.Instance["MainVM_ImportFailedTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
                         return;
                     }
                 }
@@ -372,7 +372,7 @@ namespace Comfizen
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"An error occurred while importing the state file: {ex.Message}", "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ImportGenericError"], ex.Message), LocalizationService.Instance["MainVM_ImportErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         
@@ -381,16 +381,17 @@ namespace Comfizen
             var promptData = data["prompt"] as JObject;
             var uiDefinition = data["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
             var scripts = data["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
+            var tabs = data["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
 
             if (promptData == null || uiDefinition == null)
             {
-                MessageBox.Show("The imported file is not a valid Comfizen state file or is corrupted.", "Invalid File", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(LocalizationService.Instance["MainVM_ImportInvalidFileError"], LocalizationService.Instance["MainVM_ImportInvalidFileTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             // Create a new in-memory Workflow object.
             var importedWorkflow = new Workflow();
-            importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts);
+            importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs);
             
             // Create a new "virtual" tab using the new constructor.
             var newTab = new WorkflowTabViewModel(
@@ -666,7 +667,8 @@ namespace Comfizen
                 {
                     prompt = apiPromptForTask, // Use the modified prompt here
                     promptTemplate = tab.Workflow.Groups,
-                    scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null
+                    scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
+                    tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null
                 };
             
                 // 4. Serialize this complete and correct state for embedding.
@@ -692,7 +694,8 @@ namespace Comfizen
             {
                 prompt = prompt,
                 promptTemplate = originTab.Workflow.Groups,
-                scripts = (originTab.Workflow.Scripts.Hooks.Any() || originTab.Workflow.Scripts.Actions.Any()) ? originTab.Workflow.Scripts : null
+                scripts = (originTab.Workflow.Scripts.Hooks.Any() || originTab.Workflow.Scripts.Actions.Any()) ? originTab.Workflow.Scripts : null,
+                tabs = originTab.Workflow.Tabs.Any() ? originTab.Workflow.Tabs : null
             };
     
             string fullWorkflowStateJson = JsonConvert.SerializeObject(fullState, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });

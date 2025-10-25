@@ -236,5 +236,17 @@
   "GlobalPresets_Label": "Применить пресет:",
   "Tab_InterruptGeneration": "Прервать генерацию на сервере",
   "Tab_ClearLocalQueue": "Очистить локальную очередь",
-  "UIConstructor_AddNodeBypassField": "Добавить переключатель обхода (Bypass)"
+  "UIConstructor_AddNodeBypassField": "Добавить переключатель обхода (Bypass)",
+  "MainVM_WorkflowPathError": "Указанный путь к воркфлоу '{0}' находится вне настроенной директории '{1}'.",
+  "MainVM_ImportNoMetadataError": "В файле не найдены метаданные состояния Comfizen.",
+  "MainVM_ImportFailedTitle": "Ошибка импорта",
+  "MainVM_ImportGenericError": "Произошла ошибка при импорте файла состояния: {0}",
+  "MainVM_ImportErrorTitle": "Ошибка импорта",
+  "MainVM_ImportInvalidFileError": "Импортированный файл не является действительным файлом состояния Comfizen или поврежден.",
+  "MainVM_ImportInvalidFileTitle": "Неверный файл",
+  "Presets_RenameTooltip": "Переименовать пресет",
+  "UIConstructor_NodeBypass_Header": "Ноды для обхода (Bypass):",
+  "UIConstructor_NodeBypass_EnabledByDefault": "Включено по умолчанию",
+  "UIConstructor_NodeBypass_SearchPlaceholder": "Найти и добавить ноду по ID или названию...",
+  "UIConstructor_NodeBypass_RemoveTooltip": "Удалить эту ноду из списка байпаса"
 }
