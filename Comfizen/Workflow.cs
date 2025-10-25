@@ -119,6 +119,10 @@ namespace Comfizen
             OriginalApi = prompt;
             LoadedApi = prompt?.DeepClone() as JObject;
 
+            // START OF FIX: Restore original inputs immediately after loading API state
+            RestoreBypassedNodesFromMeta(LoadedApi);
+            // END OF FIX
+
             Groups.Clear();
             if (promptTemplate != null) { foreach (var group in promptTemplate) Groups.Add(group); }
 
@@ -259,12 +263,15 @@ namespace Comfizen
                 promptTemplate = default(ObservableCollection<WorkflowGroup>),
                 scripts = default(ScriptCollection),
                 presets = default(Dictionary<Guid, List<GroupPreset>>),
-                // --- ADDED: Load tabs information ---
                 tabs = default(ObservableCollection<WorkflowTabDefinition>)
             });
 
             OriginalApi = data.prompt;
             LoadedApi = data.prompt?.DeepClone() as JObject;
+
+            // START OF FIX: Restore original inputs immediately after loading API state
+            RestoreBypassedNodesFromMeta(LoadedApi);
+            // END OF FIX
 
             Groups.Clear();
             if (data.promptTemplate != null) { foreach (var group in data.promptTemplate) Groups.Add(group); }
@@ -298,6 +305,30 @@ namespace Comfizen
                 }
             }
             // --- КОНЕЦ МИГРАЦИИ ---
+        }
+        
+        /// <summary>
+        /// Iterates through all nodes in the provided JObject and restores their 'inputs'
+        /// from the '_meta.original_inputs' backup if it exists. This ensures the workflow
+        /// is always in its original, un-bypassed state after loading.
+        /// </summary>
+        /// <param name="prompt">The JObject representing the workflow API.</param>
+        private void RestoreBypassedNodesFromMeta(JObject prompt)
+        {
+            if (prompt == null) return;
+
+            foreach (var nodeProperty in prompt.Properties())
+            {
+                if (nodeProperty.Value is not JObject node || 
+                    node["_meta"]?["original_inputs"] is not JObject originalInputs)
+                {
+                    continue;
+                }
+
+                // If a backup of original inputs exists, restore it.
+                // This makes it the canonical state for the loaded workflow.
+                node["inputs"] = originalInputs.DeepClone();
+            }
         }
     }
 }

@@ -148,18 +148,37 @@ public class WorkflowInputsController : INotifyPropertyChanged
     
     private void ApplyNodeBypass(JObject prompt)
     {
-        var nodesToBypassThisRun = new HashSet<string>();
         var bypassViewModels = TabLayoouts
             .SelectMany(t => t.Groups)
             .SelectMany(g => g.Fields)
-            .OfType<NodeBypassFieldViewModel>();
+            .OfType<NodeBypassFieldViewModel>()
+            .ToList();
 
+        if (!bypassViewModels.Any())
+        {
+            return;
+        }
+
+        // --- START OF REWORKED LOGIC ---
+
+        // 1. Restore all potentially bypassed nodes to their original state first.
+        // This ensures that toggling a bypass ON/OFF works correctly across runs.
+        var allControlledNodeIds = bypassViewModels.SelectMany(vm => vm.BypassNodeIds).Distinct();
+        foreach (var nodeId in allControlledNodeIds)
+        {
+            if (prompt[nodeId] is not JObject node || node["_meta"]?["original_inputs"] is not JObject originalInputs)
+            {
+                continue;
+            }
+            // Restore the original inputs from the metadata backup.
+            node["inputs"] = originalInputs.DeepClone();
+        }
+
+        // 2. Determine which nodes should be bypassed in *this* run.
+        var nodesToBypassThisRun = new HashSet<string>();
         foreach (var vm in bypassViewModels)
         {
-            // --- START OF FIX ---
-            // The bypass should only be active when the checkbox is UNCHECKED.
-            // The property IsEnabled is true when the checkbox is checked (meaning "bypass is off").
-            // Therefore, we only add nodes to the bypass list if IsEnabled is false.
+            // A node is bypassed only if its controlling checkbox is UNCHECKED.
             if (!vm.IsEnabled)
             {
                 foreach (var nodeId in vm.BypassNodeIds)
@@ -167,33 +186,26 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     nodesToBypassThisRun.Add(nodeId);
                 }
             }
-            // --- END OF FIX ---
         }
-
+        
         if (!nodesToBypassThisRun.Any())
         {
-            return; // Ничего не байпасим
+            return; // Nothing to bypass, we're done.
         }
 
-        // 2. Создаем карту перенаправлений (какой выход какой вход заменяет)
+        // 3. Create the redirection map for the nodes that are actively being bypassed.
         var redirectionMap = new Dictionary<string, JArray>();
 
         foreach (var mutedNodeId in nodesToBypassThisRun)
         {
             var mutedNode = prompt[mutedNodeId] as JObject;
-            var mutedNodeInputs = mutedNode?["inputs"] as JObject;
-            if (mutedNodeInputs == null) continue;
-
-            // Эвристика: проходим по входам и выходам.
-            // Для нод типа LoraLoader (model->model) или ControlNetApply (cond->cond)
-            // порядковый номер входа часто соответствует порядковому номеру выхода.
-            // TODO: review
+            if (mutedNode?["inputs"] is not JObject mutedNodeInputs) continue;
+            
             int outputIndex = 0;
             foreach (var inputProp in mutedNodeInputs.Properties())
             {
                 if (inputProp.Value is JArray sourceLink)
                 {
-                    // Ключ карты - это "ID_ноды.индекс_выхода"
                     string outputKey = $"{mutedNodeId}.{outputIndex}";
                     redirectionMap[outputKey] = sourceLink;
                     outputIndex++;
@@ -201,12 +213,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
 
-        // 3. Проходим по всему промпту и "перешиваем" связи
+        // 4. Rewire the connections for the entire prompt.
         foreach (var nodeProperty in prompt.Properties())
         {
-            var node = nodeProperty.Value as JObject;
-            var nodeInputs = node?["inputs"] as JObject;
-            if (nodeInputs == null) continue;
+            if (nodeProperty.Value is not JObject node || node["inputs"] is not JObject nodeInputs) continue;
 
             foreach (var inputProperty in nodeInputs.Properties())
             {
@@ -215,16 +225,15 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     string sourceNodeId = targetLink[0].ToString();
                     string sourceOutputIndex = targetLink[1].ToString();
                     string sourceKey = $"{sourceNodeId}.{sourceOutputIndex}";
-
-                    // Если вход текущей ноды ссылается на выход обойденной ноды...
+                    
                     if (redirectionMap.TryGetValue(sourceKey, out var newSourceLink))
                     {
-                        // ...то меняем его на вход обойденной ноды.
                         inputProperty.Value = newSourceLink.DeepClone();
                     }
                 }
             }
         }
+        // --- END OF REWORKED LOGIC ---
     }
 
     private void ApplyWildcards(JToken prompt)
@@ -395,6 +404,50 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     {
                         fieldVm = new NodeBypassFieldViewModel(field, null);
                         processedFields.Add(field);
+                        
+                        // --- START OF REWORKED SNAPSHOT LOGIC ---
+                        var bypassVm = (NodeBypassFieldViewModel)fieldVm;
+                        var controlledNodeIds = bypassVm.BypassNodeIds.ToHashSet();
+                        if (!controlledNodeIds.Any()) continue;
+                        
+                        // 1. Find all nodes that are either controlled OR receive input from a controlled node.
+                        var nodesToSnapshot = new HashSet<string>(controlledNodeIds);
+                        if (_workflow.LoadedApi != null)
+                        {
+                            foreach (var nodeProperty in _workflow.LoadedApi.Properties())
+                            {
+                                if (nodeProperty.Value is not JObject node || node["inputs"] is not JObject inputs) continue;
+
+                                foreach (var inputProperty in inputs.Properties())
+                                {
+                                    if (inputProperty.Value is JArray link && link.Count > 0 &&
+                                        link[0].Type == JTokenType.String && controlledNodeIds.Contains(link[0].ToString()))
+                                    {
+                                        // This node is a target of a bypassable node, so we must snapshot it too.
+                                        nodesToSnapshot.Add(nodeProperty.Name);
+                                        break; // No need to check other inputs of this node
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. For each identified node, save its original inputs if not already saved.
+                        foreach (var nodeId in nodesToSnapshot)
+                        {
+                            if (_workflow.LoadedApi?[nodeId] is not JObject node) continue;
+                            
+                            if (node["_meta"] is not JObject meta)
+                            {
+                                meta = new JObject();
+                                node["_meta"] = meta;
+                            }
+                            
+                            if (meta["original_inputs"] == null && node["inputs"] is JObject inputsToSave)
+                            {
+                                meta["original_inputs"] = inputsToSave.DeepClone();
+                            }
+                        }
+                        // --- END OF REWORKED SNAPSHOT LOGIC ---
                     }
                 }
 
