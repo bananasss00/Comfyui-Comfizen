@@ -230,7 +230,22 @@
                                         <ListBox.ItemTemplate>
                                             <DataTemplate DataType="{x:Type local:WorkflowGroup}">
                                                 <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown">
-                                                    <TextBlock Text="{Binding Name}" ToolTip="{local:Translate UIConstructor_DragGroupTooltip}"/>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0" Text="{Binding Name}" ToolTip="{local:Translate UIConstructor_DragGroupTooltip}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+
+                                                        <Button Grid.Column="1" 
+                                                                Content="&#xE74D;" 
+                                                                Style="{StaticResource IconButton}" 
+                                                                Width="20" Height="20"
+                                                                ToolTip="{local:Translate UIConstructor_DeleteGroup}"
+                                                                Command="{Binding DataContext.RemoveGroupCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" 
+                                                                CommandParameter="{Binding}"/>
+                                                    </Grid>
                                                 </Border>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>

@@ -389,6 +389,74 @@ namespace Comfizen
                 OnPropertyChanged(nameof(PresetNames));
             }
         }
+        
+        /// <summary>
+        /// Compares the current state of the group's fields against a preset to check for exact match.
+        /// This method explicitly ignores fields of type Seed and ScriptButton, so modifying them
+        /// will not result in a mismatch.
+        /// </summary>
+        /// <param name="presetVM">The preset view model to compare against.</param>
+        /// <returns>True if the current state perfectly matches the preset, otherwise false.</returns>
+        public bool IsStateMatchingPreset(GroupPresetViewModel presetVM)
+        {
+            if (presetVM == null)
+            {
+                return false;
+            }
+
+            // First, check if all values defined in the preset match the current state.
+            foreach (var valuePair in presetVM.Model.Values)
+            {
+                var fieldPath = valuePair.Key;
+                var presetValue = valuePair.Value;
+
+                var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
+                // If a field from the preset is not found in the group, it's a mismatch.
+                if (fieldVM == null) return false;
+
+                JToken currentValue;
+                if (fieldVM is MarkdownFieldViewModel markdownVm)
+                {
+                    currentValue = new JValue(markdownVm.Value);
+                }
+                else if (fieldVM.Property != null)
+                {
+                    currentValue = _workflow.GetPropertyByPath(fieldVM.Path)?.Value;
+                }
+                else
+                {
+                    // This should not happen for fields that can be saved in presets.
+                    continue; 
+                }
+
+                // If a value is different, it's a mismatch.
+                if (currentValue == null || !JToken.DeepEquals(currentValue, presetValue))
+                {
+                    return false;
+                }
+            }
+
+            // Second, check if there are any extra persistable fields in the group that are not in the preset.
+            // This would mean the group's state is "dirty" relative to the preset.
+            var presetFieldPaths = new HashSet<string>(presetVM.Model.Values.Keys);
+            foreach (var fieldVM in Fields)
+            {
+                // Ignore fields that are never saved in presets.
+                if (fieldVM.Type == FieldType.Seed || fieldVM.Type == FieldType.ScriptButton)
+                {
+                    continue;
+                }
+                
+                // If a persistable field exists in the group but not in the preset, it's a mismatch.
+                if (!presetFieldPaths.Contains(fieldVM.Path))
+                {
+                    return false;
+                }
+            }
+            
+            // If all checks pass, the state matches the preset.
+            return true;
+        }
         // --- END OF CHANGES ---
     }
 

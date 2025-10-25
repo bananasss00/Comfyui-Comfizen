@@ -532,6 +532,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
     /// If a match is found, updates the SelectedPreset property to reflect it in the UI.
     /// If no match is found, it clears the SelectedPreset.
     /// </summary>
+    /// <summary>
+    /// Checks if the current state of a group's savable fields exactly matches one of its saved presets.
+    /// If a match is found, updates the SelectedPreset property to reflect it in the UI.
+    /// If no match is found, it clears the SelectedPreset.
+    /// </summary>
     private void TryAutoSelectPreset(WorkflowGroupViewModel groupVm)
     {
         if (!groupVm.Presets.Any())
@@ -539,52 +544,12 @@ public class WorkflowInputsController : INotifyPropertyChanged
             groupVm.SelectedPreset = null; // Ensure selection is cleared if no presets exist
             return;
         }
-
-        // 1. Create a dictionary to hold the current values of all savable fields.
-        var currentSavableValues = new Dictionary<string, JToken>();
-
-        foreach (var fieldVm in groupVm.Fields)
-        {
-            // Skip fields that are never saved in presets.
-            if (fieldVm.Type == FieldType.ScriptButton || fieldVm.Type == FieldType.Seed)
-            {
-                continue;
-            }
-
-            // Handle virtual Markdown fields by getting the value from the ViewModel.
-            if (fieldVm is MarkdownFieldViewModel markdownVm)
-            {
-                currentSavableValues[markdownVm.Path] = new JValue(markdownVm.Value);
-            }
-            // Handle standard fields by getting the value from the JProperty.
-            else if (fieldVm.Property != null)
-            {
-                currentSavableValues[fieldVm.Path] = fieldVm.Property.Value;
-            }
-        }
         
-        // 2. Find the first preset that exactly matches this current state.
-        var matchingPresetVm = groupVm.Presets.FirstOrDefault(presetVm =>
-        {
-            var presetValues = presetVm.Model.Values;
+        // The IsStateMatchingPreset method is designed to correctly ignore Seed fields
+        // and provides a more reliable comparison.
+        var matchingPresetVm = groupVm.Presets.FirstOrDefault(presetVm => groupVm.IsStateMatchingPreset(presetVm));
 
-            // 3. The number of fields must be identical for an exact match.
-            if (presetValues.Count != currentSavableValues.Count)
-            {
-                return false;
-            }
-
-            // 4. Every key/value pair in the preset must exist and be equal in the current state.
-            return presetValues.All(presetPair =>
-                currentSavableValues.TryGetValue(presetPair.Key, out var currentValue) &&
-                // --- START OF FIX ---
-                // Use the new custom comparison method that handles float precision.
-                Utils.AreJTokensEquivalent(presetPair.Value, currentValue)
-                // --- END OF FIX ---
-            );
-        });
-
-        // 5. Update the SelectedPreset. This will be null if no match was found.
+        // Update the SelectedPreset. This will be null if no match was found.
         groupVm.SelectedPreset = matchingPresetVm;
     }
 
