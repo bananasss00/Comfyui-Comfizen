@@ -161,25 +161,26 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         // --- START OF REWORKED LOGIC ---
 
-        // 1. Restore all potentially bypassed nodes to their original state first.
-        var allControlledNodeIds = bypassViewModels.SelectMany(vm => vm.BypassNodeIds).Distinct();
-        foreach (var nodeId in allControlledNodeIds)
+        // 1. Restore all potentially modified nodes to their original state first.
+        // This is crucial to ensure that each run starts from the original workflow connections.
+        // We iterate through *all* nodes to revert any previous bypass modifications.
+        foreach (var nodeProperty in prompt.Properties())
         {
-            if (prompt[nodeId] is not JObject node || 
+            if (nodeProperty.Value is not JObject node || 
                 node["_meta"]?["original_inputs"] is not JObject originalInputs ||
                 node["inputs"] is not JObject currentInputs)
             {
                 continue;
             }
-            // Restore by merging, which only overwrites the connection properties.
+            // Restore by merging, which only overwrites the connection properties, preserving widget value changes.
             currentInputs.Merge(originalInputs.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
         }
 
-        // 2. Determine which nodes should be bypassed in *this* run.
+        // 2. Determine which nodes should be bypassed in *this* specific run.
         var nodesToBypassThisRun = new HashSet<string>();
         foreach (var vm in bypassViewModels)
         {
-            if (!vm.IsEnabled)
+            if (!vm.IsEnabled) // IsEnabled=false means "bypass is active"
             {
                 foreach (var nodeId in vm.BypassNodeIds)
                 {
@@ -188,48 +189,83 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
         
+        // If no nodes are being bypassed, we're done.
         if (!nodesToBypassThisRun.Any())
         {
             return; 
         }
 
-        // 3. Create the redirection map for the nodes that are actively being bypassed.
+        // 3. Create a simple, one-level redirection map for the nodes that are actively being bypassed.
+        // This map tells us where a bypassed node gets its inputs from.
+        // We assume that for chainable nodes, the output index corresponds to the input link's position.
         var redirectionMap = new Dictionary<string, JArray>();
 
-        foreach (var mutedNodeId in nodesToBypassThisRun)
+        foreach (var bypassedNodeId in nodesToBypassThisRun)
         {
-            var mutedNode = prompt[mutedNodeId] as JObject;
-            if (mutedNode?["inputs"] is not JObject mutedNodeInputs) continue;
+            var bypassedNode = prompt[bypassedNodeId] as JObject;
+            if (bypassedNode?["inputs"] is not JObject bypassedNodeInputs) continue;
             
             int outputIndex = 0;
-            foreach (var inputProp in mutedNodeInputs.Properties())
+            foreach (var inputProp in bypassedNodeInputs.Properties())
             {
                 if (inputProp.Value is JArray sourceLink)
                 {
-                    string outputKey = $"{mutedNodeId}.{outputIndex}";
+                    string outputKey = $"{bypassedNodeId}.{outputIndex}";
                     redirectionMap[outputKey] = sourceLink;
                     outputIndex++;
                 }
             }
         }
 
-        // 4. Rewire the connections for the entire prompt.
+        // 4. Rewire the connections for the entire prompt, resolving the full bypass chain.
         foreach (var nodeProperty in prompt.Properties())
         {
             if (nodeProperty.Value is not JObject node || node["inputs"] is not JObject nodeInputs) continue;
 
             foreach (var inputProperty in nodeInputs.Properties())
             {
-                if (inputProperty.Value is JArray targetLink && targetLink.Count == 2)
+                if (inputProperty.Value is not JArray originalLink || originalLink.Count != 2)
                 {
-                    string sourceNodeId = targetLink[0].ToString();
-                    string sourceOutputIndex = targetLink[1].ToString();
+                    continue;
+                }
+
+                JArray currentLink = originalLink;
+
+                // Use a loop to trace back the connections through the redirection map.
+                int depth = 0;
+                const int maxDepth = 20; // Safety break for potential cycles
+                
+                while (depth < maxDepth)
+                {
+                    string sourceNodeId = currentLink[0].ToString();
+
+                    // If the current source node is not in our bypass list, we've found the final source.
+                    if (!nodesToBypassThisRun.Contains(sourceNodeId))
+                    {
+                        break;
+                    }
+
+                    string sourceOutputIndex = currentLink[1].ToString();
                     string sourceKey = $"{sourceNodeId}.{sourceOutputIndex}";
                     
+                    // If we find this source in our map, we update our current link and continue tracing.
                     if (redirectionMap.TryGetValue(sourceKey, out var newSourceLink))
                     {
-                        inputProperty.Value = newSourceLink.DeepClone();
+                        currentLink = newSourceLink; 
                     }
+                    else
+                    {
+                        // The chain is broken (e.g., node input is not a link); stop here.
+                        break;
+                    }
+                    depth++;
+                }
+
+                // Update the property only if the link has changed, and use a deep clone
+                // to ensure independence of JArray instances.
+                if (currentLink != originalLink)
+                {
+                    inputProperty.Value = currentLink.DeepClone();
                 }
             }
         }
