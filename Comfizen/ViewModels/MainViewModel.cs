@@ -553,6 +553,8 @@ namespace Comfizen
                     MessageBoxImage.Error);
             }
         }
+
+        private const bool stripMeta = false;
         
         private void ExportCurrentState(object obj)
         {
@@ -573,7 +575,21 @@ namespace Comfizen
             {
                 try
                 {
-                    string jsonContent = SelectedTab.Workflow.LoadedApi.ToString(Formatting.Indented);
+                    // --- START OF REWORKED EXPORT LOGIC ---
+                    // 1. Create a deep clone to avoid modifying the live workflow object.
+                    var promptToExport = SelectedTab.Workflow.LoadedApi.DeepClone() as JObject;
+
+                    // 2. Apply the current bypass settings to this clone.
+                    SelectedTab.WorkflowInputsController.ApplyNodeBypass(promptToExport);
+
+                    // 3. Remove all internal "_meta" properties for a clean export.
+                    if (stripMeta)
+                        Utils.StripAllMetaProperties(promptToExport);
+
+                    // 4. Serialize the cleaned and bypassed object.
+                    string jsonContent = promptToExport.ToString(Formatting.Indented);
+                    // --- END OF REWORKED EXPORT LOGIC ---
+                    
                     File.WriteAllText(dialog.FileName, jsonContent);
                     MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ExportSuccessMessage"], dialog.FileName), LocalizationService.Instance["MainVM_ExportSuccessTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
                 }

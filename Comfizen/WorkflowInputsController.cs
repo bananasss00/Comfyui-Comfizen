@@ -146,7 +146,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         ApplySeedControl(prompt);
     }
     
-    private void ApplyNodeBypass(JObject prompt)
+    public void ApplyNodeBypass(JObject prompt)
     {
         var bypassViewModels = TabLayoouts
             .SelectMany(t => t.Groups)
@@ -162,23 +162,23 @@ public class WorkflowInputsController : INotifyPropertyChanged
         // --- START OF REWORKED LOGIC ---
 
         // 1. Restore all potentially bypassed nodes to their original state first.
-        // This ensures that toggling a bypass ON/OFF works correctly across runs.
         var allControlledNodeIds = bypassViewModels.SelectMany(vm => vm.BypassNodeIds).Distinct();
         foreach (var nodeId in allControlledNodeIds)
         {
-            if (prompt[nodeId] is not JObject node || node["_meta"]?["original_inputs"] is not JObject originalInputs)
+            if (prompt[nodeId] is not JObject node || 
+                node["_meta"]?["original_inputs"] is not JObject originalInputs ||
+                node["inputs"] is not JObject currentInputs)
             {
                 continue;
             }
-            // Restore the original inputs from the metadata backup.
-            node["inputs"] = originalInputs.DeepClone();
+            // Restore by merging, which only overwrites the connection properties.
+            currentInputs.Merge(originalInputs.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
         }
 
         // 2. Determine which nodes should be bypassed in *this* run.
         var nodesToBypassThisRun = new HashSet<string>();
         foreach (var vm in bypassViewModels)
         {
-            // A node is bypassed only if its controlling checkbox is UNCHECKED.
             if (!vm.IsEnabled)
             {
                 foreach (var nodeId in vm.BypassNodeIds)
@@ -190,7 +190,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         
         if (!nodesToBypassThisRun.Any())
         {
-            return; // Nothing to bypass, we're done.
+            return; 
         }
 
         // 3. Create the redirection map for the nodes that are actively being bypassed.
@@ -410,7 +410,6 @@ public class WorkflowInputsController : INotifyPropertyChanged
                         var controlledNodeIds = bypassVm.BypassNodeIds.ToHashSet();
                         if (!controlledNodeIds.Any()) continue;
                         
-                        // 1. Find all nodes that are either controlled OR receive input from a controlled node.
                         var nodesToSnapshot = new HashSet<string>(controlledNodeIds);
                         if (_workflow.LoadedApi != null)
                         {
@@ -423,15 +422,13 @@ public class WorkflowInputsController : INotifyPropertyChanged
                                     if (inputProperty.Value is JArray link && link.Count > 0 &&
                                         link[0].Type == JTokenType.String && controlledNodeIds.Contains(link[0].ToString()))
                                     {
-                                        // This node is a target of a bypassable node, so we must snapshot it too.
                                         nodesToSnapshot.Add(nodeProperty.Name);
-                                        break; // No need to check other inputs of this node
+                                        break; 
                                     }
                                 }
                             }
                         }
 
-                        // 2. For each identified node, save its original inputs if not already saved.
                         foreach (var nodeId in nodesToSnapshot)
                         {
                             if (_workflow.LoadedApi?[nodeId] is not JObject node) continue;
@@ -444,7 +441,17 @@ public class WorkflowInputsController : INotifyPropertyChanged
                             
                             if (meta["original_inputs"] == null && node["inputs"] is JObject inputsToSave)
                             {
-                                meta["original_inputs"] = inputsToSave.DeepClone();
+                                // Create a snapshot of *only* the connections (JArray properties).
+                                var originalConnections = new JObject();
+                                foreach (var prop in inputsToSave.Properties().Where(p => p.Value is JArray))
+                                {
+                                    originalConnections.Add(prop.Name, prop.Value.DeepClone());
+                                }
+                                
+                                if (originalConnections.HasValues)
+                                {
+                                    meta["original_inputs"] = originalConnections;
+                                }
                             }
                         }
                         // --- END OF REWORKED SNAPSHOT LOGIC ---

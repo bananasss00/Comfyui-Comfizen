@@ -263,6 +263,7 @@ namespace Comfizen
                 promptTemplate = default(ObservableCollection<WorkflowGroup>),
                 scripts = default(ScriptCollection),
                 presets = default(Dictionary<Guid, List<GroupPreset>>),
+                // --- ADDED: Load tabs information ---
                 tabs = default(ObservableCollection<WorkflowTabDefinition>)
             });
 
@@ -320,14 +321,15 @@ namespace Comfizen
             foreach (var nodeProperty in prompt.Properties())
             {
                 if (nodeProperty.Value is not JObject node || 
-                    node["_meta"]?["original_inputs"] is not JObject originalInputs)
+                    node["_meta"]?["original_inputs"] is not JObject originalInputs ||
+                    node["inputs"] is not JObject currentInputs)
                 {
                     continue;
                 }
 
-                // If a backup of original inputs exists, restore it.
-                // This makes it the canonical state for the loaded workflow.
-                node["inputs"] = originalInputs.DeepClone();
+                // Merge the original connections back into the current inputs.
+                // This preserves any widget value changes while restoring connections.
+                currentInputs.Merge(originalInputs.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
             }
         }
     }

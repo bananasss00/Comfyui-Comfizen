@@ -547,6 +547,33 @@ namespace Comfizen
         }
         
         /// <summary>
+        /// Recursively removes all properties named "_meta" from a JObject and its children.
+        /// </summary>
+        /// <param name="token">The JToken to clean.</param>
+        public static void StripAllMetaProperties(JToken token)
+        {
+            if (token is JObject obj)
+            {
+                // Remove "_meta" property from the current object
+                obj.Remove("_meta");
+
+                // Recursively call for all child properties
+                foreach (var prop in obj.Properties().ToList()) // ToList() to avoid modification issues
+                {
+                    StripAllMetaProperties(prop.Value);
+                }
+            }
+            else if (token is JArray arr)
+            {
+                // Recursively call for all items in the array
+                foreach (var item in arr)
+                {
+                    StripAllMetaProperties(item);
+                }
+            }
+        }
+        
+        /// <summary>
         /// Compares two JTokens for equivalence, with special handling for floating-point precision.
         /// </summary>
         /// <param name="t1">The first JToken.</param>
