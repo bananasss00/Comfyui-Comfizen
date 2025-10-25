@@ -94,14 +94,24 @@ namespace Comfizen
             
             ExecuteActionCommand = new RelayCommand(actionName => ExecuteAction(actionName as string));
 
-            // Instead of loading from file, we just load the UI controls.
-            // No need for InitializeAsync().
-            Task.Run(async () => {
-                await WorkflowInputsController.LoadInputs();
-                ExecuteHook("on_workflow_load", Workflow.LoadedApi);
-            });
+            // START OF CHANGE: Use an async void method for initialization
+            // This mirrors the behavior of the file-based constructor and avoids Task.Run,
+            // which can cause threading issues with UI updates.
+            InitializeFromPreloadedAsync();
+            // END OF CHANGE
         }
         
+        // START OF CHANGE: New method for initializing virtual tabs
+        /// <summary>
+        /// Asynchronously initializes the UI for a pre-loaded ("virtual") workflow.
+        /// </summary>
+        private async void InitializeFromPreloadedAsync()
+        {
+            await WorkflowInputsController.LoadInputs();
+            ExecuteHook("on_workflow_load", Workflow.LoadedApi);
+        }
+        // END OF CHANGE
+
         private void InitializeController()
         {
             WorkflowInputsController = new WorkflowInputsController(Workflow, _settings, _modelService, this)
