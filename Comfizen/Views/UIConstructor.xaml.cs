@@ -88,7 +88,6 @@ namespace Comfizen
     {
         public string Id { get; set; }
         public string Title { get; set; }
-        public bool IsSelected { get; set; }
         public event PropertyChangedEventHandler PropertyChanged;
     }
     
@@ -630,11 +629,12 @@ namespace Comfizen
             }
         }
         
-        public void OnNodeSelectionChanged(WorkflowField field, NodeInfo nodeInfo)
+        public void OnNodeSelectionChanged(WorkflowField field, NodeInfo nodeInfo, bool isSelected)
         {
             if (field == null || nodeInfo == null) return;
 
-            if (nodeInfo.IsSelected)
+            // Теперь используем переданное значение isSelected
+            if (isSelected)
             {
                 if (!field.BypassNodeIds.Contains(nodeInfo.Id))
                 {
@@ -1013,14 +1013,23 @@ namespace Comfizen
         
         private void NodeSelectionCheckBox_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is CheckBox checkBox &&
-                checkBox.DataContext is NodeInfo nodeInfo &&
-                _viewModel != null)
+            // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
+            if (sender is not CheckBox checkBox ||
+                checkBox.DataContext is not NodeInfo nodeInfo ||
+                _viewModel == null)
             {
-                // Находим поле, к которому относится этот список нод
-                var field = (checkBox.TryFindParent<ItemsControl>()).DataContext as WorkflowField;
-                _viewModel.OnNodeSelectionChanged(field, nodeInfo);
+                return;
             }
+
+            // Находим поле, к которому относится этот список нод
+            var field = (checkBox.TryFindParent<ItemsControl>()).DataContext as WorkflowField;
+
+            // Получаем НОВОЕ состояние чекбокса (true или false)
+            bool isNowSelected = checkBox.IsChecked ?? false;
+
+            // Передаем это состояние в ViewModel
+            _viewModel.OnNodeSelectionChanged(field, nodeInfo, isNowSelected);
+            // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
         }
         
         // --- START OF NEW METHODS ---
