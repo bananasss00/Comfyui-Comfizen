@@ -12,7 +12,7 @@
         <local:StringToIsNotNullOrEmptyConverter x:Key="StringToIsNotNullOrEmptyConverter"/>
     </UserControl.Resources>
     
-    <Grid>
+    <Grid ToolTip="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=UserControl}}">
         <!-- ToggleButton и основная часть остаются без изменений -->
         <ToggleButton x:Name="DropDownToggle"
                       IsChecked="{Binding IsOpen, ElementName=ItemPopup, Mode=TwoWay}"
