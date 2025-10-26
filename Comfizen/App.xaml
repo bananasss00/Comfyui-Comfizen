@@ -629,7 +629,8 @@
         </DataTemplate>
 
         <DataTemplate x:Key="MarkdownTemplate" DataType="{x:Type local:MarkdownFieldViewModel}">
-            <local:MarkdownDisplay MarkdownText="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <local:MarkdownDisplay MarkdownText="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                   MaxDisplayLines="{Binding MaxDisplayLines}" />
         </DataTemplate>
 
         <local:FieldTemplateSelector x:Key="FieldTemplateSelector"

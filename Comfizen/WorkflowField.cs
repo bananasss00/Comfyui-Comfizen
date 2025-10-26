@@ -45,6 +45,12 @@ namespace Comfizen
         
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string DefaultValue { get; set; } = string.Empty;
+
+        /// <summary>
+        /// For Markdown fields, specifies the maximum number of lines to display before a scrollbar appears.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public int? MaxDisplayLines { get; set; } = 10;
         
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public ObservableCollection<string> BypassNodeIds { get; set; } = new ObservableCollection<string>();

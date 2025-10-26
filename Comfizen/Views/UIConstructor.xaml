@@ -570,6 +570,21 @@
                                                                                                     </ItemsControl>
                                                                                                 </ScrollViewer>
                                                                                         </StackPanel>
+                                                                                        
+                                                                                        <StackPanel Grid.Row="2" Margin="0,5,0,0" Orientation="Horizontal">
+                                                                                            <StackPanel.Style>
+                                                                                                <Style TargetType="StackPanel">
+                                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                    <Style.Triggers>
+                                                                                                        <DataTrigger Binding="{Binding Type}" Value="Markdown">
+                                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                                        </DataTrigger>
+                                                                                                    </Style.Triggers>
+                                                                                                </Style>
+                                                                                            </StackPanel.Style>
+                                                                                            <TextBlock Text="Max Lines:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                                                            <xctk:IntegerUpDown Value="{Binding MaxDisplayLines, UpdateSourceTrigger=PropertyChanged}" Minimum="1" Width="60"/>
+                                                                                        </StackPanel>
                                                                                     </Grid>
                                                                                 </Grid>
                                                                             </Border>

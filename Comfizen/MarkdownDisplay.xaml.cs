@@ -26,7 +26,34 @@ namespace Comfizen
             get { return (string)GetValue(MarkdownTextProperty); }
             set { SetValue(MarkdownTextProperty, value); }
         }
+        
+        public static readonly DependencyProperty MaxDisplayLinesProperty =
+            DependencyProperty.Register("MaxDisplayLines", typeof(int?), typeof(MarkdownDisplay),
+                new PropertyMetadata(null, OnMaxDisplayLinesChanged));
 
+        public int? MaxDisplayLines
+        {
+            get { return (int?)GetValue(MaxDisplayLinesProperty); }
+            set { SetValue(MaxDisplayLinesProperty, value); }
+        }
+
+        private static void OnMaxDisplayLinesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is not MarkdownDisplay control) return;
+
+            if (e.NewValue is int lines && lines > 0)
+            {
+                // Calculate height based on font size. A line height is approx. 1.4x the font size.
+                // We add a little padding to avoid cutting off text.
+                control.MaxHeight = (lines * (control.FontSize * 1.4)) + control.Padding.Top + control.Padding.Bottom + 5;
+            }
+            else
+            {
+                // If value is null or invalid, revert to the default height defined in XAML.
+                control.ClearValue(MaxHeightProperty);
+            }
+        }
+        
         private static void OnMarkdownTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is MarkdownDisplay control)

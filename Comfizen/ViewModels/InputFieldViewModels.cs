@@ -612,6 +612,19 @@ namespace Comfizen
                 }
             }
         }
+        
+        public int? MaxDisplayLines
+        {
+            get => _field.MaxDisplayLines;
+            set
+            {
+                if (_field.MaxDisplayLines != value)
+                {
+                    _field.MaxDisplayLines = value;
+                    OnPropertyChanged(nameof(MaxDisplayLines));
+                }
+            }
+        }
 
         // Новый конструктор, не требующий JProperty
         public MarkdownFieldViewModel(WorkflowField field) : base(field, null)
