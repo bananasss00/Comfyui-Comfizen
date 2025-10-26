@@ -152,15 +152,39 @@ namespace Comfizen
     
     public static class WildcardFileHandler
     {
-        private static readonly string WildcardsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "wildcards");
+        // Change: The production directory is now in a separate readonly field.
+        private static readonly string _productionDirectory = Path.Combine(Directory.GetCurrentDirectory(), "wildcards");
+        // Change: This allows us to override the path for testing purposes.
+        private static string _testOverrideDirectory = null;
+
+        // Change: WildcardsDirectory is now a property that checks if an override is set.
+        private static string WildcardsDirectory => _testOverrideDirectory ?? _productionDirectory;
+        
         // Cache for file content (key: wildcard name, value: array of lines)
         private static readonly ConcurrentDictionary<string, string[]> _contentCache = new ConcurrentDictionary<string, string[]>();
         // Cache for the complete list of all wildcard names found on disk
         private static List<string> _allWildcardNamesCache;
         private static readonly object _listCacheLock = new object();
 
+        // New methods for testing, will only be compiled in DEBUG mode.
+#if DEBUG
+        /// <summary>
+        /// Overrides the wildcard directory for unit testing.
+        /// This method is only available in DEBUG builds.
+        /// </summary>
+        public static void SetTestDirectory(string path) => _testOverrideDirectory = path;
+
+        /// <summary>
+        /// Resets the wildcard directory to the production default.
+        /// This method is only available in DEBUG builds.
+        /// </summary>
+        public static void ResetDirectory() => _testOverrideDirectory = null;
+#endif
+
         static WildcardFileHandler()
         {
+            // The static constructor now ensures the *production* directory exists,
+            // which is fine even during tests.
             Directory.CreateDirectory(WildcardsDirectory);
         }
 

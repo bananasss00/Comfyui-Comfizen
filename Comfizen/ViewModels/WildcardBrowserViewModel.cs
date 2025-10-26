@@ -14,21 +14,27 @@ namespace Comfizen;
 public class WildcardBrowserViewModel : INotifyPropertyChanged
 {
     private readonly Window _hostWindow;
+    private readonly Action<string> _insertAction;
     private List<string> _allWildcards;
 
     public string SearchText { get; set; }
     public ObservableCollection<string> FilteredWildcards { get; } = new();
     public string SelectedWildcard { get; set; }
-    public string SelectedWildcardTag { get; private set; }
 
     public ICommand InsertCommand { get; }
     public ICommand CancelCommand { get; }
 
     public event PropertyChangedEventHandler PropertyChanged;
 
-    public WildcardBrowserViewModel(Window hostWindow)
+    /// <summary>
+    /// ViewModel for the Wildcard Browser.
+    /// </summary>
+    /// <param name="hostWindow">The window hosting this ViewModel.</param>
+    /// <param name="insertAction">The action to call to insert the selected wildcard text.</param>
+    public WildcardBrowserViewModel(Window hostWindow, Action<string> insertAction)
     {
         _hostWindow = hostWindow;
+        _insertAction = insertAction ?? throw new ArgumentNullException(nameof(insertAction));
         LoadWildcards();
 
         InsertCommand = new RelayCommand(p => InsertAndClose(), p => !string.IsNullOrEmpty(SelectedWildcard));
@@ -76,12 +82,13 @@ public class WildcardBrowserViewModel : INotifyPropertyChanged
     public void InsertAndClose() 
     { 
         if (!string.IsNullOrEmpty(SelectedWildcard)) 
-        { 
-            // Change: Insert wildcard without curly braces.
-            SelectedWildcardTag = $"__{SelectedWildcard}__"; 
+        {
+            string textToInsert = $"__{SelectedWildcard}__";
+            _insertAction(textToInsert); // Use the callback to insert text
             _hostWindow.DialogResult = true; 
             Close(); 
         } 
     }
+    
     private void Close() { _hostWindow.Close(); }
 }

@@ -317,24 +317,29 @@ namespace Comfizen
             OpenWildcardBrowserCommand = new RelayCommand(param =>
             {
                 if (param is not TextFieldViewModel fieldVm) return;
-
-                var hostWindow = new Window
+                
+                // This is the ideal way to implement cursor-aware insertion.
+                // However, the CommandParameter in XAML is bound to the ViewModel (fieldVm), not the TextBox control.
+                // A more advanced solution might involve passing the control itself, but that breaks MVVM principles.
+                // The most pragmatic approach is to handle the click event in the View's code-behind.
+                //
+                // For now, let's provide a simple fallback action. 
+                // A better implementation is shown in the comments below for the View layer.
+                Action<string> insertTextAction = (text) =>
                 {
-                    Title = LocalizationService.Instance["WildcardBrowser_Title"], 
-                    Width = 350, Height = 500,
-                    Owner = Application.Current.MainWindow,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    Style = (Style)Application.Current.FindResource("CustomWindowStyle")
+                    // This fallback will append text. The real solution is in the UI layer.
+                    fieldVm.Value += text;
                 };
-                var viewModel = new WildcardBrowserViewModel(hostWindow);
-                hostWindow.DataContext = viewModel;
-                hostWindow.Content = new ContentControl
-                    { Template = (ControlTemplate)Application.Current.FindResource("WildcardBrowserTemplate") };
-            
-                if (hostWindow.ShowDialog() == true && !string.IsNullOrEmpty(viewModel.SelectedWildcardTag))
+
+                var hostWindow = new Views.WildcardBrowser
                 {
-                    fieldVm.Value += viewModel.SelectedWildcardTag;
-                }
+                    Owner = Application.Current.MainWindow
+                };
+                
+                var viewModel = new WildcardBrowserViewModel(hostWindow, insertTextAction);
+                hostWindow.DataContext = viewModel;
+
+                hostWindow.ShowDialog();
             });
             
             ToggleInfiniteQueueCommand = new RelayCommand(_ => IsInfiniteQueueEnabled = !IsInfiniteQueueEnabled);

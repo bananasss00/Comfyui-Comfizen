@@ -274,48 +274,6 @@
             </Setter>
         </Style>
 
-        <!-- Template for the Wildcard Browser Window -->
-        <ControlTemplate x:Key="WildcardBrowserTemplate" TargetType="ContentControl">
-            <Border Background="{StaticResource PrimaryBackground}" Padding="10">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                        <Button Content="{local:Translate WildcardBrowser_Insert}" IsDefault="True" Command="{Binding InsertCommand}" MinWidth="80"/>
-                        <Button Content="{local:Translate WildcardBrowser_Cancel}" IsCancel="True" Command="{Binding CancelCommand}" MinWidth="80" Margin="5,0,0,0"
-                                Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1"/>
-                    </StackPanel>
-                    
-                    <TextBox DockPanel.Dock="Top" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
-                    
-                    <ListBox ItemsSource="{Binding FilteredWildcards}" SelectedItem="{Binding SelectedWildcard}"
-                             Background="{StaticResource SecondaryBackground}" BorderThickness="1" BorderBrush="{StaticResource TertiaryBackground}">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
-                                <EventSetter Event="MouseDoubleClick" Handler="ListBoxItem_MouseDoubleClick" />
-                                <Setter Property="Padding" Value="5,3"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ListBoxItem">
-                                            <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                                <Style.Triggers>
-                                    <Trigger Property="IsSelected" Value="True">
-                                        <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
-                                    </Trigger>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                    </ListBox>
-                </DockPanel>
-            </Border>
-        </ControlTemplate>
-
         <!-- Base Button Style -->
         <Style TargetType="Button">
             <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
@@ -539,15 +497,15 @@
 
         <DataTemplate x:Key="WildcardTemplate" DataType="{x:Type local:TextFieldViewModel}">
             <Grid>
-                <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                <TextBox x:Name="WildcardTextBox" Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                          AcceptsReturn="True" TextWrapping="Wrap" Padding="5,5,28,5"
                          VerticalScrollBarVisibility="Auto" MaxHeight="100"
                          PreviewKeyDown="WildcardTextBox_PreviewKeyDown"/>
+        
                 <Button Content="..." Style="{StaticResource OverlayIconButton}"
                         HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
                         ToolTip="{local:Translate Wildcard_Browse}"
-                        Command="{Binding DataContext.OpenWildcardBrowserCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                        CommandParameter="{Binding}"/>
+                        Tag="OpenWildcardBrowser"/>
             </Grid>
         </DataTemplate>
 

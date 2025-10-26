@@ -41,6 +41,13 @@ namespace Comfizen
             _positionUpdateTimer = new DispatcherTimer();
             _positionUpdateTimer.Interval = TimeSpan.FromMilliseconds(200);
             _positionUpdateTimer.Tick += PositionUpdateTimer_Tick;
+            
+#if DEBUG
+            // Run tests and print the report to the debug output
+            var tester = new WildcardSystemTester();
+            string report = tester.RunAllTests();
+            Debug.WriteLine(report);
+#endif
         }
         
         private void Window_DragOver(object sender, DragEventArgs e)
@@ -662,6 +669,51 @@ namespace Comfizen
                 {
                     mainVm.SelectedTab = tabVm;
                 }
+            }
+        }
+
+        private void WorkflowField_ButtonClick(object sender, RoutedEventArgs e)
+        {
+            // We only care about events that came from a Button.
+            if (e.OriginalSource is not Button clickedButton)
+            {
+                return;
+            }
+
+            // Check if this is the specific button we're looking for by its Tag.
+            if (clickedButton.Tag as string == "OpenWildcardBrowser")
+            {
+                // We found our button! Now execute the logic to open the browser.
+        
+                if (clickedButton.DataContext is not TextFieldViewModel fieldVm) return;
+
+                // The button and textbox are siblings inside a Grid defined in the DataTemplate
+                var parentGrid = clickedButton.Parent as Grid;
+                var wildcardTextBox = parentGrid?.Children.OfType<TextBox>().FirstOrDefault();
+
+                Action<string> insertAction = (textToInsert) =>
+                {
+                    if (wildcardTextBox != null)
+                    {
+                        int caretIndex = wildcardTextBox.CaretIndex;
+                        wildcardTextBox.Text = wildcardTextBox.Text.Insert(caretIndex, textToInsert);
+                        wildcardTextBox.CaretIndex = caretIndex + textToInsert.Length;
+                        wildcardTextBox.Focus();
+                    }
+                    else
+                    {
+                        // Fallback if TextBox is somehow not found
+                        fieldVm.Value += textToInsert;
+                    }
+                };
+
+                var hostWindow = new Comfizen.Views.WildcardBrowser { Owner = this };
+                var viewModel = new WildcardBrowserViewModel(hostWindow, insertAction);
+                hostWindow.DataContext = viewModel;
+                hostWindow.ShowDialog();
+
+                // Mark the event as handled so it doesn't bubble up further.
+                e.Handled = true;
             }
         }
     }
