@@ -714,10 +714,15 @@ namespace Comfizen
             return tasks;
         }
         
+        /// <summary>
+        /// A thread-safe method to queue a prompt from any context (UI thread or background task).
+        /// It prepares the task data and then dispatches the actual enqueuing logic to the UI thread.
+        /// </summary>
         public void QueuePromptFromJObject(JObject prompt, WorkflowTabViewModel originTab)
         {
             if (prompt == null || originTab == null) return;
 
+            // This part is thread-safe and can be done immediately.
             var fullState = new
             {
                 prompt = prompt,
@@ -735,8 +740,17 @@ namespace Comfizen
                 OriginTab = originTab
             };
 
+            // Dispatch the critical part (modifying collections and starting the processor) to the UI thread.
+            Application.Current.Dispatcher.Invoke(() => EnqueueTaskInternal(task));
+        }
+        
+        /// <summary>
+        /// The internal implementation for enqueuing a task. This method MUST be called on the UI thread.
+        /// </summary>
+        private void EnqueueTaskInternal(PromptTask task)
+        {
             _promptsQueue.Enqueue(task);
-            TotalTasks++;
+            TotalTasks++; // This is now safe and will update the UI correctly.
 
             lock (_processingLock)
             {
