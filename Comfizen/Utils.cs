@@ -25,40 +25,6 @@ using System.Globalization;
 
 namespace Comfizen
 {
-    public static class WildcardFileHandler
-    {
-        private static readonly string WildcardsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "wildcards");
-        private static readonly ConcurrentDictionary<string, string[]> _cache = new ConcurrentDictionary<string, string[]>();
-    
-        static WildcardFileHandler()
-        {
-            Directory.CreateDirectory(WildcardsDirectory);
-        }
-    
-        public static string[] GetLines(string wildcardName)
-        {
-            if (_cache.TryGetValue(wildcardName, out var cachedLines))
-            {
-                return cachedLines;
-            }
-    
-            var relativePath = wildcardName.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar) + ".txt";
-            var fullPath = Path.Combine(WildcardsDirectory, relativePath);
-    
-            if (!File.Exists(fullPath))
-            {
-                _cache.TryAdd(wildcardName, Array.Empty<string>());
-                return Array.Empty<string>();
-            }
-    
-            var lines = File.ReadAllLines(fullPath)
-                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                .ToArray();
-            _cache.TryAdd(wildcardName, lines);
-            return lines;
-        }
-    }
-    
     public static class Utils
     {
         private const string MagicMarker = "COMFIZEN_WORKFLOW_EMBED_V1";
@@ -505,17 +471,18 @@ namespace Comfizen
         
         public static string ReplaceWildcards(string input, long seed)
         {
-            var random = new Random((int)(seed & 0xFFFFFFFF));
-            string pass1 = Regex.Replace(input, @"\{__([^{}]+)__\}", m =>
+            if (string.IsNullOrEmpty(input)) return input;
+
+            var processor = new WildcardProcessor(seed);
+            string result = processor.Process(input);
+
+            // Log the processed prompt if it has changed
+            if (result != input)
             {
-                var lines = WildcardFileHandler.GetLines(m.Groups[1].Value.Trim());
-                return lines.Length == 0 ? m.Value : lines[random.Next(lines.Length)];
-            });
-            return Regex.Replace(pass1, @"\{([^{}|]+(?:\|[^{}|]+)+)\}", m =>
-            {
-                var choices = m.Groups[1].Value.Split('|');
-                return choices[random.Next(choices.Length)].Trim();
-            });
+                Logger.Log($"[Wildcard] Processed prompt: {result}");
+            }
+
+            return result;
         }
         
         public static string ReplaceWildcards(string input) => ReplaceWildcards(input, DateTime.Now.Ticks);

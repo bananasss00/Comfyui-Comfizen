@@ -73,6 +73,15 @@ public class WildcardBrowserViewModel : INotifyPropertyChanged
         foreach (var item in filtered) FilteredWildcards.Add(item);
     }
 
-    public void InsertAndClose() { if (!string.IsNullOrEmpty(SelectedWildcard)) { SelectedWildcardTag = $"{{__{SelectedWildcard}__}}"; _hostWindow.DialogResult = true; Close(); } }
+    public void InsertAndClose() 
+    { 
+        if (!string.IsNullOrEmpty(SelectedWildcard)) 
+        { 
+            // Change: Insert wildcard without curly braces.
+            SelectedWildcardTag = $"__{SelectedWildcard}__"; 
+            _hostWindow.DialogResult = true; 
+            Close(); 
+        } 
+    }
     private void Close() { _hostWindow.Close(); }
 }
