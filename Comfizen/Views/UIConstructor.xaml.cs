@@ -1574,12 +1574,15 @@ namespace Comfizen
         private void Field_DragOver(object sender, DragEventArgs e)
         {
             HandleAutoScroll(e);
-
-            if (e.Data.GetDataPresent(typeof(WorkflowGroup)))
+            
+            // If a group is being dragged, do not show a drop indicator between fields.
+            // This prevents the user from thinking a group can be dropped inside another group.
+            if (e.Data.GetDataPresent(typeof(WorkflowGroup)) || 
+                e.Data.GetDataPresent(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)))
             {
                 e.Effects = DragDropEffects.None;
                 e.Handled = true;
-                return;
+                return; // Stop processing here
             }
 
             HideFieldDropIndicator();
