@@ -403,58 +403,61 @@ namespace Comfizen
             {
                 return false;
             }
+            
+            var presetValues = presetVM.Model.Values;
 
-            // First, check if all values defined in the preset match the current state.
-            foreach (var valuePair in presetVM.Model.Values)
+            // Check if all values in the preset match the current state.
+            foreach (var field in Fields)
             {
-                var fieldPath = valuePair.Key;
-                var presetValue = valuePair.Value;
-
-                var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
-                // If a field from the preset is not found in the group, it's a mismatch.
-                if (fieldVM == null) return false;
-
-                JToken currentValue;
-                if (fieldVM is MarkdownFieldViewModel markdownVm)
-                {
-                    currentValue = new JValue(markdownVm.Value);
-                }
-                else if (fieldVM.Property != null)
-                {
-                    currentValue = _workflow.GetPropertyByPath(fieldVM.Path)?.Value;
-                }
-                else
-                {
-                    // This should not happen for fields that can be saved in presets.
-                    continue; 
-                }
-
-                // If a value is different, it's a mismatch.
-                if (currentValue == null || !JToken.DeepEquals(currentValue, presetValue))
-                {
-                    return false;
-                }
-            }
-
-            // Second, check if there are any extra persistable fields in the group that are not in the preset.
-            // This would mean the group's state is "dirty" relative to the preset.
-            var presetFieldPaths = new HashSet<string>(presetVM.Model.Values.Keys);
-            foreach (var fieldVM in Fields)
-            {
-                // Ignore fields that are never saved in presets.
-                if (fieldVM.Type == FieldType.Seed || fieldVM.Type == FieldType.ScriptButton)
+                // Ignore fields that are not saved in presets
+                if (field.Type == FieldType.Seed || field.Type == FieldType.ScriptButton)
                 {
                     continue;
                 }
-                
-                // If a persistable field exists in the group but not in the preset, it's a mismatch.
-                if (!presetFieldPaths.Contains(fieldVM.Path))
+
+                // If the preset contains a value for this field, compare it.
+                if (presetValues.TryGetValue(field.Path, out var presetValue))
+                {
+                    JToken currentValue;
+                    if (field is MarkdownFieldViewModel markdownVm)
+                    {
+                        currentValue = new JValue(markdownVm.Value);
+                    }
+                    else if (field.Property != null)
+                    {
+                        currentValue = _workflow.GetPropertyByPath(field.Path)?.Value;
+                    }
+                    else
+                    {
+                        continue; // Should not happen for persistable fields.
+                    }
+
+                    // --- START OF FIX: Use the special comparison method ---
+                    // This correctly handles floating-point comparisons with tolerance.
+                    if (currentValue == null || !Utils.AreJTokensEquivalent(currentValue, presetValue))
+                    {
+                        return false; // Mismatch found
+                    }
+                    // --- END OF FIX ---
+                }
+                // If the preset does NOT contain this field, it's a mismatch.
+                else
                 {
                     return false;
                 }
             }
-            
-            // If all checks pass, the state matches the preset.
+
+            // Final check: ensure the preset doesn't contain extra fields that are no longer in the UI.
+            var uiFieldPaths = new HashSet<string>(Fields
+                .Where(f => f.Type != FieldType.Seed && f.Type != FieldType.ScriptButton)
+                .Select(f => f.Path));
+
+            if (presetValues.Keys.Any(key => !uiFieldPaths.Contains(key)))
+            {
+                return false;
+            }
+
+            // If all checks pass, the state matches.
             return true;
         }
         // --- END OF CHANGES ---
