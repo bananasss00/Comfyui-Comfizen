@@ -15,6 +15,8 @@ namespace Comfizen
         public ObservableCollection<object> FilteredItems { get; } = new ObservableCollection<object>();
         public event EventHandler<string> ItemSelected;
         public ICommand ClearSearchCommand { get; }
+        public ICommand CycleNextCommand { get; }
+        public ICommand CyclePreviousCommand { get; }
 
         public FilterableComboBox()
         {
@@ -23,8 +25,10 @@ namespace Comfizen
             ClearSearchCommand = new RelayCommand(_ =>
             {
                 SearchFilter = string.Empty;
-                FilterTextBox.Focus(); // Возвращаем фокус в поле поиска
+                FilterTextBox.Focus();
             });
+            CycleNextCommand = new RelayCommand(_ => CycleSelection(1), _ => ItemsSource != null);
+            CyclePreviousCommand = new RelayCommand(_ => CycleSelection(-1), _ => ItemsSource != null);
         }
 
         #region Dependency Properties
@@ -272,33 +276,42 @@ namespace Comfizen
         
         private void FilterTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (!ItemPopup.IsOpen) return;
-
+            // --- START OF CHANGE: Use new cycling logic for Up/Down arrows ---
             if (e.Key == Key.Down)
             {
                 e.Handled = true;
-                ChangeSelection(1);
+                if (!ItemPopup.IsOpen)
+                {
+                    CycleSelection(1);
+                }
+                else
+                {
+                    // If popup is open, navigate the list inside it
+                    ChangeSelectionInPopup(1);
+                }
             }
             else if (e.Key == Key.Up)
             {
                 e.Handled = true;
-                ChangeSelection(-1);
+                if (!ItemPopup.IsOpen)
+                {
+                    CycleSelection(-1);
+                }
+                else
+                {
+                    // If popup is open, navigate the list inside it
+                    ChangeSelectionInPopup(-1);
+                }
             }
-            // --- START OF MODIFICATION ---
+            // --- END OF CHANGE ---
             else if (e.Key == Key.Escape)
             {
-                // If there is text in the search filter, clear it.
                 if (!string.IsNullOrEmpty(SearchFilter))
                 {
                     SearchFilter = string.Empty;
-                    // Mark the event as handled to prevent the popup from closing.
                     e.Handled = true;
                 }
-                // If the search filter is already empty, this 'if' is skipped.
-                // The event will not be handled, allowing it to bubble up to the
-                // ItemListBox_PreviewKeyDown handler, which will then close the popup.
             }
-            // --- END OF MODIFICATION ---
         }
         
         private void ItemListBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -321,31 +334,70 @@ namespace Comfizen
         }
         
         /// <summary>
+        /// Cycles through the main ItemsSource collection and updates the SelectedItem.
+        /// </summary>
+        /// <param name="delta">+1 for next, -1 for previous.</param>
+        private void CycleSelection(int delta)
+        {
+            if (ItemsSource == null) return;
+
+            // Get a clean list of selectable items (no headers)
+            var selectableItems = ItemsSource.Cast<object>().Where(i => i is not WorkflowListHeader).ToList();
+            if (!selectableItems.Any()) return;
+
+            int currentIndex = selectableItems.FindIndex(i => i.ToString().Equals(SelectedItem, StringComparison.OrdinalIgnoreCase));
+
+            int newIndex;
+            if (currentIndex == -1)
+            {
+                // If nothing is selected, start from the beginning or end
+                newIndex = (delta > 0) ? 0 : selectableItems.Count - 1;
+            }
+            else
+            {
+                newIndex = currentIndex + delta;
+            }
+
+            // Wrap around the list
+            if (newIndex < 0) newIndex = selectableItems.Count - 1;
+            if (newIndex >= selectableItems.Count) newIndex = 0;
+
+            // Update the SelectedItem property
+            CommitSelection(selectableItems[newIndex]);
+        }
+        
+        /// <summary>
         /// Вспомогательный метод для навигации по списку.
         /// </summary>
         /// <param name="delta">1 для движения вниз, -1 для движения вверх.</param>
-        private void ChangeSelection(int delta)
+        private void ChangeSelectionInPopup(int delta)
         {
             if (ItemListBox.Items.Count == 0) return;
             
             int newIndex = ItemListBox.SelectedIndex + delta;
-
-            // Пропускаем заголовки
-            while (newIndex >= 0 && newIndex < ItemListBox.Items.Count && ItemListBox.Items[newIndex] is WorkflowListHeader)
+            
+            int startIndex = newIndex; // To detect infinite loops
+            do
             {
+                // Wrap around the list if we go out of bounds
+                if (newIndex < 0) newIndex = ItemListBox.Items.Count - 1;
+                if (newIndex >= ItemListBox.Items.Count) newIndex = 0;
+
+                // If the item at the new index is not a header, we can select it.
+                if (ItemListBox.Items[newIndex] is not WorkflowListHeader)
+                {
+                    ItemListBox.SelectedIndex = newIndex;
+                    ItemListBox.ScrollIntoView(ItemListBox.SelectedItem);
+
+                    var lbi = ItemListBox.ItemContainerGenerator.ContainerFromItem(ItemListBox.SelectedItem) as ListBoxItem;
+                    lbi?.Focus();
+                    return; // Exit the method
+                }
+
+                // Move to the next item
                 newIndex += delta;
-            }
 
-            // Проверяем, что не вышли за границы
-            if (newIndex >= 0 && newIndex < ItemListBox.Items.Count)
-            {
-                ItemListBox.SelectedIndex = newIndex;
-                ItemListBox.ScrollIntoView(ItemListBox.SelectedItem);
-
-                // Получаем контейнер (ListBoxItem) и фокусируемся на нем
-                var lbi = ItemListBox.ItemContainerGenerator.ContainerFromItem(ItemListBox.SelectedItem) as ListBoxItem;
-                lbi?.Focus();
-            }
+            } while (newIndex != startIndex); // Stop if we've looped through the entire list
         }
         
         /// <summary>

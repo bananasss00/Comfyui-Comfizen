@@ -13,7 +13,6 @@
     </UserControl.Resources>
     
     <Grid ToolTip="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=UserControl}}">
-        <!-- ToggleButton и основная часть остаются без изменений -->
         <ToggleButton x:Name="DropDownToggle"
                       IsChecked="{Binding IsOpen, ElementName=ItemPopup, Mode=TwoWay}"
                       Focusable="False">
@@ -24,14 +23,43 @@
                                 Background="{StaticResource SecondaryBackground}" 
                                 BorderBrush="{StaticResource TertiaryBackground}" 
                                 BorderThickness="1" />
-                        <TextBox x:Name="SelectorTextBox"
-                                 Text="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 IsHitTestVisible="False" 
-                                 Focusable="True" 
-                                 VerticalAlignment="Center"
-                                 Padding="5,5,25,5"/>
+                        
+                        <!-- START OF CHANGE: Added columns for buttons -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox Grid.Column="0" x:Name="SelectorTextBox"
+                                     Text="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     IsHitTestVisible="False" 
+                                     Focusable="True" 
+                                     VerticalAlignment="Center"
+                                     Padding="5,5,5,5"/>
+                            
+                            <!-- Buttons are now here, on the main control -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="◀" ToolTip="Previous Workflow"
+                                        Command="{Binding CyclePreviousCommand, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}"
+                                        Style="{StaticResource OverlayIconButton}" Width="20" Height="20"/>
+                                <Button Content="▶" ToolTip="Next Workflow"
+                                        Command="{Binding CycleNextCommand, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}"
+                                        Style="{StaticResource OverlayIconButton}" Width="20" Height="20" Margin="2,0,0,0"/>
+                            </StackPanel>
+                            
+                            <Path Grid.Column="2" x:Name="arrow" 
+                                  Data="F1 M 0,0 L 2.5,2.5 L 5,0 Z" 
+                                  Fill="{StaticResource TextBrush}" 
+                                  HorizontalAlignment="Right" 
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,8,0"/>
+                        </Grid>
+                        <!-- END OF CHANGE -->
+
                         <TextBlock Text="{Binding PlaceholderText, RelativeSource={RelativeSource AncestorType=UserControl}}" 
                                    Foreground="{StaticResource TextSecondaryBrush}" Margin="5,0" IsHitTestVisible="False" VerticalAlignment="Center">
                             <TextBlock.Style>
@@ -49,12 +77,7 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <Path x:Name="arrow" 
-                              Data="F1 M 0,0 L 2.5,2.5 L 5,0 Z" 
-                              Fill="{StaticResource TextBrush}" 
-                              HorizontalAlignment="Right" 
-                              VerticalAlignment="Center"
-                              Margin="0,0,8,0"/>
+
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -78,34 +101,26 @@
                Opened="ItemPopup_Opened">
             <Border Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" Margin="0,1,0,0">
                 <DockPanel MaxHeight="300">
-                    <!-- ========================================================== -->
-                    <!--     НАЧАЛО ИЗМЕНЕНИЯ: Grid для TextBox и кнопки очистки   -->
-                    <!-- ========================================================== -->
                     <Grid DockPanel.Dock="Top" Margin="5">
                         <TextBox x:Name="FilterTextBox"
                                  Text="{Binding SearchFilter, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
                                  Padding="5,5,25,5"
                                  PreviewKeyDown="FilterTextBox_PreviewKeyDown"/>
                         
+                        <!-- The arrow buttons have been moved. Only the clear button remains. -->
                         <Button Content="✕" ToolTip="{local:Translate FilterableComboBox_ClearSearchTooltip}"
                                 HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0"
                                 Command="{Binding ClearSearchCommand, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource OverlayIconButton}">
-                                    <!-- ========================================================== -->
-                                    <!--     НАЧАЛО ИЗМЕНЕНИЯ: Исправленный триггер видимости       -->
-                                    <!-- ========================================================== -->
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Text, ElementName=FilterTextBox, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                    <!-- ========================================================== -->
-                                    <!--     КОНЕЦ ИЗМЕНЕНИЯ                                        -->
-                                    <!-- ========================================================== -->
-                                </Style>
-                            </Button.Style>
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource OverlayIconButton}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=FilterTextBox, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
                         </Button>
                     </Grid>
                     <!-- ========================================================== -->
