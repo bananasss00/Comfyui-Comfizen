@@ -98,7 +98,8 @@ namespace Comfizen
                 // --- START OF CHANGE: Advanced Serilog Configuration ---
                 var logConfig = new LoggerConfiguration()
                     .MinimumLevel.Debug()
-                    .WriteTo.File( // This is the file sink for APP logs only
+                    .Enrich.FromLogContext()
+                    .WriteTo.File(
                         Path.Combine("logs", "log-.txt"),
                         rollingInterval: RollingInterval.Day,
                         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
@@ -106,14 +107,10 @@ namespace Comfizen
 
                 if (consoleLogService != null)
                 {
-                    // This sink will receive APP logs from Serilog
                     logConfig.WriteTo.Sink(new ConsoleLogServiceSink(consoleLogService));
                 }
 
                 Log.Logger = logConfig.CreateLogger();
-                // --- END OF CHANGE ---
-                
-                Logger.ConsoleLogServiceInstance = consoleLogService;
             }
             else
             {

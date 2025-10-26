@@ -29,7 +29,7 @@ namespace Comfizen
         public string Title { get; set; }
     }
     
-    public enum LogFilterType { All, Comfy, Local }
+    public enum LogFilterType { All, Comfy, Local, Python }
 
     [AddINotifyPropertyChangedInterface]
     public class MainViewModel : INotifyPropertyChanged
@@ -210,8 +210,7 @@ namespace Comfizen
             ConsoleLogMessages = CollectionViewSource.GetDefaultView(_allConsoleLogMessages);
             ConsoleLogMessages.Filter = FilterLogs;
             _consoleLogService.ConnectAsync();
-
-            Logger.ConsoleLogServiceInstance = _consoleLogService;
+            
             Logger.OnErrorLogged += ShowConsoleOnError;
 
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
@@ -378,6 +377,7 @@ namespace Comfizen
             {
                 LogFilterType.Comfy => message.Source == LogSource.ComfyUI,
                 LogFilterType.Local => message.Source == LogSource.Application,
+                LogFilterType.Python => message.Source == LogSource.Python, // ADDED: New case for Python
                 LogFilterType.All => true,
                 _ => true,
             };
@@ -585,7 +585,7 @@ namespace Comfizen
                 string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
                 _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName);
 
-                Logger.LogToConsole(LocalizationService.Instance["MainVM_ValuesSavedMessage"], LogLevel.Info, Colors.LightGreen);
+                Logger.Log(LocalizationService.Instance["MainVM_ValuesSavedMessage"]);
             }
             catch (Exception ex)
             {
@@ -603,7 +603,7 @@ namespace Comfizen
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded || SelectedTab.Workflow.LoadedApi == null)
             {
-                Logger.LogToConsole(LocalizationService.Instance["MainVM_ExportErrorMessage"], LogLevel.Warning, Colors.Orange);
+                Logger.Log(LocalizationService.Instance["MainVM_ExportErrorMessage"]);
                 return;
             }
 
@@ -634,7 +634,7 @@ namespace Comfizen
                     // --- END OF REWORKED EXPORT LOGIC ---
                     
                     File.WriteAllText(dialog.FileName, jsonContent);
-                    Logger.LogToConsole(string.Format(LocalizationService.Instance["MainVM_ExportSuccessMessage"], dialog.FileName), LogLevel.Info, Colors.LightGreen);
+                    Logger.Log(string.Format(LocalizationService.Instance["MainVM_ExportSuccessMessage"], dialog.FileName));
                 }
                 catch (Exception ex)
                 {

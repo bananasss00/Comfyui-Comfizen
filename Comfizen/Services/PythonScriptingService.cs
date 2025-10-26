@@ -36,7 +36,7 @@ namespace Comfizen
             this.state = state;
             this.settings = settings;
             this._http = new HttpClient();
-            this.log = (message) => Logger.LogToConsole($"[py] {message}", LogLevel.Info, Colors.Cyan);
+            this.log = (message) => Logger.LogFromPython(message);
             this.output = output;
             this._queue_prompt_action = queue_prompt_action;
         }
@@ -250,7 +250,8 @@ namespace Comfizen
                         string output = streamReader.ReadToEnd();
                         if (!string.IsNullOrWhiteSpace(output))
                         {
-                            Logger.LogToConsole($"[py] {output.TrimEnd()}", LogLevel.Info, Colors.LightBlue);
+                            // MODIFIED: Also use the dedicated method for stdout
+                            Logger.LogFromPython(output.TrimEnd());
                         }
                     }
                 }

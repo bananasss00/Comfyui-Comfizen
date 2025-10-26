@@ -1,5 +1,7 @@
-﻿using System;
+﻿// ConsoleLogServiceSink.cs
+using System;
 using System.IO;
+using System.Windows.Media;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Formatting;
@@ -7,10 +9,6 @@ using Serilog.Formatting.Display;
 
 namespace Comfizen;
 
-/// <summary>
-/// A custom Serilog sink that forwards log events to the ConsoleLogService
-/// for display in the application's UI console.
-/// </summary>
 public class ConsoleLogServiceSink : ILogEventSink
 {
     private readonly ConsoleLogService _consoleLogService;
@@ -25,14 +23,11 @@ public class ConsoleLogServiceSink : ILogEventSink
     {
         if (_consoleLogService == null) return;
 
-        // Use a StringWriter to format the message template with its properties.
         using var writer = new StringWriter();
         _formatter.Format(logEvent, writer);
 
-        // Get the formatted message text.
-        var message = writer.ToString().TrimEnd('\r', '\n');
-            
-        // Convert Serilog level to our LogLevel.
+        var messageText = writer.ToString().TrimEnd('\r', '\n');
+        
         var level = logEvent.Level switch
         {
             LogEventLevel.Verbose => LogLevel.Debug,
@@ -44,7 +39,26 @@ public class ConsoleLogServiceSink : ILogEventSink
             _ => LogLevel.Info
         };
 
-        // MODIFIED: Use the new centralized method to log application messages
-        _consoleLogService.LogApplicationMessage(message, level, ex: logEvent.Exception);
+        var segments = AnsiColorParser.Parse(messageText);
+        var logMessage = new LogMessage { Level = level, Segments = segments };
+        
+        if (logEvent.Properties.TryGetValue("LogSource", out var sourceValue) &&
+            sourceValue is ScalarValue { Value: "Python" })
+        {
+            logMessage.Source = LogSource.Python;
+            logMessage.Segments.Insert(0, new LogMessageSegment { Text = "[Py] ", Color = Colors.SteelBlue });
+        }
+        else
+        {
+            logMessage.Source = LogSource.Application;
+            logMessage.Segments.Insert(0, new LogMessageSegment { Text = "[App] ", Color = Colors.DarkGray });
+        }
+        
+        if (logEvent.Exception != null)
+        {
+            logMessage.Segments.Add(new LogMessageSegment { Text = Environment.NewLine + logEvent.Exception });
+        }
+
+        _consoleLogService.EnqueueLog(logMessage);
     }
 }

@@ -7,7 +7,7 @@ using System.Windows.Media;
 
 namespace Comfizen
 {
-    public enum LogSource { Application, ComfyUI }
+    public enum LogSource { Application, ComfyUI, Python }
     public enum LogLevel { Info, Warning, Error, Critical, Debug }
 
     /// <summary>

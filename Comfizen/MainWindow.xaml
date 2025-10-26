@@ -842,6 +842,8 @@
                                          IsChecked="{Binding SelectedLogFilterType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:LogFilterType.Comfy}}"/>
                             <RadioButton Content="{local:Translate Console_FilterLocal}" GroupName="LogFilter" Margin="10,0,0,0"
                                          IsChecked="{Binding SelectedLogFilterType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:LogFilterType.Local}}"/>
+                            <RadioButton Content="{local:Translate Console_FilterPython}" GroupName="LogFilter" Margin="10,0,0,0"
+                                         IsChecked="{Binding SelectedLogFilterType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:LogFilterType.Python}}"/>
                         </StackPanel>
                         
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">

@@ -408,7 +408,7 @@ namespace Comfizen
             if (SelectedActionName == null || string.IsNullOrWhiteSpace(SelectedActionScript.Text))
                 return;
 
-            Logger.LogToConsole($"--- Testing script action: '{SelectedActionName.Name}' ---", LogLevel.Info, Colors.Magenta);
+            Logger.Log($"--- Testing script action: '{SelectedActionName.Name}' ---");
 
             // Для теста мы создаем контекст с текущим состоянием workflow.
             // Если workflow не загружен, API будет null, что тоже является валидным тестовым случаем.
@@ -421,7 +421,7 @@ namespace Comfizen
             
             PythonScriptingService.Instance.Execute(SelectedActionScript.Text, context);
             
-            Logger.LogToConsole($"--- Test finished for: '{SelectedActionName.Name}' ---", LogLevel.Info, Colors.Magenta);
+            Logger.Log($"--- Test finished for: '{SelectedActionName.Name}' ---");
         }
         
         private void OnSelectedHookChanged()
@@ -701,7 +701,7 @@ namespace Comfizen
             
             GlobalEventManager.RaiseWorkflowSaved(workflowFullPath, saveType);
             
-            Logger.LogToConsole(LocalizationService.Instance["UIConstructor_SaveSuccessMessage"], LogLevel.Info, Colors.LightGreen);
+            Logger.Log(LocalizationService.Instance["UIConstructor_SaveSuccessMessage"]);
             window?.Close();
         }
 
@@ -709,7 +709,7 @@ namespace Comfizen
         {
             if (Workflow.LoadedApi == null)
             {
-                Logger.LogToConsole(LocalizationService.Instance["UIConstructor_ExportErrorMessage"], LogLevel.Warning, Colors.Orange);
+                Logger.Log(LocalizationService.Instance["UIConstructor_ExportErrorMessage"]);
                 return;
             }
 
@@ -724,8 +724,7 @@ namespace Comfizen
                 {
                     var jsonContent = Workflow.LoadedApi.ToString(Formatting.Indented);
                     File.WriteAllText(dialog.FileName, jsonContent);
-                    Logger.LogToConsole(string.Format(LocalizationService.Instance["UIConstructor_ExportSuccessMessage"], dialog.FileName), 
-                        LogLevel.Info, Colors.LightGreen);
+                    Logger.Log(string.Format(LocalizationService.Instance["UIConstructor_ExportSuccessMessage"], dialog.FileName));
                 }
                 catch (Exception ex)
                 {

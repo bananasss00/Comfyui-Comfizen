@@ -205,46 +205,6 @@ namespace Comfizen
             }
         }
         
-        public void LogError(string message)
-        {
-            LogApplicationMessage(message, LogLevel.Error);
-        }
-        
-        /// <summary>
-        /// Logs a message originating from the Comfizen application itself.
-        /// The message will be prefixed and marked for filtering.
-        /// </summary>
-        /// <param name="message">The text of the log message.</param>
-        /// <param name="level">The severity level of the log.</param>
-        /// <param name="color">Optional color for the message text.</param>
-        /// <param name="ex">Optional exception to include in the log.</param>
-        public void LogApplicationMessage(string message, LogLevel level, Color? color = null, Exception ex = null)
-        {
-            var segments = AnsiColorParser.Parse(message);
-            if (color.HasValue && segments.Count == 1)
-            {
-                segments[0].Color = color;
-            }
-
-            var logMessage = new LogMessage
-            {
-                Source = LogSource.Application,
-                Segments = segments,
-                Level = level,
-                IsProgress = false,
-            };
-
-            // Prepend the prefix for visual distinction in the console
-            logMessage.Segments.Insert(0, new LogMessageSegment { Text = "[App] ", Color = Colors.DarkGray });
-
-            if (ex != null)
-            {
-                logMessage.Segments.Add(new LogMessageSegment { Text = Environment.NewLine + ex });
-            }
-
-            EnqueueLog(logMessage);
-        }
-        
         private void ProcessMessage(string message)
         {
             try
@@ -252,7 +212,6 @@ namespace Comfizen
                 var json = JObject.Parse(message);
                 var type = json["type"]?.ToString();
                 
-                // --- START OF FIX: Handle multi-line console messages ---
                 if (type == "console_log_message" || type == "console_stdout_output")
                 {
                     var data = json["data"];
@@ -293,9 +252,6 @@ namespace Comfizen
                         });
                     }
                 }
-                // --- END OF FIX ---
-                
-                // 2. Handle stderr (progress bars) - this part remains the same
                 else if (type == "console_stderr_output")
                 {
                     var text = json["data"]?["text"]?.ToString();
@@ -305,22 +261,14 @@ namespace Comfizen
                     if (string.IsNullOrEmpty(text)) return;
 
                     var newSegments = AnsiColorParser.Parse(text);
-                    var lastMessage = LogMessages.LastOrDefault();
                     
-                    if (lastMessage != null && lastMessage.IsProgress)
+                    EnqueueLog(new LogMessage
                     {
-                        lastMessage.Segments = newSegments;
-                    }
-                    else
-                    {
-                        EnqueueLog(new LogMessage
-                        {
-                            Source = LogSource.ComfyUI, // Set the source for filtering
-                            Segments = newSegments,
-                            Level = LogLevel.Info,
-                            IsProgress = true
-                        });
-                    }
+                        Source = LogSource.ComfyUI, // Set the source for filtering
+                        Segments = newSegments,
+                        Level = LogLevel.Info,
+                        IsProgress = true
+                    });
                 }
             }
             catch

@@ -188,9 +188,8 @@ namespace Comfizen
                         }
                         else
                         {
-                             Logger.LogToConsole(
-                                $"Markdown Link Warning: The absolute path '{fileFullPath}' is outside the workflows directory.",
-                                LogLevel.Warning, System.Windows.Media.Colors.Orange);
+                             Logger.Log(
+                                $"Markdown Link Warning: The absolute path '{fileFullPath}' is outside the workflows directory.");
                         }
                     }
                     catch { /* Ignore invalid paths during normalization */ }
