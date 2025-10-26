@@ -19,21 +19,18 @@ public class WildcardSystemTester
     /// </summary>
     public string RunAllTests()
     {
+#if DEBUG
         var report = new StringBuilder();
         report.AppendLine("--- Running Wildcard System Tests ---");
-
-        // This entire test suite should only run in debug mode.
-        #if !DEBUG
-        report.AppendLine("Tests can only be run in DEBUG mode.");
-        return report.ToString();
-        #endif
 
         try
         {
             SetupMockFiles();
             
             // Change: Use the new, safe methods to set the test directory.
+            
             WildcardFileHandler.SetTestDirectory(_testDir);
+            
             
             // Clear caches before running tests
             var contentCacheField = typeof(WildcardFileHandler).GetField("_contentCache", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
@@ -69,6 +66,10 @@ public class WildcardSystemTester
 
         report.AppendLine("\n--- Tests Finished ---");
         return report.ToString();
+#else
+        return "";
+#endif
+        
     }
 
     private void RunTest(StringBuilder report, string testName, string input, Func<string, bool> validationFunc)

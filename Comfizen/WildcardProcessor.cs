@@ -37,21 +37,16 @@ namespace Comfizen
             string currentResult = input;
             int iterations = 0;
 
+            // --- STAGE 1: Iteratively process complex brace constructs {...} ---
+            // This handles nested braces and wildcards inside braces, e.g., {a|{__b__}}.
             while (iterations < MaxIterations)
             {
                 string previousResult = currentResult;
-
-                // First, process the innermost complex {..} blocks.
-                // The regex replacement is greedy, but since we re-evaluate in a loop, it works for nesting.
                 currentResult = Regex.Replace(currentResult, @"\{([^{}]+)\}", m => ProcessBraceContent(m.Groups[1].Value));
-                
-                // Then, process simple __...__ wildcards. This handles cases like __folder/{__file__}__ after the inner part is resolved.
-                currentResult = Regex.Replace(currentResult, @"__([\s\S]+?)__", m => ProcessSimpleWildcard(m.Groups[1].Value.Trim()));
 
-                // If no changes were made in this iteration, we are done.
                 if (currentResult == previousResult)
                 {
-                    break;
+                    break; // No more brace constructs to process
                 }
                 
                 iterations++;
@@ -59,10 +54,16 @@ namespace Comfizen
 
             if (iterations >= MaxIterations)
             {
-                Logger.Log($"[WildcardProcessor] Max processing iterations ({MaxIterations}) reached. Possible infinite loop detected in prompt: '{input}'. Returning intermediate result.");
+                Logger.Log($"[WildcardProcessor] Max processing iterations ({MaxIterations}) reached during brace processing. Possible infinite loop in prompt: '{input}'.");
             }
+            
+            // --- STAGE 2: Final, non-iterative pass for simple __...__ wildcards ---
+            // This resolves all remaining __...__ patterns, including those constructed in Stage 1 (e.g., from __folder/{__file__}__).
+            // By doing this only once, we prevent recursive expansion from file content.
+            // A wildcard file returning "__another_wildcard__" will now correctly result in that literal string.
+            string finalResult = Regex.Replace(currentResult, @"__([\s\S]+?)__", m => ProcessSimpleWildcard(m.Groups[1].Value.Trim()));
 
-            return currentResult;
+            return finalResult;
         }
 
         /// <summary>
