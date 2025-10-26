@@ -6,91 +6,38 @@ using System.Media;
 using Guid = TagLib.Asf.Guid;
 using System.Windows.Media;
 using System.Collections.Generic;
+using Serilog;
+using _Log = Serilog.Log;
 
 namespace Comfizen
 {
     public static class Logger
     {
-        private static readonly string LogDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-        private static readonly string LogFilePath;
-        private static readonly object _lock = new object();
-        
+        // The ConsoleLogServiceInstance is now only needed for the OnErrorLogged event.
         public static ConsoleLogService ConsoleLogServiceInstance { get; set; }
         public static event Action OnErrorLogged;
 
-        static Logger()
-        {
-            try
-            {
-                Directory.CreateDirectory(LogDirectory);
-                LogFilePath = Path.Combine(LogDirectory, $"log_{DateTime.Now:yyyy-MM-dd}.txt");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Не удалось инициализировать логгер: {ex.Message}");
-            }
-        }
+        // --- START OF CHANGE: Remove all old file writing logic ---
+        // The static constructor, _lock, LogDirectory, and LogFilePath are no longer needed.
+        // Serilog handles all of this automatically.
 
         public static void Log(string message)
         {
-            if (string.IsNullOrEmpty(LogFilePath)) return;
-
-            try
-            {
-                lock (_lock)
-                {
-                    File.AppendAllText(LogFilePath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [INFO] {message}{Environment.NewLine}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Не удалось записать в лог-файл: {ex.Message}");
-            }
+            // Use Serilog's global logger.
+            _Log.Information(message);
         }
 
-        public static void Log(Exception exception, string contextMessage = "Произошло необработанное исключение")
+        public static void Log(Exception exception, string contextMessage = "An unhandled exception occurred")
         {
-            if (exception == null || string.IsNullOrEmpty(LogFilePath)) return;
-
-            try
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine("==============================================================================");
-                sb.AppendLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [ERROR] {contextMessage}");
-                
-                var currentException = exception;
-                int level = 0;
-                while (currentException != null)
-                {
-                    sb.AppendLine($"--- Уровень исключения {level} ---");
-                    sb.AppendLine($"Тип: {currentException.GetType().FullName}");
-                    sb.AppendLine($"Сообщение: {currentException.Message}");
-                    sb.AppendLine($"StackTrace: {currentException.StackTrace}");
-                    sb.AppendLine();
-
-                    currentException = currentException.InnerException;
-                    level++;
-                }
-                sb.AppendLine("==============================================================================");
-                
-                var fullErrorMessage = sb.ToString();
-
-                lock (_lock)
-                {
-                    File.AppendAllText(LogFilePath, fullErrorMessage);
-                }
-                
-                ConsoleLogServiceInstance?.LogError(fullErrorMessage);
-                // SystemSounds.Exclamation.Play();
-                OnErrorLogged?.Invoke();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Не удалось записать исключение в лог-файл: {ex.Message}");
-            }
+            // Serilog has first-class support for exceptions.
+            // The contextMessage will be the main log entry, and the exception details will be appended automatically.
+            _Log.Error(exception, contextMessage);
+            
+            // This part for UI notification remains the same.
+            OnErrorLogged?.Invoke();
         }
         
-        /// <summary>
+        // <summary>
         /// Logs a message directly to the in-app UI console with a specific color.
         /// </summary>
         public static void LogToConsole(string message, LogLevel level, Color? color)

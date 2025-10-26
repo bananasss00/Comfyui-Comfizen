@@ -36,6 +36,11 @@ namespace Comfizen
         private SessionManager _sessionManager;
         private ModelService _modelService;
         private ConsoleLogService _consoleLogService;
+
+        /// <summary>
+        /// Provides access to the ConsoleLogService instance for external configuration.
+        /// </summary>
+        public ConsoleLogService GetConsoleLogService() => _consoleLogService;
         
         public ImageProcessingViewModel ImageProcessing { get; private set; }
         public FullScreenViewModel FullScreen { get; private set; }

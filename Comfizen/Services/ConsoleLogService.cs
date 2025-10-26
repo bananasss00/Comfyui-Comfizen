@@ -14,6 +14,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
+using Serilog;
 
 namespace Comfizen
 {

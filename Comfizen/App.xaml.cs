@@ -15,6 +15,9 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Serilog;
+using Serilog.Events;
+using Serilog.Filters;
 
 namespace Comfizen
 {
@@ -86,6 +89,42 @@ namespace Comfizen
 
             // 3. Now, create and show the main window.
             var mainWindow = new MainWindow();
+            
+            // Get the ViewModel instance from the window's DataContext.
+            if (mainWindow.DataContext is MainViewModel mainViewModel)
+            {
+                var consoleLogService = mainViewModel.GetConsoleLogService();
+                
+                // --- START OF CHANGE: Advanced Serilog Configuration ---
+                var logConfig = new LoggerConfiguration()
+                    .MinimumLevel.Debug()
+                    .WriteTo.File( // This is the file sink for APP logs only
+                        Path.Combine("logs", "log-.txt"),
+                        rollingInterval: RollingInterval.Day,
+                        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
+                    );
+
+                if (consoleLogService != null)
+                {
+                    // This sink will receive APP logs from Serilog
+                    logConfig.WriteTo.Sink(new ConsoleLogServiceSink(consoleLogService));
+                }
+
+                Log.Logger = logConfig.CreateLogger();
+                // --- END OF CHANGE ---
+                
+                Logger.ConsoleLogServiceInstance = consoleLogService;
+            }
+            else
+            {
+                // Fallback configuration if ViewModel is not found (should not happen in normal operation).
+                Log.Logger = new LoggerConfiguration()
+                    .MinimumLevel.Debug()
+                    .WriteTo.File(Path.Combine("logs", "log-.txt"), rollingInterval: RollingInterval.Day)
+                    .CreateLogger();
+                
+                Log.Warning("MainViewModel not found during startup, UI console logging will be disabled.");
+            }
             mainWindow.Show();
         }
         

@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Serilog;
 using Xceed.Wpf.Toolkit;
 
 namespace Comfizen
@@ -192,6 +193,8 @@ namespace Comfizen
                 await viewModel.SaveStateOnCloseAsync();
             }
             InMemoryHttpServer.Instance.Stop();
+
+            Log.CloseAndFlush();
         }
         
         private void MediaElement_Loaded(object sender, RoutedEventArgs e)
