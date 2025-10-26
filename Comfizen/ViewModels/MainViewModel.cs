@@ -335,9 +335,13 @@ namespace Comfizen
                 IsInfiniteQueueEnabled = false;
                 _promptsQueue.Clear(); // Immediately remove all waiting tasks.
 
-            }, canExecute: x => _promptsQueue.Any() || (_isProcessing && TotalTasks > CompletedTasks)); // Allow clearing even if only one task is running
+                CompletedTasks = 0;
+                TotalTasks = 0;
+                CurrentProgress = 0;
             
-            QueueCommand = new RelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
+            }, canExecute: x => _promptsQueue.Any() || (_isProcessing && TotalTasks > CompletedTasks));
+            
+            QueueCommand = new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
         }
         
         private void ShowConsoleOnError()
@@ -739,13 +743,13 @@ namespace Comfizen
             }
         }
         
-        private void Queue(object o)
+        private async Task Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
         
             SelectedTab.ExecuteHook("on_queue_start", SelectedTab.Workflow.LoadedApi);
         
-            var promptTasks = CreatePromptTasks(SelectedTab);
+            var promptTasks = await Task.Run(() => CreatePromptTasks(SelectedTab));
             if (promptTasks.Count == 0) return;
         
             if (_cancellationRequested || (_promptsQueue.IsEmpty && !_isProcessing))
@@ -764,13 +768,19 @@ namespace Comfizen
             }
             TotalTasks += promptTasks.Count;
     
+            bool needsProcessing = false;
             lock (_processingLock)
             {
                 if (!_isProcessing)
                 {
                     _isProcessing = true;
-                    _ = Task.Run(ProcessQueueAsync);
+                    needsProcessing = true;
                 }
+            }
+
+            if (needsProcessing)
+            {
+                _ = ProcessQueueAsync(); 
             }
         }
 
@@ -797,7 +807,7 @@ namespace Comfizen
                                 // A check here is no longer needed as we want the task to finish
                                 io.Prompt = task.FullWorkflowStateJson;
 
-                                Application.Current.Dispatcher.Invoke(() =>
+                                await Application.Current.Dispatcher.InvokeAsync(() =>
                                 {
                                     if (task.OriginTab.Workflow.BlockedNodeIds.Contains(io.NodeId))
                                     {
@@ -813,9 +823,12 @@ namespace Comfizen
                                 });
                             }
                         
-                            CompletedTasks++;
-                            CurrentProgress = (TotalTasks > 0) ? (CompletedTasks * 100) / TotalTasks : 0;
-                            
+                            await Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                CompletedTasks++;
+                                CurrentProgress = (TotalTasks > 0) ? (CompletedTasks * 100) / TotalTasks : 0;
+                            });
+
                             if (CompletedTasks > 0 && TotalTasks > CompletedTasks)
                             {
                                 var elapsed = _queueStopwatch.Elapsed;
@@ -833,12 +846,13 @@ namespace Comfizen
                                 EstimatedTimeRemaining = null;
                             }
                             
-                            task.OriginTab?.ExecuteHook("on_queue_finish", promptForTask);
+                            await Application.Current.Dispatcher.InvokeAsync(() => task.OriginTab?.ExecuteHook("on_queue_finish", promptForTask));
                         }
                         catch (Exception ex)
                         {
                             Logger.Log(ex, "[Connection Error] Failed to queue prompt");
-                            Application.Current.Dispatcher.Invoke(() =>
+                            
+                            await Application.Current.Dispatcher.InvokeAsync(() =>
                             {
                                 MessageBox.Show(
                                     LocalizationService.Instance["MainVM_ConnectionErrorMessage"],
@@ -883,20 +897,26 @@ namespace Comfizen
                 {
                     _isProcessing = false;
                 }
-                
-                _queueStopwatch.Stop(); // Stop the stopwatch when processing is finished
-                EstimatedTimeRemaining = null; // Ensure ETA is cleared on finish/cancel
-                
+            
+                _queueStopwatch.Stop();
+                EstimatedTimeRemaining = null; 
+            
                 if (_cancellationRequested)
                 {
-                    _promptsQueue.Clear(); // Final redundant clear just in case
-                    TotalTasks = CompletedTasks = 0;
-                    CurrentProgress = 0;
+                    _promptsQueue.Clear();
+                
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        TotalTasks = 0;
+                        CompletedTasks = 0;
+                        CurrentProgress = 0;
+                    });
+                
                     IsInfiniteQueueEnabled = false;
                 }
-                else if (lastTaskOriginTab != null) // Queue batch finished naturally
+                else if (lastTaskOriginTab != null) 
                 {
-                    lastTaskOriginTab.ExecuteHook("on_batch_finished", lastTaskOriginTab.Workflow.LoadedApi);
+                    await Application.Current.Dispatcher.InvokeAsync(() => lastTaskOriginTab.ExecuteHook("on_batch_finished", lastTaskOriginTab.Workflow.LoadedApi));
                 }
             }
         }

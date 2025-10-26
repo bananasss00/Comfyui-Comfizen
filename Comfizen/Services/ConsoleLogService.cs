@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -10,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
 
@@ -21,6 +23,9 @@ namespace Comfizen
         private AppSettings _settings;
         private ClientWebSocket _ws;
         private CancellationTokenSource _cts;
+        
+        private readonly ConcurrentQueue<LogMessage> _logQueue = new();
+        private readonly DispatcherTimer _logUpdateTimer;
 
         private readonly object _connectionLock = new object();
         private Task _connectionManagerTask;
@@ -35,6 +40,14 @@ namespace Comfizen
         {
             _settings = settings;
             System.Windows.Data.BindingOperations.EnableCollectionSynchronization(LogMessages, new object());
+            
+            _logUpdateTimer = new DispatcherTimer(
+                TimeSpan.FromMilliseconds(100), // Process messages every 100ms
+                DispatcherPriority.Background,  // Run at a low priority to keep UI responsive
+                (sender, args) => ProcessLogQueue(),
+                Application.Current.Dispatcher
+            );
+            _logUpdateTimer.Start();
         }
 
         public Task ConnectAsync()
@@ -52,6 +65,8 @@ namespace Comfizen
         
         public async Task DisconnectAsync()
         {
+            _logUpdateTimer?.Stop();
+            
             if (_cts != null && !_cts.IsCancellationRequested)
             {
                 _cts.Cancel();
@@ -177,9 +192,21 @@ namespace Comfizen
             }
         }
         
+        /// <summary>
+        /// Safely enqueues a log message to be processed and added to the UI console.
+        /// </summary>
+        /// <param name="message">The LogMessage to add.</param>
+        public void EnqueueLog(LogMessage message)
+        {
+            if (message != null)
+            {
+                _logQueue.Enqueue(message);
+            }
+        }
+        
         public void LogError(string message)
         {
-            LogMessages.Add(new LogMessage
+            EnqueueLog(new LogMessage
             {
                 Segments = new List<LogMessageSegment> { new LogMessageSegment { Text = message } },
                 Level = LogLevel.Error,
@@ -226,7 +253,7 @@ namespace Comfizen
                         }
                         
                         // Add each line as a separate LogMessage
-                        LogMessages.Add(new LogMessage
+                        EnqueueLog(new LogMessage
                         {
                             Segments = segments,
                             Level = level,
@@ -254,7 +281,7 @@ namespace Comfizen
                     }
                     else
                     {
-                        LogMessages.Add(new LogMessage
+                        EnqueueLog(new LogMessage
                         {
                             Segments = newSegments,
                             Level = LogLevel.Info,
@@ -266,6 +293,31 @@ namespace Comfizen
             catch
             {
                 // Ignore non-JSON messages
+            }
+        }
+        
+        /// <summary>
+        /// Dequeues messages and adds them to the observable collection in a UI-thread-safe manner.
+        /// </summary>
+        private void ProcessLogQueue()
+        {
+            int count = 0;
+            // Process up to 50 messages per tick to prevent UI lockup if logs are spammed.
+            while (_logQueue.TryDequeue(out var message) && count < 50)
+            {
+                var lastMessage = LogMessages.LastOrDefault();
+            
+                // Handle progress bar updates by modifying the last message if it's also a progress bar.
+                if (message.IsProgress && lastMessage != null && lastMessage.IsProgress)
+                {
+                    lastMessage.Segments = message.Segments;
+                }
+                else
+                {
+                    // For all other messages, just add them to the collection.
+                    LogMessages.Add(message);
+                }
+                count++;
             }
         }
     }

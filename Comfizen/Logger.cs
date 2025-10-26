@@ -108,7 +108,7 @@ namespace Comfizen
                 Segments = new List<LogMessageSegment> { new LogMessageSegment { Text = message, Color = color } }
             };
             
-            ConsoleLogServiceInstance.LogMessages.Add(logMessage);
+            ConsoleLogServiceInstance.EnqueueLog(logMessage);
         }
     }
 }
