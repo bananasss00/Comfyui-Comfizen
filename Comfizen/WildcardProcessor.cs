@@ -14,6 +14,7 @@ namespace Comfizen
     public class WildcardProcessor
     {
         private readonly Random _random;
+        private const int MaxIterations = 100;
 
         public WildcardProcessor(long seed)
         {
@@ -22,53 +23,89 @@ namespace Comfizen
         }
 
         /// <summary>
-        /// Processes the input string, replacing all supported wildcard and dynamic syntaxes.
+        /// Processes the input string iteratively, replacing all supported wildcard and dynamic syntaxes, including nested ones.
         /// </summary>
         /// <param name="input">The prompt string to process.</param>
         /// <returns>The processed string with all syntaxes resolved.</returns>
         public string Process(string input)
         {
-            // First pass: Process complex {..} blocks which can contain wildcards and quantifiers.
-            // This ensures that lists are built and chosen from correctly before simple wildcards are replaced.
-            string pass1 = Regex.Replace(input, @"\{([^{}]+)\}", m => ProcessBraceContent(m.Groups[1].Value));
-            
-            // Second pass: Process simple __...__ wildcards that are not inside {..} blocks.
-            // FIX: The original regex incorrectly forbade underscores in names. This is a more robust, lazy match.
-            string pass2 = Regex.Replace(pass1, @"__([\s\S]+?)__", m => ProcessSimpleWildcard(m.Groups[1].Value.Trim()));
+            if (string.IsNullOrEmpty(input))
+            {
+                return input;
+            }
 
-            return pass2;
+            string currentResult = input;
+            int iterations = 0;
+
+            while (iterations < MaxIterations)
+            {
+                string previousResult = currentResult;
+
+                // First, process the innermost complex {..} blocks.
+                // The regex replacement is greedy, but since we re-evaluate in a loop, it works for nesting.
+                currentResult = Regex.Replace(currentResult, @"\{([^{}]+)\}", m => ProcessBraceContent(m.Groups[1].Value));
+                
+                // Then, process simple __...__ wildcards. This handles cases like __folder/{__file__}__ after the inner part is resolved.
+                currentResult = Regex.Replace(currentResult, @"__([\s\S]+?)__", m => ProcessSimpleWildcard(m.Groups[1].Value.Trim()));
+
+                // If no changes were made in this iteration, we are done.
+                if (currentResult == previousResult)
+                {
+                    break;
+                }
+                
+                iterations++;
+            }
+
+            if (iterations >= MaxIterations)
+            {
+                Logger.Log($"[WildcardProcessor] Max processing iterations ({MaxIterations}) reached. Possible infinite loop detected in prompt: '{input}'. Returning intermediate result.");
+            }
+
+            return currentResult;
         }
 
         /// <summary>
         /// Processes the content within {..} braces.
         /// Handles quantifiers (e.g., {2$$..}) and list expansion with custom separators.
+        /// This method is now safer against malformed input.
         /// </summary>
         private string ProcessBraceContent(string content)
         {
             int minChoices = 1, maxChoices = 1;
             string separator = ", "; // Default separator
 
-            // Check for quantifier syntax {N-M$$...} or {N$$...}
-            var quantifierMatch = Regex.Match(content, @"^(\d+)(?:-(\d+))?\$\$(.+)");
+            var quantifierMatch = Regex.Match(content, @"^(.+?)\$\$(.+)");
             if (quantifierMatch.Success)
             {
-                minChoices = int.Parse(quantifierMatch.Groups[1].Value);
-                maxChoices = minChoices;
-                if (quantifierMatch.Groups[2].Success)
-                {
-                    maxChoices = int.Parse(quantifierMatch.Groups[2].Value);
-                }
-                content = quantifierMatch.Groups[3].Value; // The rest of the string after the quantifier
+                string quantifierPart = quantifierMatch.Groups[1].Value;
+                string restOfContent = quantifierMatch.Groups[2].Value;
 
-                // Check for a custom separator {..$$separator$$..}
-                var separatorParts = content.Split(new[] { "$$" }, 2, StringSplitOptions.None);
-                if (separatorParts.Length == 2)
+                var rangeMatch = Regex.Match(quantifierPart, @"^(\d+)(?:-(\d+))?$");
+                if (rangeMatch.Success)
                 {
-                    separator = separatorParts[0];
-                    content = separatorParts[1];
+                    // Safely parse numbers
+                    int.TryParse(rangeMatch.Groups[1].Value, out minChoices);
+                    maxChoices = minChoices;
+                    if (rangeMatch.Groups[2].Success)
+                    {
+                        int.TryParse(rangeMatch.Groups[2].Value, out maxChoices);
+                    }
+
+                    // Check for a custom separator
+                    var separatorParts = restOfContent.Split(new[] { "$$" }, 2, StringSplitOptions.None);
+                    if (separatorParts.Length == 2)
+                    {
+                        separator = separatorParts[0];
+                        content = separatorParts[1];
+                    }
+                    else
+                    {
+                        content = restOfContent;
+                    }
                 }
             }
-
+            
             var items = content.Split('|')
                 .Select(item => item.Trim())
                 .ToList();
@@ -79,25 +116,21 @@ namespace Comfizen
                 var wildcardMatch = Regex.Match(item, @"^__([\s\S]+?)__$");
                 if (wildcardMatch.Success)
                 {
-                    // It's a wildcard, expand it
                     var wildcardName = wildcardMatch.Groups[1].Value;
                     finalChoices.AddRange(WildcardFileHandler.GetLines(wildcardName));
                 }
                 else
                 {
-                    // It's a literal value
                     finalChoices.Add(item);
                 }
             }
             
             if (finalChoices.Count == 0) return "";
 
-            // Ensure minChoices is not greater than maxChoices
             if (minChoices > maxChoices) (minChoices, maxChoices) = (maxChoices, minChoices);
             
             int numToTake = _random.Next(Math.Min(minChoices, finalChoices.Count), Math.Min(maxChoices, finalChoices.Count) + 1);
             
-            // Fisher-Yates shuffle to pick unique items
             var shuffled = finalChoices.OrderBy(x => _random.Next()).ToList();
             
             return string.Join(separator, shuffled.Take(numToTake));
@@ -111,7 +144,6 @@ namespace Comfizen
             var lines = WildcardFileHandler.GetLines(wildcardName);
             if (lines.Length == 0)
             {
-                // Return original text if wildcard is not found
                 return $"__{wildcardName}__"; 
             }
             return lines[_random.Next(lines.Length)];
@@ -162,7 +194,6 @@ namespace Comfizen
 
         private static List<string> GetAllWildcardNames()
         {
-            // Double-checked locking for thread-safe lazy initialization
             if (_allWildcardNamesCache != null) return _allWildcardNamesCache;
 
             lock (_listCacheLock)
@@ -170,15 +201,24 @@ namespace Comfizen
                 if (_allWildcardNamesCache != null) return _allWildcardNamesCache;
 
                 var names = new List<string>();
-                if (Directory.Exists(WildcardsDirectory))
+                try
                 {
-                    var files = Directory.GetFiles(WildcardsDirectory, "*.txt", SearchOption.AllDirectories);
-                    foreach (var file in files)
+                    if (Directory.Exists(WildcardsDirectory))
                     {
-                        var relativePath = Path.GetRelativePath(WildcardsDirectory, file);
-                        var wildcardName = Path.ChangeExtension(relativePath, null).Replace(Path.DirectorySeparatorChar, '/');
-                        names.Add(wildcardName);
+                        var files = Directory.GetFiles(WildcardsDirectory, "*.txt", SearchOption.AllDirectories);
+                        foreach (var file in files)
+                        {
+                            var relativePath = Path.GetRelativePath(WildcardsDirectory, file);
+                            var wildcardName = Path.ChangeExtension(relativePath, null).Replace(Path.DirectorySeparatorChar, '/');
+                            names.Add(wildcardName);
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, "Failed to scan wildcard directory. Wildcards may not be available.");
+                    // Return an empty list but don't cache it, maybe the issue is temporary
+                    return new List<string>(); 
                 }
                 _allWildcardNamesCache = names;
                 return _allWildcardNamesCache;
@@ -187,7 +227,6 @@ namespace Comfizen
 
         private static string[] GetLinesFromFile(string wildcardName)
         {
-            // Attempt to get from cache first for individual files
             if (_contentCache.TryGetValue(wildcardName, out var cachedLines))
             {
                 return cachedLines;
@@ -201,12 +240,22 @@ namespace Comfizen
                 return Array.Empty<string>();
             }
 
-            var lines = File.ReadAllLines(fullPath)
-                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                .ToArray();
+            try
+            {
+                var lines = File.ReadAllLines(fullPath)
+                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                    .ToArray();
             
-            _contentCache.TryAdd(wildcardName, lines);
-            return lines;
+                _contentCache.TryAdd(wildcardName, lines);
+                return lines;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, $"Failed to read wildcard file: {fullPath}. It will be treated as empty.");
+                // Cache the empty result to avoid re-reading a problematic file
+                _contentCache.TryAdd(wildcardName, Array.Empty<string>());
+                return Array.Empty<string>();
+            }
         }
 
         private static string[] GetLinesFromGlob(string globPattern)
