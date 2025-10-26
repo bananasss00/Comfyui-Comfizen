@@ -99,8 +99,16 @@
         <Popup x:Name="ItemPopup"
                PlacementTarget="{Binding ElementName=DropDownToggle}"
                StaysOpen="False"
-               Opened="ItemPopup_Opened">
-            <Border Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" Margin="0,1,0,0">
+               Opened="ItemPopup_Opened"
+               Placement="Bottom" 
+               AllowsTransparency="True">
+            
+            <Border Background="{StaticResource SecondaryBackground}" 
+                    BorderBrush="{StaticResource TertiaryBackground}" 
+                    BorderThickness="1" 
+                    Margin="0,1,0,0"
+                    MinWidth="{Binding ActualWidth, ElementName=DropDownToggle}"> <!-- This is the key change! -->
+                
                 <DockPanel MaxHeight="300">
                     <Grid DockPanel.Dock="Top" Margin="5">
                         <TextBox x:Name="FilterTextBox"
