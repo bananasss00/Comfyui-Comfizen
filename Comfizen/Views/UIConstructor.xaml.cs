@@ -1862,5 +1862,15 @@ namespace Comfizen
             return null;
         }
         // --- END OF FIX ---
+        private void SearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    textBox.SelectAll();
+                }), System.Windows.Threading.DispatcherPriority.Input);
+            }
+        }
     }
 }

@@ -261,7 +261,7 @@
                                 
                                 <DockPanel Grid.Row="4" Margin="0,10,0,0">
                                     <Grid DockPanel.Dock="Top" Margin="10,0,10,10">
-                                        <TextBox x:Name="SearchBox" Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <TextBox x:Name="SearchBox" Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}" GotFocus="SearchBox_GotFocus"/>
                                         <TextBlock Text="{local:Translate UIConstructor_SearchPlaceholder}" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0" IsHitTestVisible="False" VerticalAlignment="Center">
                                             <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                                         </TextBlock>
