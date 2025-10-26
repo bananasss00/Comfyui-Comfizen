@@ -604,15 +604,24 @@
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0"
                                                 Visibility="{Binding TotalTasks, Converter={StaticResource TaskCountToVisibilityConverter}}">
                                         <ProgressBar Value="{Binding CurrentProgress}" Maximum="100" Height="5" MinWidth="200" />
-                                        <TextBlock HorizontalAlignment="Center" Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}">
-                                            <TextBlock.Text>
-                                                <MultiBinding Converter="{StaticResource MultiBindingStringFormatConverter}">
-                                                    <Binding Path="[Tab_CompletedTasks]" Source="{x:Static local:LocalizationService.Instance}" Mode="OneWay"/>
-                                                    <Binding Path="CompletedTasks"/>
-                                                    <Binding Path="TotalTasks"/>
-                                                </MultiBinding>
-                                            </TextBlock.Text>
-                                        </TextBlock>
+                                        <Grid MinWidth="200">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" HorizontalAlignment="Left" Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}">
+                                                <TextBlock.Text>
+                                                    <MultiBinding Converter="{StaticResource MultiBindingStringFormatConverter}">
+                                                        <Binding Path="[Tab_CompletedTasks]" Source="{x:Static local:LocalizationService.Instance}" Mode="OneWay"/>
+                                                        <Binding Path="CompletedTasks"/>
+                                                        <Binding Path="TotalTasks"/>
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                            <TextBlock Grid.Column="1" Text="{Binding EstimatedTimeRemaining}"
+                                                       HorizontalAlignment="Right" Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Visibility="{Binding EstimatedTimeRemaining, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"/>
+                                        </Grid>
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">

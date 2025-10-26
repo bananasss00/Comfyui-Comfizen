@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Input;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -133,6 +134,7 @@ namespace Comfizen
         public int TotalTasks { get; set; }
         public int CompletedTasks { get; private set; }
         public int CurrentProgress { get; set; }
+        public string EstimatedTimeRemaining { get; private set; }
         
         public ICommand SaveChangesToWorkflowCommand { get; private set; }
         
@@ -655,7 +657,8 @@ namespace Comfizen
                 MessageBox.Show("Could not copy to clipboard.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
-
+        
+        private readonly Stopwatch _queueStopwatch = new();
         private ConcurrentQueue<PromptTask> _promptsQueue = new();
         private bool _cancellationRequested = false;
 
@@ -739,26 +742,28 @@ namespace Comfizen
         private void Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
-            
+        
             SelectedTab.ExecuteHook("on_queue_start", SelectedTab.Workflow.LoadedApi);
-            
+        
             var promptTasks = CreatePromptTasks(SelectedTab);
             if (promptTasks.Count == 0) return;
-            
+        
             if (_cancellationRequested || (_promptsQueue.IsEmpty && !_isProcessing))
             {
                 CompletedTasks = 0;
                 TotalTasks = 0;
                 CurrentProgress = 0;
+                _queueStopwatch.Restart(); // Reset and start the stopwatch for a new batch
+                EstimatedTimeRemaining = null; // Clear previous ETA
             }
             _cancellationRequested = false;
-        
+    
             foreach (var task in promptTasks)
             {
                 _promptsQueue.Enqueue(task);
             }
             TotalTasks += promptTasks.Count;
-        
+    
             lock (_processingLock)
             {
                 if (!_isProcessing)
@@ -810,7 +815,24 @@ namespace Comfizen
                         
                             CompletedTasks++;
                             CurrentProgress = (TotalTasks > 0) ? (CompletedTasks * 100) / TotalTasks : 0;
-                        
+                            
+                            if (CompletedTasks > 0 && TotalTasks > CompletedTasks)
+                            {
+                                var elapsed = _queueStopwatch.Elapsed;
+                                // Only show ETA after a second to get a more stable estimate
+                                if (elapsed.TotalSeconds > 1)
+                                {
+                                    var timePerTask = elapsed / CompletedTasks;
+                                    var remainingTime = timePerTask * (TotalTasks - CompletedTasks);
+                                    EstimatedTimeRemaining = $"~{FormatEta(remainingTime)}";
+                                }
+                            }
+                            else
+                            {
+                                // Clear when the last task is done or if there's only one task.
+                                EstimatedTimeRemaining = null;
+                            }
+                            
                             task.OriginTab?.ExecuteHook("on_queue_finish", promptForTask);
                         }
                         catch (Exception ex)
@@ -861,7 +883,10 @@ namespace Comfizen
                 {
                     _isProcessing = false;
                 }
-        
+                
+                _queueStopwatch.Stop(); // Stop the stopwatch when processing is finished
+                EstimatedTimeRemaining = null; // Ensure ETA is cleared on finish/cancel
+                
                 if (_cancellationRequested)
                 {
                     _promptsQueue.Clear(); // Final redundant clear just in case
@@ -874,6 +899,23 @@ namespace Comfizen
                     lastTaskOriginTab.ExecuteHook("on_batch_finished", lastTaskOriginTab.Workflow.LoadedApi);
                 }
             }
+        }
+        
+        /// <summary>
+        /// Formats a TimeSpan into a user-friendly ETA string (e.g., "1h 5m", "4m 32s", "12s").
+        /// </summary>
+        /// <param name="ts">The TimeSpan to format.</param>
+        /// <returns>A formatted string representing the estimated time remaining.</returns>
+        private string FormatEta(TimeSpan ts)
+        {
+            if (ts.TotalSeconds <= 0) return string.Empty;
+
+            if (ts.TotalHours >= 1)
+                return ts.ToString(@"h\h\ m\m");
+            if (ts.TotalMinutes >= 1)
+                return ts.ToString(@"m\m\ s\s");
+        
+            return $"{(int)ts.TotalSeconds}s";
         }
 
         private void AddWorkflowToRecents(string relativePath)
