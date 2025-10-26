@@ -6,6 +6,7 @@
              xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
              mc:Ignorable="d" 
              d:DesignHeight="150" d:DesignWidth="400"
+             x:Name="Root"
              MaxHeight="200">
     <Grid>
         <!-- The Viewer for formatted Markdown -->
@@ -73,7 +74,7 @@
                  AcceptsReturn="True"
                  TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Auto"
-                 MaxHeight="200"
+                 MaxHeight="{Binding MaxHeight, ElementName=Root}"
                  LostFocus="Editor_LostFocus"/>
     </Grid>
 </UserControl>
