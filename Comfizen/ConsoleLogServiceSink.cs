@@ -44,23 +44,7 @@ public class ConsoleLogServiceSink : ILogEventSink
             _ => LogLevel.Info
         };
 
-        // Parse ANSI codes from the message to support colored output.
-        var segments = AnsiColorParser.Parse(message);
-            
-        // If an exception is present, add its details.
-        if (logEvent.Exception != null)
-        {
-            segments.Add(new LogMessageSegment { Text = Environment.NewLine + logEvent.Exception });
-        }
-
-        var logMessage = new LogMessage
-        {
-            Segments = segments,
-            Level = level,
-            IsProgress = false // This sink is for general logs, not progress bars.
-        };
-
-        // Enqueue the message for safe UI updates.
-        _consoleLogService.EnqueueLog(logMessage);
+        // MODIFIED: Use the new centralized method to log application messages
+        _consoleLogService.LogApplicationMessage(message, level, ex: logEvent.Exception);
     }
 }

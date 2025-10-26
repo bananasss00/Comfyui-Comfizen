@@ -7,6 +7,7 @@ using System.Windows.Media;
 
 namespace Comfizen
 {
+    public enum LogSource { Application, ComfyUI }
     public enum LogLevel { Info, Warning, Error, Critical, Debug }
 
     /// <summary>
@@ -26,6 +27,8 @@ namespace Comfizen
         public DateTime Timestamp { get; } = DateTime.Now;
         public List<LogMessageSegment> Segments { get; set; }
         public LogLevel Level { get; set; }
+        
+        public LogSource Source { get; set; }
         
         /// <summary>
         /// Indicates if this message is a progress bar update.

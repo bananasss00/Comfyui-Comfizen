@@ -125,8 +125,9 @@ namespace Comfizen
             }
             catch (Exception ex)
             {
+                Logger.Log(ex, "Error loading image into InpaintEditor");
                 MessageBox.Show(string.Format(LocalizationService.Instance["Inpaint_ErrorLoadingImageMessage"], ex.Message), 
-                                LocalizationService.Instance["Inpaint_ErrorLoadingImageTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+                    LocalizationService.Instance["Inpaint_ErrorLoadingImageTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

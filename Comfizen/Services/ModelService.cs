@@ -199,11 +199,14 @@ public class ModelService
                 if (!_isConnectionErrorVisible)
                 {
                     _isConnectionErrorVisible = true;
+                    // ADD: Log the full error to the file
+                    Logger.Log(ex, "Failed to fetch model types from ComfyUI API");
+                    
                     Application.Current.Dispatcher.Invoke(() =>
                     {
+                        // MODIFIED: Replaced MessageBox with a non-blocking console log message
                         var message = string.Format(LocalizationService.Instance["ModelService_ErrorFetchModelTypes"], ex.Message);
-                        var title = LocalizationService.Instance["General_Error"];
-                        MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
+                        Logger.LogToConsole(message, LogLevel.Error, null);
                     });
                 }
             }

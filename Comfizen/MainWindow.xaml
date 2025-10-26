@@ -835,6 +835,15 @@
                     <Grid>
                         <TextBlock Text="{local:Translate Console_Title}" FontWeight="Bold" HorizontalAlignment="Left"/>
                         
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <RadioButton Content="{local:Translate Console_FilterAll}" GroupName="LogFilter" 
+                                         IsChecked="{Binding SelectedLogFilterType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:LogFilterType.All}}"/>
+                            <RadioButton Content="{local:Translate Console_FilterComfy}" GroupName="LogFilter" Margin="10,0,0,0"
+                                         IsChecked="{Binding SelectedLogFilterType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:LogFilterType.Comfy}}"/>
+                            <RadioButton Content="{local:Translate Console_FilterLocal}" GroupName="LogFilter" Margin="10,0,0,0"
+                                         IsChecked="{Binding SelectedLogFilterType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:LogFilterType.Local}}"/>
+                        </StackPanel>
+                        
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Button Content="&#xE8C8;" Style="{StaticResource IconButton}" 
                                     Command="{Binding CopyConsoleCommand}"

@@ -207,12 +207,42 @@ namespace Comfizen
         
         public void LogError(string message)
         {
-            EnqueueLog(new LogMessage
+            LogApplicationMessage(message, LogLevel.Error);
+        }
+        
+        /// <summary>
+        /// Logs a message originating from the Comfizen application itself.
+        /// The message will be prefixed and marked for filtering.
+        /// </summary>
+        /// <param name="message">The text of the log message.</param>
+        /// <param name="level">The severity level of the log.</param>
+        /// <param name="color">Optional color for the message text.</param>
+        /// <param name="ex">Optional exception to include in the log.</param>
+        public void LogApplicationMessage(string message, LogLevel level, Color? color = null, Exception ex = null)
+        {
+            var segments = AnsiColorParser.Parse(message);
+            if (color.HasValue && segments.Count == 1)
             {
-                Segments = new List<LogMessageSegment> { new LogMessageSegment { Text = message } },
-                Level = LogLevel.Error,
-                IsProgress = false
-            });
+                segments[0].Color = color;
+            }
+
+            var logMessage = new LogMessage
+            {
+                Source = LogSource.Application,
+                Segments = segments,
+                Level = level,
+                IsProgress = false,
+            };
+
+            // Prepend the prefix for visual distinction in the console
+            logMessage.Segments.Insert(0, new LogMessageSegment { Text = "[App] ", Color = Colors.DarkGray });
+
+            if (ex != null)
+            {
+                logMessage.Segments.Add(new LogMessageSegment { Text = Environment.NewLine + ex });
+            }
+
+            EnqueueLog(logMessage);
         }
         
         private void ProcessMessage(string message)
@@ -256,6 +286,7 @@ namespace Comfizen
                         // Add each line as a separate LogMessage
                         EnqueueLog(new LogMessage
                         {
+                            Source = LogSource.ComfyUI, // Set the source for filtering
                             Segments = segments,
                             Level = level,
                             IsProgress = false
@@ -284,6 +315,7 @@ namespace Comfizen
                     {
                         EnqueueLog(new LogMessage
                         {
+                            Source = LogSource.ComfyUI, // Set the source for filtering
                             Segments = newSegments,
                             Level = LogLevel.Info,
                             IsProgress = true

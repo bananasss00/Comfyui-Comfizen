@@ -13,6 +13,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
 using Microsoft.Win32;
 using PropertyChanged;
 using Newtonsoft.Json.Linq;
@@ -26,6 +28,8 @@ namespace Comfizen
     {
         public string Title { get; set; }
     }
+    
+    public enum LogFilterType { All, Comfy, Local }
 
     [AddINotifyPropertyChangedInterface]
     public class MainViewModel : INotifyPropertyChanged
@@ -123,6 +127,20 @@ namespace Comfizen
         public ICommand ClearBlockedNodesCommand { get; }
         public ICommand OpenGroupNavigationCommand { get; }
         public ICommand GoToGroupCommand { get; }
+        
+        private LogFilterType _selectedLogFilterType = LogFilterType.All;
+        public LogFilterType SelectedLogFilterType
+        {
+            get => _selectedLogFilterType;
+            set
+            {
+                if (_selectedLogFilterType == value) return;
+                _selectedLogFilterType = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedLogFilterType)));
+                // Refresh the view when the filter changes
+                ConsoleLogMessages?.Refresh();
+            }
+        }
 
         public bool IsGroupNavigationPopupOpen { get; set; }
         
@@ -143,7 +161,8 @@ namespace Comfizen
         
         public ICommand SaveChangesToWorkflowCommand { get; private set; }
         
-        public ObservableCollection<LogMessage> ConsoleLogMessages { get; private set; }
+        public ICollectionView ConsoleLogMessages { get; private set; }
+        private readonly ObservableCollection<LogMessage> _allConsoleLogMessages;
         public bool IsConsoleVisible { get; set; } = false;
         public ICommand ToggleConsoleCommand { get; }
         public ICommand ClearConsoleCommand { get; }
@@ -187,15 +206,17 @@ namespace Comfizen
             _sessionManager = new SessionManager(_settings);
             
             _consoleLogService = new ConsoleLogService(_settings);
-            ConsoleLogMessages = _consoleLogService.LogMessages;
+            _allConsoleLogMessages = _consoleLogService.LogMessages;
+            ConsoleLogMessages = CollectionViewSource.GetDefaultView(_allConsoleLogMessages);
+            ConsoleLogMessages.Filter = FilterLogs;
             _consoleLogService.ConnectAsync();
 
             Logger.ConsoleLogServiceInstance = _consoleLogService;
             Logger.OnErrorLogged += ShowConsoleOnError;
 
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
-            ClearConsoleCommand = new RelayCommand(_ => ConsoleLogMessages.Clear());
-            CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => ConsoleLogMessages.Any());
+            ClearConsoleCommand = new RelayCommand(_ => _allConsoleLogMessages.Clear());
+            CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => _allConsoleLogMessages.Any());
             
             CloseTabCommand = new RelayCommand(p => CloseTab(p as WorkflowTabViewModel));
 
@@ -349,6 +370,19 @@ namespace Comfizen
             QueueCommand = new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
         }
         
+        private bool FilterLogs(object item)
+        {
+            if (item is not LogMessage message) return false;
+
+            return SelectedLogFilterType switch
+            {
+                LogFilterType.Comfy => message.Source == LogSource.ComfyUI,
+                LogFilterType.Local => message.Source == LogSource.Application,
+                LogFilterType.All => true,
+                _ => true,
+            };
+        }
+        
         private void ShowConsoleOnError()
         {
             Application.Current.Dispatcher.Invoke(() =>
@@ -372,7 +406,7 @@ namespace Comfizen
                     }
                     else
                     {
-                        MessageBox.Show(LocalizationService.Instance["MainVM_ImportNoMetadataError"], LocalizationService.Instance["MainVM_ImportFailedTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
+                        Logger.Log(LocalizationService.Instance["MainVM_ImportNoMetadataError"]);
                         return;
                     }
                 }
@@ -383,8 +417,8 @@ namespace Comfizen
             }
             catch (Exception ex)
             {
-                MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ImportGenericError"], ex.Message), LocalizationService.Instance["MainVM_ImportErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                Logger.Log(ex, $"An error occurred while importing the state file: {filePath}");
+                MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ImportGenericError"], ex.Message), LocalizationService.Instance["MainVM_ImportErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);            }
         }
         
         private void ImportStateFromJObject(JObject data, string sourceFileName)
@@ -551,13 +585,11 @@ namespace Comfizen
                 string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
                 _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName);
 
-                MessageBox.Show(LocalizationService.Instance["MainVM_ValuesSavedMessage"],
-                    LocalizationService.Instance["MainVM_ValuesSavedTitle"],
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                Logger.LogToConsole(LocalizationService.Instance["MainVM_ValuesSavedMessage"], LogLevel.Info, Colors.LightGreen);
             }
             catch (Exception ex)
             {
+                Logger.Log(ex, "Failed to save workflow with current state.");
                 MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ErrorSavingMessage"], ex.Message),
                     LocalizationService.Instance["MainVM_ErrorSavingTitle"],
                     MessageBoxButton.OK,
@@ -571,7 +603,7 @@ namespace Comfizen
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded || SelectedTab.Workflow.LoadedApi == null)
             {
-                MessageBox.Show(LocalizationService.Instance["MainVM_ExportErrorMessage"], LocalizationService.Instance["MainVM_ExportErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.LogToConsole(LocalizationService.Instance["MainVM_ExportErrorMessage"], LogLevel.Warning, Colors.Orange);
                 return;
             }
 
@@ -602,11 +634,11 @@ namespace Comfizen
                     // --- END OF REWORKED EXPORT LOGIC ---
                     
                     File.WriteAllText(dialog.FileName, jsonContent);
-                    MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ExportSuccessMessage"], dialog.FileName), LocalizationService.Instance["MainVM_ExportSuccessTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
+                    Logger.LogToConsole(string.Format(LocalizationService.Instance["MainVM_ExportSuccessMessage"], dialog.FileName), LogLevel.Info, Colors.LightGreen);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ExportSaveErrorMessage"], ex.Message), LocalizationService.Instance["MainVM_ExportSaveErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+                    Logger.Log(ex, "Failed to save exported state file.");
                 }
             }
         }
@@ -641,19 +673,27 @@ namespace Comfizen
         /// </summary>
         private void CopyConsoleContent(object obj)
         {
-            if (ConsoleLogMessages == null || !ConsoleLogMessages.Any())
+            // The CanExecute predicate already checks if there are any items,
+            // but a defensive check here is good practice.
+            if (_allConsoleLogMessages == null || !_allConsoleLogMessages.Any())
             {
                 return;
             }
 
             var stringBuilder = new StringBuilder();
-            foreach (var logMessage in ConsoleLogMessages)
+            
+            // MODIFIED: Iterate over the filtered view, but cast each item to the correct type.
+            // The ICollectionView returns items as 'object'.
+            foreach (var item in ConsoleLogMessages)
             {
-                // Concatenate all text parts from the segments
-                var lineText = string.Concat(logMessage.Segments.Select(s => s.Text));
-        
-                // Format the line with timestamp and level for clarity
-                stringBuilder.AppendLine($"{logMessage.Timestamp:HH:mm:ss} [{logMessage.Level.ToString().ToUpper()}] {lineText}");
+                if (item is LogMessage logMessage)
+                {
+                    // Concatenate all text parts from the segments
+                    var lineText = string.Concat(logMessage.Segments.Select(s => s.Text));
+            
+                    // Format the line with timestamp and level for clarity
+                    stringBuilder.AppendLine($"{logMessage.Timestamp:HH:mm:ss} [{logMessage.Level.ToString().ToUpper()}] {lineText}");
+                }
             }
 
             try
@@ -663,7 +703,6 @@ namespace Comfizen
             catch (Exception ex)
             {
                 Logger.Log(ex, "Failed to copy console content to clipboard");
-                MessageBox.Show("Could not copy to clipboard.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
         

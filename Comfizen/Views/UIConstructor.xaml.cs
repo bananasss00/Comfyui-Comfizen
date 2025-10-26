@@ -701,8 +701,7 @@ namespace Comfizen
             
             GlobalEventManager.RaiseWorkflowSaved(workflowFullPath, saveType);
             
-            MessageBox.Show(LocalizationService.Instance["UIConstructor_SaveSuccessMessage"], LocalizationService.Instance["UIConstructor_SaveSuccessTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
-
+            Logger.LogToConsole(LocalizationService.Instance["UIConstructor_SaveSuccessMessage"], LogLevel.Info, Colors.LightGreen);
             window?.Close();
         }
 
@@ -710,7 +709,7 @@ namespace Comfizen
         {
             if (Workflow.LoadedApi == null)
             {
-                MessageBox.Show(LocalizationService.Instance["UIConstructor_ExportErrorMessage"], LocalizationService.Instance["UIConstructor_ExportErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.LogToConsole(LocalizationService.Instance["UIConstructor_ExportErrorMessage"], LogLevel.Warning, Colors.Orange);
                 return;
             }
 
@@ -725,15 +724,12 @@ namespace Comfizen
                 {
                     var jsonContent = Workflow.LoadedApi.ToString(Formatting.Indented);
                     File.WriteAllText(dialog.FileName, jsonContent);
-                    MessageBox.Show(string.Format(LocalizationService.Instance["UIConstructor_ExportSuccessMessage"], dialog.FileName), 
-                        LocalizationService.Instance["UIConstructor_ExportSuccessTitle"],
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    Logger.LogToConsole(string.Format(LocalizationService.Instance["UIConstructor_ExportSuccessMessage"], dialog.FileName), 
+                        LogLevel.Info, Colors.LightGreen);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(string.Format(LocalizationService.Instance["UIConstructor_SaveErrorMessage"], ex.Message), 
-                        LocalizationService.Instance["UIConstructor_SaveErrorTitle"], MessageBoxButton.OK,
-                        MessageBoxImage.Error);
+                    Logger.Log(ex, string.Format(LocalizationService.Instance["UIConstructor_SaveErrorMessage"], ex.Message));
                 }
         }
         

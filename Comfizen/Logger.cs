@@ -47,15 +47,7 @@ namespace Comfizen
                 Log($"[CONSOLE_FALLBACK] {message}"); // Fallback to file if console is not available
                 return;
             }
-            
-            var logMessage = new LogMessage
-            {
-                Level = level,
-                IsProgress = false,
-                Segments = new List<LogMessageSegment> { new LogMessageSegment { Text = message, Color = color } }
-            };
-            
-            ConsoleLogServiceInstance.EnqueueLog(logMessage);
+            ConsoleLogServiceInstance.LogApplicationMessage(message, level, color);
         }
     }
 }
