@@ -32,6 +32,15 @@ namespace Comfizen
         }
 
         #region Dependency Properties
+        public static readonly DependencyProperty ShowCycleButtonsProperty = DependencyProperty.Register(
+            "ShowCycleButtons", typeof(bool), typeof(FilterableComboBox), new PropertyMetadata(true));
+
+        public bool ShowCycleButtons
+        {
+            get => (bool)GetValue(ShowCycleButtonsProperty);
+            set => SetValue(ShowCycleButtonsProperty, value);
+        }
+        
         public static readonly DependencyProperty ItemSelectedCommandProperty = DependencyProperty.Register(
             "ItemSelectedCommand", typeof(ICommand), typeof(FilterableComboBox), new PropertyMetadata(null));
 

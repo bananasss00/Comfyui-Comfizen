@@ -188,7 +188,8 @@
                     SearchFilter="{Binding WorkflowSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                     ItemSelected="FilterableComboBox_ItemSelected"
                     PlaceholderText="{local:Translate FilterableComboBox_Placeholder}"
-                    ItemTemplateSelector="{StaticResource WorkflowTemplateSelector}"/>
+                    ItemTemplateSelector="{StaticResource WorkflowTemplateSelector}"
+                    ShowCycleButtons="False"/>
             </DockPanel>
         </Border>
         

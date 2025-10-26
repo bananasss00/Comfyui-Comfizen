@@ -42,7 +42,8 @@
                                      Padding="5,5,5,5"/>
                             
                             <!-- Buttons are now here, on the main control -->
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                        Visibility="{Binding ShowCycleButtons, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <Button Content="◀" ToolTip="Previous Workflow"
                                         Command="{Binding CyclePreviousCommand, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}"
                                         Style="{StaticResource OverlayIconButton}" Width="20" Height="20"/>
