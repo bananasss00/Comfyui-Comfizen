@@ -49,13 +49,22 @@ public class WildcardSystemTester
             RunTest(report, "Quantifier with Custom Separator", "{2$$ :: $$a|b|c}", res => res.Contains(" :: ") && res.Split(new[] { " :: " }, StringSplitOptions.None).Length == 2);
             RunTest(report, "Nested Wildcard in Braces", "A {detailed|{__quality__}} picture", new[] { "A detailed picture", "A beautiful picture", "A stunning picture" });
             RunTest(report, "Nested Wildcard in Wildcard Path", "__nested/{__part__}__", new[] { "final_a", "final_b" });
-            RunTest(report, "Recursive Wildcard (Safety Test)", "__recursive__", new[] { "__color__" });
+            
+            // --- MODIFIED AND NEW TESTS ---
+            // This test's expected outcome changes because now __recursive__ -> __color__ -> red/green/blue
+            RunTest(report, "Recursive Wildcard (Now fully resolves)", "__recursive__", new[] { "red", "green", "blue" });
+            
+            // New test for multi-level expansion
+            RunTest(report, "Multi-level Wildcard Expansion", "A __toplevel__ story.", new[] { "A very exciting story." });
+            
+            // New test for infinite loop safety
+            RunTest(report, "Infinite Loop Safety", "__loop_a__", res => !string.IsNullOrEmpty(res)); // Checks that it terminates without crashing
 
         }
         catch (Exception ex)
         {
             report.AppendLine($"\nFATAL ERROR DURING TEST: {ex.Message}");
-            report.AppendLine(ex.StackTrace); // Add stack trace for better debugging
+            report.AppendLine(ex.StackTrace);
         }
         finally
         {
@@ -69,7 +78,6 @@ public class WildcardSystemTester
 #else
         return "";
 #endif
-        
     }
 
     private void RunTest(StringBuilder report, string testName, string input, Func<string, bool> validationFunc)
@@ -115,6 +123,15 @@ public class WildcardSystemTester
         
         // For recursion/safety test
         File.WriteAllLines(Path.Combine(_testDir, "recursive.txt"), new[] { "__color__" });
+        
+        // --- NEW MOCK FILES ---
+        // For multi-level expansion test
+        File.WriteAllLines(Path.Combine(_testDir, "toplevel.txt"), new[] { "very __midlevel__" });
+        File.WriteAllLines(Path.Combine(_testDir, "midlevel.txt"), new[] { "exciting" });
+
+        // For infinite loop test
+        File.WriteAllLines(Path.Combine(_testDir, "loop_a.txt"), new[] { "loop __loop_b__" });
+        File.WriteAllLines(Path.Combine(_testDir, "loop_b.txt"), new[] { "chain __loop_a__" });
     }
 
     private void CleanupMockFiles()

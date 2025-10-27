@@ -22,6 +22,7 @@ namespace Comfizen
 
         /// <summary>
         /// Processes the input string iteratively, replacing all supported wildcard and dynamic syntaxes, including nested ones.
+        /// The processing continues until no more replacements can be made or a maximum iteration limit is reached.
         /// </summary>
         /// <param name="input">The prompt string to process.</param>
         /// <returns>The processed string with all syntaxes resolved.</returns>
@@ -35,16 +36,22 @@ namespace Comfizen
             string currentResult = input;
             int iterations = 0;
 
-            // --- STAGE 1: Iteratively process complex brace constructs {...} ---
-            // This handles nested braces and wildcards inside braces, e.g., {a|{__b__}}.
             while (iterations < MaxIterations)
             {
                 string previousResult = currentResult;
+
+                // --- STAGE 1: Process brace constructs {...} ---
+                // This handles quantifiers and lists, e.g., {2$$a|__b__}.
                 currentResult = Regex.Replace(currentResult, @"\{([^{}]+)\}", m => ProcessBraceContent(m.Groups[1].Value));
 
+                // --- STAGE 2: Process simple __...__ wildcards ---
+                // This resolves all __...__ patterns, including those generated from the previous stage or from other wildcards.
+                currentResult = Regex.Replace(currentResult, @"__([\s\S]+?)__", m => ProcessSimpleWildcard(m.Groups[1].Value.Trim()));
+
+                // If no changes were made in this iteration, the string is fully processed.
                 if (currentResult == previousResult)
                 {
-                    break; // No more brace constructs to process
+                    break;
                 }
                 
                 iterations++;
@@ -52,16 +59,10 @@ namespace Comfizen
 
             if (iterations >= MaxIterations)
             {
-                Logger.Log($"[WildcardProcessor] Max processing iterations ({MaxIterations}) reached during brace processing. Possible infinite loop in prompt: '{input}'.");
+                Logger.Log($"[WildcardProcessor] Max processing iterations ({MaxIterations}) reached. Possible infinite loop in prompt: '{input}'. Final result: '{currentResult}'");
             }
             
-            // --- STAGE 2: Final, non-iterative pass for simple __...__ wildcards ---
-            // This resolves all remaining __...__ patterns, including those constructed in Stage 1 (e.g., from __folder/{__file__}__).
-            // By doing this only once, we prevent recursive expansion from file content.
-            // A wildcard file returning "__another_wildcard__" will now correctly result in that literal string.
-            string finalResult = Regex.Replace(currentResult, @"__([\s\S]+?)__", m => ProcessSimpleWildcard(m.Groups[1].Value.Trim()));
-
-            return finalResult;
+            return currentResult;
         }
 
         /// <summary>

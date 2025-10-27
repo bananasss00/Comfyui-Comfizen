@@ -73,11 +73,24 @@ public class WildcardBrowserViewModel : INotifyPropertyChanged
     private void FilterWildcards()
     {
         FilteredWildcards.Clear();
-        var filtered = string.IsNullOrWhiteSpace(SearchText) 
-            ? _allWildcards 
-            : _allWildcards.Where(w => w.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0);
-            
-        foreach (var item in filtered) 
+
+        if (string.IsNullOrWhiteSpace(SearchText))
+        {
+            foreach (var item in _allWildcards) FilteredWildcards.Add(item);
+            return;
+        }
+
+        // Split the search text into multiple terms
+        var searchTerms = SearchText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+        // Find wildcards that contain ALL of the search terms
+        var filtered = _allWildcards.Where(wildcard => 
+            searchTerms.All(term => 
+                wildcard.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0
+            )
+        );
+        
+        foreach (var item in filtered)
         {
             FilteredWildcards.Add(item);
         }
