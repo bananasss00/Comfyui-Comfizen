@@ -17,7 +17,7 @@ namespace Comfizen
     public static class WildcardConverter
     {
         /// <summary>
-        /// Converts a directory of .txt wildcard files into a single .yaml file.
+        /// Converts a directory of .txt and .yaml wildcard files into a single consolidated .yaml file.
         /// </summary>
         /// <param name="sourceDirectory">The root directory of the wildcards (e.g., "wildcards").</param>
         /// <param name="outputYamlFile">The path to save the resulting .yaml file.</param>
@@ -29,9 +29,10 @@ namespace Comfizen
             }
 
             var root = new Dictionary<string, object>();
-            var allFiles = Directory.GetFiles(sourceDirectory, "*.txt", SearchOption.AllDirectories);
-
-            foreach (var file in allFiles)
+            
+            // --- STAGE 1: Process all .txt files ---
+            var txtFiles = Directory.GetFiles(sourceDirectory, "*.txt", SearchOption.AllDirectories);
+            foreach (var file in txtFiles)
             {
                 var relativePath = Path.GetRelativePath(sourceDirectory, file);
                 var wildcardName = Path.ChangeExtension(relativePath, null).Replace(Path.DirectorySeparatorChar, '/');
@@ -46,13 +47,58 @@ namespace Comfizen
                     AddToNestedDictionary(root, pathParts, lines);
                 }
             }
-
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance) // Optional: for cleaner YAML keys
+            
+            // --- STAGE 2: Process all .yaml/.yml files and merge them ---
+            var yamlFiles = Directory.GetFiles(sourceDirectory, "*.yaml", SearchOption.AllDirectories)
+                                     .Concat(Directory.GetFiles(sourceDirectory, "*.yml", SearchOption.AllDirectories));
+            var deserializer = new DeserializerBuilder()
+                .WithAttemptingUnquotedStringTypeDeserialization()
                 .Build();
 
-            var yaml = serializer.Serialize(root);
-            File.WriteAllText(outputYamlFile, yaml);
+            foreach (var file in yamlFiles)
+            {
+                try
+                {
+                    var yamlContent = File.ReadAllText(file);
+                    var yamlData = deserializer.Deserialize<Dictionary<object, object>>(yamlContent);
+                    if (yamlData != null)
+                    {
+                        MergeDictionaries(root, yamlData);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, $"Could not parse and merge YAML file: {file}. It will be skipped.");
+                }
+            }
+
+            var serializer = new SerializerBuilder()
+                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+                .Build();
+
+            var finalYaml = serializer.Serialize(root);
+            File.WriteAllText(outputYamlFile, finalYaml);
+        }
+        
+        /// <summary>
+        /// Recursively merges a source dictionary into a target dictionary.
+        /// </summary>
+        private static void MergeDictionaries(IDictionary<string, object> target, IDictionary<object, object> source)
+        {
+            foreach (var item in source)
+            {
+                var key = item.Key.ToString();
+                if (item.Value is IDictionary<object, object> sourceDict && target.TryGetValue(key, out var targetValue) && targetValue is IDictionary<string, object> targetDict)
+                {
+                    // If both are dictionaries, recurse
+                    MergeDictionaries(targetDict, sourceDict);
+                }
+                else
+                {
+                    // Otherwise, overwrite or add
+                    target[key] = item.Value;
+                }
+            }
         }
 
         /// <summary>

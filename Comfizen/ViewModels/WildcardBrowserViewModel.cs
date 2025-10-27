@@ -113,26 +113,44 @@ public class WildcardBrowserViewModel : INotifyPropertyChanged
 
     private void ExecuteConvertWildcardsToYaml(object obj)
     {
-        var dialog = new Microsoft.Win32.SaveFileDialog
+        // 1. Ask for the source directory first
+        using (var folderDialog = new FolderBrowserDialog())
         {
-            Filter = "YAML File (*.yaml)|*.yaml",
-            Title = "Save Wildcards as YAML",
-            FileName = "wildcards.yaml"
-        };
+            folderDialog.Description = "Select the source directory to pack into YAML";
+            folderDialog.ShowNewFolderButton = false;
+            // Set initial directory to the default wildcards folder for convenience
+            folderDialog.SelectedPath = Path.Combine(Directory.GetCurrentDirectory(), "wildcards");
 
-        if (dialog.ShowDialog() == true)
-        {
-            try
+            if (folderDialog.ShowDialog() != DialogResult.OK)
             {
-                var wildcardsDir = Path.Combine(Directory.GetCurrentDirectory(), "wildcards");
-                WildcardConverter.ConvertDirectoryToYaml(wildcardsDir, dialog.FileName);
-                System.Windows.MessageBox.Show("Conversion successful!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                // Optionally reload the list if the user saves inside the wildcards folder
-                LoadWildcards();
+                return; // User cancelled
             }
-            catch (Exception ex)
+
+            string sourceDirectory = folderDialog.SelectedPath;
+
+            // 2. Ask for the output file
+            var saveDialog = new Microsoft.Win32.SaveFileDialog
             {
-                System.Windows.MessageBox.Show($"Conversion failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Filter = "YAML File (*.yaml)|*.yaml",
+                Title = "Save Wildcards as YAML",
+                FileName = "wildcards_packed.yaml"
+            };
+
+            if (saveDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    WildcardConverter.ConvertDirectoryToYaml(sourceDirectory, saveDialog.FileName);
+                    System.Windows.MessageBox.Show("Packing successful!", "Success", MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    // Reload the list in case the new file was saved in the main directory
+                    LoadWildcards();
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show($"Packing failed: {ex.Message}", "Error", MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
             }
         }
     }

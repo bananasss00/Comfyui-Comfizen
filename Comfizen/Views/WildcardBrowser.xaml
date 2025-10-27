@@ -24,9 +24,9 @@
                 <!-- NEW: Toolbar for utilities -->
                 <Border DockPanel.Dock="Top" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,0,0,1" Margin="0,0,0,10" Padding="0,0,0,5">
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="&#xE72C;" Style="{StaticResource IconButton}" Command="{Binding ReloadListCommand}" ToolTip="Refresh List"/>
-                        <Button Content="&#xE8DE;" Style="{StaticResource IconButton}" Command="{Binding ConvertWildcardsToYamlCommand}" Margin="10,0,0,0" ToolTip="Pack wildcards to YAML"/>
-                        <Button Content="&#xE8B3;" Style="{StaticResource IconButton}" Command="{Binding ConvertYamlToWildcardsCommand}" Margin="5,0,0,0" ToolTip="Unpack wildcards from YAML"/>
+                        <Button Content="&#xE72C;" Style="{StaticResource IconButton}" Command="{Binding ReloadListCommand}" ToolTip="{comfizen:Translate WildcardBrowser_RefreshList}"/>
+                        <Button Content="&#xE8DE;" Style="{StaticResource IconButton}" Command="{Binding ConvertWildcardsToYamlCommand}" Margin="10,0,0,0" ToolTip="{comfizen:Translate WildcardBrowser_PackToYaml}"/>
+                        <Button Content="&#xE8B3;" Style="{StaticResource IconButton}" Command="{Binding ConvertYamlToWildcardsCommand}" Margin="5,0,0,0" ToolTip="{comfizen:Translate WildcardBrowser_UnpackFromYaml}"/>
                     </StackPanel>
                 </Border>
                 
