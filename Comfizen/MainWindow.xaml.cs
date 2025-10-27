@@ -487,6 +487,12 @@ namespace Comfizen
         /// </summary>
         private void ControlsScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            if (e.OriginalSource is DependencyObject source && source.TryFindParent<AdvancedPromptEditor>() != null)
+            {
+                // If the event came from inside our new editor, do nothing and let the editor handle it.
+                return;
+            }
+            
             // If the Ctrl key is held down, do nothing here.
             // This allows child controls (like InpaintEditor) to handle this specific hotkey
             // for features like changing brush size, without interference from this parent handler.

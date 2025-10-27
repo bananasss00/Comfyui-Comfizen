@@ -255,5 +255,6 @@
   "UIConstructor_NodeBypass_Header": "Ноды для обхода (Bypass):",
   "UIConstructor_NodeBypass_EnabledByDefault": "Включено по умолчанию",
   "UIConstructor_NodeBypass_SearchPlaceholder": "Найти и добавить ноду по ID или названию...",
-  "UIConstructor_NodeBypass_RemoveTooltip": "Удалить эту ноду из списка байпаса"
+  "UIConstructor_NodeBypass_RemoveTooltip": "Удалить эту ноду из списка байпаса",
+  "UIConstructor_Field_AdvancedPrompt": "Расширенный редактор"
 }

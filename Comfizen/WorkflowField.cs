@@ -54,6 +54,13 @@ namespace Comfizen
         
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public ObservableCollection<string> BypassNodeIds { get; set; } = new ObservableCollection<string>();
+        
+        /// <summary>
+        /// For WildcardSupportPrompt, enables an advanced token editor UI.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(false)]
+        public bool AdvancedPrompt { get; set; } = false;
 
         [JsonIgnore]
         public bool IsRenaming { get; set; } = false;

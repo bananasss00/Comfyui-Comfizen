@@ -496,17 +496,34 @@
         </DataTemplate>
 
         <DataTemplate x:Key="WildcardTemplate" DataType="{x:Type local:TextFieldViewModel}">
+            <!-- The root is now a Grid that will contain both editors -->
             <Grid>
-                <TextBox x:Name="WildcardTextBox" Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                         AcceptsReturn="True" TextWrapping="Wrap" Padding="5,5,28,5"
-                         VerticalScrollBarVisibility="Auto" MaxHeight="100"
-                         PreviewKeyDown="WildcardTextBox_PreviewKeyDown"/>
+                <!-- Simple Editor (visible by default) -->
+                <Grid x:Name="SimpleEditor">
+                    <TextBox x:Name="WildcardTextBox" Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                             AcceptsReturn="True" TextWrapping="Wrap" Padding="5,5,28,5"
+                             VerticalScrollBarVisibility="Auto" MaxHeight="100"
+                             PreviewKeyDown="WildcardTextBox_PreviewKeyDown"/>
+    
+                    <Button Content="..." Style="{StaticResource OverlayIconButton}"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
+                            ToolTip="{local:Translate Wildcard_Browse}"
+                            Tag="OpenWildcardBrowser"/>
+                </Grid>
         
-                <Button Content="..." Style="{StaticResource OverlayIconButton}"
-                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
-                        ToolTip="{local:Translate Wildcard_Browse}"
-                        Tag="OpenWildcardBrowser"/>
+                <!-- Advanced Editor (hidden by default) -->
+                <local:AdvancedPromptEditor x:Name="AdvancedEditor"
+                                            PromptText="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            Visibility="Collapsed"/>
             </Grid>
+
+            <DataTemplate.Triggers>
+                <!-- Trigger to show the Advanced Editor when the model property is true -->
+                <DataTrigger Binding="{Binding FieldModel.AdvancedPrompt}" Value="True">
+                    <Setter TargetName="SimpleEditor" Property="Visibility" Value="Collapsed"/>
+                    <Setter TargetName="AdvancedEditor" Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
         <DataTemplate x:Key="SliderTemplate" DataType="{x:Type local:SliderFieldViewModel}">

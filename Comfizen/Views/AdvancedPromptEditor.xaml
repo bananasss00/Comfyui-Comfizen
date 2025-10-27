@@ -1,0 +1,99 @@
+﻿<!-- AdvancedPromptEditor.xaml -->
+<UserControl x:Class="Comfizen.AdvancedPromptEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Comfizen"
+             mc:Ignorable="d" 
+             d:DesignHeight="150" d:DesignWidth="400"
+             x:Name="RootControl">
+
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#28a745"/>
+        <SolidColorBrush x:Key="SuccessBrushHover" Color="#218838"/>
+        <SolidColorBrush x:Key="TertiaryBackground" Color="#6c757d"/>
+        <SolidColorBrush x:Key="LightForeground" Color="White"/>
+        <SolidColorBrush x:Key="DisabledForeground" Color="#dddddd"/>
+    </UserControl.Resources>
+    
+    <StackPanel>
+        <!-- The main TextBox for editing the prompt -->
+        <Grid>
+            <!-- NOTE: The 'OverlayIconButton' style is still expected to be in App.xaml or a parent resource,
+                 as it's likely a generic style for your application. If this also causes an error,
+                 you would need to define a minimal style for it here as well. -->
+            <TextBox x:Name="PromptTextBox"
+                     Text="{Binding PromptText, ElementName=RootControl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     MinHeight="60"
+                     MaxHeight="120"
+                     Padding="5,5,28,5"
+                     LostFocus="PromptTextBox_LostFocus"/>
+
+            <Button Content="..." Style="{StaticResource OverlayIconButton}"
+                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
+                    ToolTip="{local:Translate Wildcard_Browse}"
+                    Click="WildcardButton_Click"/>
+        </Grid>
+        
+        <!-- The area where token buttons will be displayed -->
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" MaxHeight="100" Margin="0,5,0,0">
+            <ItemsControl ItemsSource="{Binding Tokens, ElementName=RootControl}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:TokenViewModel}">
+                        <Border Margin="2"
+                                Padding="5,3"
+                                Cursor="Hand"
+                                AllowDrop="True"
+                                CornerRadius="3" 
+                                PreviewMouseLeftButtonDown="Token_PreviewMouseLeftButtonDown"
+                                PreviewMouseLeftButtonUp="Token_PreviewMouseLeftButtonUp"
+                                MouseMove="Token_MouseMove"
+                                Drop="Token_Drop"
+                                DragOver="Token_DragOver"
+                                MouseRightButtonUp="Token_MouseRightButtonUp"
+                                PreviewMouseWheel="Token_PreviewMouseWheel">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
+                                    <Setter Property="BorderThickness" Value="1"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource SuccessBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsDisabled}" Value="True">
+                                            <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                            <Setter Property="BorderBrush" Value="{StaticResource TertiaryBackground}"/>
+                                        </DataTrigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{StaticResource SuccessBrushHover}"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding DisplayText}" 
+                                       IsHitTestVisible="False"
+                                       Foreground="{StaticResource LightForeground}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDisabled}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource DisabledForeground}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </StackPanel>
+</UserControl>

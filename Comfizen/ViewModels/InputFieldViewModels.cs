@@ -471,6 +471,8 @@ namespace Comfizen
         public FieldType Type { get; protected set; }
         public JProperty? Property { get; } 
         
+        public WorkflowField FieldModel { get; }
+        
         /// <summary>
         /// The highlight color for the field in HEX format.
         /// </summary>
@@ -482,6 +484,7 @@ namespace Comfizen
             Path = field.Path; // END OF CHANGES: Initialize Path property
             Property = property;
             HighlightColor = field.HighlightColor;
+            FieldModel = field;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

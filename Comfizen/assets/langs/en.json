@@ -255,5 +255,6 @@
   "UIConstructor_NodeBypass_Header": "Nodes to Bypass:",
   "UIConstructor_NodeBypass_EnabledByDefault": "Enabled by default",
   "UIConstructor_NodeBypass_SearchPlaceholder": "Find and add a node by ID or title...",
-  "UIConstructor_NodeBypass_RemoveTooltip": "Remove this node from the bypass list"
+  "UIConstructor_NodeBypass_RemoveTooltip": "Remove this node from the bypass list",
+  "UIConstructor_Field_AdvancedPrompt": "Advanced prompt"
 }
