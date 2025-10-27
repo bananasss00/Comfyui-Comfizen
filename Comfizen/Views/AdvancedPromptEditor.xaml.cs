@@ -23,7 +23,6 @@ namespace Comfizen
     public partial class AdvancedPromptEditor : UserControl
     {
         private bool _isUpdatingInternally = false;
-        private const string DISABLED_TOKEN = "\uD83D\uDD12";
 
         private Point? _dragStartPoint;
         private bool _isDragging = false;
@@ -63,15 +62,15 @@ namespace Comfizen
         private void ParseAndRefreshTokens()
         {
             Tokens.Clear();
-            var rawTokens = Tokenize(PromptText);
+            var rawTokens = PromptUtils.Tokenize(PromptText);
 
             foreach (var token in rawTokens)
             {
-                bool isDisabled = token.StartsWith(DISABLED_TOKEN);
+                bool isDisabled = token.StartsWith(PromptUtils.DISABLED_TOKEN_PREFIX);
                 Tokens.Add(new TokenViewModel
                 {
                     FullText = token,
-                    DisplayText = isDisabled ? token.Substring(DISABLED_TOKEN.Length) : token,
+                    DisplayText = isDisabled ? token.Substring(PromptUtils.DISABLED_TOKEN_PREFIX.Length) : token,
                     IsDisabled = isDisabled
                 });
             }
@@ -82,46 +81,6 @@ namespace Comfizen
             _isUpdatingInternally = true;
             PromptText = string.Join(", ", Tokens.Select(t => t.FullText));
             _isUpdatingInternally = false;
-        }
-        
-        private static System.Collections.Generic.List<string> Tokenize(string str)
-        {
-            var tokens = new System.Collections.Generic.List<string>();
-            if (string.IsNullOrEmpty(str)) return tokens;
-
-            var processedStr = str.Replace('\r', ',').Replace('\n', ',');
-            var currentToken = "";
-            int insideBrackets = 0;
-            int insideParentheses = 0;
-
-            foreach (char c in processedStr)
-            {
-                if (c == '{') { insideBrackets++; currentToken += c; }
-                else if (c == '}') { insideBrackets--; currentToken += c; }
-                else if (c == '(') { insideParentheses++; currentToken += c; }
-                else if (c == ')') { insideParentheses--; currentToken += c; }
-                else if (c == ',' && insideBrackets == 0 && insideParentheses == 0)
-                {
-                    var trimmedToken = currentToken.Trim();
-                    if (!string.IsNullOrEmpty(trimmedToken))
-                    {
-                        tokens.Add(trimmedToken);
-                    }
-                    currentToken = "";
-                }
-                else
-                {
-                    currentToken += c;
-                }
-            }
-            
-            var finalTrimmedToken = currentToken.Trim();
-            if (!string.IsNullOrEmpty(finalTrimmedToken))
-            {
-                tokens.Add(finalTrimmedToken);
-            }
-            
-            return tokens;
         }
 
         #endregion
@@ -138,7 +97,7 @@ namespace Comfizen
             if (tokenVm == null) return;
 
             tokenVm.IsDisabled = !tokenVm.IsDisabled;
-            tokenVm.FullText = tokenVm.IsDisabled ? $"{DISABLED_TOKEN}{tokenVm.DisplayText}" : tokenVm.DisplayText;
+            tokenVm.FullText = tokenVm.IsDisabled ? $"{PromptUtils.DISABLED_TOKEN_PREFIX}{tokenVm.DisplayText}" : tokenVm.DisplayText;
             
             UpdatePromptFromTokens();
         }

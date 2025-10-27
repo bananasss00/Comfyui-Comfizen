@@ -140,10 +140,34 @@ public class WorkflowInputsController : INotifyPropertyChanged
     
     public void ProcessSpecialFields(JToken prompt)
     {
+        ApplyPromptTokenFiltering(prompt);
         ApplyNodeBypass((JObject)prompt);
         ApplyWildcards(prompt);
         ApplyInpaintData(prompt);
         ApplySeedControl(prompt);
+    }
+    
+    private void ApplyPromptTokenFiltering(JToken prompt)
+    {
+        // Reuse the existing flag that checks if any WildcardSupportPrompt fields exist.
+        if (!_hasWildcardFields) return;
+
+        foreach (var path in _wildcardPropertyPaths)
+        {
+            var prop = Utils.GetJsonPropertyByPath((JObject)prompt, path);
+            if (prop != null && prop.Value.Type == JTokenType.String)
+            {
+                var originalText = prop.Value.ToObject<string>();
+                if (string.IsNullOrWhiteSpace(originalText)) continue;
+
+                // Tokenize, filter out disabled tokens, and join the remaining ones back into a string.
+                var allTokens = PromptUtils.Tokenize(originalText);
+                var enabledTokens = allTokens.Where(t => !t.StartsWith(PromptUtils.DISABLED_TOKEN_PREFIX));
+                var filteredText = string.Join(", ", enabledTokens);
+
+                prop.Value = new JValue(filteredText);
+            }
+        }
     }
     
     public void ApplyNodeBypass(JObject prompt)
