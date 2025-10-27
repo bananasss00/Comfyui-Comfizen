@@ -155,18 +155,50 @@ public class WorkflowInputsController : INotifyPropertyChanged
         foreach (var path in _wildcardPropertyPaths)
         {
             var prop = Utils.GetJsonPropertyByPath((JObject)prompt, path);
-            if (prop != null && prop.Value.Type == JTokenType.String)
+            if (prop == null || prop.Value.Type != JTokenType.String) continue;
+
+            var originalText = prop.Value.ToObject<string>();
+            if (string.IsNullOrWhiteSpace(originalText)) continue;
+
+            // --- START OF NEW LOGIC: Save original prompt to _meta ---
+            
+            // Extract node ID and input name from the path (e.g., "6.inputs.text" -> "6" and "text")
+            // NOTE: A helper method to parse the path might be cleaner, but this works for the expected format.
+            var pathParts = path.Split('.');
+            if (pathParts.Length >= 3 && pathParts[1] == "inputs")
             {
-                var originalText = prop.Value.ToObject<string>();
-                if (string.IsNullOrWhiteSpace(originalText)) continue;
+                var nodeId = pathParts[0];
+                var inputName = pathParts[2];
 
-                // Tokenize, filter out disabled tokens, and join the remaining ones back into a string.
-                var allTokens = PromptUtils.Tokenize(originalText);
-                var enabledTokens = allTokens.Where(t => !t.StartsWith(PromptUtils.DISABLED_TOKEN_PREFIX));
-                var filteredText = string.Join(", ", enabledTokens);
+                if (prompt[nodeId] is JObject node)
+                {
+                    // Ensure _meta object exists
+                    if (node["_meta"] is not JObject meta)
+                    {
+                        meta = new JObject();
+                        node["_meta"] = meta;
+                    }
 
-                prop.Value = new JValue(filteredText);
+                    // Ensure original_advanced_prompts object exists within _meta
+                    if (meta["original_advanced_prompts"] is not JObject originalPrompts)
+                    {
+                        originalPrompts = new JObject();
+                        meta["original_advanced_prompts"] = originalPrompts;
+                    }
+
+                    // Save the full, unfiltered prompt text.
+                    // This will be stored in the generated image's metadata.
+                    originalPrompts[inputName] = originalText;
+                }
             }
+            // --- END OF NEW LOGIC ---
+
+            // Tokenize, filter out disabled tokens, and join the remaining ones back into a string.
+            var allTokens = PromptUtils.Tokenize(originalText);
+            var enabledTokens = allTokens.Where(t => !t.StartsWith(PromptUtils.DISABLED_TOKEN_PREFIX));
+            var filteredText = string.Join(", ", enabledTokens);
+
+            prop.Value = new JValue(filteredText);
         }
     }
     

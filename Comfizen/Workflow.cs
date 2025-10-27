@@ -121,6 +121,7 @@ namespace Comfizen
 
             // START OF FIX: Restore original inputs immediately after loading API state
             RestoreBypassedNodesFromMeta(LoadedApi);
+            RestoreAdvancedPromptsFromMeta(LoadedApi);
             // END OF FIX
 
             Groups.Clear();
@@ -272,6 +273,7 @@ namespace Comfizen
 
             // START OF FIX: Restore original inputs immediately after loading API state
             RestoreBypassedNodesFromMeta(LoadedApi);
+            RestoreAdvancedPromptsFromMeta(LoadedApi);
             // END OF FIX
 
             Groups.Clear();
@@ -330,6 +332,43 @@ namespace Comfizen
                 // Merge the original connections back into the current inputs.
                 // This preserves any widget value changes while restoring connections.
                 currentInputs.Merge(originalInputs.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
+            }
+        }
+        
+        /// <summary>
+        /// Iterates through all nodes and restores advanced prompt fields from their
+        /// backup in '_meta.original_advanced_prompts' if it exists.
+        /// This is used to restore the full state (including disabled tokens) upon loading or import.
+        /// </summary>
+        /// <param name="prompt">The JObject representing the workflow API.</param>
+        private void RestoreAdvancedPromptsFromMeta(JObject prompt)
+        {
+            if (prompt == null) return;
+
+            // Iterate over all nodes in the prompt
+            foreach (var nodeProperty in prompt.Properties())
+            {
+                // Check if the node has the necessary structure
+                if (nodeProperty.Value is not JObject node ||
+                    node["_meta"]?["original_advanced_prompts"] is not JObject originalPrompts ||
+                    node["inputs"] is not JObject currentInputs)
+                {
+                    continue;
+                }
+
+                // Restore each backed-up prompt field
+                foreach (var originalPromptProp in originalPrompts.Properties())
+                {
+                    // The property name (e.g., "text")
+                    var propertyName = originalPromptProp.Name;
+                    
+                    // Check if the target property exists in the current 'inputs'
+                    if (currentInputs.Property(propertyName) != null)
+                    {
+                        // Overwrite the (potentially filtered) value with the full original value
+                        currentInputs[propertyName] = originalPromptProp.Value.DeepClone();
+                    }
+                }
             }
         }
     }
