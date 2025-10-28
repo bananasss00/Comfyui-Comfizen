@@ -761,10 +761,20 @@ namespace Comfizen
         /// <summary>
         /// Exports the source image combined with the sketch canvas as a Base64 string.
         /// If no sketch is present, returns the original source image.
+        /// This method is thread-safe.
         /// </summary>
         /// <returns>A Base64 encoded PNG string, or null if no source image is available.</returns>
         public string GetImageAsBase64()
         {
+            // --- START OF FIX: Ensure UI access is on the main thread ---
+            // This prevents a crash when this method is called from a background thread,
+            // for example, during prompt creation in a Task.Run().
+            if (!Application.Current.Dispatcher.CheckAccess())
+            {
+                return Application.Current.Dispatcher.Invoke(() => GetImageAsBase64());
+            }
+            // --- END OF FIX ---
+
             if (!_imageEditingEnabled) return null;
             
             if (_sourceImageBytes == null) return null;
@@ -820,10 +830,19 @@ namespace Comfizen
 
         /// <summary>
         /// Exports the mask canvas as a grayscale Base64 PNG string.
+        /// This method is thread-safe.
         /// </summary>
         /// <returns>A Base64 encoded PNG string of the mask, or null if the mask is empty.</returns>
         public string GetMaskAsBase64()
         {
+            // --- START OF FIX: Ensure UI access is on the main thread ---
+            // This prevents a crash when this method is called from a background thread.
+            if (!Application.Current.Dispatcher.CheckAccess())
+            {
+                return Application.Current.Dispatcher.Invoke(() => GetMaskAsBase64());
+            }
+            // --- END OF FIX ---
+
             if (!_maskEditingEnabled) return null;
             
             if (MaskCanvas.Strokes.Count == 0) return null;
