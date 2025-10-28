@@ -181,6 +181,20 @@ namespace Comfizen
             _sessionManager = new SessionManager(_settings);
             _modelService = new ModelService(_settings);
             
+            if (!liveWorkflow.IsLoaded && !liveWorkflow.Tabs.Any() && !liveWorkflow.Groups.Any())
+            {
+                // Create a default tab
+                var defaultTab = new WorkflowTabDefinition { Name = LocalizationService.Instance["UIConstructor_NewTabDefaultName"] };
+                liveWorkflow.Tabs.Add(defaultTab);
+
+                // Create a default group
+                var defaultGroup = new WorkflowGroup { Name = string.Format(LocalizationService.Instance["UIConstructor_NewGroupDefaultName"], 1) };
+                liveWorkflow.Groups.Add(defaultGroup);
+
+                // Link the group to the tab
+                defaultTab.GroupIds.Add(defaultGroup.Id);
+            }
+            
             LoadCommand = new RelayCommand(_ => LoadApiWorkflow());
             SaveWorkflowCommand = new RelayCommand(param => SaveWorkflow(param as Window), 
                 _ => !string.IsNullOrWhiteSpace(NewWorkflowName) && Workflow.IsLoaded);
