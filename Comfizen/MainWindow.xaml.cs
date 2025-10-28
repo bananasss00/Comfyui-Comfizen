@@ -113,7 +113,7 @@ namespace Comfizen
             e.Handled = true;
         }
         
-        private void ListViewItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void ListViewItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (!_galleryDragStartPoint.HasValue) return;
             
@@ -410,7 +410,14 @@ namespace Comfizen
             }
             else if (e.Key == Key.NumPad6) viewModel.FullScreen.MoveNextCommand.Execute(null);
             else if (e.Key == Key.NumPad4) viewModel.FullScreen.MovePreviousCommand.Execute(null);
-            else if (e.Key == Key.NumPad5 && viewModel.FullScreen.IsFullScreenOpen) await System.Threading.Tasks.Task.Run(() => viewModel.FullScreen.SaveCurrentImageCommand.Execute(null));
+            else if (e.Key == Key.NumPad5 && viewModel.FullScreen.IsFullScreenOpen)
+            {
+                if (viewModel.FullScreen.SaveCurrentImageCommand.CanExecute(null))
+                {
+                    await Task.Run(() => viewModel.FullScreen.SaveCurrentImageCommand.Execute(null));
+                }
+
+            }
             else if (e.Key == Key.Escape)
             {
                 viewModel.FullScreen.CloseFullScreenCommand.Execute(null);

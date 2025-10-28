@@ -796,7 +796,7 @@
                                 <ListView.ItemContainerStyle>
                                     <Style TargetType="{x:Type ListViewItem}">
                                         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListViewItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter>
-                                        <EventSetter Event="MouseLeftButtonUp" Handler="ListViewItem_MouseLeftButtonUp"/>
+                                        <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClick"/>
                                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown"/>
                                         <EventSetter Event="MouseMove" Handler="ListViewItem_MouseMove"/>
                                         
@@ -823,9 +823,13 @@
                                         <Run Text="{local:Translate Tab_SelectedItems}"/>
                                         <Run Text="{Binding ImageProcessing.SelectedItemsCount}"/>
                                     </TextBlock>
+                                    <Button Content="{local:Translate Tab_SaveSelected}" Background="{StaticResource SuccessBrush}"
+                                            Command="{Binding ImageProcessing.SaveSelectedImagesCommand}"
+                                            CommandParameter="{Binding ElementName=lvOutputs, Path=SelectedItems}"/>
                                     <Button Content="{local:Translate Tab_DeleteSelected}" Background="{StaticResource ErrorBrush}"
                                             Command="{Binding ImageProcessing.DeleteSelectedImagesCommand}"
-                                            CommandParameter="{Binding ElementName=lvOutputs, Path=SelectedItems}"/>
+                                            CommandParameter="{Binding ElementName=lvOutputs, Path=SelectedItems}"
+                                            Margin="5,0,0,0"/>
                                 </StackPanel>
                             </Border>
                             <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Command="{Binding ImageProcessing.ClearOutputsCommand}" Background="{StaticResource ErrorBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,10" ToolTip="{local:Translate Tab_ClearFilteredResults}"/>

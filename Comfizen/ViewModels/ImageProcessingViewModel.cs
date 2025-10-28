@@ -36,6 +36,7 @@ namespace Comfizen
         public ICommand ClearOutputsCommand { get; }
         public ICommand DeleteImageCommand { get; }
         public ICommand DeleteSelectedImagesCommand { get; }
+        public ICommand SaveSelectedImagesCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -91,6 +92,43 @@ namespace Comfizen
                     ImageOutputs.Remove(image);
                 }
             });
+            
+            SaveSelectedImagesCommand = new AsyncRelayCommand(async param =>
+            {
+                if (param is not IList selectedItems || selectedItems.Count == 0) return;
+
+                var itemsToSave = selectedItems.Cast<ImageOutput>().ToList();
+
+                foreach (var image in itemsToSave)
+                {
+                    // Skip if already saved
+                    if (image.IsSaved) continue;
+
+                    string promptToSave = Settings.SavePromptWithFile ? image.Prompt : null;
+
+                    if (image.Type == FileType.Video)
+                    {
+                        await _comfyuiModel.SaveVideoFileAsync(
+                            Settings.SavedImagesDirectory,
+                            image.FilePath,
+                            image.ImageBytes,
+                            promptToSave
+                        );
+                    }
+                    else
+                    {
+                        await _comfyuiModel.SaveImageFileAsync(
+                            Settings.SavedImagesDirectory,
+                            image.FilePath,
+                            image.ImageBytes,
+                            promptToSave,
+                            Settings
+                        );
+                    }
+                    // Mark as saved to update the UI
+                    image.IsSaved = true;
+                }
+            }, param => param is IList selectedItems && selectedItems.Count > 0);
         }
             
         private void OnFilterChanged(object sender, PropertyChangedEventArgs e)
