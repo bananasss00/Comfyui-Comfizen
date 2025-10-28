@@ -274,11 +274,11 @@ namespace Comfizen
             });
 
             // Attach event handlers
-            this.PropertyChanged += (s, e) => {
-                if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
-                if (e.PropertyName == nameof(SelectedActionName)) OnSelectedActionChanged();
-                if (e.PropertyName == nameof(SearchFilter) || e.PropertyName == nameof(Workflow)) UpdateAvailableFields();
-            };
+            // this.PropertyChanged += (s, e) => {
+            //     if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
+            //     if (e.PropertyName == nameof(SelectedActionName)) OnSelectedActionChanged();
+            //     if (e.PropertyName == nameof(SearchFilter) || e.PropertyName == nameof(Workflow)) UpdateAvailableFields();
+            // };
             SelectedHookScript.TextChanged += (s, e) => SaveHookScript();
             SelectedActionScript.TextChanged += (s, e) => SaveActionScript();
             
@@ -300,6 +300,10 @@ namespace Comfizen
                 if (e.PropertyName == nameof(SearchFilter) || e.PropertyName == nameof(Workflow))
                 {
                     UpdateAvailableFields();
+                }
+                if (e.PropertyName == nameof(NewWorkflowName))
+                {
+                    (SaveWorkflowCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 }
             };
             
