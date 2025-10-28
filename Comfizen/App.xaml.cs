@@ -97,13 +97,16 @@ namespace Comfizen
                 
                 // --- START OF CHANGE: Advanced Serilog Configuration ---
                 var logConfig = new LoggerConfiguration()
-                    .MinimumLevel.Debug()
-                    .Enrich.FromLogContext()
+                        .MinimumLevel.Debug()
+                        .Enrich.FromLogContext();
+                    
+                logConfig.WriteTo.Logger(lc => lc
+                    .Filter.ByExcluding(e => e.Properties.ContainsKey("ConsoleOnly"))
                     .WriteTo.File(
                         Path.Combine("logs", "log-.txt"),
                         rollingInterval: RollingInterval.Day,
                         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
-                    );
+                    ));
 
                 if (consoleLogService != null)
                 {

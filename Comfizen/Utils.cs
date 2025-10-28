@@ -479,7 +479,7 @@ namespace Comfizen
             // Log the processed prompt if it has changed
             if (result != input)
             {
-                Logger.Log($"[Wildcard] Processed prompt: {result}");
+                Logger.LogToConsole($"[Wildcard] Processed prompt: {result}");
             }
 
             return result;

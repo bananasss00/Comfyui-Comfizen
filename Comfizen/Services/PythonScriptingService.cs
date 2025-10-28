@@ -11,7 +11,8 @@ using System.Threading.Tasks; // Добавлено для асинхронны�
 using System.Windows.Media;
 using Newtonsoft.Json; // Добавлено для сериализации
 using Newtonsoft.Json.Linq;
-using IronPython.Runtime; // Добавлено для работы со словарями Python
+using IronPython.Runtime;
+using Serilog.Context; // Добавлено для работы со словарями Python
 
 namespace Comfizen
 {
@@ -36,7 +37,13 @@ namespace Comfizen
             this.state = state;
             this.settings = settings;
             this._http = new HttpClient();
-            this.log = (message) => Logger.LogFromPython(message);
+            this.log = (message) => 
+            {
+                using (LogContext.PushProperty("LogSource", "Python"))
+                {
+                    Logger.LogToConsole(message);
+                }
+            };
             this.output = output;
             this._queue_prompt_action = queue_prompt_action;
         }
@@ -250,8 +257,10 @@ namespace Comfizen
                         string output = streamReader.ReadToEnd();
                         if (!string.IsNullOrWhiteSpace(output))
                         {
-                            // MODIFIED: Also use the dedicated method for stdout
-                            Logger.LogFromPython(output.TrimEnd());
+                            using (LogContext.PushProperty("LogSource", "Python"))
+                            {
+                                Logger.LogToConsole(output.TrimEnd());
+                            }
                         }
                     }
                 }

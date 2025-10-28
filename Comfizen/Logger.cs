@@ -11,20 +11,42 @@ namespace Comfizen
         public static event Action OnErrorLogged;
 
         /// <summary>
-        /// Logs an informational message from the main application.
+        /// Logs a message with a specified log level.
         /// </summary>
-        public static void Log(string message)
+        /// <param name="message">The message to log.</param>
+        /// <param name="level">The severity level of the log message. Defaults to Info.</param>
+        public static void Log(string message, LogLevel level = LogLevel.Info)
         {
-            _Log.Information(message);
+            switch (level)
+            {
+                case LogLevel.Debug:
+                    _Log.Debug(message);
+                    break;
+                case LogLevel.Warning:
+                    _Log.Warning(message);
+                    break;
+                case LogLevel.Error:
+                    _Log.Error(message);
+                    OnErrorLogged?.Invoke();
+                    break;
+                case LogLevel.Critical:
+                    _Log.Fatal(message); // Serilog uses "Fatal" for critical level
+                    OnErrorLogged?.Invoke();
+                    break;
+                case LogLevel.Info:
+                default:
+                    _Log.Information(message);
+                    break;
+            }
         }
         
         /// <summary>
-        /// Logs a message originating from a Python script, enriching it with context.
+        /// Logs a message only to the in-app UI console, not to the log file.
         /// </summary>
-        public static void LogFromPython(string message)
+        public static void LogToConsole(string message)
         {
-            // Push the "LogSource" property onto the context for this log event only.
-            using (LogContext.PushProperty("LogSource", "Python"))
+            // Push a special property that the file sink can use to filter this message out.
+            using (LogContext.PushProperty("ConsoleOnly", true))
             {
                 _Log.Information(message);
             }

@@ -552,7 +552,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     {
                         // This field is not a known virtual type and its path was not found in the API JSON.
                         // It's a dangling reference, likely from a previous or different API structure.
-                        Logger.Log($"[UI Validation] UI field '{field.Name}' references a non-existent API path: '{field.Path}'. This field will be ignored.");
+                        Logger.Log($"[UI Validation] UI field '{field.Name}' references a non-existent API path: '{field.Path}'. This field will be ignored.", LogLevel.Error);
                         // fieldVm remains null, so it won't be added to the UI.
                         processedFields.Add(field);
                     }
