@@ -646,6 +646,7 @@ namespace Comfizen
                 UpdateAvailableFields();
                 UpdateWorkflowNodesList();
                 _apiWasReplaced = true;
+                (SaveWorkflowCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
             RefreshActionNames();
         }
