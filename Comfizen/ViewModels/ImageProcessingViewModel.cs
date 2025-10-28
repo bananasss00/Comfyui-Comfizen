@@ -155,7 +155,7 @@ namespace Comfizen
                 case FileTypeFilter.Video: filteredQuery = filteredQuery.Where(io => io.Type == FileType.Video); break;
             }
 
-            // Filteri by saved status
+            // Add filtering by saved status
             switch (SelectedSavedStatusFilter)
             {
                 case SavedStatusFilter.Saved: filteredQuery = filteredQuery.Where(io => io.IsSaved); break;
@@ -191,6 +191,8 @@ namespace Comfizen
                     FilteredImageOutputs.Move(currentIndex, i);
                 }
             }
+
+            (ClearOutputsCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 }
