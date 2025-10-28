@@ -76,6 +76,11 @@ namespace Comfizen
         /// Gets the list of available languages for the UI.
         /// </summary>
         public IEnumerable<CultureInfo> SupportedLanguages => LocalizationService.Instance.SupportedLanguages;
+        
+        /// <summary>
+        /// Gets or sets the multi-line string for slider default rules.
+        /// </summary>
+        public string SliderDefaults { get; set; }
 
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -101,6 +106,7 @@ namespace Comfizen
             ShowDeleteConfirmation = _settings.ShowDeleteConfirmation;
             ModelExtensions = new List<string>(_settings.ModelExtensions);
             SpecialModelValues = new List<string>(_settings.SpecialModelValues);
+            SliderDefaults = string.Join("\n", _settings.SliderDefaults);
             
             AddSamplerCommand = new RelayCommand(
                 _ => {
@@ -201,6 +207,10 @@ namespace Comfizen
                     _settings.ModelExtensions = ModelExtensions;
                     _settings.SpecialModelValues = SpecialModelValues;
                     _settings.Language = Language;
+                    _settings.SliderDefaults = SliderDefaults?.Split('\n')
+                        .Select(s => s.Trim())
+                        .Where(s => !string.IsNullOrEmpty(s))
+                        .ToList() ?? new List<string>();
 
                     _settingsService.SaveSettings(_settings);
                     if (param is Window window)

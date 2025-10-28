@@ -107,6 +107,7 @@ namespace Comfizen
         private readonly SessionManager _sessionManager;
         private readonly ModelService _modelService;
         private readonly AppSettings _settings;
+        private readonly SliderDefaultsService _sliderDefaultsService;
         public IHighlightingDefinition PythonSyntaxHighlighting { get; }
         public ObservableCollection<string> ModelSubTypes { get; } = new();
         private bool _apiWasReplaced = false;
@@ -176,6 +177,7 @@ namespace Comfizen
             
             var settingsService = new SettingsService();
             _settings = settingsService.LoadSettings();
+            _sliderDefaultsService = new SliderDefaultsService(_settings.SliderDefaults);
             _sessionManager = new SessionManager(_settings);
             _modelService = new ModelService(_settings);
             
@@ -319,6 +321,14 @@ namespace Comfizen
                 UpdateGroupAssignments();
                 SelectedTab = Workflow.Tabs.FirstOrDefault();
                 // ---
+            }
+            
+            foreach (var group in Workflow.Groups)
+            {
+                foreach (var field in group.Fields)
+                {
+                    field.PropertyChanged += OnFieldPropertyChanged;
+                }
             }
         }
         
@@ -901,6 +911,7 @@ namespace Comfizen
             foreach (var group in Workflow.Groups)
                 if (group.Fields.Contains(field))
                 {
+                    field.PropertyChanged -= OnFieldPropertyChanged;
                     group.Fields.Remove(field);
                     UpdateAvailableFields();
                     return;
@@ -928,9 +939,64 @@ namespace Comfizen
         {
             if (field == null || group == null || group.Fields.Any(f => f.Path == field.Path)) return;
             var newField = new WorkflowField { Name = field.Name, Path = field.Path, Type = FieldType.Any };
+            
+            newField.PropertyChanged += OnFieldPropertyChanged;
             if (targetIndex < 0 || targetIndex >= group.Fields.Count) group.Fields.Add(newField);
             else group.Fields.Insert(targetIndex, newField);
             UpdateAvailableFields();
+        }
+        
+        /// <summary>
+        /// Handles property changes on a WorkflowField, specifically for applying slider defaults.
+        /// </summary>
+        private void OnFieldPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(WorkflowField.Type) || sender is not WorkflowField field)
+            {
+                return;
+            }
+
+            if (field.Type == FieldType.SliderInt || field.Type == FieldType.SliderFloat)
+            {
+                ApplySliderDefaults(field);
+            }
+        }
+        
+        /// <summary>
+        /// Applies default values to a slider field based on user-defined rules.
+        /// </summary>
+        private void ApplySliderDefaults(WorkflowField field)
+        {
+            if (Workflow.LoadedApi == null || string.IsNullOrEmpty(field.Path))
+                return;
+
+            string nodeType = null;
+            var pathParts = field.Path.Split('.');
+            if (pathParts.Length > 0)
+            {
+                string nodeId = pathParts[0];
+                nodeType = Workflow.LoadedApi[nodeId]?["class_type"]?.ToString();
+            }
+
+            // The field name for matching is the raw name, not the display name.
+            // Example: for "KSampler::steps", the name is "steps".
+            string fieldName = field.Name.Contains("::") ? field.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1] : field.Name;
+
+            if (_sliderDefaultsService.TryGetDefaults(nodeType, fieldName, out var defaults))
+            {
+                field.MinValue = defaults.Min;
+                field.MaxValue = defaults.Max;
+                field.StepValue = defaults.Step;
+
+                if (field.Type == FieldType.SliderFloat)
+                {
+                    // Only apply precision if it was specified in the rule.
+                    if (defaults.Precision.HasValue)
+                    {
+                        field.Precision = defaults.Precision.Value;
+                    }
+                }
+            }
         }
 
         public void AddFieldToGroup(WorkflowField field, WorkflowGroup group)

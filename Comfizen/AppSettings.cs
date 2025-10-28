@@ -53,6 +53,12 @@ namespace Comfizen
         /// Gets or sets the selected language code (e.g., "en").
         /// </summary>
         public string Language { get; set; }
+        
+        /// <summary>
+        /// A list of rules for default slider values.
+        /// Format: "[NodeType::]FieldName=min max step [precision]"
+        /// </summary>
+        public List<string> SliderDefaults { get; set; }
     }
 
     /// <summary>
@@ -102,7 +108,8 @@ namespace Comfizen
                     LastActiveWorkflow = null,
                     ServerAddress = "127.0.0.1:8188",
                     SpecialModelValues = new List<string> { "None" },
-                    Language = initialLanguage
+                    Language = initialLanguage,
+                    SliderDefaults = new List<string>()
                 };
                 
                 SaveSettings(defaultSettings);
@@ -128,6 +135,7 @@ namespace Comfizen
             if (string.IsNullOrEmpty(settings.ServerAddress)) { settings.ServerAddress = "127.0.0.1:8188"; needsResave = true; }
             if (string.IsNullOrEmpty(settings.Language)) { settings.Language = InitialLanguage(); needsResave = true; }
             if (settings.GalleryThumbnailSize == 0.0) { settings.GalleryThumbnailSize = 128.0; needsResave = true; }
+            if (settings.SliderDefaults == null) { settings.SliderDefaults = new List<string>() {"KSampler::cfg=1.0 15.0 0.5 2"}; needsResave = true; }
 
             if (needsResave)
             {
