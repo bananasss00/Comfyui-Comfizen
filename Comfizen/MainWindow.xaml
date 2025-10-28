@@ -624,7 +624,9 @@
                                     
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="{local:Translate Tab_GalleryThumbnailSize}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                        <Slider x:Name="ThumbnailSizeSlider" Minimum="64" Maximum="1024" Value="128" Width="100"/>
+                                        <Slider x:Name="ThumbnailSizeSlider" Minimum="64" Maximum="1024" 
+                                                Value="{Binding ImageProcessing.GalleryThumbnailSize, Mode=TwoWay}" 
+                                                Width="100"/>
                                     </StackPanel>
                                     
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0"
@@ -1084,7 +1086,21 @@
                 <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20" Background="#A0000000" CornerRadius="5" Padding="8,4">
                     <TextBlock Text="{Binding FullScreen.CurrentFullScreenImage.Resolution}" Foreground="White" FontSize="14" />
                 </Border>
-
+                
+                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20" Background="#A0000000" CornerRadius="5" Padding="8,4">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding FullScreen.CurrentFullScreenImage.Resolution}" Foreground="White" FontSize="14" />
+                        <TextBlock Foreground="White" FontSize="14" Margin="10,0,0,0">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0} / {1}">
+                                    <Binding Path="FullScreen.CurrentImageIndex"/>
+                                    <Binding Path="FullScreen.TotalImages"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+                
                 <Button Content="✕" Style="{StaticResource OverlayButton}" Command="{Binding FullScreen.CloseFullScreenCommand}"
                         HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20" Width="40" Height="40" FontSize="20"
                         ToolTip="{x:Static local:Hotkeys.CloseFullscreenTooltip}"/>

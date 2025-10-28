@@ -26,6 +26,8 @@ namespace Comfizen
         public bool IsFullScreenOpen { get; set; }
         
         public ImageOutput CurrentFullScreenImage { get; set; }
+        public int CurrentImageIndex { get; set; }
+        public int TotalImages { get; set; }
         public ICommand MoveNextCommand { get; set; }
         public ICommand MovePreviousCommand { get; set; }
         public ICommand SaveCurrentImageCommand { get; set; }
@@ -47,6 +49,7 @@ namespace Comfizen
                 {
                     IsFullScreenOpen = true;
                     CurrentFullScreenImage = selectedImage;
+                    UpdateIndexAndCount();
                 }
             });
 
@@ -101,6 +104,7 @@ namespace Comfizen
                     if (currentIndex + 1 < _currentGalleryItems.Count)
                     {
                         CurrentFullScreenImage = _currentGalleryItems[currentIndex + 1];
+                        UpdateIndexAndCount();
                     }
                 }
             }, x => CurrentFullScreenImage != null && _currentGalleryItems.IndexOf(CurrentFullScreenImage) < _currentGalleryItems.Count - 1);
@@ -113,9 +117,24 @@ namespace Comfizen
                     if (currentIndex - 1 >= 0)
                     {
                         CurrentFullScreenImage = _currentGalleryItems[currentIndex - 1];
+                        UpdateIndexAndCount();
                     }
                 }
             }, x => CurrentFullScreenImage != null && _currentGalleryItems.IndexOf(CurrentFullScreenImage) > 0);
+        }
+        
+        private void UpdateIndexAndCount()
+        {
+            if (CurrentFullScreenImage != null && _currentGalleryItems.Count > 0)
+            {
+                TotalImages = _currentGalleryItems.Count;
+                CurrentImageIndex = _currentGalleryItems.IndexOf(CurrentFullScreenImage) + 1;
+            }
+            else
+            {
+                TotalImages = 0;
+                CurrentImageIndex = 0;
+            }
         }
     }
 }

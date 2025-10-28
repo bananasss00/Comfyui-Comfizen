@@ -30,6 +30,8 @@ namespace Comfizen
         public FileTypeFilter SelectedFileTypeFilter { get; set; } = FileTypeFilter.All;
         public SavedStatusFilter SelectedSavedStatusFilter { get; set; } = SavedStatusFilter.All;
         public SortOption SelectedSortOption { get; set; } = SortOption.NewestFirst;
+        
+        public double GalleryThumbnailSize { get; set; } = 128.0;
             
         public int SelectedItemsCount { get; set; }
 

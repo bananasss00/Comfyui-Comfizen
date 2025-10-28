@@ -41,6 +41,9 @@ namespace Comfizen
         public SeedControl LastSeedControlState { get; set; } = SeedControl.Fixed;
         public List<string> ModelExtensions { get; set; }
         
+        public bool IsConsoleVisible { get; set; } = false;
+        public double GalleryThumbnailSize { get; set; } = 128.0;
+        
         public List<string> LastOpenWorkflows { get; set; } = new List<string>();
         public string LastActiveWorkflow { get; set; }
         public string ServerAddress { get; set; } = "127.0.0.1:8188";
@@ -93,6 +96,8 @@ namespace Comfizen
                     ShowDeleteConfirmation = true,
                     LastSeedControlState = SeedControl.Fixed,
                     ModelExtensions = new List<string> { ".safetensors", ".ckpt", ".pt", ".gguf" },
+                    IsConsoleVisible = false,
+                    GalleryThumbnailSize = 128.0,
                     LastOpenWorkflows = new List<string>(),
                     LastActiveWorkflow = null,
                     ServerAddress = "127.0.0.1:8188",
@@ -122,7 +127,7 @@ namespace Comfizen
             if (settings.LastOpenWorkflows == null) { settings.LastOpenWorkflows = new List<string>(); needsResave = true; }
             if (string.IsNullOrEmpty(settings.ServerAddress)) { settings.ServerAddress = "127.0.0.1:8188"; needsResave = true; }
             if (string.IsNullOrEmpty(settings.Language)) { settings.Language = InitialLanguage(); needsResave = true; }
-
+            if (settings.GalleryThumbnailSize == 0.0) { settings.GalleryThumbnailSize = 128.0; needsResave = true; }
 
             if (needsResave)
             {

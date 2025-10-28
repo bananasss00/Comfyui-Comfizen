@@ -58,6 +58,8 @@ namespace Comfizen
         private double _maskOpacity = 1.0;
         private double _sketchBrushSize = 10.0;
         private double _sketchOpacity = 1.0;
+        private double _normalZoom = 1.0;
+        private double _fullscreenZoom = 1.0;
         
         private bool _isMouseOverCanvasArea = false;
 
@@ -656,7 +658,9 @@ namespace Comfizen
         private void EnterFullScreen()
         {
             if (_isFullScreen) return;
-
+            
+            _normalZoom = ZoomSlider.Value;
+            
             _originalContent = this.Content;
             this.Content = null;
 
@@ -670,6 +674,19 @@ namespace Comfizen
             };
 
             _fullScreenWindow.Content = _originalContent;
+            
+            _fullScreenWindow.Loaded += (s, e) => {
+                if (ImageGrid.Width > 0 && ImageGrid.Height > 0)
+                {
+                    var window = (Window)s;
+                    // Use the client area (content area) for calculation
+                    var contentArea = (FrameworkElement)window.Content;
+                    double scaleX = contentArea.ActualWidth / ImageGrid.Width;
+                    double scaleY = contentArea.ActualHeight / ImageGrid.Height;
+                    _fullscreenZoom = Math.Min(scaleX, scaleY);
+                    ZoomSlider.Value = _fullscreenZoom;
+                }
+            };
 
             _fullScreenWindow.PreviewKeyDown += (s, e) => {
                 if (e.Key == Key.Escape)
@@ -698,6 +715,9 @@ namespace Comfizen
         private void ExitFullScreen()
         {
             if (!_isFullScreen || _fullScreenWindow == null) return;
+            
+            _fullscreenZoom = ZoomSlider.Value;
+            ZoomSlider.Value = _normalZoom;
             
             var contentToRestore = _fullScreenWindow.Content;
             _fullScreenWindow.Content = null;

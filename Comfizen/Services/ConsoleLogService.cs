@@ -33,6 +33,7 @@ namespace Comfizen
 
         public ObservableCollection<LogMessage> LogMessages { get; } = new ObservableCollection<LogMessage>();
         public bool IsConnected => _ws?.State == WebSocketState.Open;
+        public event Action<LogLevel> OnLogReceived;
         
         // Regex to detect the execution time message.
         private static readonly Regex ExecutionTimeRegex = new Regex(@"^Prompt executed in [\d\.]+ seconds$", RegexOptions.Compiled);
@@ -202,6 +203,11 @@ namespace Comfizen
             if (message != null)
             {
                 _logQueue.Enqueue(message);
+                
+                if (message.Level >= LogLevel.Warning)
+                {
+                    OnLogReceived?.Invoke(message.Level);
+                }
             }
         }
         

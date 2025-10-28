@@ -202,19 +202,20 @@ namespace Comfizen
             _modelService = new ModelService(_settings);
             
             ImageProcessing = new ImageProcessingViewModel(_comfyuiModel, _settings);
+            ImageProcessing.GalleryThumbnailSize = _settings.GalleryThumbnailSize;
+            IsConsoleVisible = _settings.IsConsoleVisible;
             FullScreen = new FullScreenViewModel(this, _comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
             
             MaxQueueSize = _settings.MaxQueueSize;
             _sessionManager = new SessionManager(_settings);
             
             _consoleLogService = new ConsoleLogService(_settings);
+            _consoleLogService.OnLogReceived += HandleHighPriorityLog;
             _allConsoleLogMessages = _consoleLogService.LogMessages;
             ConsoleLogMessages = CollectionViewSource.GetDefaultView(_allConsoleLogMessages);
             ConsoleLogMessages.Filter = FilterLogs;
             _consoleLogService.ConnectAsync();
-            
-            Logger.OnErrorLogged += ShowConsoleOnError;
-
+ 
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
             ClearConsoleCommand = new RelayCommand(_ => _allConsoleLogMessages.Clear());
             CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => _allConsoleLogMessages.Any());
@@ -378,6 +379,15 @@ namespace Comfizen
             QueueCommand = new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
         }
         
+        private void HandleHighPriorityLog(LogLevel level)
+        {
+            // This method can be called from a background thread, so we dispatch the UI update.
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                IsConsoleVisible = true;
+            });
+        }
+        
         private bool FilterLogs(object item)
         {
             if (item is not LogMessage message) return false;
@@ -390,14 +400,6 @@ namespace Comfizen
                 LogFilterType.All => true,
                 _ => true,
             };
-        }
-        
-        private void ShowConsoleOnError()
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                IsConsoleVisible = true;
-            });
         }
 
         public void ImportStateFromFile(string filePath)
@@ -1123,7 +1125,7 @@ namespace Comfizen
         {
             GlobalEventManager.WorkflowSaved -= OnWorkflowSaved;
             
-            Logger.OnErrorLogged -= ShowConsoleOnError;
+            _consoleLogService.OnLogReceived -= HandleHighPriorityLog;
             await _consoleLogService.DisconnectAsync();
 
             foreach (var tab in OpenTabs)
@@ -1141,6 +1143,9 @@ namespace Comfizen
             {
                 _settings.LastSeedControlState = SelectedTab.WorkflowInputsController.SelectedSeedControl;
             }
+            
+            _settings.IsConsoleVisible = this.IsConsoleVisible;
+            _settings.GalleryThumbnailSize = this.ImageProcessing.GalleryThumbnailSize;
             
             _settings.LastOpenWorkflows = OpenTabs
                 // Filter out virtual tabs from being saved into the last open list.
