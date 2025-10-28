@@ -245,6 +245,8 @@
   "Presets_ApplyTooltip": "Применить выбранный пресет повторно",
   "GlobalPresets_Header": "Глобальные пресеты",
   "GlobalPresets_Label": "Применить пресет:",
+  "Tab_PauseQueue": "Поставить очередь на паузу (текущая задача завершится)",
+  "Tab_ResumeQueue": "Возобновить очередь",
   "Tab_InterruptGeneration": "Прервать генерацию на сервере",
   "Tab_ClearLocalQueue": "Очистить локальную очередь",
   "UIConstructor_AddNodeBypassField": "Добавить переключатель обхода (Bypass)",

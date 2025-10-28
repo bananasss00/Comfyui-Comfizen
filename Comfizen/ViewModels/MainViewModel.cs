@@ -124,6 +124,7 @@ namespace Comfizen
         public ICommand CloseTabCommand { get; }
         public ICommand BlockNodeCommand { get; }
         public ICommand ClearLocalQueueCommand { get; }
+        public ICommand TogglePauseQueueCommand { get; }
         public ICommand ClearBlockedNodesCommand { get; }
         public ICommand OpenGroupNavigationCommand { get; }
         public ICommand GoToGroupCommand { get; }
@@ -172,6 +173,7 @@ namespace Comfizen
         public event PropertyChangedEventHandler? PropertyChanged;
         
         public bool IsInfiniteQueueEnabled { get; set; } = false;
+        public bool IsQueuePaused { get; set; } = false;
 
         public ICommand ToggleInfiniteQueueCommand { get; }
         
@@ -294,6 +296,8 @@ namespace Comfizen
                         MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }, _ => SelectedTab != null && SelectedTab.Workflow.BlockedNodeIds.Any());
+            
+            TogglePauseQueueCommand = new RelayCommand(_ => IsQueuePaused = !IsQueuePaused, _ => _isProcessing);
             
             OpenGroupNavigationCommand = new RelayCommand(_ =>
             {
@@ -853,8 +857,16 @@ namespace Comfizen
             
             try
             {
+                // The command's CanExecute needs to be updated when processing starts/stops
+                await Application.Current.Dispatcher.InvokeAsync(() => (TogglePauseQueueCommand as RelayCommand)?.RaiseCanExecuteChanged());
+                
                 while (true)
                 {
+                    while (IsQueuePaused && !_cancellationRequested)
+                    {
+                        await Task.Delay(500);
+                    }
+                    
                     if (_cancellationRequested) break;
     
                     if (_promptsQueue.TryDequeue(out var task))
@@ -963,6 +975,12 @@ namespace Comfizen
             
                 _queueStopwatch.Stop();
                 EstimatedTimeRemaining = null; 
+                
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsQueuePaused = false; // Always reset pause state when queue finishes
+                    (TogglePauseQueueCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                });
             
                 if (_cancellationRequested)
                 {

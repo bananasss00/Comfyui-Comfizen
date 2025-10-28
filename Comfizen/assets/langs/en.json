@@ -246,6 +246,8 @@
   "Presets_ApplyTooltip": "Re-apply selected preset",
   "GlobalPresets_Header": "Global Presets",
   "GlobalPresets_Label": "Apply Preset:",
+  "Tab_PauseQueue": "Pause the queue (current task will finish)",
+  "Tab_ResumeQueue": "Resume the queue",
   "Tab_InterruptGeneration": "Interrupt generation on server",
   "Tab_ClearLocalQueue": "Clear local queue",
   "UIConstructor_AddNodeBypassField": "Add Bypass Switch",
