@@ -235,10 +235,10 @@
                             </StackPanel>
                         </GroupBox>
                         
-                        <GroupBox Header="Slider Defaults">
+                        <GroupBox Header="{local:Translate Settings_SliderDefaults_Header}">
                             <StackPanel>
-                                <TextBlock Text="Rules for default slider values, one rule per line." Margin="0,0,0,5" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="Format: [NodeType::]FieldName=Min Max Step [Precision]" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,5"/>
+                                <TextBlock Text="{local:Translate Settings_SliderDefaults_Description1}" Margin="0,0,0,5" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{local:Translate Settings_SliderDefaults_Description2}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,5"/>
                                 <TextBox Text="{Binding SliderDefaults, UpdateSourceTrigger=PropertyChanged}" 
                                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" 
                                          VerticalScrollBarVisibility="Auto"/>
