@@ -191,8 +191,6 @@ namespace Comfizen
                     FilteredImageOutputs.Move(currentIndex, i);
                 }
             }
-
-            (ClearOutputsCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 }

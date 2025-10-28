@@ -859,9 +859,6 @@ namespace Comfizen
             
             try
             {
-                // The command's CanExecute needs to be updated when processing starts/stops
-                await Application.Current.Dispatcher.InvokeAsync(() => (TogglePauseQueueCommand as RelayCommand)?.RaiseCanExecuteChanged());
-                
                 while (true)
                 {
                     while (IsQueuePaused && !_cancellationRequested)
@@ -981,7 +978,6 @@ namespace Comfizen
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     IsQueuePaused = false; // Always reset pause state when queue finishes
-                    (TogglePauseQueueCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 });
             
                 if (_cancellationRequested)

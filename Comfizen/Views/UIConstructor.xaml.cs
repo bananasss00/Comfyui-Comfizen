@@ -317,10 +317,6 @@ namespace Comfizen
                 {
                     UpdateAvailableFields();
                 }
-                if (e.PropertyName == nameof(NewWorkflowName))
-                {
-                    (SaveWorkflowCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                }
             };
             
             // Load initial data
@@ -674,7 +670,6 @@ namespace Comfizen
                 UpdateAvailableFields();
                 UpdateWorkflowNodesList();
                 _apiWasReplaced = true;
-                (SaveWorkflowCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
             RefreshActionNames();
         }

@@ -169,16 +169,7 @@ namespace Comfizen
             
             this.PropertyChanged += (sender, args) =>
             {
-                // When the text in the "Save Preset" popup changes,
-                // tell the Save command to re-evaluate its CanExecute status.
-                if (args.PropertyName == nameof(NewPresetName))
-                {
-                    (SavePresetCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                }
-                
-                // Apply the preset only if it's a new, valid selection from the dropdown
-                // and we're not already in the process of applying one.
-                else if (args.PropertyName == nameof(SelectedPreset) && SelectedPreset != null && !_isApplyingPreset)
+                if (args.PropertyName == nameof(SelectedPreset) && SelectedPreset != null && !_isApplyingPreset)
                 {
                     _isApplyingPreset = true;
                     ApplyPreset(SelectedPreset);
