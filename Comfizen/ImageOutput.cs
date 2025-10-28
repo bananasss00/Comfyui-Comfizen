@@ -28,6 +28,7 @@ namespace Comfizen
         public string VisualHash { get; set; }
         public string FilePath { get; set; }
         public string NodeId { get; set; }
+        public bool IsSaved { get; set; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         

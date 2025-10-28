@@ -31,6 +31,7 @@
         <local:ExpanderCornerRadiusConverter x:Key="ExpanderCornerRadiusConverter"/>
         <local:EqualityConverter x:Key="EqualityConverter" />
         <local:StringToBoolConverter x:Key="StringToBoolConverter" />
+        <local:CornerRadiusConverter x:Key="CornerRadiusConverter" />
 
         <!-- Color Palette -->
         <SolidColorBrush x:Key="PrimaryBackground" Color="#FF2D2D30"/>
@@ -73,6 +74,35 @@
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <Style x:Key="SegmentedRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource TertiaryBackground}"/>
+            <Setter Property="BorderThickness" Value="1,1,0,1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource CornerRadiusConverter}}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>

@@ -11,6 +11,8 @@ using PropertyChanged;
 
 namespace Comfizen
 {
+    public enum SavedStatusFilter { All, Saved, Unsaved }
+    
     /// <summary>
     /// ViewModel for managing the gallery of generated outputs.
     /// Handles filtering, sorting, and deletion of images and videos.
@@ -26,6 +28,7 @@ namespace Comfizen
             
         public string SearchFilterText { get; set; }
         public FileTypeFilter SelectedFileTypeFilter { get; set; } = FileTypeFilter.All;
+        public SavedStatusFilter SelectedSavedStatusFilter { get; set; } = SavedStatusFilter.All;
         public SortOption SelectedSortOption { get; set; } = SortOption.NewestFirst;
             
         public int SelectedItemsCount { get; set; }
@@ -44,7 +47,19 @@ namespace Comfizen
                 
             this.PropertyChanged += OnFilterChanged;
 
-            ClearOutputsCommand = new RelayCommand(x => ImageOutputs.Clear());
+            ClearOutputsCommand = new RelayCommand(
+                x =>
+                {
+                    // Create a copy of the filtered list to avoid modification during enumeration
+                    var itemsToClear = FilteredImageOutputs.ToList();
+                    foreach (var item in itemsToClear)
+                    {
+                        ImageOutputs.Remove(item);
+                    }
+                },
+                // The command can only be executed if there are items visible in the gallery
+                x => FilteredImageOutputs.Any()
+            );
 
             DeleteImageCommand = new RelayCommand(param =>
             {
@@ -80,7 +95,10 @@ namespace Comfizen
             
         private void OnFilterChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName is nameof(SearchFilterText) or nameof(SelectedFileTypeFilter) or nameof(SelectedSortOption))
+            if (e.PropertyName is nameof(SearchFilterText)
+                    or nameof(SelectedFileTypeFilter)
+                    or nameof(SelectedSortOption)
+                    or nameof(SelectedSavedStatusFilter))
             {
                 UpdateFilteredOutputs();
             }
@@ -90,10 +108,18 @@ namespace Comfizen
         {
             var filteredQuery = ImageOutputs.AsEnumerable();
 
+            // Filter by media type
             switch (SelectedFileTypeFilter)
             {
                 case FileTypeFilter.Images: filteredQuery = filteredQuery.Where(io => io.Type == FileType.Image); break;
                 case FileTypeFilter.Video: filteredQuery = filteredQuery.Where(io => io.Type == FileType.Video); break;
+            }
+
+            // Filteri by saved status
+            switch (SelectedSavedStatusFilter)
+            {
+                case SavedStatusFilter.Saved: filteredQuery = filteredQuery.Where(io => io.IsSaved); break;
+                case SavedStatusFilter.Unsaved: filteredQuery = filteredQuery.Where(io => !io.IsSaved); break;
             }
 
             if (!string.IsNullOrWhiteSpace(SearchFilterText))

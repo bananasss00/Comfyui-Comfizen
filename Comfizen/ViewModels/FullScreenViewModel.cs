@@ -86,7 +86,8 @@ namespace Comfizen
                         _settings
                     );
                 }
-    
+                
+                CurrentFullScreenImage.IsSaved = true;
                 SaveConfirmationText = LocalizationService.Instance["Fullscreen_Saved"]; 
                 await Task.Delay(1500);
                 ShowSaveConfirmation = false;

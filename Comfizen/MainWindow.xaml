@@ -577,16 +577,39 @@
                         <DockPanel>
                             <Border DockPanel.Dock="Top" Padding="8" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,0,0,1">
                                 <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <TextBox Text="{Binding ImageProcessing.SearchFilterText, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" ToolTip="{local:Translate Tab_GallerySearchPlaceholder}"/>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{local:Translate Tab_GalleryFilterType}" Margin="0,0,5,0"/>
-                                        <RadioButton Content="{local:Translate Tab_GalleryFilterAll}" GroupName="FileType" IsChecked="{Binding ImageProcessing.SelectedFileTypeFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:FileTypeFilter.All}}"/>
-                                        <RadioButton Content="{local:Translate Tab_GalleryFilterImages}" GroupName="FileType" Margin="5,0,0,0" IsChecked="{Binding ImageProcessing.SelectedFileTypeFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:FileTypeFilter.Images}}"/>
-                                        <RadioButton Content="{local:Translate Tab_GalleryFilterVideo}" GroupName="FileType" Margin="5,0,0,0" IsChecked="{Binding ImageProcessing.SelectedFileTypeFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:FileTypeFilter.Video}}"/>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox Grid.Column="0" Text="{Binding ImageProcessing.SearchFilterText, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left" VerticalAlignment="Center" ToolTip="{local:Translate Tab_GallerySearchPlaceholder}"/>
+
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        
+                                        <!-- Type Filter -->
+                                        <TextBlock Text="{local:Translate Tab_GalleryFilterType}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                        <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,0,1,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <RadioButton Tag="First" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="FileType" Content="{local:Translate Tab_GalleryFilterAll}" IsChecked="{Binding ImageProcessing.SelectedFileTypeFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:FileTypeFilter.All}}"/>
+                                                <RadioButton Tag="Middle" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="FileType" Content="{local:Translate Tab_GalleryFilterImages}" IsChecked="{Binding ImageProcessing.SelectedFileTypeFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:FileTypeFilter.Images}}"/>
+                                                <RadioButton Tag="Last" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="FileType" Content="{local:Translate Tab_GalleryFilterVideo}" IsChecked="{Binding ImageProcessing.SelectedFileTypeFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:FileTypeFilter.Video}}"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Saved Status Filter -->
+                                        <TextBlock Text="{local:Translate Tab_GalleryFilterSavedStatus}" Margin="15,0,5,0" VerticalAlignment="Center"/>
+                                         <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,0,1,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <RadioButton Tag="First" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="SavedStatus" Content="{local:Translate Tab_GalleryFilterAll}" IsChecked="{Binding ImageProcessing.SelectedSavedStatusFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:SavedStatusFilter.All}}"/>
+                                                <RadioButton Tag="Middle" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="SavedStatus" Content="{local:Translate Tab_GalleryFilterSaved}" IsChecked="{Binding ImageProcessing.SelectedSavedStatusFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:SavedStatusFilter.Saved}}"/>
+                                                <RadioButton Tag="Last" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="SavedStatus" Content="{local:Translate Tab_GalleryFilterUnsaved}" IsChecked="{Binding ImageProcessing.SelectedSavedStatusFilter, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:SavedStatusFilter.Unsaved}}"/>
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{local:Translate Tab_GallerySort}" Margin="0,0,5,0"/>
+                                    
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{local:Translate Tab_GallerySort}" Margin="15,0,5,0"/>
                                         <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:SortOption}}}" SelectedItem="{Binding ImageProcessing.SelectedSortOption}" Width="120"/>
                                     </StackPanel>
                                 </Grid>
@@ -601,7 +624,7 @@
                                     
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="{local:Translate Tab_GalleryThumbnailSize}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                        <Slider x:Name="ThumbnailSizeSlider" Minimum="64" Maximum="256" Value="128" Width="100"/>
+                                        <Slider x:Name="ThumbnailSizeSlider" Minimum="64" Maximum="1024" Value="128" Width="100"/>
                                     </StackPanel>
                                     
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0"
@@ -734,6 +757,15 @@
                                                               Loaded="MediaElement_Loaded"
                                                               Unloaded="MediaElement_Unloaded"
                                                               MediaEnded="MediaElement_MediaEnded" Stretch="Uniform"/>
+                                                <TextBlock x:Name="SavedIndicator" Text="💾" 
+                                                           HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                           Margin="4" FontSize="16"
+                                                           ToolTip="Saved"
+                                                           Visibility="Collapsed">
+                                                    <TextBlock.Effect>
+                                                        <DropShadowEffect ShadowDepth="1" Color="Black" Opacity="0.7" BlurRadius="2"/>
+                                                    </TextBlock.Effect>
+                                                </TextBlock>
                                                 <Border x:Name="NameOverlay" VerticalAlignment="Bottom" Background="#B22D2D30" Padding="5,2" CornerRadius="0,0,2,2" Opacity="0" IsHitTestVisible="False">
                                                     <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=ItemBorder}" Value="True"><DataTrigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2"/></Storyboard></BeginStoryboard></DataTrigger.EnterActions><DataTrigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.3"/></Storyboard></BeginStoryboard></DataTrigger.ExitActions></DataTrigger></Style.Triggers></Style></Border.Style>
                                                     <TextBlock Text="{Binding FileName}" Foreground="White" TextTrimming="CharacterEllipsis"/>
@@ -750,6 +782,10 @@
                                         <DataTemplate.Triggers>
                                             <DataTrigger Binding="{Binding Type}" Value="Video"><Setter TargetName="VidDisplay" Property="Visibility" Value="Visible"/><Setter TargetName="ImgDisplay" Property="Visibility" Value="Collapsed"/></DataTrigger>
                                             <DataTrigger Binding="{Binding IsMouseOver, ElementName=ItemBorder}" Value="True"><Setter TargetName="DeleteButton" Property="Visibility" Value="Visible"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding IsSaved}" Value="True">
+                                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{StaticResource SuccessBrush}"/>
+                                                <Setter TargetName="SavedIndicator" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
                                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
                                                 <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
                                                 <Setter TargetName="ItemBorder" Property="BorderThickness" Value="2"/>
@@ -792,8 +828,7 @@
                                             CommandParameter="{Binding ElementName=lvOutputs, Path=SelectedItems}"/>
                                 </StackPanel>
                             </Border>
-
-                            <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Command="{Binding ImageProcessing.ClearOutputsCommand}" Background="{StaticResource ErrorBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,10" ToolTip="{local:Translate Tab_ClearResults}"/>
+                            <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Command="{Binding ImageProcessing.ClearOutputsCommand}" Background="{StaticResource ErrorBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,10" ToolTip="{local:Translate Tab_ClearFilteredResults}"/>
                         </Grid>
                         </DockPanel>
                     </Border>
