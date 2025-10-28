@@ -59,7 +59,7 @@ namespace Comfizen
 
             if (iterations >= MaxIterations)
             {
-                Logger.Log($"[WildcardProcessor] Max processing iterations ({MaxIterations}) reached. Possible infinite loop in prompt: '{input}'. Final result: '{currentResult}'");
+                Logger.Log($"[WildcardProcessor] Max processing iterations ({MaxIterations}) reached. Possible infinite loop in prompt: '{input}'. Final result: '{currentResult}'", LogLevel.Warning);
             }
             
             return currentResult;

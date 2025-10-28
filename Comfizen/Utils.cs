@@ -57,7 +57,7 @@ namespace Comfizen
             catch (Win32Exception)
             {
                 _isFfmpegAvailable = false;
-                Logger.Log("ffmpeg command not found in PATH. Metadata stripping for videos will be disabled.");
+                Logger.Log("ffmpeg command not found in PATH. Metadata stripping for videos will be disabled.", LogLevel.Warning);
             }
             catch (Exception ex)
             {
@@ -376,13 +376,13 @@ namespace Comfizen
         {
             if (obj == null)
             {
-                Logger.Log($"GetJsonPropertyByPath was called with a null JObject for path: '{path ?? "null"}'.");
+                Logger.Log($"GetJsonPropertyByPath was called with a null JObject for path: '{path ?? "null"}'.", LogLevel.Warning);
                 return null;
             }
 
             if (string.IsNullOrEmpty(path))
             {
-                Logger.Log("GetJsonPropertyByPath was called with a null or empty path.");
+                Logger.Log("GetJsonPropertyByPath was called with a null or empty path.", LogLevel.Warning);
                 return null;
             }
 
@@ -409,7 +409,7 @@ namespace Comfizen
                 
                 if (currentToken is not JObject currentObj)
                 {
-                    Logger.Log($"Path traversal failed for '{path}'. The segment '{string.Join(".", parts.Take(i))}' did not resolve to a JObject.");
+                    Logger.Log($"Path traversal failed for '{path}'. The segment '{string.Join(".", parts.Take(i))}' did not resolve to a JObject.", LogLevel.Warning);
                     return null;
                 }
 
@@ -417,14 +417,14 @@ namespace Comfizen
 
                 if (currentToken == null)
                 {
-                    Logger.Log($"Path traversal failed for '{path}'. Segment '{part}' not found at path '{string.Join(".", parts.Take(i + 1))}'.");
+                    Logger.Log($"Path traversal failed for '{path}'. Segment '{part}' not found at path '{string.Join(".", parts.Take(i + 1))}'.", LogLevel.Warning);
                     return null;
                 }
             }
 
             if (currentToken is not JObject finalObj)
             {
-                Logger.Log($"Path traversal failed for '{path}'. The final container '{string.Join(".", parts.Take(parts.Length - 1))}' was not a JObject.");
+                Logger.Log($"Path traversal failed for '{path}'. The final container '{string.Join(".", parts.Take(parts.Length - 1))}' was not a JObject.", LogLevel.Warning);
                 return null;
             }
 
@@ -433,7 +433,7 @@ namespace Comfizen
 
             if (property == null)
             {
-                Logger.Log($"Property '{finalPart}' not found at the end of path '{path}'.");
+                Logger.Log($"Property '{finalPart}' not found at the end of path '{path}'.", LogLevel.Warning);
                 return null;
             }
 

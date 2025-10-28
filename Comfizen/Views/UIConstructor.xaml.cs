@@ -724,7 +724,7 @@ namespace Comfizen
         {
             if (Workflow.LoadedApi == null)
             {
-                Logger.Log(LocalizationService.Instance["UIConstructor_ExportErrorMessage"]);
+                Logger.Log(LocalizationService.Instance["UIConstructor_ExportErrorMessage"], LogLevel.Error);
                 return;
             }
 

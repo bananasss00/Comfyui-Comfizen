@@ -417,7 +417,7 @@ namespace Comfizen
                     }
                     else
                     {
-                        Logger.Log(LocalizationService.Instance["MainVM_ImportNoMetadataError"]);
+                        Logger.Log(LocalizationService.Instance["MainVM_ImportNoMetadataError"], LogLevel.Error);
                         return;
                     }
                 }
@@ -614,7 +614,7 @@ namespace Comfizen
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded || SelectedTab.Workflow.LoadedApi == null)
             {
-                Logger.Log(LocalizationService.Instance["MainVM_ExportErrorMessage"]);
+                Logger.Log(LocalizationService.Instance["MainVM_ExportErrorMessage"], LogLevel.Error);
                 return;
             }
 

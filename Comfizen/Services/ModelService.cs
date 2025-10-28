@@ -206,7 +206,7 @@ public class ModelService
                     {
                         // MODIFIED: Replaced MessageBox with a non-blocking console log message
                         var message = string.Format(LocalizationService.Instance["ModelService_ErrorFetchModelTypes"], ex.Message);
-                        Logger.Log(message);
+                        Logger.Log(message, LogLevel.Error);
                     });
                 }
             }

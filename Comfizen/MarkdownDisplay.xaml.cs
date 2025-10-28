@@ -189,7 +189,7 @@ namespace Comfizen
                         else
                         {
                              Logger.Log(
-                                $"Markdown Link Warning: The absolute path '{fileFullPath}' is outside the workflows directory.");
+                                $"Markdown Link Warning: The absolute path '{fileFullPath}' is outside the workflows directory.", LogLevel.Warning);
                         }
                     }
                     catch { /* Ignore invalid paths during normalization */ }
