@@ -657,6 +657,113 @@
                                             <TextBlock Text="🎲" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0" ToolTip="{local:Translate Tab_SeedControl}"/>
                                             <ComboBox x:Name="SeedControlComboBox" ItemsSource="{Binding SeedControlEnumValues}" SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedSeedControl}" MinWidth="100"/>
                                         </StackPanel>
+                                        
+                                        <ToggleButton x:Name="XyGridToggleButton"
+                                                      Content="XY"
+                                                      FontWeight="Bold"
+                                                      IsChecked="{Binding SelectedTab.WorkflowInputsController.IsXyGridPopupOpen, Mode=TwoWay}"
+                                                      ToolTip="{local:Translate XYGrid_Title}"
+                                                      Margin="0,0,10,0">
+                                            <ToggleButton.Style>
+                                                <Style TargetType="ToggleButton" BasedOn="{StaticResource IconToggleButton}">
+                                                    <Setter Property="IsEnabled" Value="{Binding SelectedTab.WorkflowInputsController.GridableFields.Count, Converter={StaticResource CountToBooleanConverter}}"/>
+                                                    <Style.Triggers>
+                                                        <!-- Highlight button when grid is active -->
+                                                        <DataTrigger Binding="{Binding SelectedTab.WorkflowInputsController.IsXyGridEnabled}" Value="True">
+                                                            <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                            <Setter Property="Foreground" Value="White"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ToggleButton.Style>
+                                        </ToggleButton>
+
+                                        <Popup IsOpen="{Binding IsChecked, ElementName=XyGridToggleButton}"
+                                               StaysOpen="False"
+                                               PlacementTarget="{Binding ElementName=XyGridToggleButton}"
+                                               Placement="Top"
+                                               AllowsTransparency="True">
+                                            <Border Background="{StaticResource TertiaryBackground}" CornerRadius="5" Padding="15" Margin="0,0,0,5"
+                                                    BorderBrush="{StaticResource PrimaryAccentBrush}" BorderThickness="1">
+                                                <StackPanel MinWidth="350">
+                                                    <CheckBox Content="{local:Translate XYGrid_Enable}" 
+                                                              IsChecked="{Binding SelectedTab.WorkflowInputsController.IsXyGridEnabled, Mode=TwoWay}"
+                                                              FontWeight="Bold" Margin="0,0,0,10"/>
+                                                    
+                                                    <!-- X AXIS -->
+                                                    <TextBlock Text="{local:Translate XYGrid_XAxisField}" Margin="0,0,0,2"/>
+                                                    <ComboBox Margin="0,0,0,5"
+                                                              ItemsSource="{Binding SelectedTab.WorkflowInputsController.GridableFields}"
+                                                              SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedXField}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/>
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+
+                                                    <!-- START OF XY GRID CHANGES -->
+                                                    <local:FilterableComboBox ItemsSource="{Binding SelectedTab.WorkflowInputsController.XFieldItemsSource}"
+                                                                              PlaceholderText="{local:Translate XYGrid_AddValuePlaceholder}"
+                                                                              Margin="0,0,0,5"
+                                                                              ItemSelectedCommand="{Binding SelectedTab.WorkflowInputsController.AddValueToGridCommand}"
+                                                                              ItemSelectedCommandParameter="X">
+                                                        <local:FilterableComboBox.Style>
+                                                            <Style TargetType="local:FilterableComboBox">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SelectedTab.WorkflowInputsController.IsXFieldComboBox}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </local:FilterableComboBox.Style>
+                                                    </local:FilterableComboBox>
+                                                    <!-- END OF XY GRID CHANGES -->
+
+                                                    <TextBlock Text="{local:Translate XYGrid_XValues}" Margin="0,0,0,2"/>
+                                                    <TextBox Margin="0,0,0,10" MinHeight="60"
+                                                             Text="{Binding SelectedTab.WorkflowInputsController.XValues, UpdateSourceTrigger=PropertyChanged}"
+                                                             AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+
+                                                    <!-- Y AXIS -->
+                                                    <TextBlock Text="{local:Translate XYGrid_YAxisField}" Margin="0,0,0,2"/>
+                                                    <ComboBox Margin="0,0,0,5"
+                                                              ItemsSource="{Binding SelectedTab.WorkflowInputsController.GridableFields}"
+                                                              SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedYField}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/>
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+
+                                                    <!-- START OF XY GRID CHANGES -->
+                                                    <local:FilterableComboBox ItemsSource="{Binding SelectedTab.WorkflowInputsController.YFieldItemsSource}"
+                                                                              PlaceholderText="{local:Translate XYGrid_AddValuePlaceholder}"
+                                                                              Margin="0,0,0,5"
+                                                                              ItemSelectedCommand="{Binding SelectedTab.WorkflowInputsController.AddValueToGridCommand}"
+                                                                              ItemSelectedCommandParameter="Y">
+                                                        <local:FilterableComboBox.Style>
+                                                            <Style TargetType="local:FilterableComboBox">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SelectedTab.WorkflowInputsController.IsYFieldComboBox}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </local:FilterableComboBox.Style>
+                                                    </local:FilterableComboBox>
+                                                    <!-- END OF XY GRID CHANGES -->
+
+                                                    <TextBlock Text="{local:Translate XYGrid_YValues}" Margin="0,0,0,2"/>
+                                                    <TextBox Text="{Binding SelectedTab.WorkflowInputsController.YValues, UpdateSourceTrigger=PropertyChanged}"
+                                                             MinHeight="60" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Popup>
+                                        
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>

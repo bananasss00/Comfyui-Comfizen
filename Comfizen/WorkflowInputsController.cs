@@ -98,7 +98,24 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public ICommand ExecuteActionCommand { get; }
     private bool _isUpdatingFromGlobalPreset = false; // Flag to prevent recursion
     private bool _isApplyingPreset = false; // NEW FLAG to prevent TryAutoSelectPreset during preset application
+    
+    // XYGrid
+    public bool IsXyGridEnabled { get; set; }
+    public bool IsXyGridPopupOpen { get; set; }
+    public ObservableCollection<InputFieldViewModel> GridableFields { get; } = new ObservableCollection<InputFieldViewModel>();
+    public InputFieldViewModel SelectedXField { get; set; }
+    public string XValues { get; set; }
+    public InputFieldViewModel SelectedYField { get; set; }
+    public string YValues { get; set; }
 
+    // New properties to support combo box helpers
+    public bool IsXFieldComboBox => SelectedXField is ComboBoxFieldViewModel;
+    public List<string> XFieldItemsSource => (SelectedXField as ComboBoxFieldViewModel)?.ItemsSource;
+    public bool IsYFieldComboBox => SelectedYField is ComboBoxFieldViewModel;
+    public List<string> YFieldItemsSource => (SelectedYField as ComboBoxFieldViewModel)?.ItemsSource;
+    
+    public ICommand AddValueToGridCommand { get; }
+    
     public WorkflowInputsController(Workflow workflow, AppSettings settings, ModelService modelService, WorkflowTabViewModel parentTab)
     {
         _workflow = workflow;
@@ -116,8 +133,38 @@ public class WorkflowInputsController : INotifyPropertyChanged
         
         GlobalSettings = new GlobalSettingsViewModel();
         GlobalPresets = new GlobalPresetsViewModel(ApplyGlobalPreset);
+        
+        this.PropertyChanged += (s, e) => {
+            if (e.PropertyName == nameof(SelectedXField))
+            {
+                OnPropertyChanged(nameof(IsXFieldComboBox));
+                OnPropertyChanged(nameof(XFieldItemsSource));
+            }
+            if (e.PropertyName == nameof(SelectedYField))
+            {
+                OnPropertyChanged(nameof(IsYFieldComboBox));
+                OnPropertyChanged(nameof(YFieldItemsSource));
+            }
+        };
+
+        AddValueToGridCommand = new RelayCommand(param =>
+        {
+            if (param is not Tuple<object, object> tuple || tuple.Item1 is not string selectedValue || tuple.Item2 is not string axis)
+            {
+                return;
+            }
+
+            if (axis == "X")
+            {
+                XValues = string.IsNullOrEmpty(XValues) ? selectedValue : XValues + Environment.NewLine + selectedValue;
+            }
+            else if (axis == "Y")
+            {
+                YValues = string.IsNullOrEmpty(YValues) ? selectedValue : YValues + Environment.NewLine + selectedValue;
+            }
+        });
     }
-    
+
     public ObservableCollection<WorkflowUITabLayoutViewModel> TabLayoouts { get; set; } = new();
 
     public SeedControl SelectedSeedControl { get; set; }
@@ -130,6 +177,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public event Action PresetsModifiedInGroup;
 
     public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     
     public string CreatePromptTask()
     {
@@ -653,7 +701,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 TabLayoouts.Add(defaultTabLayout);
             }
         }
-
+        
+        PopulateGridableFields();
+        
         await Task.WhenAll(comboBoxLoadTasks);
         
         DiscoverGlobalPresets(); 
@@ -676,6 +726,38 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         // If no saved tab was found (e.g., first load, or tab was renamed/deleted), default to the first one.
         SelectedTabLayout = tabToSelect ?? TabLayoouts.FirstOrDefault();
+    }
+    
+    private void PopulateGridableFields()
+    {
+        GridableFields.Clear();
+
+        // Add a null option to allow disabling an axis
+        GridableFields.Add(null);
+
+        var fields = _workflow.Groups.SelectMany(g => g.Fields)
+            .Where(f => f.Type == FieldType.Any ||
+                        f.Type == FieldType.Seed ||
+                        f.Type == FieldType.WildcardSupportPrompt ||
+                        f.Type == FieldType.Sampler ||
+                        f.Type == FieldType.Scheduler ||
+                        f.Type == FieldType.SliderInt ||
+                        f.Type == FieldType.SliderFloat ||
+                        f.Type == FieldType.ComboBox ||
+                        f.Type == FieldType.Model)
+            .OrderBy(f => f.Name);
+            
+        foreach(var field in fields)
+        {
+            // Find the ViewModel that was already created for this field model
+            var fieldVm = TabLayoouts.SelectMany(t => t.Groups)
+                .SelectMany(g => g.Fields)
+                .FirstOrDefault(vm => vm.FieldModel == field);
+            if (fieldVm != null)
+            {
+                GridableFields.Add(fieldVm);
+            }
+        }
     }
     
     /// <summary>
@@ -960,6 +1042,14 @@ public class WorkflowInputsController : INotifyPropertyChanged
         _seedViewModels.Clear();
         _wildcardPropertyPaths.Clear();
         _inpaintViewModels.Clear();
+        
+        GridableFields.Clear();
+        IsXyGridEnabled = false;
+        IsXyGridPopupOpen = false; // Reset popup state
+        SelectedXField = null;
+        SelectedYField = null;
+        XValues = null;
+        YValues = null;
         
         // Unsubscribe from events to prevent memory leaks when a tab is reloaded.
         var allGroups = TabLayoouts?.SelectMany(t => t.Groups) ?? Enumerable.Empty<WorkflowGroupViewModel>();

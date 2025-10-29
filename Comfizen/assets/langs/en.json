@@ -266,5 +266,13 @@
   "UIConstructor_NodeBypass_EnabledByDefault": "Enabled by default",
   "UIConstructor_NodeBypass_SearchPlaceholder": "Find and add a node by ID or title...",
   "UIConstructor_NodeBypass_RemoveTooltip": "Remove this node from the bypass list",
-  "UIConstructor_Field_AdvancedPrompt": "Advanced prompt"
+  "UIConstructor_Field_AdvancedPrompt": "Advanced prompt",
+  "XYGrid_Title": "XY Grid Settings",
+  "XYGrid_Enable": "Enable XY Grid",
+  "XYGrid_XAxisField": "X Axis Field:",
+  "XYGrid_XValues": "X values (one per line):",
+  "XYGrid_GeneratedImageName": "xy_grid_result",
+  "XYGrid_AddValuePlaceholder": "Find and add a value...",
+  "XYGrid_YAxisField": "Y Axis Field (optional):",
+  "XYGrid_YValues": "Y values (one per line):"
 }

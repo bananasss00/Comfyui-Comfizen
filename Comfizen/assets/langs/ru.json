@@ -265,5 +265,13 @@
   "UIConstructor_NodeBypass_EnabledByDefault": "Включено по умолчанию",
   "UIConstructor_NodeBypass_SearchPlaceholder": "Найти и добавить ноду по ID или названию...",
   "UIConstructor_NodeBypass_RemoveTooltip": "Удалить эту ноду из списка байпаса",
-  "UIConstructor_Field_AdvancedPrompt": "Расширенный редактор"
+  "UIConstructor_Field_AdvancedPrompt": "Расширенный редактор",
+  "XYGrid_Title": "Настройки XY Grid",
+  "XYGrid_Enable": "Активировать XY Grid",
+  "XYGrid_XAxisField": "Поле для оси X:",
+  "XYGrid_XValues": "Значения для X (каждое с новой строки):",
+  "XYGrid_GeneratedImageName": "xy_grid_result",
+  "XYGrid_AddValuePlaceholder": "Найти и добавить значение...",
+  "XYGrid_YAxisField": "Поле для оси Y (необязательно):",
+  "XYGrid_YValues": "Значения для Y (каждое с новой строки):"
 }

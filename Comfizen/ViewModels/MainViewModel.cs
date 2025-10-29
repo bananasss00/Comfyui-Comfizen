@@ -9,6 +9,7 @@ using System.Windows.Input;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -724,10 +725,92 @@ namespace Comfizen
         private readonly object _processingLock = new object();
         private bool _isProcessing = false;
         
+        /// <summary>
+        /// Helper to convert a string value from the UI into the appropriate JToken type.
+        /// </summary>
+        private JToken ConvertValueToJToken(string stringValue)
+        {
+            // Try parsing as an integer first
+            if (long.TryParse(stringValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out long longVal))
+            {
+                return new JValue(longVal);
+            }
+            // Then try as a floating-point number
+            if (double.TryParse(stringValue, NumberStyles.Float, CultureInfo.InvariantCulture, out double doubleVal))
+            {
+                return new JValue(doubleVal);
+            }
+            // Fall back to a string
+            return new JValue(stringValue);
+        }
+        
         private List<PromptTask> CreatePromptTasks(WorkflowTabViewModel tab)
         {
             var tasks = new List<PromptTask>();
+            var controller = tab.WorkflowInputsController;
+            
+            // XYGrid
+            if (controller.IsXyGridEnabled && controller.SelectedXField != null && !string.IsNullOrWhiteSpace(controller.XValues))
+            {
+                var xValues = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                                              .Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
+                
+                var yValues = new List<string> { "" }; // Default for 1D grid
 
+                if (controller.SelectedYField != null && !string.IsNullOrWhiteSpace(controller.YValues))
+                {
+                    yValues = controller.YValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                                              .Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
+                }
+
+                foreach (var yValue in yValues)
+                {
+                    foreach (var xValue in xValues)
+                    {
+                        var apiPromptForTask = tab.Workflow.JsonClone();
+
+                        // Apply X value
+                        var xProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedXField.Path);
+                        if (xProp != null)
+                        {
+                            xProp.Value = ConvertValueToJToken(xValue);
+                        }
+
+                        // Apply Y value if applicable
+                        if (controller.SelectedYField != null)
+                        {
+                            var yProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedYField.Path);
+                            if (yProp != null)
+                            {
+                                yProp.Value = ConvertValueToJToken(yValue);
+                            }
+                        }
+
+                        // (The rest of the task creation logic remains the same)
+                        tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask);
+                        tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
+
+                        var fullStateForThisTask = new
+                        {
+                            prompt = apiPromptForTask,
+                            promptTemplate = tab.Workflow.Groups,
+                            scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
+                            tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null
+                        };
+                    
+                        string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
+                        
+                        tasks.Add(new PromptTask
+                        {
+                            JsonPromptForApi = apiPromptForTask.ToString(),
+                            FullWorkflowStateJson = fullWorkflowStateJsonForThisTask,
+                            OriginTab = tab
+                        });
+                    }
+                }
+                return tasks;
+            }
+            
             for (int i = 0; i < QueueSize; i++)
             {
                 // 1. Create a clone of the API prompt that will be modified for this specific task.
