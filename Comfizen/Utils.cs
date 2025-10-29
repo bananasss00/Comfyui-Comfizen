@@ -22,6 +22,9 @@ using SixLabors.ImageSharp.Processing;
 using Directory = System.IO.Directory;
 using System.ComponentModel;
 using System.Globalization;
+using System.Numerics;
+using SixLabors.Fonts;
+using SixLabors.ImageSharp.Drawing.Processing;
 
 namespace Comfizen
 {
@@ -566,5 +569,149 @@ namespace Comfizen
             // For all other types (string, boolean, integer vs integer, etc.), use the strict DeepEquals.
             return JToken.DeepEquals(t1, t2);
         }
+        
+        /// <summary>
+        // A helper class to pass grid generation results to the drawing utility.
+        /// </summary>
+        public class GridCellResult
+        {
+            public ImageOutput ImageOutput { get; set; }
+            public string XValue { get; set; }
+            public string YValue { get; set; }
+        }
+
+        /// <summary>
+        // Creates a composite grid image from a collection of individual images, with labels for axes and values.
+        /// </summary>
+        // <returns>A byte array representing the final PNG image, or null if an error occurs.</returns>
+        public static byte[] CreateImageGrid(
+        List<GridCellResult> results,
+        string xAxisField, IReadOnlyList<string> xValues,
+        string yAxisField, IReadOnlyList<string> yValues)
+    {
+        if (results == null || !results.Any()) return null;
+
+        // --- Configuration ---
+        var backgroundColor = Color.ParseHex("#3F3F46");
+        var textColor = Color.ParseHex("#E0E0E0");
+        var lineColor = Color.ParseHex("#2D2D30");
+        const int padding = 10;
+        const int labelPadding = 8;
+        const float fontSize = 14f;
+        const float axisFontSize = 16f;
+
+        // --- Font Loading ---
+        FontFamily fontFamily;
+        try { fontFamily = SystemFonts.Get("Segoe UI"); }
+        catch { fontFamily = SystemFonts.Families.FirstOrDefault(); }
+        if (fontFamily == null) return null;
+
+        var font = fontFamily.CreateFont(fontSize, FontStyle.Regular);
+        var axisFont = fontFamily.CreateFont(axisFontSize, FontStyle.Bold);
+
+        // --- Image Sizing ---
+        using var firstImage = Image.Load(results.First().ImageOutput.ImageBytes);
+        int cellWidth = firstImage.Width;
+        int cellHeight = firstImage.Height;
+        bool hasYAxis = yValues.Count > 1 || (yValues.Count == 1 && !string.IsNullOrEmpty(yValues[0]));
+
+        // --- Calculate Layout ---
+        var textMeasureOptions = new TextOptions(font);
+        var xLabelMaxHeight = xValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Height).DefaultIfEmpty(0).Max();
+        var yLabelMaxWidth = yValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Width).DefaultIfEmpty(0).Max();
+        int topLabelAreaHeight = (int)xLabelMaxHeight + labelPadding * 2;
+        int leftLabelAreaWidth = hasYAxis ? (int)yLabelMaxWidth + labelPadding * 2 : 0;
+        if (hasYAxis)
+        {
+            var yAxisLabelBounds = TextMeasurer.MeasureBounds("Y: " + yAxisField, new TextOptions(axisFont));
+            leftLabelAreaWidth += (int)yAxisLabelBounds.Height + padding;
+        }
+        int totalWidth = leftLabelAreaWidth + (cellWidth * xValues.Count) + (padding * (xValues.Count + 1));
+        int totalHeight = topLabelAreaHeight + (cellHeight * yValues.Count) + (padding * (yValues.Count + 1));
+
+        // Create dictionaries for fast index lookup
+        var xIndexMap = xValues.Select((v, i) => new { v, i }).ToDictionary(p => p.v, p => p.i);
+        var yIndexMap = yValues.Select((v, i) => new { v, i }).ToDictionary(p => p.v, p => p.i);
+
+        using var canvas = new Image<Rgba32>(totalWidth, totalHeight);
+        
+        canvas.Mutate<Rgba32>(ctx =>
+        {
+            ctx.Fill(backgroundColor);
+
+            // --- Draw Axis Labels ---
+            ctx.DrawText(
+                new RichTextOptions(axisFont) { Origin = new PointF(leftLabelAreaWidth + padding, padding) },
+                "X: " + xAxisField,
+                textColor);
+
+            if (hasYAxis)
+            {
+                var yAxisTextOptions = new RichTextOptions(axisFont)
+                {
+                    Origin = new PointF(padding + axisFontSize / 2, topLabelAreaHeight + (totalHeight - topLabelAreaHeight) / 2f),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                
+                float rotationInRadians = (float)(-90 * (Math.PI / 180.0));
+                
+                // ИСПРАВЛЕНИЕ 1: Убираем .Value, так как Origin - это и есть Vector2
+                var rotationMatrix = Matrix3x2.CreateRotation(rotationInRadians, yAxisTextOptions.Origin);
+
+                ctx.SetDrawingTransform(rotationMatrix);
+                ctx.DrawText(yAxisTextOptions, "Y: " + yAxisField, textColor);
+                ctx.SetDrawingTransform(Matrix3x2.Identity);
+            }
+
+            // --- Draw Value Labels ---
+            var valueLabelOptions = new RichTextOptions(font)
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            for (int i = 0; i < xValues.Count; i++)
+            {
+                valueLabelOptions.Origin = new PointF(leftLabelAreaWidth + padding + (i * (cellWidth + padding)) + cellWidth / 2, topLabelAreaHeight / 2);
+                ctx.DrawText(valueLabelOptions, xValues[i], textColor);
+            }
+            if (hasYAxis)
+            {
+                for (int i = 0; i < yValues.Count; i++)
+                {
+                    valueLabelOptions.Origin = new PointF(leftLabelAreaWidth / 2, topLabelAreaHeight + padding + (i * (cellHeight + padding)) + cellHeight / 2);
+                    ctx.DrawText(valueLabelOptions, yValues[i], textColor);
+                }
+            }
+
+            // --- Draw Images ---
+            foreach (var result in results)
+            {
+                if (!xIndexMap.TryGetValue(result.XValue, out int xIndex)) continue;
+                int yIndex = 0;
+                if (hasYAxis && !yIndexMap.TryGetValue(result.YValue, out yIndex)) continue;
+
+                var xPos = leftLabelAreaWidth + padding + (xIndex * (cellWidth + padding));
+                var yPos = topLabelAreaHeight + padding + (yIndex * (cellHeight + padding));
+                
+                using var image = Image.Load<Rgba32>(result.ImageOutput.ImageBytes);
+                if (image.Width != cellWidth || image.Height != cellHeight)
+                {
+                    image.Mutate(i => i.Resize(cellWidth, cellHeight));
+                }
+                
+                ctx.DrawImage(image, new Point(xPos, yPos), 1f);
+                
+                // ИСПРАВЛЕНИЕ 2: Используем фабричный метод Pens.Solid для создания пера
+                var pen = Pens.Solid(lineColor, 1);
+                var rectangle = new RectangleF(xPos - 0.5f, yPos - 0.5f, cellWidth + 1, cellHeight + 1);
+                ctx.Draw(pen, rectangle);
+            }
+        });
+
+        using var ms = new MemoryStream();
+        canvas.SaveAsPng(ms);
+        return ms.ToArray();
+    }
     }
 }

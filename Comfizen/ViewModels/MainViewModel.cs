@@ -178,6 +178,22 @@ namespace Comfizen
 
         public ICommand ToggleInfiniteQueueCommand { get; }
         
+        // Helper classes to manage grid processing state
+        private class GridCellResult
+        {
+            public ImageOutput ImageOutput { get; set; }
+            public string XValue { get; set; }
+            public string YValue { get; set; }
+        }
+
+        private class XYGridConfig
+        {
+            public string XAxisField { get; set; }
+            public IReadOnlyList<string> XValues { get; set; }
+            public string YAxisField { get; set; }
+            public IReadOnlyList<string> YValues { get; set; }
+        }
+        
         private class PromptTask
         {
             /// <summary>
@@ -192,6 +208,10 @@ namespace Comfizen
             public string FullWorkflowStateJson { get; set; }
 
             public WorkflowTabViewModel OriginTab { get; set; }
+            
+            public bool IsGridTask { get; set; }
+            public string XValue { get; set; }
+            public string YValue { get; set; }
         }
         
         public MainViewModel()
@@ -736,7 +756,7 @@ namespace Comfizen
                 return new JValue(longVal);
             }
             // Then try as a floating-point number
-            if (double.TryParse(stringValue, NumberStyles.Float, CultureInfo.InvariantCulture, out double doubleVal))
+            if (double.TryParse(stringValue, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleVal))
             {
                 return new JValue(doubleVal);
             }
@@ -752,15 +772,12 @@ namespace Comfizen
             // XYGrid
             if (controller.IsXyGridEnabled && controller.SelectedXField != null && !string.IsNullOrWhiteSpace(controller.XValues))
             {
-                var xValues = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                                              .Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
-                
-                var yValues = new List<string> { "" }; // Default for 1D grid
+                var xValues = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
+                var yValues = new List<string> { "" };
 
                 if (controller.SelectedYField != null && !string.IsNullOrWhiteSpace(controller.YValues))
                 {
-                    yValues = controller.YValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                                              .Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
+                    yValues = controller.YValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
                 }
 
                 foreach (var yValue in yValues)
@@ -786,10 +803,9 @@ namespace Comfizen
                             }
                         }
 
-                        // (The rest of the task creation logic remains the same)
                         tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask);
                         tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
-
+                        
                         var fullStateForThisTask = new
                         {
                             prompt = apiPromptForTask,
@@ -799,12 +815,15 @@ namespace Comfizen
                         };
                     
                         string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
-                        
+
                         tasks.Add(new PromptTask
                         {
                             JsonPromptForApi = apiPromptForTask.ToString(),
                             FullWorkflowStateJson = fullWorkflowStateJsonForThisTask,
-                            OriginTab = tab
+                            OriginTab = tab,
+                            IsGridTask = true,
+                            XValue = xValue,
+                            YValue = yValue
                         });
                     }
                 }
@@ -939,6 +958,8 @@ namespace Comfizen
         private async Task ProcessQueueAsync()
         {
             WorkflowTabViewModel lastTaskOriginTab = null; 
+            List<GridCellResult> gridResults = null;
+            XYGridConfig gridConfig = null;
             
             try
             {
@@ -955,6 +976,19 @@ namespace Comfizen
                     {
                         lastTaskOriginTab = task.OriginTab;
                         
+                        if (task.IsGridTask && gridResults == null)
+                        {
+                            gridResults = new List<GridCellResult>();
+                            var controller = task.OriginTab.WorkflowInputsController;
+                            gridConfig = new XYGridConfig
+                            {
+                                XAxisField = controller.SelectedXField?.Name,
+                                XValues = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).ToList(),
+                                YAxisField = controller.SelectedYField?.Name,
+                                YValues = controller.YValues?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).ToList() ?? new List<string> { "" }
+                            };
+                        }
+                        
                         try
                         {
                             var promptForTask = JObject.Parse(task.JsonPromptForApi);
@@ -970,10 +1004,24 @@ namespace Comfizen
                                     {
                                         return;
                                     }
-                                
-                                    if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.FilePath == io.FilePath))
+                                    
+                                    if (task.IsGridTask)
                                     {
-                                        this.ImageProcessing.ImageOutputs.Insert(0, io);
+                                        // For grid tasks, collect results instead of adding them to the gallery immediately
+                                        gridResults.Add(new GridCellResult
+                                        {
+                                            ImageOutput = io,
+                                            XValue = task.XValue,
+                                            YValue = task.YValue
+                                        });
+                                    }
+                                    else
+                                    {
+                                        if (!this.ImageProcessing.ImageOutputs.Any(existing =>
+                                                existing.FilePath == io.FilePath))
+                                        {
+                                            this.ImageProcessing.ImageOutputs.Insert(0, io);
+                                        }
                                     }
 
                                     task.OriginTab?.ExecuteHook("on_output_received", promptForTask, io);
@@ -1050,6 +1098,32 @@ namespace Comfizen
             }
             finally
             {
+                // After the queue is empty, check if we need to generate a grid image
+                if (gridResults != null && gridResults.Any())
+                {
+                    var gridImageBytes = Utils.CreateImageGrid(
+                        gridResults.Select(r => new Utils.GridCellResult { ImageOutput = r.ImageOutput, XValue = r.XValue, YValue = r.YValue }).ToList(),
+                        gridConfig.XAxisField, gridConfig.XValues,
+                        gridConfig.YAxisField, gridConfig.YValues);
+
+                    if (gridImageBytes != null)
+                    {
+                        var firstTaskResult = gridResults.First();
+                        var gridImageOutput = new ImageOutput
+                        {
+                            ImageBytes = gridImageBytes,
+                            FileName = $"{LocalizationService.Instance["XYGrid_GeneratedImageName"]}_{DateTime.Now:yyyyMMdd_HHmmss}.png",
+                            Prompt = firstTaskResult.ImageOutput.Prompt, // Use prompt from one of the images
+                            VisualHash = Utils.ComputePixelHash(gridImageBytes)
+                        };
+
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            this.ImageProcessing.ImageOutputs.Insert(0, gridImageOutput);
+                        });
+                    }
+                }
+                
                 lock (_processingLock)
                 {
                     _isProcessing = false;
