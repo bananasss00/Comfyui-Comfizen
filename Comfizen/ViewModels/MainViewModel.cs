@@ -189,8 +189,10 @@ namespace Comfizen
         private class XYGridConfig
         {
             public string XAxisField { get; set; }
+            public string XAxisPath { get; set; }
             public IReadOnlyList<string> XValues { get; set; }
             public string YAxisField { get; set; }
+            public string YAxisPath { get; set; }
             public IReadOnlyList<string> YValues { get; set; }
             public bool CreateGridImage { get; set; }
         }
@@ -456,10 +458,26 @@ namespace Comfizen
         
         public void ImportStateFromJObject(JObject data, string sourceFileName)
         {
-            var promptData = data["prompt"] as JObject;
-            var uiDefinition = data["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
-            var scripts = data["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
-            var tabs = data["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
+            // --- START OF NEW LOGIC: Handle composite grid prompt ---
+            JObject workflowData;
+            JObject gridConfig = null;
+
+            if (data["workflow"] is JObject wData) // Check for new composite format
+            {
+                workflowData = wData;
+                gridConfig = data["grid_config"] as JObject;
+            }
+            else // Handle old format for backward compatibility
+            {
+                workflowData = data;
+            }
+            // --- END OF NEW LOGIC ---
+
+            // Use workflowData instead of data from here on
+            var promptData = workflowData["prompt"] as JObject;
+            var uiDefinition = workflowData["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
+            var scripts = workflowData["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
+            var tabs = workflowData["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
 
             if (promptData == null || uiDefinition == null)
             {
@@ -480,6 +498,37 @@ namespace Comfizen
                 _modelService, 
                 _sessionManager
             );
+
+            // --- START OF NEW LOGIC: Apply grid config if it exists ---
+            if (gridConfig != null)
+            {
+                var controller = newTab.WorkflowInputsController;
+                try
+                {
+                    controller.IsXyGridEnabled = true;
+
+                    string xAxisPath = gridConfig["x_axis_field_path"]?.ToString();
+                    string yAxisPath = gridConfig["y_axis_field_path"]?.ToString();
+                    
+                    if (!string.IsNullOrEmpty(xAxisPath))
+                    {
+                        controller.SelectedXField = controller.GridableFields.FirstOrDefault(f => f?.Path == xAxisPath);
+                    }
+
+                    if (!string.IsNullOrEmpty(yAxisPath))
+                    {
+                        controller.SelectedYField = controller.GridableFields.FirstOrDefault(f => f?.Path == yAxisPath);
+                    }
+
+                    controller.XValues = string.Join(Environment.NewLine, gridConfig["x_values"]?.ToObject<List<string>>() ?? new List<string>());
+                    controller.YValues = string.Join(Environment.NewLine, gridConfig["y_values"]?.ToObject<List<string>>() ?? new List<string>());
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, "Failed to restore XY Grid settings from imported image.");
+                }
+            }
+            // --- END OF NEW LOGIC ---
 
             OpenTabs.Add(newTab);
             SelectedTab = newTab;
@@ -988,8 +1037,10 @@ namespace Comfizen
                             gridConfig = new XYGridConfig
                             {
                                 XAxisField = controller.SelectedXField?.Name,
+                                XAxisPath = controller.SelectedXField?.Path,
                                 XValues = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).ToList(),
                                 YAxisField = controller.SelectedYField?.Name,
+                                YAxisPath = controller.SelectedYField?.Path,
                                 YValues = controller.YValues?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).ToList() ?? new List<string> { "" },
                                 CreateGridImage = controller.XyGridCreateGridImage
                             };
@@ -1128,11 +1179,41 @@ namespace Comfizen
                     if (gridImageBytes != null)
                     {
                         var firstTaskResult = gridResults.First();
+                        
+                        // --- START OF NEW LOGIC: Create composite prompt for grid image ---
+                        string promptForGrid;
+                        try
+                        {
+                            var workflowJson = JObject.Parse(firstTaskResult.ImageOutput.Prompt);
+                            var gridConfigData = new JObject
+                            {
+                                ["x_axis_field_path"] = gridConfig.XAxisPath,
+                                ["x_axis_field_name"] = gridConfig.XAxisField,
+                                ["x_values"] = JArray.FromObject(gridConfig.XValues),
+                                ["y_axis_field_path"] = gridConfig.YAxisPath,
+                                ["y_axis_field_name"] = gridConfig.YAxisField,
+                                ["y_values"] = JArray.FromObject(gridConfig.YValues)
+                            };
+
+                            var compositePrompt = new JObject
+                            {
+                                ["workflow"] = workflowJson,
+                                ["grid_config"] = gridConfigData
+                            };
+                            promptForGrid = compositePrompt.ToString(Formatting.None);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log(ex, "Failed to create composite JSON for XY Grid image. Falling back to simple prompt.");
+                            promptForGrid = firstTaskResult.ImageOutput.Prompt; // Fallback
+                        }
+                        // --- END OF NEW LOGIC ---
+
                         var gridImageOutput = new ImageOutput
                         {
                             ImageBytes = gridImageBytes,
                             FileName = $"{LocalizationService.Instance["XYGrid_GeneratedImageName"]}_{DateTime.Now:yyyyMMdd_HHmmss}.png",
-                            Prompt = firstTaskResult.ImageOutput.Prompt, // Use prompt from one of the images
+                            Prompt = promptForGrid, // Use the new composite prompt
                             VisualHash = Utils.ComputePixelHash(gridImageBytes)
                         };
 
