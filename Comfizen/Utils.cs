@@ -585,133 +585,143 @@ namespace Comfizen
         /// </summary>
         // <returns>A byte array representing the final PNG image, or null if an error occurs.</returns>
         public static byte[] CreateImageGrid(
-        List<GridCellResult> results,
-        string xAxisField, IReadOnlyList<string> xValues,
-        string yAxisField, IReadOnlyList<string> yValues)
-    {
-        if (results == null || !results.Any()) return null;
-
-        // --- Configuration ---
-        var backgroundColor = Color.ParseHex("#3F3F46");
-        var textColor = Color.ParseHex("#E0E0E0");
-        var lineColor = Color.ParseHex("#2D2D30");
-        const int padding = 10;
-        const int labelPadding = 8;
-        const float fontSize = 14f;
-        const float axisFontSize = 16f;
-
-        // --- Font Loading ---
-        FontFamily fontFamily;
-        try { fontFamily = SystemFonts.Get("Segoe UI"); }
-        catch { fontFamily = SystemFonts.Families.FirstOrDefault(); }
-        if (fontFamily == null) return null;
-
-        var font = fontFamily.CreateFont(fontSize, FontStyle.Regular);
-        var axisFont = fontFamily.CreateFont(axisFontSize, FontStyle.Bold);
-
-        // --- Image Sizing ---
-        using var firstImage = Image.Load(results.First().ImageOutput.ImageBytes);
-        int cellWidth = firstImage.Width;
-        int cellHeight = firstImage.Height;
-        bool hasYAxis = yValues.Count > 1 || (yValues.Count == 1 && !string.IsNullOrEmpty(yValues[0]));
-
-        // --- Calculate Layout ---
-        var textMeasureOptions = new TextOptions(font);
-        var xLabelMaxHeight = xValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Height).DefaultIfEmpty(0).Max();
-        var yLabelMaxWidth = yValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Width).DefaultIfEmpty(0).Max();
-        int topLabelAreaHeight = (int)xLabelMaxHeight + labelPadding * 2;
-        int leftLabelAreaWidth = hasYAxis ? (int)yLabelMaxWidth + labelPadding * 2 : 0;
-        if (hasYAxis)
+            List<GridCellResult> results,
+            string xAxisField, IReadOnlyList<string> xValues,
+            string yAxisField, IReadOnlyList<string> yValues)
         {
-            var yAxisLabelBounds = TextMeasurer.MeasureBounds("Y: " + yAxisField, new TextOptions(axisFont));
-            leftLabelAreaWidth += (int)yAxisLabelBounds.Height + padding;
-        }
-        int totalWidth = leftLabelAreaWidth + (cellWidth * xValues.Count) + (padding * (xValues.Count + 1));
-        int totalHeight = topLabelAreaHeight + (cellHeight * yValues.Count) + (padding * (yValues.Count + 1));
+            if (results == null || !results.Any()) return null;
+            
+            var resultsPool = new List<GridCellResult>(results);
 
-        // Create dictionaries for fast index lookup
-        var xIndexMap = xValues.Select((v, i) => new { v, i }).ToDictionary(p => p.v, p => p.i);
-        var yIndexMap = yValues.Select((v, i) => new { v, i }).ToDictionary(p => p.v, p => p.i);
+            // --- Configuration ---
+            var backgroundColor = Color.ParseHex("#3F3F46");
+            var textColor = Color.ParseHex("#E0E0E0");
+            var lineColor = Color.ParseHex("#2D2D30");
+            const int padding = 10;
+            const int labelPadding = 8;
+            const float fontSize = 14f;
+            const float axisFontSize = 16f;
 
-        using var canvas = new Image<Rgba32>(totalWidth, totalHeight);
-        
-        canvas.Mutate<Rgba32>(ctx =>
-        {
-            ctx.Fill(backgroundColor);
+            // --- Font Loading ---
+            FontFamily fontFamily;
+            try { fontFamily = SystemFonts.Get("Segoe UI"); }
+            catch { fontFamily = SystemFonts.Families.FirstOrDefault(); }
+            if (fontFamily == null) return null;
 
-            // --- Draw Axis Labels ---
-            ctx.DrawText(
-                new RichTextOptions(axisFont) { Origin = new PointF(leftLabelAreaWidth + padding, padding) },
-                "X: " + xAxisField,
-                textColor);
+            var font = fontFamily.CreateFont(fontSize, FontStyle.Regular);
+            var axisFont = fontFamily.CreateFont(axisFontSize, FontStyle.Bold);
 
+            // --- Image Sizing ---
+            using var firstImage = Image.Load(results.First().ImageOutput.ImageBytes);
+            int cellWidth = firstImage.Width;
+            int cellHeight = firstImage.Height;
+            bool hasYAxis = yValues.Count > 1 || (yValues.Count == 1 && !string.IsNullOrEmpty(yValues[0]));
+
+            // --- Calculate Layout ---
+            var textMeasureOptions = new TextOptions(font);
+            var xLabelMaxHeight = xValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Height).DefaultIfEmpty(0).Max();
+            var yLabelMaxWidth = yValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Width).DefaultIfEmpty(0).Max();
+            int topLabelAreaHeight = (int)xLabelMaxHeight + labelPadding * 2;
+            int leftLabelAreaWidth = hasYAxis ? (int)yLabelMaxWidth + labelPadding * 2 : 0;
             if (hasYAxis)
             {
-                var yAxisTextOptions = new RichTextOptions(axisFont)
+                var yAxisLabelBounds = TextMeasurer.MeasureBounds("Y: " + yAxisField, new TextOptions(axisFont));
+                leftLabelAreaWidth += (int)yAxisLabelBounds.Height + padding;
+            }
+            int totalWidth = leftLabelAreaWidth + (cellWidth * xValues.Count) + (padding * (xValues.Count + 1));
+            int totalHeight = topLabelAreaHeight + (cellHeight * yValues.Count) + (padding * (yValues.Count + 1));
+
+            using var canvas = new Image<Rgba32>(totalWidth, totalHeight);
+            
+            canvas.Mutate<Rgba32>(ctx =>
+            {
+                ctx.Fill(backgroundColor);
+
+                // --- Draw Axis Labels ---
+                ctx.DrawText(
+                    new RichTextOptions(axisFont) { Origin = new PointF(leftLabelAreaWidth + padding, padding) },
+                    "X: " + xAxisField,
+                    textColor);
+
+                if (hasYAxis)
                 {
-                    Origin = new PointF(padding + axisFontSize / 2, topLabelAreaHeight + (totalHeight - topLabelAreaHeight) / 2f),
+                    var yAxisTextOptions = new RichTextOptions(axisFont)
+                    {
+                        Origin = new PointF(padding + axisFontSize / 2, topLabelAreaHeight + (totalHeight - topLabelAreaHeight) / 2f),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    
+                    float rotationInRadians = (float)(-90 * (Math.PI / 180.0));
+                    var rotationMatrix = Matrix3x2.CreateRotation(rotationInRadians, yAxisTextOptions.Origin);
+
+                    ctx.SetDrawingTransform(rotationMatrix);
+                    ctx.DrawText(yAxisTextOptions, "Y: " + yAxisField, textColor);
+                    ctx.SetDrawingTransform(Matrix3x2.Identity);
+                }
+
+                // --- Draw Value Labels ---
+                var valueLabelOptions = new RichTextOptions(font)
+                {
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                
-                float rotationInRadians = (float)(-90 * (Math.PI / 180.0));
-                
-                // ИСПРАВЛЕНИЕ 1: Убираем .Value, так как Origin - это и есть Vector2
-                var rotationMatrix = Matrix3x2.CreateRotation(rotationInRadians, yAxisTextOptions.Origin);
-
-                ctx.SetDrawingTransform(rotationMatrix);
-                ctx.DrawText(yAxisTextOptions, "Y: " + yAxisField, textColor);
-                ctx.SetDrawingTransform(Matrix3x2.Identity);
-            }
-
-            // --- Draw Value Labels ---
-            var valueLabelOptions = new RichTextOptions(font)
-            {
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            for (int i = 0; i < xValues.Count; i++)
-            {
-                valueLabelOptions.Origin = new PointF(leftLabelAreaWidth + padding + (i * (cellWidth + padding)) + cellWidth / 2, topLabelAreaHeight / 2);
-                ctx.DrawText(valueLabelOptions, xValues[i], textColor);
-            }
-            if (hasYAxis)
-            {
-                for (int i = 0; i < yValues.Count; i++)
+                for (int i = 0; i < xValues.Count; i++)
                 {
-                    valueLabelOptions.Origin = new PointF(leftLabelAreaWidth / 2, topLabelAreaHeight + padding + (i * (cellHeight + padding)) + cellHeight / 2);
-                    ctx.DrawText(valueLabelOptions, yValues[i], textColor);
+                    valueLabelOptions.Origin = new PointF(leftLabelAreaWidth + padding + (i * (cellWidth + padding)) + cellWidth / 2, topLabelAreaHeight / 2);
+                    ctx.DrawText(valueLabelOptions, xValues[i], textColor);
                 }
-            }
-
-            // --- Draw Images ---
-            foreach (var result in results)
-            {
-                if (!xIndexMap.TryGetValue(result.XValue, out int xIndex)) continue;
-                int yIndex = 0;
-                if (hasYAxis && !yIndexMap.TryGetValue(result.YValue, out yIndex)) continue;
-
-                var xPos = leftLabelAreaWidth + padding + (xIndex * (cellWidth + padding));
-                var yPos = topLabelAreaHeight + padding + (yIndex * (cellHeight + padding));
-                
-                using var image = Image.Load<Rgba32>(result.ImageOutput.ImageBytes);
-                if (image.Width != cellWidth || image.Height != cellHeight)
+                if (hasYAxis)
                 {
-                    image.Mutate(i => i.Resize(cellWidth, cellHeight));
+                    for (int i = 0; i < yValues.Count; i++)
+                    {
+                        valueLabelOptions.Origin = new PointF(leftLabelAreaWidth / 2, topLabelAreaHeight + padding + (i * (cellHeight + padding)) + cellHeight / 2);
+                        ctx.DrawText(valueLabelOptions, yValues[i], textColor);
+                    }
                 }
-                
-                ctx.DrawImage(image, new Point(xPos, yPos), 1f);
-                
-                // ИСПРАВЛЕНИЕ 2: Используем фабричный метод Pens.Solid для создания пера
-                var pen = Pens.Solid(lineColor, 1);
-                var rectangle = new RectangleF(xPos - 0.5f, yPos - 0.5f, cellWidth + 1, cellHeight + 1);
-                ctx.Draw(pen, rectangle);
-            }
-        });
 
-        using var ms = new MemoryStream();
-        canvas.SaveAsPng(ms);
-        return ms.ToArray();
-    }
+                // --- START OF FIX: Completely reworked image drawing logic ---
+                // We iterate over the grid structure (by cell) instead of iterating over the results.
+                // This allows for the correct handling of duplicate values in the axes.
+                for (int yIndex = 0; yIndex < yValues.Count; yIndex++)
+                {
+                    for (int xIndex = 0; xIndex < xValues.Count; xIndex++)
+                    {
+                        var currentXValue = xValues[xIndex];
+                        var currentYValue = yValues[yIndex];
+
+                        // Find the first matching image for this cell.
+                        var result = resultsPool.FirstOrDefault(r => r.XValue == currentXValue && r.YValue == currentYValue);
+
+                        if (result != null)
+                        {
+                            // IMPORTANT: We remove the found image from the pool, so that on the next match
+                            // (e.g., for the second "1"), we take the next generated image.
+                            resultsPool.Remove(result);
+
+                            var xPos = leftLabelAreaWidth + padding + (xIndex * (cellWidth + padding));
+                            var yPos = topLabelAreaHeight + padding + (yIndex * (cellHeight + padding));
+                            
+                            using var image = Image.Load<Rgba32>(result.ImageOutput.ImageBytes);
+                            if (image.Width != cellWidth || image.Height != cellHeight)
+                            {
+                                image.Mutate(i => i.Resize(cellWidth, cellHeight));
+                            }
+                            
+                            ctx.DrawImage(image, new Point(xPos, yPos), 1f);
+                            
+                            var pen = Pens.Solid(lineColor, 1);
+                            var rectangle = new RectangleF(xPos - 0.5f, yPos - 0.5f, cellWidth + 1, cellHeight + 1);
+                            ctx.Draw(pen, rectangle);
+                        }
+                    }
+                }
+                // --- END OF FIX ---
+            });
+
+            using var ms = new MemoryStream();
+            canvas.SaveAsPng(ms);
+            return ms.ToArray();
+        }
     }
 }
