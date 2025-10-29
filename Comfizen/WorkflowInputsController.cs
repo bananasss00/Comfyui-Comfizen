@@ -210,29 +210,25 @@ public class WorkflowInputsController : INotifyPropertyChanged
             .OfType<NodeBypassFieldViewModel>()
             .ToList();
 
-        if (!bypassViewModels.Any())
-        {
-            return;
-        }
-
-        // --- START OF REWORKED LOGIC ---
-
-        // 1. Restore all potentially modified nodes to their original state first.
-        // This is crucial to ensure that each run starts from the original workflow connections.
-        // We iterate through *all* nodes to revert any previous bypass modifications.
+        // First, ALWAYS restore all nodes to their original state from the _meta backup.
+        // This ensures each run starts fresh and bypasses are not cumulative.
         foreach (var nodeProperty in prompt.Properties())
         {
-            if (nodeProperty.Value is not JObject node || 
+            if (nodeProperty.Value is not JObject node ||
                 node["_meta"]?["original_inputs"] is not JObject originalInputs ||
                 node["inputs"] is not JObject currentInputs)
             {
                 continue;
             }
-            // Restore by merging, which only overwrites the connection properties, preserving widget value changes.
             currentInputs.Merge(originalInputs.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
         }
 
-        // 2. Determine which nodes should be bypassed in *this* specific run.
+        if (!bypassViewModels.Any())
+        {
+            return;
+        }
+
+        // Determine which nodes should be bypassed in *this* specific run.
         var nodesToBypassThisRun = new HashSet<string>();
         foreach (var vm in bypassViewModels)
         {
@@ -245,24 +241,40 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
         
-        // If no nodes are being bypassed, we're done.
         if (!nodesToBypassThisRun.Any())
         {
-            return; 
+            return;
         }
 
-        // 3. Create a simple, one-level redirection map for the nodes that are actively being bypassed.
-        // This map tells us where a bypassed node gets its inputs from.
-        // We assume that for chainable nodes, the output index corresponds to the input link's position.
-        var redirectionMap = new Dictionary<string, JArray>();
+        // --- NEW: Disconnect inputs OF the bypassed nodes ---
+        foreach (var bypassedNodeId in nodesToBypassThisRun)
+        {
+            if (prompt[bypassedNodeId]?["inputs"] is not JObject bypassedNodeInputs) continue;
 
+            // Find all properties that are connections (JArray) and remove them.
+            var connectionProperties = bypassedNodeInputs.Properties()
+                .Where(p => p.Value is JArray)
+                .ToList();
+            
+            foreach (var prop in connectionProperties)
+            {
+                prop.Remove();
+            }
+        }
+
+        // Create a redirection map for downstream nodes.
+        var redirectionMap = new Dictionary<string, JArray>();
         foreach (var bypassedNodeId in nodesToBypassThisRun)
         {
             var bypassedNode = prompt[bypassedNodeId] as JObject;
             if (bypassedNode?["inputs"] is not JObject bypassedNodeInputs) continue;
             
             int outputIndex = 0;
-            foreach (var inputProp in bypassedNodeInputs.Properties())
+            // Note: We are reading from the *restored* state here, before inputs were disconnected.
+            var originalInputs = bypassedNode["_meta"]?["original_inputs"] as JObject;
+            var inputsToScan = originalInputs ?? bypassedNodeInputs;
+
+            foreach (var inputProp in inputsToScan.Properties())
             {
                 if (inputProp.Value is JArray sourceLink)
                 {
@@ -273,7 +285,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
 
-        // 4. Rewire the connections for the entire prompt, resolving the full bypass chain.
+        // Rewire the connections for all downstream nodes.
         foreach (var nodeProperty in prompt.Properties())
         {
             if (nodeProperty.Value is not JObject node || node["inputs"] is not JObject nodeInputs) continue;
@@ -286,16 +298,12 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 }
 
                 JArray currentLink = originalLink;
-
-                // Use a loop to trace back the connections through the redirection map.
                 int depth = 0;
-                const int maxDepth = 20; // Safety break for potential cycles
+                const int maxDepth = 20;
                 
                 while (depth < maxDepth)
                 {
                     string sourceNodeId = currentLink[0].ToString();
-
-                    // If the current source node is not in our bypass list, we've found the final source.
                     if (!nodesToBypassThisRun.Contains(sourceNodeId))
                     {
                         break;
@@ -304,28 +312,23 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     string sourceOutputIndex = currentLink[1].ToString();
                     string sourceKey = $"{sourceNodeId}.{sourceOutputIndex}";
                     
-                    // If we find this source in our map, we update our current link and continue tracing.
                     if (redirectionMap.TryGetValue(sourceKey, out var newSourceLink))
                     {
                         currentLink = newSourceLink; 
                     }
                     else
                     {
-                        // The chain is broken (e.g., node input is not a link); stop here.
                         break;
                     }
                     depth++;
                 }
-
-                // Update the property only if the link has changed, and use a deep clone
-                // to ensure independence of JArray instances.
+                
                 if (currentLink != originalLink)
                 {
                     inputProperty.Value = currentLink.DeepClone();
                 }
             }
         }
-        // --- END OF REWORKED LOGIC ---
     }
 
     private void ApplyWildcards(JToken prompt)
