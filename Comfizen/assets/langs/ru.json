@@ -273,5 +273,7 @@
   "XYGrid_GeneratedImageName": "xy_grid_result",
   "XYGrid_AddValuePlaceholder": "Найти и добавить значение...",
   "XYGrid_YAxisField": "Поле для оси Y (необязательно):",
-  "XYGrid_YValues": "Значения для Y (каждое с новой строки):"
+  "XYGrid_YValues": "Значения для Y (каждое с новой строки):",
+  "XYGrid_CreateGridImage": "Создавать итоговый грид",
+  "XYGrid_ShowIndividualImages": "Показывать единичные изображения"
 }

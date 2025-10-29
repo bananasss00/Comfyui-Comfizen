@@ -69,12 +69,16 @@ namespace Comfizen
                 {
                     promptToSave = CurrentFullScreenImage.Prompt;
                 }
+                
+                // START OF CHANGE: Use FileName as a fallback for FilePath.
+                // This handles client-generated images like XY Grids that don't have a server file path.
+                string fileIdentifier = CurrentFullScreenImage.FilePath ?? CurrentFullScreenImage.FileName;
 
                 if (CurrentFullScreenImage.Type == FileType.Video)
                 {
                     await _comfyuiModel.SaveVideoFileAsync(
                         _settings.SavedImagesDirectory, 
-                        CurrentFullScreenImage.FilePath,
+                        fileIdentifier,
                         CurrentFullScreenImage.ImageBytes,
                         promptToSave
                     );
@@ -83,12 +87,13 @@ namespace Comfizen
                 {
                     await _comfyuiModel.SaveImageFileAsync(
                         _settings.SavedImagesDirectory,
-                        CurrentFullScreenImage.FilePath,
+                        fileIdentifier,
                         CurrentFullScreenImage.ImageBytes,
                         promptToSave,
                         _settings
                     );
                 }
+                // END OF CHANGE
                 
                 CurrentFullScreenImage.IsSaved = true;
                 SaveConfirmationText = LocalizationService.Instance["Fullscreen_Saved"]; 

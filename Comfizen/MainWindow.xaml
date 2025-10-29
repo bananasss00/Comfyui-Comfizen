@@ -690,6 +690,11 @@
                                                               IsChecked="{Binding SelectedTab.WorkflowInputsController.IsXyGridEnabled, Mode=TwoWay}"
                                                               FontWeight="Bold" Margin="0,0,0,10"/>
                                                     
+                                                    <StackPanel Margin="15,0,0,10">
+                                                        <CheckBox Content="{local:Translate XYGrid_CreateGridImage}" IsChecked="{Binding SelectedTab.WorkflowInputsController.XyGridCreateGridImage, Mode=TwoWay}"/>
+                                                        <CheckBox Content="{local:Translate XYGrid_ShowIndividualImages}" IsChecked="{Binding SelectedTab.WorkflowInputsController.XyGridShowIndividualImages, Mode=TwoWay}" Margin="0,5,0,0"/>
+                                                    </StackPanel>
+                                                    
                                                     <!-- X AXIS -->
                                                     <TextBlock Text="{local:Translate XYGrid_XAxisField}" Margin="0,0,0,2"/>
                                                     <ComboBox Margin="0,0,0,5"

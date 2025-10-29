@@ -274,5 +274,7 @@
   "XYGrid_GeneratedImageName": "xy_grid_result",
   "XYGrid_AddValuePlaceholder": "Find and add a value...",
   "XYGrid_YAxisField": "Y Axis Field (optional):",
-  "XYGrid_YValues": "Y values (one per line):"
+  "XYGrid_YValues": "Y values (one per line):",
+  "XYGrid_CreateGridImage": "Create grid image",
+  "XYGrid_ShowIndividualImages": "Show individual images"
 }

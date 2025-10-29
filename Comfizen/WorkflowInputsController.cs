@@ -101,6 +101,8 @@ public class WorkflowInputsController : INotifyPropertyChanged
     
     // XYGrid
     public bool IsXyGridEnabled { get; set; }
+    public bool XyGridCreateGridImage { get; set; } = true;
+    public bool XyGridShowIndividualImages { get; set; } = false;
     public bool IsXyGridPopupOpen { get; set; }
     public ObservableCollection<InputFieldViewModel> GridableFields { get; } = new ObservableCollection<InputFieldViewModel>();
     public InputFieldViewModel SelectedXField { get; set; }

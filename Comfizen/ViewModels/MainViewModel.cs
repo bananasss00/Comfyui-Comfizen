@@ -192,6 +192,7 @@ namespace Comfizen
             public IReadOnlyList<string> XValues { get; set; }
             public string YAxisField { get; set; }
             public IReadOnlyList<string> YValues { get; set; }
+            public bool CreateGridImage { get; set; }
         }
         
         private class PromptTask
@@ -985,7 +986,8 @@ namespace Comfizen
                                 XAxisField = controller.SelectedXField?.Name,
                                 XValues = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).ToList(),
                                 YAxisField = controller.SelectedYField?.Name,
-                                YValues = controller.YValues?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).ToList() ?? new List<string> { "" }
+                                YValues = controller.YValues?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).ToList() ?? new List<string> { "" },
+                                CreateGridImage = controller.XyGridCreateGridImage
                             };
                         }
                         
@@ -1014,14 +1016,27 @@ namespace Comfizen
                                             XValue = task.XValue,
                                             YValue = task.YValue
                                         });
+
+                                        // START OF CHANGE: Conditionally add individual images to the gallery
+                                        if (task.OriginTab.WorkflowInputsController.XyGridShowIndividualImages)
+                                        {
+                                            // Use VisualHash to prevent adding duplicates
+                                            if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == io.VisualHash))
+                                            {
+                                                this.ImageProcessing.ImageOutputs.Insert(0, io);
+                                            }
+                                        }
+                                        // END OF CHANGE
                                     }
                                     else
                                     {
+                                        // START OF CHANGE: Use VisualHash to prevent adding duplicates for regular tasks as well
                                         if (!this.ImageProcessing.ImageOutputs.Any(existing =>
-                                                existing.FilePath == io.FilePath))
+                                                existing.VisualHash == io.VisualHash))
                                         {
                                             this.ImageProcessing.ImageOutputs.Insert(0, io);
                                         }
+                                        // END OF CHANGE
                                     }
 
                                     task.OriginTab?.ExecuteHook("on_output_received", promptForTask, io);
@@ -1099,7 +1114,7 @@ namespace Comfizen
             finally
             {
                 // After the queue is empty, check if we need to generate a grid image
-                if (gridResults != null && gridResults.Any())
+                if (gridResults != null && gridResults.Any() && gridConfig.CreateGridImage)
                 {
                     var gridImageBytes = Utils.CreateImageGrid(
                         gridResults.Select(r => new Utils.GridCellResult { ImageOutput = r.ImageOutput, XValue = r.XValue, YValue = r.YValue }).ToList(),
