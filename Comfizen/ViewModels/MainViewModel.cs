@@ -215,6 +215,7 @@ namespace Comfizen
             public bool IsGridTask { get; set; }
             public string XValue { get; set; }
             public string YValue { get; set; }
+            public XYGridConfig GridConfig { get; set; }
         }
         
         public MainViewModel()
@@ -861,28 +862,39 @@ namespace Comfizen
             // XYGrid
             if (controller.IsXyGridEnabled && controller.SelectedXField != null && !string.IsNullOrWhiteSpace(controller.XValues))
             {
-                var xValues = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
-                var yValues = new List<string> { "" };
+                var xValuesList = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
+                var yValuesList = new List<string> { "" };
 
                 if (controller.SelectedYField != null && !string.IsNullOrWhiteSpace(controller.YValues))
                 {
-                    yValues = controller.YValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
+                    yValuesList = controller.YValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
                 }
-                
+
+                var gridConfigForBatch = new XYGridConfig
+                {
+                    XAxisField = controller.SelectedXField?.Name,
+                    XAxisPath = controller.SelectedXField?.Path,
+                    XValues = xValuesList,
+                    YAxisField = controller.SelectedYField?.Name,
+                    YAxisPath = controller.SelectedYField?.Path,
+                    YValues = yValuesList,
+                    CreateGridImage = controller.XyGridCreateGridImage
+                };
+
                 var pathsToIgnore = new HashSet<string>();
                 if (controller.SelectedXField != null) pathsToIgnore.Add(controller.SelectedXField.Path);
                 if (controller.SelectedYField != null) pathsToIgnore.Add(controller.SelectedYField.Path);
 
-                // Get the actual VM instances from the UI controller
                 var allBypassVms = tab.WorkflowInputsController.TabLayoouts
                     .SelectMany(t => t.Groups)
                     .SelectMany(g => g.Fields)
                     .OfType<NodeBypassFieldViewModel>()
                     .ToList();
                 
-                foreach (var yValue in yValues)
+
+                foreach (var yValue in yValuesList)
                 {
-                    foreach (var xValue in xValues)
+                    foreach (var xValue in xValuesList)
                     {
                         var xBypassVmInstance = controller.SelectedXField is NodeBypassFieldViewModel xBypassVm
                             ? allBypassVms.FirstOrDefault(vm => vm.Path == xBypassVm.Path)
@@ -926,7 +938,7 @@ namespace Comfizen
                                     yProp.Value = ConvertValueToJToken(yValue, controller.SelectedYField);
                                 }
                             }
-    
+
                             tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask, pathsToIgnore);
                             tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
                             
@@ -939,7 +951,7 @@ namespace Comfizen
                             };
                         
                             string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
-    
+
                             tasks.Add(new PromptTask
                             {
                                 JsonPromptForApi = apiPromptForTask.ToString(),
@@ -947,7 +959,8 @@ namespace Comfizen
                                 OriginTab = tab,
                                 IsGridTask = true,
                                 XValue = xValue,
-                                YValue = yValue
+                                YValue = yValue,
+                                GridConfig = gridConfigForBatch
                             });
                         }
                         finally
@@ -1116,17 +1129,7 @@ namespace Comfizen
                         if (task.IsGridTask && gridResults == null)
                         {
                             gridResults = new List<GridCellResult>();
-                            var controller = task.OriginTab.WorkflowInputsController;
-                            gridConfig = new XYGridConfig
-                            {
-                                XAxisField = controller.SelectedXField?.Name,
-                                XAxisPath = controller.SelectedXField?.Path,
-                                XValues = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).ToList(),
-                                YAxisField = controller.SelectedYField?.Name,
-                                YAxisPath = controller.SelectedYField?.Path,
-                                YValues = controller.YValues?.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).ToList() ?? new List<string> { "" },
-                                CreateGridImage = controller.XyGridCreateGridImage
-                            };
+                            gridConfig = task.GridConfig; 
                         }
                         
                         try
