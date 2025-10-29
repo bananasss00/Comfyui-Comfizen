@@ -780,7 +780,11 @@ namespace Comfizen
                 {
                     yValues = controller.YValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
                 }
-
+                
+                var pathsToIgnore = new HashSet<string>();
+                if (controller.SelectedXField != null) pathsToIgnore.Add(controller.SelectedXField.Path);
+                if (controller.SelectedYField != null) pathsToIgnore.Add(controller.SelectedYField.Path);
+                
                 foreach (var yValue in yValues)
                 {
                     foreach (var xValue in xValues)
@@ -804,7 +808,7 @@ namespace Comfizen
                             }
                         }
 
-                        tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask);
+                        tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask, pathsToIgnore);
                         tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
                         
                         var fullStateForThisTask = new

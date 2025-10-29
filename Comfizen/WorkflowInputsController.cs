@@ -188,13 +188,13 @@ public class WorkflowInputsController : INotifyPropertyChanged
         return prompt.ToString();
     }
     
-    public void ProcessSpecialFields(JToken prompt)
+    public void ProcessSpecialFields(JToken prompt, HashSet<string> pathsToIgnore = null)
     {
         ApplyPromptTokenFiltering(prompt);
         ApplyNodeBypass((JObject)prompt);
         ApplyWildcards(prompt);
         ApplyInpaintData(prompt);
-        ApplySeedControl(prompt);
+        ApplySeedControl(prompt, pathsToIgnore);
     }
     
     private void ApplyPromptTokenFiltering(JToken prompt)
@@ -461,13 +461,16 @@ public class WorkflowInputsController : INotifyPropertyChanged
         }
     }
 
-    private void ApplySeedControl(JToken prompt)
+    private void ApplySeedControl(JToken prompt, HashSet<string> pathsToIgnore = null)
     {
         if (SelectedSeedControl == SeedControl.Fixed) return;
 
         foreach (var seedVm in _seedViewModels)
         {
-            if (seedVm.IsLocked) continue;
+            if (seedVm.IsLocked || (pathsToIgnore != null && pathsToIgnore.Contains(seedVm.Path)))
+            {
+                continue;
+            }
 
             // ИСПРАВЛЕНИЕ: Используем публичное свойство Property
             var prop = Utils.GetJsonPropertyByPath((JObject)prompt, seedVm.Property.Path);
