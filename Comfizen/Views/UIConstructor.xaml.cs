@@ -948,6 +948,15 @@ namespace Comfizen
         {
             if (field == null || group == null || group.Fields.Any(f => f.Path == field.Path)) return;
             var newField = new WorkflowField { Name = field.Name, Path = field.Path, Type = FieldType.Any };
+
+            var rawFieldName = field.Name.Contains("::") 
+                ? field.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1] 
+                : field.Name;
+
+            if (rawFieldName.Equals("seed", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Seed;
+            }
             
             newField.PropertyChanged += OnFieldPropertyChanged;
             if (targetIndex < 0 || targetIndex >= group.Fields.Count) group.Fields.Add(newField);

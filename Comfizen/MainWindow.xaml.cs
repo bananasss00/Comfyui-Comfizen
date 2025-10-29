@@ -12,8 +12,10 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Newtonsoft.Json.Linq;
 using Serilog;
 using Xceed.Wpf.Toolkit;
+using MessageBox = System.Windows.MessageBox;
 
 namespace Comfizen
 {
@@ -52,18 +54,64 @@ namespace Comfizen
         
         private void Window_DragOver(object sender, DragEventArgs e)
         {
-            e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+            // Autoscroll logic
+            const double scrollThreshold = 40.0;
+            const double scrollSpeed = 8.0;
+            
+            Point position = e.GetPosition(ControlsScrollViewer);
+
+            if (position.Y < scrollThreshold)
+            {
+                ControlsScrollViewer.ScrollToVerticalOffset(ControlsScrollViewer.VerticalOffset - scrollSpeed);
+            }
+            else if (position.Y > ControlsScrollViewer.ActualHeight - scrollThreshold)
+            {
+                ControlsScrollViewer.ScrollToVerticalOffset(ControlsScrollViewer.VerticalOffset + scrollSpeed);
+            }
+
+            // Allow drop for files OR for ImageOutput from the gallery
+            e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(typeof(ImageOutput))
+                ? DragDropEffects.Copy 
+                : DragDropEffects.None;
+
             e.Handled = true;
         }
 
         private void Window_Drop(object sender, DragEventArgs e)
         {
-            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+            if (DataContext is not MainViewModel viewModel) return;
+            
+            // Case 1: Drop from our own gallery
+            if (e.Data.GetData(typeof(ImageOutput)) is ImageOutput imageOutput)
             {
-                if (DataContext is MainViewModel viewModel)
+                if (!string.IsNullOrEmpty(imageOutput.Prompt))
                 {
-                    viewModel.ImportStateFromFile(files[0]);
+                    try
+                    {
+                        var jObject = JObject.Parse(imageOutput.Prompt);
+                        viewModel.ImportStateFromJObject(jObject, imageOutput.FileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(ex, "Failed to parse and import workflow from gallery item.");
+                        MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ImportGenericError"], ex.Message), 
+                            LocalizationService.Instance["MainVM_ImportFailedTitle"], 
+                            MessageBoxButton.OK, 
+                            MessageBoxImage.Error);
+                    }
                 }
+                else
+                {
+                    MessageBox.Show(LocalizationService.Instance["MainVM_ImportNoMetadataError"], 
+                        LocalizationService.Instance["MainVM_ImportFailedTitle"], 
+                        MessageBoxButton.OK, 
+                        MessageBoxImage.Warning);
+                }
+            }
+            // Case 2: Drop from the file system
+            else if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+            {
+                viewModel.ImportStateFromFile(files[0]);
             }
         }
 

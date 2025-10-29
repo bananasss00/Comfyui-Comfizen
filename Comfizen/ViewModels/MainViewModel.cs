@@ -432,7 +432,7 @@ namespace Comfizen
                 MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ImportGenericError"], ex.Message), LocalizationService.Instance["MainVM_ImportErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);            }
         }
         
-        private void ImportStateFromJObject(JObject data, string sourceFileName)
+        public void ImportStateFromJObject(JObject data, string sourceFileName)
         {
             var promptData = data["prompt"] as JObject;
             var uiDefinition = data["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
