@@ -798,8 +798,31 @@ namespace Comfizen
         /// <summary>
         /// Helper to convert a string value from the UI into the appropriate JToken type.
         /// </summary>
-        private JToken ConvertValueToJToken(string stringValue)
+        private JToken ConvertValueToJToken(string stringValue, InputFieldViewModel fieldVm)
         {
+            // Handle boolean conversion for CheckBoxFieldViewModel which represents "Any" type booleans
+            if (fieldVm is CheckBoxFieldViewModel)
+            {
+                switch (stringValue.Trim().ToLowerInvariant())
+                {
+                    case "true":
+                    case "on":
+                    case "1":
+                    case "yes":
+                        return new JValue(true);
+                    case "false":
+                    case "off":
+                    case "0":
+                    case "no":
+                        return new JValue(false);
+                }
+                // Fallback to bool.TryParse if it's a standard format
+                if (bool.TryParse(stringValue, out bool boolVal))
+                {
+                    return new JValue(boolVal);
+                }
+            }
+            
             // Try parsing as an integer first
             if (long.TryParse(stringValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out long longVal))
             {
@@ -812,6 +835,22 @@ namespace Comfizen
             }
             // Fall back to a string
             return new JValue(stringValue);
+        }
+        
+        private bool ConvertStringToBool(string value)
+        {
+            switch (value.Trim().ToLowerInvariant())
+            {
+                case "true":
+                case "on":
+                case "1":
+                case "yes":
+                case "enabled":
+                    return true;
+                // All other values ("false", "off", "0", "disabled", etc.) will be false
+                default:
+                    return false;
+            }
         }
         
         private List<PromptTask> CreatePromptTasks(WorkflowTabViewModel tab)
@@ -833,52 +872,96 @@ namespace Comfizen
                 var pathsToIgnore = new HashSet<string>();
                 if (controller.SelectedXField != null) pathsToIgnore.Add(controller.SelectedXField.Path);
                 if (controller.SelectedYField != null) pathsToIgnore.Add(controller.SelectedYField.Path);
+
+                // Get the actual VM instances from the UI controller
+                var allBypassVms = tab.WorkflowInputsController.TabLayoouts
+                    .SelectMany(t => t.Groups)
+                    .SelectMany(g => g.Fields)
+                    .OfType<NodeBypassFieldViewModel>()
+                    .ToList();
                 
                 foreach (var yValue in yValues)
                 {
                     foreach (var xValue in xValues)
                     {
-                        var apiPromptForTask = tab.Workflow.JsonClone();
-
-                        // Apply X value
-                        var xProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedXField.Path);
-                        if (xProp != null)
+                        var xBypassVmInstance = controller.SelectedXField is NodeBypassFieldViewModel xBypassVm
+                            ? allBypassVms.FirstOrDefault(vm => vm.Path == xBypassVm.Path)
+                            : null;
+                
+                        var yBypassVmInstance = controller.SelectedYField is NodeBypassFieldViewModel yBypassVm
+                            ? allBypassVms.FirstOrDefault(vm => vm.Path == yBypassVm.Path)
+                            : null;
+                
+                        bool? originalXState = xBypassVmInstance?.IsEnabled;
+                        bool? originalYState = yBypassVmInstance?.IsEnabled;
+                        
+                        try
                         {
-                            xProp.Value = ConvertValueToJToken(xValue);
-                        }
-
-                        // Apply Y value if applicable
-                        if (controller.SelectedYField != null)
-                        {
-                            var yProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedYField.Path);
-                            if (yProp != null)
+                             var apiPromptForTask = tab.Workflow.JsonClone();
+    
+                            // Apply X value
+                            if (xBypassVmInstance != null)
                             {
-                                yProp.Value = ConvertValueToJToken(yValue);
+                                xBypassVmInstance.IsEnabled = ConvertStringToBool(xValue);
+                            }
+                            else if (controller.SelectedXField != null)
+                            {
+                                var xProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedXField.Path);
+                                if (xProp != null)
+                                {
+                                    xProp.Value = ConvertValueToJToken(xValue, controller.SelectedXField);
+                                }
+                            }
+
+                            // Apply Y value if applicable
+                            if (yBypassVmInstance != null)
+                            {
+                                yBypassVmInstance.IsEnabled = ConvertStringToBool(yValue);
+                            }
+                            else if (controller.SelectedYField != null)
+                            {
+                                var yProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedYField.Path);
+                                if (yProp != null)
+                                {
+                                    yProp.Value = ConvertValueToJToken(yValue, controller.SelectedYField);
+                                }
+                            }
+    
+                            tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask, pathsToIgnore);
+                            tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
+                            
+                            var fullStateForThisTask = new
+                            {
+                                prompt = apiPromptForTask,
+                                promptTemplate = tab.Workflow.Groups,
+                                scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
+                                tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null
+                            };
+                        
+                            string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
+    
+                            tasks.Add(new PromptTask
+                            {
+                                JsonPromptForApi = apiPromptForTask.ToString(),
+                                FullWorkflowStateJson = fullWorkflowStateJsonForThisTask,
+                                OriginTab = tab,
+                                IsGridTask = true,
+                                XValue = xValue,
+                                YValue = yValue
+                            });
+                        }
+                        finally
+                        {
+                            // Restore original state
+                            if (xBypassVmInstance != null && originalXState.HasValue)
+                            {
+                                xBypassVmInstance.IsEnabled = originalXState.Value;
+                            }
+                            if (yBypassVmInstance != null && originalYState.HasValue)
+                            {
+                                yBypassVmInstance.IsEnabled = originalYState.Value;
                             }
                         }
-
-                        tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask, pathsToIgnore);
-                        tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
-                        
-                        var fullStateForThisTask = new
-                        {
-                            prompt = apiPromptForTask,
-                            promptTemplate = tab.Workflow.Groups,
-                            scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
-                            tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null
-                        };
-                    
-                        string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
-
-                        tasks.Add(new PromptTask
-                        {
-                            JsonPromptForApi = apiPromptForTask.ToString(),
-                            FullWorkflowStateJson = fullWorkflowStateJsonForThisTask,
-                            OriginTab = tab,
-                            IsGridTask = true,
-                            XValue = xValue,
-                            YValue = yValue
-                        });
                     }
                 }
                 return tasks;

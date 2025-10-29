@@ -749,6 +749,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
                         f.Type == FieldType.SliderInt ||
                         f.Type == FieldType.SliderFloat ||
                         f.Type == FieldType.ComboBox ||
+                        f.Type == FieldType.NodeBypass ||
                         f.Type == FieldType.Model)
             .OrderBy(f => f.Name);
             
