@@ -202,37 +202,56 @@ public class WorkflowInputsController : INotifyPropertyChanged
         }
     }
     
+    /// <summary>
+    /// Modifies a JObject prompt in-place to apply node bypass logic for a single generation run.
+    /// This method is idempotent; it restores the prompt to its original state before applying the current bypasses.
+    /// It performs a "two-sided" bypass:
+    /// 1. Disconnects all inputs TO the bypassed nodes to prevent them from executing.
+    /// 2. Reroutes all connections FROM the bypassed nodes to their original sources, effectively "skipping" them in the graph.
+    /// </summary>
+    /// <param name="prompt">The JObject representing the workflow API, which will be modified directly.</param>
     public void ApplyNodeBypass(JObject prompt)
     {
+        // --- SECTION 1: Find all bypass control ViewModels in the current UI layout ---
         var bypassViewModels = TabLayoouts
             .SelectMany(t => t.Groups)
             .SelectMany(g => g.Fields)
             .OfType<NodeBypassFieldViewModel>()
             .ToList();
 
-        // First, ALWAYS restore all nodes to their original state from the _meta backup.
-        // This ensures each run starts fresh and bypasses are not cumulative.
+        // --- SECTION 2: CRITICAL - Restore all nodes to their original state ---
+        // This step is essential to make the bypass operation idempotent and stateless.
+        // Before applying any new bypasses, we revert all nodes that have a backup
+        // in their `_meta` property to their original connection state. This ensures
+        // that disabling a bypass switch correctly restores the original workflow.
         foreach (var nodeProperty in prompt.Properties())
         {
             if (nodeProperty.Value is not JObject node ||
                 node["_meta"]?["original_inputs"] is not JObject originalInputs ||
                 node["inputs"] is not JObject currentInputs)
             {
+                // Skip if the node doesn't have a backup.
                 continue;
             }
+            // Merge the backup back into the current inputs. This overwrites only the
+            // connection properties (JArrays), preserving any changes to widget values.
             currentInputs.Merge(originalInputs.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
         }
 
+        // If there are no bypass controls defined in the UI, there's nothing more to do.
         if (!bypassViewModels.Any())
         {
             return;
         }
 
-        // Determine which nodes should be bypassed in *this* specific run.
+        // --- SECTION 3: Identify all nodes that need to be bypassed for THIS run ---
+        // We build a HashSet for efficient lookup (.Contains).
         var nodesToBypassThisRun = new HashSet<string>();
         foreach (var vm in bypassViewModels)
         {
-            if (!vm.IsEnabled) // IsEnabled=false means "bypass is active"
+            // The UI checkbox `IsEnabled` property is inverted from the bypass logic.
+            // If the checkbox is UNCHECKED (`IsEnabled` is false), the bypass is ACTIVE.
+            if (!vm.IsEnabled)
             {
                 foreach (var nodeId in vm.BypassNodeIds)
                 {
@@ -241,17 +260,20 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
         
+        // If no bypasses are active for this run, we can exit early.
         if (!nodesToBypassThisRun.Any())
         {
             return;
         }
 
-        // --- NEW: Disconnect inputs OF the bypassed nodes ---
+        // --- SECTION 4: Perform the "two-sided" disconnection ---
+        // PART A: Disconnect the INPUTS *OF* the bypassed nodes.
+        // This prevents them from being queued for execution by the ComfyUI backend.
         foreach (var bypassedNodeId in nodesToBypassThisRun)
         {
             if (prompt[bypassedNodeId]?["inputs"] is not JObject bypassedNodeInputs) continue;
 
-            // Find all properties that are connections (JArray) and remove them.
+            // Find all input properties that are connections (represented as JArray) and remove them.
             var connectionProperties = bypassedNodeInputs.Properties()
                 .Where(p => p.Value is JArray)
                 .ToList();
@@ -262,69 +284,83 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
 
-        // Create a redirection map for downstream nodes.
+        // PART B: Build a redirection map to handle downstream connections.
+        // This map will tell us where to get the input from if a node is connected to a bypassed node.
         var redirectionMap = new Dictionary<string, JArray>();
         foreach (var bypassedNodeId in nodesToBypassThisRun)
         {
             var bypassedNode = prompt[bypassedNodeId] as JObject;
-            if (bypassedNode?["inputs"] is not JObject bypassedNodeInputs) continue;
+            if (bypassedNode == null) continue;
             
-            int outputIndex = 0;
-            // Note: We are reading from the *restored* state here, before inputs were disconnected.
+            // IMPORTANT: We read the connections from the `_meta.original_inputs` snapshot,
+            // because we just deleted the live connections in the step above.
             var originalInputs = bypassedNode["_meta"]?["original_inputs"] as JObject;
-            var inputsToScan = originalInputs ?? bypassedNodeInputs;
+            if (originalInputs == null) continue;
 
-            foreach (var inputProp in inputsToScan.Properties())
+            int outputIndex = 0;
+            foreach (var inputProp in originalInputs.Properties())
             {
                 if (inputProp.Value is JArray sourceLink)
                 {
+                    // The key is a unique identifier for the output slot of the bypassed node.
                     string outputKey = $"{bypassedNodeId}.{outputIndex}";
+                    // The value is the original source this bypassed node was connected to.
                     redirectionMap[outputKey] = sourceLink;
                     outputIndex++;
                 }
             }
         }
 
-        // Rewire the connections for all downstream nodes.
+        // --- SECTION 5: Rewire all downstream node connections ---
+        // Iterate through every node in the prompt to check and update its inputs.
         foreach (var nodeProperty in prompt.Properties())
         {
             if (nodeProperty.Value is not JObject node || node["inputs"] is not JObject nodeInputs) continue;
 
+            // Check every input of the current node.
             foreach (var inputProperty in nodeInputs.Properties())
             {
                 if (inputProperty.Value is not JArray originalLink || originalLink.Count != 2)
                 {
-                    continue;
+                    continue; // Not a standard connection link.
                 }
 
                 JArray currentLink = originalLink;
                 int depth = 0;
-                const int maxDepth = 20;
+                const int maxDepth = 20; // Safety break to prevent infinite loops from cyclic dependencies.
                 
+                // Trace back the connection chain until we find a non-bypassed source.
                 while (depth < maxDepth)
                 {
                     string sourceNodeId = currentLink[0].ToString();
+
+                    // If the source is NOT in our bypass list, we've found the final, valid source.
                     if (!nodesToBypassThisRun.Contains(sourceNodeId))
                     {
                         break;
                     }
 
+                    // The source is bypassed, so we look it up in our redirection map.
                     string sourceOutputIndex = currentLink[1].ToString();
                     string sourceKey = $"{sourceNodeId}.{sourceOutputIndex}";
                     
                     if (redirectionMap.TryGetValue(sourceKey, out var newSourceLink))
                     {
+                        // We found a new source. We will loop again in case this new source is also bypassed.
                         currentLink = newSourceLink; 
                     }
                     else
                     {
+                        // The chain is broken (e.g., the input was a widget value, not a link). Stop tracing.
                         break;
                     }
                     depth++;
                 }
                 
+                // If the final resolved link is different from the original one, update the prompt.
                 if (currentLink != originalLink)
                 {
+                    // Use DeepClone to ensure the new value is a separate JArray instance.
                     inputProperty.Value = currentLink.DeepClone();
                 }
             }
