@@ -28,9 +28,6 @@ namespace Comfizen
         
         public async Task SaveImageFileAsync(string saveDirectory, string relativeFilePath, byte[] sourcePngBytes, string prompt, AppSettings settings)
         {
-            byte[] finalImageBytes;
-            string extension;
-
             string promptToEmbed = settings.SavePromptWithFile ? prompt : null;
 
             if (settings.RemoveBase64OnSave && !string.IsNullOrEmpty(promptToEmbed))
@@ -38,27 +35,33 @@ namespace Comfizen
                 promptToEmbed = Utils.CleanBase64FromString(promptToEmbed);
             }
 
-            switch (settings.SaveFormat)
+            var (finalImageBytes, extension) = await Task.Run(() =>
             {
-                case ImageSaveFormat.Png:
-                    var pngEncoder = new PngEncoder { CompressionLevel = (PngCompressionLevel)settings.PngCompressionLevel };
-                    finalImageBytes = Utils.ProcessImageAndAppendWorkflow(sourcePngBytes, promptToEmbed, pngEncoder);
-                    extension = ".png";
-                    break;
+                byte[] bytes;
+                string ext;
+                switch (settings.SaveFormat)
+                {
+                    case ImageSaveFormat.Png:
+                        var pngEncoder = new PngEncoder { CompressionLevel = (PngCompressionLevel)settings.PngCompressionLevel };
+                        bytes = Utils.ProcessImageAndAppendWorkflow(sourcePngBytes, promptToEmbed, pngEncoder);
+                        ext = ".png";
+                        break;
                 
-                case ImageSaveFormat.Jpg:
-                    var jpgEncoder = new JpegEncoder { Quality = settings.JpgQuality };
-                    finalImageBytes = Utils.ProcessImageAndAppendWorkflow(sourcePngBytes, promptToEmbed, jpgEncoder);
-                    extension = ".jpg";
-                    break;
+                    case ImageSaveFormat.Jpg:
+                        var jpgEncoder = new JpegEncoder { Quality = settings.JpgQuality };
+                        bytes = Utils.ProcessImageAndAppendWorkflow(sourcePngBytes, promptToEmbed, jpgEncoder);
+                        ext = ".jpg";
+                        break;
                 
-                case ImageSaveFormat.Webp:
-                default:
-                    var webpEncoder = new WebpEncoder { Quality = settings.WebpQuality };
-                    finalImageBytes = Utils.ProcessImageAndAppendWorkflow(sourcePngBytes, promptToEmbed, webpEncoder);
-                    extension = ".webp";
-                    break;
-            }
+                    case ImageSaveFormat.Webp:
+                    default:
+                        var webpEncoder = new WebpEncoder { Quality = settings.WebpQuality };
+                        bytes = Utils.ProcessImageAndAppendWorkflow(sourcePngBytes, promptToEmbed, webpEncoder);
+                        ext = ".webp";
+                        break;
+                }
+                return (bytes, ext);
+            });
 
             var desiredPath = Path.Combine(saveDirectory, relativeFilePath);
             var targetDirectory = Path.GetDirectoryName(desiredPath);

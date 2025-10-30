@@ -4,7 +4,9 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Media.Imaging;
+using Newtonsoft.Json;
 
 namespace Comfizen
 {
@@ -66,13 +68,46 @@ namespace Comfizen
         public FileType Type => VideoExtensions.Any(ext => FileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
             ? FileType.Video
             : FileType.Image;
-
+        
+        private BitmapImage _image;
+        private bool _isImageLoading = false;
+        
+        [JsonIgnore]
         public BitmapImage Image
         {
             get
             {
-                if (Type != FileType.Image || ImageBytes == null) return null;
-                return ByteArrayToImage(ImageBytes);
+                if (_image != null)
+                {
+                    return _image;
+                }
+
+                if (!_isImageLoading && Type == FileType.Image && ImageBytes != null)
+                {
+                    _isImageLoading = true;
+                    Task.Run(() =>
+                    {
+                        try
+                        {
+                            var image = ByteArrayToImage(ImageBytes);
+                            image.Freeze(); // Make it thread-safe before passing to UI thread
+                        
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                _image = image;
+                                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Image)));
+                                _isImageLoading = false;
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log(ex, $"Failed to decode image thumbnail: {FileName}");
+                            Application.Current.Dispatcher.Invoke(() => _isImageLoading = false);
+                        }
+                    });
+                }
+
+                return null; // Return null initially, UI will update via PropertyChanged when ready
             }
         }
         
