@@ -31,6 +31,19 @@ namespace Comfizen
     }
     
     public enum LogFilterType { All, Comfy, Local, Python }
+    
+
+    public class SerializablePromptTask
+    {
+        public string JsonPromptForApi { get; set; }
+        public string FullWorkflowStateJson { get; set; }
+        public string OriginTabFilePath { get; set; } // Store path instead of the whole ViewModel
+        public bool IsGridTask { get; set; }
+        public string XValue { get; set; }
+        public string YValue { get; set; }
+        public MainViewModel.XYGridConfig GridConfig { get; set; }
+    }
+
 
     [AddINotifyPropertyChangedInterface]
     public class MainViewModel : INotifyPropertyChanged
@@ -188,7 +201,7 @@ namespace Comfizen
             public string YValue { get; set; }
         }
 
-        private class XYGridConfig
+        public class XYGridConfig
         {
             public string XAxisField { get; set; }
             public string XAxisPath { get; set; }
@@ -273,7 +286,7 @@ namespace Comfizen
             
             InterruptCommand = new AsyncRelayCommand(
                 async _ => await _comfyuiModel.Interrupt(),
-                _ => TotalTasks > 0 && CompletedTasks < TotalTasks
+                _ => _isProcessing
             );
             
             ClearSessionCommand = new RelayCommand(o => ClearSessionForCurrentWorkflow(), 
@@ -378,6 +391,8 @@ namespace Comfizen
             
             UpdateWorkflows(true);
             UpdateWorkflowDisplayList();
+            
+            LoadPersistedQueue();
             
             GlobalEventManager.WorkflowSaved += OnWorkflowSaved;
             
@@ -817,6 +832,7 @@ namespace Comfizen
         private readonly Stopwatch _queueStopwatch = new();
         private ConcurrentQueue<PromptTask> _promptsQueue = new();
         private bool _cancellationRequested = false;
+        private PromptTask _currentTask; // --- ADDED: To track the currently executing task ---
 
         private readonly object _processingLock = new object();
         private bool _isProcessing = false;
@@ -1149,6 +1165,7 @@ namespace Comfizen
     
                     if (_promptsQueue.TryDequeue(out var task))
                     {
+                        _currentTask = task;
                         lastTaskOriginTab = task.OriginTab;
                         
                         if (task.IsGridTask && gridResults == null)
@@ -1339,6 +1356,7 @@ namespace Comfizen
                 {
                     _isProcessing = false;
                 }
+                _currentTask = null; // Clear the current task
             
                 _queueStopwatch.Stop();
                 EstimatedTimeRemaining = null; 
@@ -1463,7 +1481,7 @@ namespace Comfizen
                         var lastActiveFullPath = Path.GetFullPath(Path.Combine(Workflow.WorkflowsDir, _settings.LastActiveWorkflow));
                         
                         var activeTab = OpenTabs.FirstOrDefault(t => 
-                            Path.GetFullPath(t.FilePath).Equals(lastActiveFullPath, StringComparison.OrdinalIgnoreCase)
+                            !t.IsVirtual && Path.GetFullPath(t.FilePath).Equals(lastActiveFullPath, StringComparison.OrdinalIgnoreCase)
                         );
                         
                         if (activeTab != null)
@@ -1491,6 +1509,44 @@ namespace Comfizen
             
             _consoleLogService.OnLogReceived -= HandleHighPriorityLog;
             await _consoleLogService.DisconnectAsync();
+            
+            // --- START OF CHANGE: Save pending queue on close ---
+            var queueToSave = new List<SerializablePromptTask>();
+            if (_currentTask != null) // Save the currently executing task first
+            {
+                queueToSave.Add(new SerializablePromptTask
+                {
+                    JsonPromptForApi = _currentTask.JsonPromptForApi,
+                    FullWorkflowStateJson = _currentTask.FullWorkflowStateJson,
+                    OriginTabFilePath = !_currentTask.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, _currentTask.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
+                    IsGridTask = _currentTask.IsGridTask,
+                    XValue = _currentTask.XValue,
+                    YValue = _currentTask.YValue,
+                    GridConfig = _currentTask.GridConfig
+                });
+            }
+            queueToSave.AddRange(_promptsQueue.Select(t => new SerializablePromptTask
+            {
+                JsonPromptForApi = t.JsonPromptForApi,
+                FullWorkflowStateJson = t.FullWorkflowStateJson,
+                OriginTabFilePath = !t.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, t.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
+                IsGridTask = t.IsGridTask,
+                XValue = t.XValue,
+                YValue = t.YValue,
+                GridConfig = t.GridConfig
+            }));
+
+            var queueFilePath = Path.Combine(Directory.GetCurrentDirectory(), "queue.json");
+            if (queueToSave.Any())
+            {
+                var json = JsonConvert.SerializeObject(queueToSave, Formatting.Indented);
+                await File.WriteAllTextAsync(queueFilePath, json);
+            }
+            else if (File.Exists(queueFilePath))
+            {
+                File.Delete(queueFilePath); // Clean up if queue is empty
+            }
+            // --- END OF CHANGE ---
 
             foreach (var tab in OpenTabs)
             {
@@ -1578,5 +1634,67 @@ namespace Comfizen
                 MessageBoxButton.OK, 
                 MessageBoxImage.Information);
         }
+        
+        // --- START OF CHANGE: New method to load queue from file ---
+        private void LoadPersistedQueue()
+        {
+            var queueFilePath = Path.Combine(Directory.GetCurrentDirectory(), "queue.json");
+            if (!File.Exists(queueFilePath)) return;
+
+            try
+            {
+                var json = File.ReadAllText(queueFilePath);
+                var loadedTasks = JsonConvert.DeserializeObject<List<SerializablePromptTask>>(json);
+
+                if (loadedTasks == null || !loadedTasks.Any()) return;
+
+                foreach (var st in loadedTasks)
+                {
+                    // Find the origin tab by its file path
+                    var originTab = OpenTabs.FirstOrDefault(t => !t.IsVirtual && Path.GetRelativePath(Workflow.WorkflowsDir, t.FilePath).Replace(Path.DirectorySeparatorChar, '/') == st.OriginTabFilePath);
+                    if (originTab != null)
+                    {
+                        var task = new PromptTask
+                        {
+                            JsonPromptForApi = st.JsonPromptForApi,
+                            FullWorkflowStateJson = st.FullWorkflowStateJson,
+                            OriginTab = originTab,
+                            IsGridTask = st.IsGridTask,
+                            XValue = st.XValue,
+                            YValue = st.YValue,
+                            GridConfig = st.GridConfig
+                        };
+                        _promptsQueue.Enqueue(task);
+                    }
+                }
+
+                TotalTasks = _promptsQueue.Count;
+                if (TotalTasks > 0)
+                {
+                    Logger.Log($"Restored {TotalTasks} tasks from the previous session's queue.");
+                    // Start processing the restored queue
+                    lock (_processingLock)
+                    {
+                        if (!_isProcessing)
+                        {
+                            _isProcessing = true;
+                            _ = Task.Run(ProcessQueueAsync);
+                        }
+                    }
+                }
+
+                // Delete the file after successfully loading to prevent re-execution
+                File.Delete(queueFilePath);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to load persisted queue from queue.json. The file might be corrupt.");
+                if (File.Exists(queueFilePath))
+                {
+                    try { File.Delete(queueFilePath); } catch {}
+                }
+            }
+        }
+        // --- END OF CHANGE ---
     }
 }
