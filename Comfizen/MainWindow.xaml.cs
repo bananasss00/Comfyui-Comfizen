@@ -16,6 +16,7 @@ using Newtonsoft.Json.Linq;
 using Serilog;
 using Xceed.Wpf.Toolkit;
 using MessageBox = System.Windows.MessageBox;
+using WindowState = System.Windows.WindowState;
 
 namespace Comfizen
 {
@@ -30,12 +31,23 @@ namespace Comfizen
         {
             InitializeComponent();
             
+            if (DataContext is MainViewModel vm)
+            {
+                var settings = vm.Settings; // Access settings through the ViewModel
+                if (settings.MainWindowWidth > 100 && settings.MainWindowHeight > 100)
+                {
+                    this.Width = settings.MainWindowWidth;
+                    this.Height = settings.MainWindowHeight;
+                }
+                this.WindowState = settings.MainWindowState;
+            }
+            
             this.Closing += MainWindow_Closing;
             
-            if (DataContext is MainViewModel vm && vm.ConsoleLogMessages is INotifyCollectionChanged collection)
+            if (DataContext is MainViewModel { ConsoleLogMessages: INotifyCollectionChanged collection } vm2)
             {
                 collection.CollectionChanged += ConsoleLogMessages_CollectionChanged;
-                vm.GroupNavigationRequested += OnGroupNavigationRequested;
+                vm2.GroupNavigationRequested += OnGroupNavigationRequested;
             }
             
             PositionSlider.AddHandler(PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(PositionSlider_PreviewMouseLeftButtonDown), true);
@@ -258,6 +270,19 @@ namespace Comfizen
         {
             if (DataContext is MainViewModel viewModel)
             {
+                if (WindowState == WindowState.Maximized)
+                {
+                    viewModel.Settings.MainWindowState = WindowState.Maximized;
+                    viewModel.Settings.MainWindowWidth = this.RestoreBounds.Width;
+                    viewModel.Settings.MainWindowHeight = this.RestoreBounds.Height;
+                }
+                else
+                {
+                    viewModel.Settings.MainWindowState = WindowState.Normal;
+                    viewModel.Settings.MainWindowWidth = this.Width;
+                    viewModel.Settings.MainWindowHeight = this.Height;
+                }
+
                 await viewModel.SaveStateOnCloseAsync();
             }
             InMemoryHttpServer.Instance.Stop();

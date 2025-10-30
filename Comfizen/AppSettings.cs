@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Windows;
 using Newtonsoft.Json;
 
 namespace Comfizen
@@ -59,6 +61,18 @@ namespace Comfizen
         /// Format: "[NodeType::]FieldName=min max step [precision]"
         /// </summary>
         public List<string> SliderDefaults { get; set; }
+        
+        // Main window dimensions
+        public double MainWindowHeight { get; set; } = 768;
+        public double MainWindowWidth { get; set; } = 1366;
+        public WindowState MainWindowState { get; set; } = WindowState.Normal;
+        
+        // Designer window dimensions
+        public double DesignerWindowHeight { get; set; } = 700;
+        public double DesignerWindowWidth { get; set; } = 1000;
+        
+        // Designer settings
+        public bool UseNodeTitlePrefixInDesigner { get; set; } = true;
     }
 
     /// <summary>
@@ -66,8 +80,25 @@ namespace Comfizen
     /// </summary>
     public class SettingsService
     {
+        private static readonly Lazy<SettingsService> _instance = new Lazy<SettingsService>(() => new SettingsService());
+        public static SettingsService Instance => _instance.Value;
+        
         private const string SettingsFileName = "settings.json";
         private static readonly string SettingsFilePath = Path.Combine(Directory.GetCurrentDirectory(), SettingsFileName);
+        
+        /// <summary>
+        /// Gets the single, application-wide instance of AppSettings.
+        /// </summary>
+        public AppSettings Settings { get; private set; }
+
+        /// <summary>
+        /// Private constructor to prevent external instantiation.
+        /// Loads settings upon creation.
+        /// </summary>
+        private SettingsService()
+        {
+            Settings = LoadSettings();
+        }
         
         private List<string> GetDefaultSamplers() => new List<string> { "euler", "euler_ancestral", "heun", "heunpp2", "dpm_2", "dpm_2_ancestral", "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_sde_gpu", "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_2m_sde_gpu", "dpmpp_3m_sde", "dpmpp_3m_sde_gpu", "ddpm", "lcm" };
         private List<string> GetDefaultSchedulers() => new List<string> { "normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform", "ddim", "uni_pc", "uni_pc_bh2" };
@@ -78,7 +109,7 @@ namespace Comfizen
         /// Loads settings from the settings file, or creates a default file if it doesn't exist.
         /// </summary>
         /// <returns>The loaded AppSettings object.</returns>
-        public AppSettings LoadSettings()
+        private AppSettings LoadSettings()
         {
             if (!File.Exists(SettingsFilePath))
             {
@@ -109,15 +140,22 @@ namespace Comfizen
                     ServerAddress = "127.0.0.1:8188",
                     SpecialModelValues = new List<string> { "None" },
                     Language = initialLanguage,
-                    SliderDefaults = new List<string>()
+                    SliderDefaults = new List<string>(),
+                    MainWindowHeight = 768,
+                    MainWindowWidth = 1366,
+                    MainWindowState = WindowState.Normal,
+                    DesignerWindowHeight = 700,
+                    DesignerWindowWidth = 1000,
+                    UseNodeTitlePrefixInDesigner = true
                 };
                 
-                SaveSettings(defaultSettings);
+                var json = JsonConvert.SerializeObject(defaultSettings, Formatting.Indented);
+                File.WriteAllText(SettingsFilePath, json);
                 return defaultSettings;
             }
 
-            var json = File.ReadAllText(SettingsFilePath);
-            var settings = JsonConvert.DeserializeObject<AppSettings>(json);
+            var jsonRead = File.ReadAllText(SettingsFilePath);
+            var settings = JsonConvert.DeserializeObject<AppSettings>(jsonRead);
 
             // This block ensures that new settings are added to existing user files
             // without overwriting their existing preferences.
@@ -136,10 +174,15 @@ namespace Comfizen
             if (string.IsNullOrEmpty(settings.Language)) { settings.Language = InitialLanguage(); needsResave = true; }
             if (settings.GalleryThumbnailSize == 0.0) { settings.GalleryThumbnailSize = 128.0; needsResave = true; }
             if (settings.SliderDefaults == null) { settings.SliderDefaults = new List<string>() {"KSampler::cfg=1.0 15.0 0.5 2"}; needsResave = true; }
+            if (settings.MainWindowHeight <= 0) { settings.MainWindowHeight = 768; needsResave = true; }
+            if (settings.MainWindowWidth <= 0) { settings.MainWindowWidth = 1366; needsResave = true; }
+            if (settings.DesignerWindowHeight <= 0) { settings.DesignerWindowHeight = 700; needsResave = true; }
+            if (settings.DesignerWindowWidth <= 0) { settings.DesignerWindowWidth = 1000; needsResave = true; }
 
             if (needsResave)
             {
-                SaveSettings(settings);
+                var jsonResave = JsonConvert.SerializeObject(settings, Formatting.Indented);
+                File.WriteAllText(SettingsFilePath, jsonResave);
             }
 
             return settings;
@@ -158,12 +201,11 @@ namespace Comfizen
         }
 
         /// <summary>
-        /// Saves the provided settings object to the settings file.
+        /// Saves the current state of the single AppSettings instance to the file.
         /// </summary>
-        /// <param name="settings">The AppSettings object to save.</param>
-        public void SaveSettings(AppSettings settings)
+        public void SaveSettings() // Method signature changed
         {
-            var json = JsonConvert.SerializeObject(settings, Formatting.Indented);
+            var json = JsonConvert.SerializeObject(Settings, Formatting.Indented);
             File.WriteAllText(SettingsFilePath, json);
         }
     }

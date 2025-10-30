@@ -87,8 +87,8 @@ namespace Comfizen
 
         public SettingsViewModel()
         {
-            _settingsService = new SettingsService();
-            _settings = _settingsService.LoadSettings();
+            _settingsService = SettingsService.Instance;
+            _settings = _settingsService.Settings;
             
             // Load all settings from the settings object
             ServerAddress = _settings.ServerAddress;
@@ -212,7 +212,7 @@ namespace Comfizen
                         .Where(s => !string.IsNullOrEmpty(s))
                         .ToList() ?? new List<string>();
 
-                    _settingsService.SaveSettings(_settings);
+                    _settingsService.SaveSettings();
                     if (param is Window window)
                     {
                         window.Close();

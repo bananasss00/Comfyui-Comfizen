@@ -276,5 +276,7 @@
   "XYGrid_YAxisField": "Поле для оси Y (необязательно):",
   "XYGrid_YValues": "Значения для Y (каждое с новой строки):",
   "XYGrid_CreateGridImage": "Создавать итоговый грид",
-  "XYGrid_ShowIndividualImages": "Показывать единичные изображения"
+  "XYGrid_ShowIndividualImages": "Показывать единичные изображения",
+  "UIConstructor_Field_UsePrefix": "Префикс",
+  "UIConstructor_Field_UsePrefixTooltip": "Добавлять к имени поля префикс с названием ноды"
 }

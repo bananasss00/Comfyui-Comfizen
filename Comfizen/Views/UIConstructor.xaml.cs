@@ -106,7 +106,8 @@ namespace Comfizen
         private object _itemBeingRenamed;
         private readonly SessionManager _sessionManager;
         private readonly ModelService _modelService;
-        private readonly AppSettings _settings;
+        public readonly AppSettings _settings;
+        public bool UseNodeTitlePrefix { get; set; }
         private readonly SliderDefaultsService _sliderDefaultsService;
         public IHighlightingDefinition PythonSyntaxHighlighting { get; }
         public ObservableCollection<string> ModelSubTypes { get; } = new();
@@ -175,8 +176,9 @@ namespace Comfizen
             // All readonly and get-only properties are initialized here, inside the constructor.
             PythonSyntaxHighlighting = HighlightingManager.Instance.GetDefinition("Python-Dark") ?? HighlightingManager.Instance.GetDefinition("Python");
             
-            var settingsService = new SettingsService();
-            _settings = settingsService.LoadSettings();
+            var settingsService = SettingsService.Instance; // Use singleton
+            _settings = settingsService.Settings;
+            UseNodeTitlePrefix = _settings.UseNodeTitlePrefixInDesigner;
             _sliderDefaultsService = new SliderDefaultsService(_settings.SliderDefaults);
             _sessionManager = new SessionManager(_settings);
             _modelService = new ModelService(_settings);
@@ -948,7 +950,12 @@ namespace Comfizen
         {
             if (field == null || group == null || group.Fields.Any(f => f.Path == field.Path)) return;
             var newField = new WorkflowField { Name = field.Name, Path = field.Path, Type = FieldType.Any };
-
+            
+            if (!this.UseNodeTitlePrefix && newField.Name.Contains("::"))
+            {
+                newField.Name = newField.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1];
+            }
+            
             var rawFieldName = field.Name.Contains("::") 
                 ? field.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1] 
                 : field.Name;
@@ -1090,6 +1097,8 @@ namespace Comfizen
             InitializeComponent();
             _viewModel = new UIConstructorView();
             DataContext = _viewModel;
+            ApplyWindowSettings();
+            this.Closing += UIConstructor_Closing;
             AttachCompletionEvents();
             ApplyHyperlinksColor();
         }
@@ -1099,6 +1108,8 @@ namespace Comfizen
             InitializeComponent();
             _viewModel = new UIConstructorView(workflowFileName);
             DataContext = _viewModel;
+            ApplyWindowSettings();
+            this.Closing += UIConstructor_Closing;
             AttachCompletionEvents();
             ApplyHyperlinksColor();
         }
@@ -1107,11 +1118,30 @@ namespace Comfizen
         public UIConstructor(Workflow liveWorkflow, string workflowRelativePath)
         {
             InitializeComponent();
-            // Pass the live object directly to the ViewModel.
             _viewModel = new UIConstructorView(liveWorkflow, workflowRelativePath);
             DataContext = _viewModel;
+            ApplyWindowSettings();
+            this.Closing += UIConstructor_Closing;
             AttachCompletionEvents();
             ApplyHyperlinksColor();
+        }
+        
+        private void ApplyWindowSettings()
+        {
+            if (_viewModel._settings.DesignerWindowWidth > 100 && _viewModel._settings.DesignerWindowHeight > 100)
+            {
+                this.Width = _viewModel._settings.DesignerWindowWidth;
+                this.Height = _viewModel._settings.DesignerWindowHeight;
+            }
+        }
+
+        private void UIConstructor_Closing(object sender, CancelEventArgs e)
+        {
+            var settings = _viewModel._settings;
+            settings.DesignerWindowWidth = this.Width;
+            settings.DesignerWindowHeight = this.Height;
+            settings.UseNodeTitlePrefixInDesigner = _viewModel.UseNodeTitlePrefix;
+            SettingsService.Instance.SaveSettings();
         }
         
         private void ApplyHyperlinksColor()

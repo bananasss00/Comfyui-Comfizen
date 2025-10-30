@@ -54,6 +54,8 @@ namespace Comfizen
         private SessionManager _sessionManager;
         private ModelService _modelService;
         private ConsoleLogService _consoleLogService;
+        
+        public AppSettings Settings => _settings;
 
         /// <summary>
         /// Provides access to the ConsoleLogService instance for external configuration.
@@ -235,8 +237,8 @@ namespace Comfizen
         
         public MainViewModel()
         {
-            _settingsService = new SettingsService();
-            _settings = _settingsService.LoadSettings();
+            _settingsService = SettingsService.Instance;
+            _settings = _settingsService.Settings;
 
             _comfyuiModel = new ComfyuiModel(_settings);
             _modelService = new ModelService(_settings);
@@ -768,22 +770,27 @@ namespace Comfizen
 
         private async void OpenSettings(object obj)
         {
+            var oldExtensions = _settings.ModelExtensions;
             var settingsWindow = new SettingsWindow { Owner = Application.Current.MainWindow };
             settingsWindow.ShowDialog();
-            
-            ModelService.ResetConnectionErrorFlag();
-            ModelService.ClearCache();
-            _settings = _settingsService.LoadSettings();
+
+            if (_settings.ModelExtensions != oldExtensions)
+            {
+                ModelService.ResetConnectionErrorFlag();
+                ModelService.ClearCache();
+            }
+
+            // _settings = _settingsService.LoadSettings();
             MaxQueueSize = _settings.MaxQueueSize;
             
-            _comfyuiModel = new ComfyuiModel(_settings);
-            _modelService = new ModelService(_settings);
-            _sessionManager = new SessionManager(_settings);
+            // _comfyuiModel = new ComfyuiModel(_settings);
+            // _modelService = new ModelService(_settings);
+            // _sessionManager = new SessionManager(_settings);
+            //
+            // ImageProcessing.Settings = _settings;
+            // FullScreen = new FullScreenViewModel(this, _comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
             
-            ImageProcessing.Settings = _settings;
-            FullScreen = new FullScreenViewModel(this, _comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
-            
-            await _consoleLogService.ReconnectAsync(_settings);
+            // await _consoleLogService.ReconnectAsync(_settings);
             
             foreach (var tab in OpenTabs)
             {
@@ -1416,7 +1423,7 @@ namespace Comfizen
                 _settings.RecentWorkflows = _settings.RecentWorkflows.Take(_settings.MaxRecentWorkflows).ToList();
             }
             
-            _settingsService.SaveSettings(_settings);
+            _settingsService.SaveSettings();
         }
 
         private void UpdateWorkflowDisplayList()
@@ -1572,7 +1579,7 @@ namespace Comfizen
                 ? Path.GetRelativePath(Workflow.WorkflowsDir, SelectedTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') 
                 : null;
             
-            _settingsService.SaveSettings(_settings);
+            _settingsService.SaveSettings();
         }
         
         private void DeleteSelectedWorkflow(object obj)
@@ -1605,7 +1612,7 @@ namespace Comfizen
                 if (_settings.RecentWorkflows.Contains(relativePath))
                 {
                     _settings.RecentWorkflows.Remove(relativePath);
-                    _settingsService.SaveSettings(_settings);
+                    _settingsService.SaveSettings();
                 }
             
                 UpdateWorkflows();

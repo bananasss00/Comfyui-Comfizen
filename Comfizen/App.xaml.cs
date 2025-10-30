@@ -81,8 +81,7 @@ namespace Comfizen
             InMemoryHttpServer.Instance.Start();
             
             // 1. Load settings first.
-            var settingsService = new SettingsService();
-            var settings = settingsService.LoadSettings();
+            var settings = SettingsService.Instance.Settings;
 
             // 2. Set the application language based on saved settings.
             LocalizationService.Instance.SetLanguage(settings.Language);
