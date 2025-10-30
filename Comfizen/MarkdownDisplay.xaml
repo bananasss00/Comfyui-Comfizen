@@ -27,10 +27,19 @@
                 <FlowDocument.Resources>
                     <!-- Global document styles -->
                     <Style TargetType="{x:Type Paragraph}">
-                        <Setter Property="Margin" Value="0,0,0,8"/>
+                        <Setter Property="Margin" Value="0,0,0,4"/>
                     </Style>
 
-                    <!-- THIS IS THE CORRECT WAY TO STYLE HYPERLINKS FOR MARKDIG.WPF -->
+                    <Style TargetType="{x:Type List}">
+                        <Setter Property="Margin" Value="0,0,0,4"/>
+                        <Setter Property="Padding" Value="15,0,0,5"/>
+                    </Style>
+                    
+                    <Style TargetType="{x:Type ListItem}">
+                        <Setter Property="Margin" Value="0,1,0,1"/>
+                    </Style>
+
+                    <!-- Hyperlink Style -->
                     <Style x:Key="{x:Static markdig:Styles.HyperlinkStyleKey}" TargetType="Hyperlink">
                         <Setter Property="Foreground" Value="#E6DB74"/>
                         <Setter Property="Cursor" Value="Hand"/>
@@ -42,26 +51,66 @@
                         </Style.Triggers>
                     </Style>
 
-                    <!-- Styles for other Markdig elements remain the same -->
-                    <Style x:Key="{x:Static markdig:Styles.Heading1StyleKey}" TargetType="Paragraph">
+                    <!-- FIXED: Style for Quote Blocks. Markdig renders them as Section elements. -->
+                    <Style x:Key="{x:Static markdig:Styles.QuoteBlockStyleKey}" TargetType="Section">
+                        <Setter Property="Foreground" Value="#B0B0B0"/> <!-- A lighter, more readable text color -->
+                        <Setter Property="BorderBrush" Value="#606060"/>
+                        <Setter Property="BorderThickness" Value="4,0,0,0"/>
+                        <Setter Property="Padding" Value="10,0,0,0"/>
+                        <Setter Property="Margin" Value="0,5,0,5"/>
+                    </Style>
+                    
+                    <!-- Styles for Code Blocks -->
+                    <Style x:Key="{x:Static markdig:Styles.CodeStyleKey}" TargetType="Run">
+                        <Setter Property="Background" Value="#4A4A4A"/>
+                        <Setter Property="Foreground" Value="#CCCCCC"/>
+                        <Setter Property="FontFamily" Value="Consolas, Courier New, monospace"/>
+                    </Style>
+
+                    <Style x:Key="{x:Static markdig:Styles.CodeBlockStyleKey}" TargetType="Paragraph">
+                        <Setter Property="Background" Value="#4A4A4A"/>
+                        <Setter Property="Foreground" Value="#CCCCCC"/>
+                        <Setter Property="FontFamily" Value="Consolas, Courier New, monospace"/>
+                        <Setter Property="Padding" Value="10"/>
+                        <Setter Property="Margin" Value="0,5,0,5"/>
+                    </Style>
+
+                    <!-- UPDATED: Heading Styles with very compact margins -->
+                    <Style x:Key="{x:Static markdig:Styles.Heading1StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
+                        <Setter Property="Margin" Value="0,6,0,1"/> <!-- Minimal bottom margin -->
                         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                         <Setter Property="FontWeight" Value="Bold"/>
                         <Setter Property="FontSize" Value="20"/>
                     </Style>
-                    <Style x:Key="{x:Static markdig:Styles.Heading2StyleKey}" TargetType="Paragraph">
+                    <Style x:Key="{x:Static markdig:Styles.Heading2StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
+                        <Setter Property="Margin" Value="0,4,0,1"/> <!-- Minimal bottom margin -->
                         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                         <Setter Property="FontWeight" Value="Bold"/>
                         <Setter Property="FontSize" Value="18"/>
                     </Style>
                     <Style x:Key="{x:Static markdig:Styles.Heading3StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
+                        <Setter Property="Margin" Value="0,3,0,1"/>
                         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                         <Setter Property="FontWeight" Value="Bold"/>
                         <Setter Property="FontSize" Value="16"/>
                     </Style>
                     <Style x:Key="{x:Static markdig:Styles.Heading4StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
+                        <Setter Property="Margin" Value="0,2,0,1"/>
                         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                         <Setter Property="FontWeight" Value="Bold"/>
                         <Setter Property="FontSize" Value="14"/>
+                    </Style>
+                    <Style x:Key="{x:Static markdig:Styles.Heading5StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
+                        <Setter Property="Margin" Value="0,2,0,1"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="FontSize" Value="13"/>
+                    </Style>
+                    <Style x:Key="{x:Static markdig:Styles.Heading6StyleKey}" TargetType="Paragraph" BasedOn="{StaticResource {x:Type Paragraph}}">
+                        <Setter Property="Margin" Value="0,2,0,1"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="FontSize" Value="12"/>
                     </Style>
                 </FlowDocument.Resources>
             </FlowDocument>
