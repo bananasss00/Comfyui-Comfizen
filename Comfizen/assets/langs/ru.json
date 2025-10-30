@@ -196,6 +196,7 @@
   "Window_Close": "Закрыть",
   "General_Error": "Ошибка",
   "ContextMenu_BlockNode": "Заблокировать ноду",
+  "ContextMenu_CopyMarkdownLink": "Копировать Markdown-ссылку",
   "ComboBox_PlaceholderDefault": "Выберите или введите...",
   "Wildcard_Browse": "Обзор Wildcards",
   "WorkflowList_Recent": "Последние",

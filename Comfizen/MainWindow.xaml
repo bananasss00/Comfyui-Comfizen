@@ -225,6 +225,19 @@
                         <EventSetter Event="Drop" Handler="TabItem_Drop"/>
                         <EventSetter Event="MouseMove" Handler="TabItem_MouseMove"/>
                         <EventSetter Event="PreviewMouseUp" Handler="TabItem_PreviewMouseUp"/>
+                        
+                        <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=TabControl}}"/>
+                        
+                        <Setter Property="ContextMenu">
+                            <Setter.Value>
+                                <ContextMenu Style="{StaticResource AppContextMenuStyle}">
+                                    <MenuItem Header="{local:Translate ContextMenu_CopyMarkdownLink}"
+                                              Command="{Binding PlacementTarget.Tag.CopyWorkflowLinkCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                </ContextMenu>
+                            </Setter.Value>
+                        </Setter>
+                        
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="TabItem">

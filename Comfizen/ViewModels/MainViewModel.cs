@@ -178,6 +178,8 @@ namespace Comfizen
 
         public ICommand ToggleInfiniteQueueCommand { get; }
         
+        public ICommand CopyWorkflowLinkCommand { get; }
+        
         // Helper classes to manage grid processing state
         private class GridCellResult
         {
@@ -402,6 +404,29 @@ namespace Comfizen
             }, canExecute: x => _promptsQueue.Any() || (_isProcessing && TotalTasks > CompletedTasks));
             
             QueueCommand = new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
+            
+            CopyWorkflowLinkCommand = new RelayCommand(p =>
+            {
+                if (p is WorkflowTabViewModel tab)
+                {
+                    try
+                    {
+                        // Get the relative path, normalize it, remove the extension, and URI-encode it
+                        var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, tab.FilePath);
+                        var pathWithoutExtension = Path.ChangeExtension(relativePath, null);
+                        var normalizedPath = pathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/');
+                        var encodedPath = Uri.EscapeDataString(normalizedPath);
+                    
+                        // Format the final markdown link and copy to clipboard
+                        var markdownLink = $"[{tab.Header}](wf://{encodedPath}.json)";
+                        Clipboard.SetText(markdownLink);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(ex, "Failed to create or copy workflow markdown link.");
+                    }
+                }
+            }, p => p is WorkflowTabViewModel tab && !tab.IsVirtual);
         }
         
         private void HandleHighPriorityLog(LogLevel level)

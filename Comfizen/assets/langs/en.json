@@ -197,6 +197,7 @@
   "Window_Close": "Close",
   "General_Error": "Error",
   "ContextMenu_BlockNode": "Block Node",
+  "ContextMenu_CopyMarkdownLink": "Copy Markdown Link",
   "ComboBox_PlaceholderDefault": "Select or enter a value...",
   "Wildcard_Browse": "Browse Wildcards",
   "WorkflowList_Recent": "Recent",
