@@ -1548,15 +1548,10 @@ namespace Comfizen
             }
             // --- END OF CHANGE ---
 
-            foreach (var tab in OpenTabs)
+            if (SelectedTab != null && !SelectedTab.IsVirtual && SelectedTab.Workflow.IsLoaded)
             {
-                if (!tab.IsVirtual && tab.Workflow.IsLoaded && tab.Workflow.LoadedApi != null)
-                {
-                    // START OF CHANGE: Pass the active inner tab name
-                    string activeInnerTabName = tab.WorkflowInputsController.SelectedTabLayout?.Header;
-                    _sessionManager.SaveSession(tab.Workflow, tab.FilePath, activeInnerTabName);
-                    // END OF CHANGE
-                }
+                string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
+                _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName);
             }
             
             if (SelectedTab != null)
