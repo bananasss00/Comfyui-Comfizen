@@ -191,6 +191,19 @@ namespace Comfizen
             }
         }
         
+
+        private void LvOutputs_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.A && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                if (sender is ListView listView)
+                {
+                    listView.SelectAll();
+                    e.Handled = true;
+                }
+            }
+        }
+        
         private void QueueSizeUpDown_OnSpinned(object sender, SpinEventArgs e)
         {
             var upDown = sender as IntegerUpDown;

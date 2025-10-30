@@ -885,7 +885,8 @@
                                       ItemsSource="{Binding ImageProcessing.FilteredImageOutputs}"
                                       Background="Transparent" BorderThickness="0"
                                       SelectionMode="Extended"
-                                      SelectionChanged="LvOutputs_SelectionChanged">
+                                      SelectionChanged="LvOutputs_SelectionChanged"
+                                      PreviewKeyDown="LvOutputs_PreviewKeyDown">
                                 <ListView.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" Margin="5"/></ItemsPanelTemplate></ListView.ItemsPanel>
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
