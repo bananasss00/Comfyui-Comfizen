@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using Microsoft.VisualBasic.Logging;
 using Microsoft.Win32;
 using PropertyChanged;
 using Newtonsoft.Json.Linq;
@@ -329,15 +330,8 @@ namespace Comfizen
             ClearBlockedNodesCommand = new RelayCommand(_ =>
             {
                 if (SelectedTab == null) return;
-                if (MessageBox.Show(LocalizationService.Instance["MainVM_ClearBlockedNodesConfirmMessage"],
-                        LocalizationService.Instance["MainVM_ClearBlockedNodesConfirmTitle"],
-                        MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
-                {
-                    SelectedTab.Workflow.BlockedNodeIds.Clear();
-                    MessageBox.Show(LocalizationService.Instance["MainVM_ClearBlockedNodesSuccessMessage"],
-                        LocalizationService.Instance["MainVM_ClearBlockedNodesSuccessTitle"],
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                SelectedTab.Workflow.BlockedNodeIds.Clear();
+                Logger.LogToConsole(LocalizationService.Instance["MainVM_ClearBlockedNodesSuccessMessage"]);
             }, _ => SelectedTab != null && SelectedTab.Workflow.BlockedNodeIds.Any());
             
             TogglePauseQueueCommand = new RelayCommand(_ => IsQueuePaused = !IsQueuePaused, _ => _isProcessing);
