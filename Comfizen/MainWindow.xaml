@@ -523,7 +523,7 @@
                                                                         </Border.Background>
                                                                     </Border>
                                                                     
-                                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,10,0" VerticalAlignment="Center">
+                                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,10,0" VerticalAlignment="Top">
                                                                         <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/>
                                                                         <TextBlock Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
                                                                             <TextBlock.Style>
@@ -536,7 +536,7 @@
                                                                             </TextBlock.Style>
                                                                         </TextBlock>
                                                                     </StackPanel>
-                                                                    <ContentPresenter Grid.Column="2" Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
+                                                                    <ContentPresenter Grid.Column="2" Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" VerticalAlignment="Top" />
                                                                 </Grid>
                                                             </ControlTemplate>
                                                             <ControlTemplate x:Key="InpaintLayoutTemplate" TargetType="ContentControl">
