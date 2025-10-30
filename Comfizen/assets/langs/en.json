@@ -279,5 +279,7 @@
   "XYGrid_CreateGridImage": "Create grid image",
   "XYGrid_ShowIndividualImages": "Show individual images",
   "UIConstructor_Field_UsePrefix": "Prefix",
-  "UIConstructor_Field_UsePrefixTooltip": "Prefix field names with node titles"
+  "UIConstructor_Field_UsePrefixTooltip": "Prefix field names with node titles",
+  "Tab_GallerySortSimilarity": "Similarity",
+  "Tab_GallerySimilarityThreshold": "Threshold:"
 }

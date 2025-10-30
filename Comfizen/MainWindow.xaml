@@ -622,6 +622,14 @@
                                     </StackPanel>
                                     
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0"
+                                                    Visibility="{Binding ImageProcessing.IsSimilaritySortActive, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="{local:Translate Tab_GallerySimilarityThreshold}" VerticalAlignment="Center"/>
+                                            <Slider Width="70" Margin="5,0" Minimum="50" Maximum="100" IsSnapToTickEnabled="True" TickFrequency="1"
+                                                    Value="{Binding ImageProcessing.SimilarityThreshold, Mode=TwoWay, Delay=200}"/>
+                                            <TextBlock Text="{Binding ImageProcessing.SimilarityThreshold, StringFormat={}{0:F0}%}" MinWidth="30"/>
+                                        </StackPanel>
+                                        
                                         <TextBlock Text="{local:Translate Tab_GallerySort}" Margin="15,0,5,0"/>
                                         <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:SortOption}}}" SelectedItem="{Binding ImageProcessing.SelectedSortOption}" Width="120"/>
                                     </StackPanel>
@@ -886,7 +894,8 @@
                                       Background="Transparent" BorderThickness="0"
                                       SelectionMode="Extended"
                                       SelectionChanged="LvOutputs_SelectionChanged"
-                                      PreviewKeyDown="LvOutputs_PreviewKeyDown">
+                                      PreviewKeyDown="LvOutputs_PreviewKeyDown"
+                                      SelectedItem="{Binding ImageProcessing.SelectedGalleryImage, Mode=TwoWay}">
                                 <ListView.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" Margin="5"/></ItemsPanelTemplate></ListView.ItemsPanel>
                                 <ListView.ItemTemplate>
                                     <DataTemplate>

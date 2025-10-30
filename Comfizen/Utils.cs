@@ -723,5 +723,84 @@ namespace Comfizen
             canvas.SaveAsPng(ms);
             return ms.ToArray();
         }
+        
+        /// <summary>
+        /// Computes a 64-bit average hash (aHash) for an image.
+        /// This hash represents the basic structure of the image and can be used for similarity comparison.
+        /// </summary>
+        /// <param name="imageBytes">The byte array of the image.</param>
+        /// <returns>A 64-bit perceptual hash, or 0 if an error occurs.</returns>
+        public static ulong ComputeAverageHash(byte[] imageBytes)
+        {
+            if (imageBytes == null || imageBytes.Length == 0) return 0;
+
+            try
+            {
+                using (var image = Image.Load<L8>(imageBytes))
+                {
+                    // 1. Resize to a small, fixed size (8x8)
+                    image.Mutate(x => x.Resize(8, 8));
+
+                    // 2. Calculate the average pixel value
+                    long totalValue = 0;
+                    image.ProcessPixelRows(accessor =>
+                    {
+                        for (int y = 0; y < accessor.Height; y++)
+                        {
+                            var row = accessor.GetRowSpan(y);
+                            for (int x = 0; x < row.Length; x++)
+                            {
+                                totalValue += row[x].PackedValue;
+                            }
+                        }
+                    });
+                    byte avgValue = (byte)(totalValue / 64);
+
+                    // 3. Create the hash: 1 if pixel > average, 0 otherwise
+                    ulong hash = 0;
+                    image.ProcessPixelRows(accessor =>
+                    {
+                        for (int y = 0; y < accessor.Height; y++)
+                        {
+                            var row = accessor.GetRowSpan(y);
+                            for (int x = 0; x < row.Length; x++)
+                            {
+                                if (row[x].PackedValue >= avgValue)
+                                {
+                                    hash |= 1UL << (y * 8 + x);
+                                }
+                            }
+                        }
+                    });
+
+                    return hash;
+                }
+            }
+            catch
+            {
+                // If ImageSharp fails to load the image, return a zero hash.
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Calculates the Hamming distance between two 64-bit hashes.
+        /// The distance is the number of bit positions in which the two hashes differ.
+        /// </summary>
+        /// <param name="hash1">The first hash.</param>
+        /// <param name="hash2">The second hash.</param>
+        /// <returns>An integer distance (0-64), where 0 means identical.</returns>
+        public static int CalculateHammingDistance(ulong hash1, ulong hash2)
+        {
+            ulong xor = hash1 ^ hash2;
+            int distance = 0;
+            while (xor > 0)
+            {
+                // This clears the least significant set bit
+                xor &= (xor - 1);
+                distance++;
+            }
+            return distance;
+        }
     }
 }

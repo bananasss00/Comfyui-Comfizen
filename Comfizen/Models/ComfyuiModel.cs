@@ -127,6 +127,7 @@ namespace Comfizen
                         FileName = fileOutput.FileName,
                         Prompt = prompt,
                         VisualHash = isVideo ? Utils.ComputeMd5Hash(fileOutput.Data) : Utils.ComputePixelHash(fileOutput.Data),
+                        PerceptualHash = isVideo ? 0 : Utils.ComputeAverageHash(fileOutput.Data),
                         FilePath = fileOutput.FilePath,
                         NodeId = kv.Key
                     };

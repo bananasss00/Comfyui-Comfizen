@@ -278,5 +278,7 @@
   "XYGrid_CreateGridImage": "Создавать итоговый грид",
   "XYGrid_ShowIndividualImages": "Показывать единичные изображения",
   "UIConstructor_Field_UsePrefix": "Префикс",
-  "UIConstructor_Field_UsePrefixTooltip": "Добавлять к имени поля префикс с названием ноды"
+  "UIConstructor_Field_UsePrefixTooltip": "Добавлять к имени поля префикс с названием ноды",
+  "Tab_GallerySortSimilarity": "Похожие",
+  "Tab_GallerySimilarityThreshold": "Порог:"
 }

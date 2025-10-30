@@ -31,6 +31,11 @@ namespace Comfizen
         public string FilePath { get; set; }
         public string NodeId { get; set; }
         public bool IsSaved { get; set; }
+        
+        /// <summary>
+        /// A 64-bit perceptual hash of the image, used for similarity comparison.
+        /// </summary>
+        public ulong PerceptualHash { get; set; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         

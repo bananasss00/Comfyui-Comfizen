@@ -23,7 +23,7 @@ using Newtonsoft.Json.Linq;
 namespace Comfizen
 {
     public enum FileTypeFilter { All, Images, Video }
-    public enum SortOption { NewestFirst, OldestFirst }
+    public enum SortOption { NewestFirst, OldestFirst, Similarity }
 
     public class WorkflowListHeader
     {

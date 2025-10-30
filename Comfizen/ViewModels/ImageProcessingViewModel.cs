@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -31,6 +32,9 @@ namespace Comfizen
         public SavedStatusFilter SelectedSavedStatusFilter { get; set; } = SavedStatusFilter.All;
         public SortOption SelectedSortOption { get; set; } = SortOption.NewestFirst;
         
+        public double SimilarityThreshold { get; set; } = 95.0;
+        public bool IsSimilaritySortActive => SelectedSortOption == SortOption.Similarity;
+        
         public double GalleryThumbnailSize { get; set; } = 128.0;
             
         public int SelectedItemsCount { get; set; }
@@ -41,6 +45,11 @@ namespace Comfizen
         public ICommand SaveSelectedImagesCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
+        
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
 
         public ImageProcessingViewModel(ComfyuiModel comfyuiModel, AppSettings settings)
         {
@@ -136,11 +145,17 @@ namespace Comfizen
         private void OnFilterChanged(object sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName is nameof(SearchFilterText)
-                    or nameof(SelectedFileTypeFilter)
-                    or nameof(SelectedSortOption)
-                    or nameof(SelectedSavedStatusFilter))
+                or nameof(SelectedFileTypeFilter)
+                or nameof(SelectedSortOption)
+                or nameof(SelectedSavedStatusFilter)
+                or nameof(SimilarityThreshold))
             {
                 UpdateFilteredOutputs();
+            }
+            
+            if (e.PropertyName == nameof(SelectedSortOption))
+            {
+                OnPropertyChanged(nameof(IsSimilaritySortActive));
             }
         }
 
@@ -167,9 +182,64 @@ namespace Comfizen
                 filteredQuery = filteredQuery.Where(io => io.FileName.Contains(SearchFilterText, StringComparison.OrdinalIgnoreCase));
             }
 
-            var newFilteredList = (SelectedSortOption == SortOption.NewestFirst
-                ? filteredQuery.OrderByDescending(io => io.CreatedAt)
-                : filteredQuery.OrderBy(io => io.CreatedAt)).ToList();
+            List<ImageOutput> newFilteredList;
+
+            if (IsSimilaritySortActive)
+            {
+                var allImages = filteredQuery
+                    .Where(io => io.Type == FileType.Image && io.PerceptualHash != 0)
+                    .OrderByDescending(io => io.CreatedAt) // Initial sort for stable group creation
+                    .ToList();
+
+                var processedImages = new HashSet<ImageOutput>();
+                var similarityGroups = new List<List<ImageOutput>>();
+                
+                // 1. Find and create groups of similar images
+                foreach (var image in allImages)
+                {
+                    if (processedImages.Contains(image)) continue;
+
+                    var group = allImages
+                        .Where(other => !processedImages.Contains(other))
+                        .Select(other => new {
+                            Image = other,
+                            Similarity = (64 - Utils.CalculateHammingDistance(image.PerceptualHash, other.PerceptualHash)) / 64.0 * 100.0
+                        })
+                        .Where(item => item.Similarity >= SimilarityThreshold)
+                        .OrderByDescending(item => item.Image.CreatedAt) // Sort images within a group by date
+                        .Select(item => item.Image)
+                        .ToList();
+
+                    if (group.Count > 1)
+                    {
+                        similarityGroups.Add(group);
+                        foreach (var groupedImage in group)
+                        {
+                            processedImages.Add(groupedImage);
+                        }
+                    }
+                }
+
+                var loners = allImages.Except(processedImages).ToList();
+                
+                // 2. Assemble the final sorted list
+                newFilteredList = new List<ImageOutput>();
+                
+                // Add all groups, sorted by the date of their newest image
+                newFilteredList.AddRange(similarityGroups
+                    .OrderByDescending(g => g.First().CreatedAt)
+                    .SelectMany(g => g));
+
+                // Add all the "lonely" images at the end, also sorted by date
+                newFilteredList.AddRange(loners);
+            }
+            else
+            {
+                // Default sorting by date if similarity is not active
+                newFilteredList = (SelectedSortOption == SortOption.NewestFirst
+                    ? filteredQuery.OrderByDescending(io => io.CreatedAt)
+                    : filteredQuery.OrderBy(io => io.CreatedAt)).ToList();
+            }
             
             var itemsToRemove = FilteredImageOutputs.Except(newFilteredList).ToList();
             foreach (var item in itemsToRemove)
