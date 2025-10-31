@@ -784,12 +784,83 @@ namespace Comfizen
         }
 
         /// <summary>
-        /// Calculates the Hamming distance between two 64-bit hashes.
-        /// The distance is the number of bit positions in which the two hashes differ.
+        /// Computes a 64-bit average hash for a video by creating a tiled thumbnail image with ffmpeg.
         /// </summary>
-        /// <param name="hash1">The first hash.</param>
-        /// <param name="hash2">The second hash.</param>
-        /// <returns>An integer distance (0-64), where 0 means identical.</returns>
+        /// <param name="videoBytes">The byte array of the video file.</param>
+        /// <returns>A 64-bit perceptual hash, or 0 if ffmpeg is unavailable or an error occurs.</returns>
+        public static async Task<ulong> ComputeVideoPerceptualHashAsync(byte[] videoBytes)
+        {
+            if (!IsFfmpegAvailable() || videoBytes == null || videoBytes.Length == 0)
+            {
+                return 0;
+            }
+            
+            var tempInputFile = Path.GetTempFileName();
+            
+            // This ffmpeg command samples the video at 1 frame per second,
+            // scales each frame, and creates up to a 3x3 tiled image from the first 9 resulting frames.
+            // This provides a good visual summary for perceptual hashing.
+            string ffmpegArgs = $"-i \"{tempInputFile}\" -vf \"fps=1,scale=96:-1,tile=3x3\" -vframes 1 -f image2pipe -vcodec png -";
+        
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = ffmpegArgs,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardInput = false, // We no longer write to stdin
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+        
+            try
+            {
+                await File.WriteAllBytesAsync(tempInputFile, videoBytes);
+
+                using (var process = new Process { StartInfo = processStartInfo })
+                using (var outputStream = new MemoryStream())
+                {
+                    process.Start();
+        
+                    // We no longer need the inputTask as we are using a file
+                    var outputTask = process.StandardOutput.BaseStream.CopyToAsync(outputStream);
+                    var errorTask = process.StandardError.ReadToEndAsync();
+        
+                    await Task.WhenAll(outputTask, errorTask);
+                    
+                    process.WaitForExit();
+                    var errorOutput = await errorTask;
+        
+                    if (process.ExitCode != 0)
+                    {
+                        Logger.Log($"ffmpeg for video hash failed. Error: {errorOutput}", LogLevel.Error);
+                        return 0; // Return 0 on failure
+                    }
+        
+                    if (outputStream.Length > 0)
+                    {
+                        // Hash the generated PNG tile image
+                        return ComputeAverageHash(outputStream.ToArray());
+                    }
+        
+                    return 0; // No output from ffmpeg
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Exception during video perceptual hash computation.");
+                return 0;
+            }
+            finally
+            {
+                // Ensure the temporary file is always deleted
+                if (File.Exists(tempInputFile))
+                {
+                    try { File.Delete(tempInputFile); } catch {}
+                }
+            }
+        }
+
         public static int CalculateHammingDistance(ulong hash1, ulong hash2)
         {
             ulong xor = hash1 ^ hash2;

@@ -186,51 +186,51 @@ namespace Comfizen
 
             if (IsSimilaritySortActive)
             {
-                var allImages = filteredQuery
-                    .Where(io => io.Type == FileType.Image && io.PerceptualHash != 0)
+                var allItemsWithHash = filteredQuery
+                    .Where(io => io.PerceptualHash != 0) // Filter out items where hash calculation failed
                     .OrderByDescending(io => io.CreatedAt) // Initial sort for stable group creation
                     .ToList();
 
                 var processedImages = new HashSet<ImageOutput>();
                 var similarityGroups = new List<List<ImageOutput>>();
                 
-                // 1. Find and create groups of similar images
-                foreach (var image in allImages)
+                // 1. Find and create groups of similar items
+                foreach (var item in allItemsWithHash)
                 {
-                    if (processedImages.Contains(image)) continue;
+                    if (processedImages.Contains(item)) continue;
 
-                    var group = allImages
+                    var group = allItemsWithHash
                         .Where(other => !processedImages.Contains(other))
                         .Select(other => new {
                             Image = other,
-                            Similarity = (64 - Utils.CalculateHammingDistance(image.PerceptualHash, other.PerceptualHash)) / 64.0 * 100.0
+                            Similarity = (64 - Utils.CalculateHammingDistance(item.PerceptualHash, other.PerceptualHash)) / 64.0 * 100.0
                         })
-                        .Where(item => item.Similarity >= SimilarityThreshold)
-                        .OrderByDescending(item => item.Image.CreatedAt) // Sort images within a group by date
-                        .Select(item => item.Image)
+                        .Where(i => i.Similarity >= SimilarityThreshold)
+                        .OrderByDescending(i => i.Image.CreatedAt) // Sort items within a group by date
+                        .Select(i => i.Image)
                         .ToList();
 
                     if (group.Count > 1)
                     {
                         similarityGroups.Add(group);
-                        foreach (var groupedImage in group)
+                        foreach (var groupedItem in group)
                         {
-                            processedImages.Add(groupedImage);
+                            processedImages.Add(groupedItem);
                         }
                     }
                 }
 
-                var loners = allImages.Except(processedImages).ToList();
+                var loners = allItemsWithHash.Except(processedImages).ToList();
                 
                 // 2. Assemble the final sorted list
                 newFilteredList = new List<ImageOutput>();
                 
-                // Add all groups, sorted by the date of their newest image
+                // Add all groups, sorted by the date of their newest item
                 newFilteredList.AddRange(similarityGroups
                     .OrderByDescending(g => g.First().CreatedAt)
                     .SelectMany(g => g));
 
-                // Add all the "lonely" images at the end, also sorted by date
+                // Add all the "lonely" items at the end, also sorted by date
                 newFilteredList.AddRange(loners);
             }
             else

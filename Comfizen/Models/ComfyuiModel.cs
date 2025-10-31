@@ -121,13 +121,23 @@ namespace Comfizen
                     var isVideo = new[] { ".mp4", ".mov", ".avi", ".mkv", ".webm", ".gif" }
                         .Any(ext => fileOutput.FileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
                         
+                    ulong pHash;
+                    if (isVideo)
+                    {
+                        pHash = await Utils.ComputeVideoPerceptualHashAsync(fileOutput.Data);
+                    }
+                    else
+                    {
+                        pHash = Utils.ComputeAverageHash(fileOutput.Data);
+                    }
+                    
                     yield return new ImageOutput
                     {
                         ImageBytes = fileOutput.Data,
                         FileName = fileOutput.FileName,
                         Prompt = prompt,
                         VisualHash = isVideo ? Utils.ComputeMd5Hash(fileOutput.Data) : Utils.ComputePixelHash(fileOutput.Data),
-                        PerceptualHash = isVideo ? 0 : Utils.ComputeAverageHash(fileOutput.Data),
+                        PerceptualHash = pHash, // Use the calculated hash
                         FilePath = fileOutput.FilePath,
                         NodeId = kv.Key
                     };
