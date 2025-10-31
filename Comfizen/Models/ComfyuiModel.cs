@@ -120,16 +120,6 @@ namespace Comfizen
                     
                     var isVideo = new[] { ".mp4", ".mov", ".avi", ".mkv", ".webm", ".gif" }
                         .Any(ext => fileOutput.FileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
-                        
-                    ulong pHash;
-                    if (isVideo)
-                    {
-                        pHash = await Utils.ComputeVideoPerceptualHashAsync(fileOutput.Data);
-                    }
-                    else
-                    {
-                        pHash = Utils.ComputeAverageHash(fileOutput.Data);
-                    }
                     
                     yield return new ImageOutput
                     {
@@ -137,7 +127,7 @@ namespace Comfizen
                         FileName = fileOutput.FileName,
                         Prompt = prompt,
                         VisualHash = isVideo ? Utils.ComputeMd5Hash(fileOutput.Data) : Utils.ComputePixelHash(fileOutput.Data),
-                        PerceptualHash = pHash, // Use the calculated hash
+                        PerceptualHash = 0,
                         FilePath = fileOutput.FilePath,
                         NodeId = kv.Key
                     };

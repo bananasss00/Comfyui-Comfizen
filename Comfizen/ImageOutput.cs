@@ -39,6 +39,27 @@ namespace Comfizen
 
         public event PropertyChangedEventHandler? PropertyChanged;
         
+        /// <summary>
+        /// Asynchronously calculates the perceptual hash for this output if it hasn't been calculated yet.
+        /// The result is stored in the PerceptualHash property.
+        /// </summary>
+        public async Task CalculatePerceptualHashAsync()
+        {
+            if (PerceptualHash != 0)
+            {
+                return;
+            }
+
+            if (Type == FileType.Video)
+            {
+                PerceptualHash = await Utils.ComputeVideoPerceptualHashAsync(ImageBytes);
+            }
+            else
+            {
+                PerceptualHash = Utils.ComputeAverageHash(ImageBytes);
+            }
+        }
+        
         private string _resolution;
         public string Resolution
         {

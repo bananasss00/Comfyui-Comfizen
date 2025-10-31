@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using PropertyChanged;
@@ -159,7 +160,7 @@ namespace Comfizen
             }
         }
 
-        private void UpdateFilteredOutputs()
+        private async void UpdateFilteredOutputs()
         {
             var filteredQuery = ImageOutputs.AsEnumerable();
 
@@ -186,6 +187,13 @@ namespace Comfizen
 
             if (IsSimilaritySortActive)
             {
+                var itemsToHash = filteredQuery.Where(io => io.PerceptualHash == 0).ToList();
+                if (itemsToHash.Any())
+                {
+                    var hashTasks = itemsToHash.Select(item => item.CalculatePerceptualHashAsync());
+                    await Task.WhenAll(hashTasks);
+                }
+
                 var allItemsWithHash = filteredQuery
                     .Where(io => io.PerceptualHash != 0) // Filter out items where hash calculation failed
                     .OrderByDescending(io => io.CreatedAt) // Initial sort for stable group creation
