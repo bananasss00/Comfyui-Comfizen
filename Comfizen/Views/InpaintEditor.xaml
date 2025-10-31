@@ -33,6 +33,12 @@
                             <Button x:Name="ClearSketchButton" Content="{local:Translate Inpaint_ClearSketch}" Click="ClearSketch_Click" Margin="0,0,15,2" />
                             <Button x:Name="UndoButton" Content="{local:Translate Inpaint_Undo}" Click="Undo_Click" Margin="0,0,5,2" IsEnabled="False"/>
                             <Button x:Name="RedoButton" Content="{local:Translate Inpaint_Redo}" Click="Redo_Click" Margin="0,0,5,2" IsEnabled="False"/>
+                            <CheckBox x:Name="SaveAsJpgCheckBox"
+                                      Content="{local:Translate Inpaint_SaveAsJpg}"
+                                      ToolTip="{local:Translate Inpaint_SaveAsJpg_Tooltip}"
+                                      VerticalAlignment="Center"
+                                      IsChecked="True"
+                                      Margin="10,0,0,2"/>
                             <Button x:Name="FullScreenButton" Style="{StaticResource IconButton}" Content="&#xE740;" Click="FullScreenButton_Click" Margin="10,0,0,2" ToolTip="{local:Translate Inpaint_Fullscreen}"/>
                         </WrapPanel>
                     </GroupBox>

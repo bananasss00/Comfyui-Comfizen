@@ -137,6 +137,8 @@
   "Inpaint_Color": "Color:",
   "Inpaint_Eyedropper": "Eyedropper",
   "Inpaint_TitleFullscreen": "Inpaint Full Screen",
+  "Inpaint_SaveAsJpg": "Base64-JPG",
+  "Inpaint_SaveAsJpg_Tooltip": "Use JPG compression to reduce Base64 size",
   "ImageProcessing_DeleteConfirmTitle": "Confirm Deletion",
   "ImageProcessing_DeleteConfirmMessageSingle": "Are you sure you want to delete '{0}'?",
   "ImageProcessing_DeleteConfirmMessageMultiple": "Are you sure you want to delete {0} item(s)?",

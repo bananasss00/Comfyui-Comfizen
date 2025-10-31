@@ -12,8 +12,13 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
+using Color = System.Windows.Media.Color;
+using Image = SixLabors.ImageSharp.Image;
 using MessageBox = System.Windows.MessageBox;
+using Point = System.Windows.Point;
 using WindowState = System.Windows.WindowState;
 
 namespace Comfizen
@@ -781,24 +786,35 @@ namespace Comfizen
 
         /// <summary>
         /// Exports the source image combined with the sketch canvas as a Base64 string.
-        /// If no sketch is present, returns the original source image.
+        /// If no sketch is present, returns the original source image, re-encoded to the desired format.
         /// This method is thread-safe and performs image processing on a background thread.
         /// </summary>
-        /// <returns>A Task representing the asynchronous operation, which returns a Base64 encoded PNG string, or null if no source image is available.</returns>
+        /// <param name="saveAsJpg">If true, the output is encoded as JPEG; otherwise, it's encoded as PNG.</param>
+        /// <returns>A Task representing the asynchronous operation, which returns a Base64 encoded string, or null if no source image is available.</returns>
         public async Task<string> GetImageAsBase64Async()
         {
             if (!_imageEditingEnabled || _sourceImageBytes == null) return null;
             
-            // This is a fast check, can be done immediately
+            bool saveAsJpg = await Application.Current.Dispatcher.InvokeAsync(() => SaveAsJpgCheckBox.IsChecked == true);
             bool hasStrokes = await Application.Current.Dispatcher.InvokeAsync(() => SketchCanvas.Strokes.Count > 0);
 
             if (!hasStrokes)
             {
-                // If there's no sketch, we can just encode the source bytes on a background thread.
-                return await Task.Run(() => Convert.ToBase64String(_sourceImageBytes));
+                // english: If there's no sketch, just re-encode the source image to the desired format.
+                return await Task.Run(() =>
+                {
+                    if (saveAsJpg)
+                        using (var image = Image.Load(_sourceImageBytes))
+                        using (var ms = new MemoryStream())
+                        {
+                            ImageExtensions.SaveAsJpeg(image, ms, new JpegEncoder { Quality = 95 });
+                            return Convert.ToBase64String(ms.ToArray());
+                        }
+
+                    return Convert.ToBase64String(_sourceImageBytes);
+                });
             }
 
-            // Capture necessary data from the UI thread
             (int width, int height, byte[] sketchBytes) = await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 if (SourceImage.Source is not BitmapSource bmpSource) return (0, 0, null);
@@ -813,11 +829,9 @@ namespace Comfizen
                     int w = bmpSource.PixelWidth;
                     int h = bmpSource.PixelHeight;
 
-                    // Render just the sketch layer to a bitmap
                     var drawingVisual = new DrawingVisual();
                     using (var drawingContext = drawingVisual.RenderOpen())
                     {
-                        // Draw a transparent background for the sketch layer
                         drawingContext.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, w, h));
                         
                         if (SketchCanvas.ActualWidth > 0 && SketchCanvas.ActualHeight > 0)
@@ -833,7 +847,6 @@ namespace Comfizen
                     var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
                     rtb.Render(drawingVisual);
 
-                    // Encode the sketch layer to PNG bytes
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(rtb));
                     using (var ms = new MemoryStream())
@@ -850,19 +863,23 @@ namespace Comfizen
 
             if (sketchBytes == null) return null;
 
-            // Perform heavy image composition on a background thread
             return await Task.Run(() =>
             {
                 using (var baseImage = SixLabors.ImageSharp.Image.Load(_sourceImageBytes))
                 using (var sketchOverlay = SixLabors.ImageSharp.Image.Load(sketchBytes))
                 {
-                    // Draw the sketch on top of the base image
                     baseImage.Mutate(ctx => ctx.DrawImage(sketchOverlay, 1f));
                     
                     using (var ms = new MemoryStream())
                     {
-                        SixLabors.ImageSharp.ImageExtensions.SaveAsPng(baseImage, ms);
-                        // baseImage.SaveAsPng(ms);
+                        if (saveAsJpg)
+                        {
+                            ImageExtensions.SaveAsJpeg(baseImage, ms, new JpegEncoder { Quality = 95 });
+                        }
+                        else
+                        {
+                            ImageExtensions.SaveAsPng(baseImage, ms);
+                        }
                         return Convert.ToBase64String(ms.ToArray());
                     }
                 }
@@ -870,19 +887,21 @@ namespace Comfizen
         }
 
         /// <summary>
-        /// Exports the mask canvas as a grayscale Base64 PNG string.
+        /// Exports the mask canvas as a grayscale Base64 string.
         /// This method is thread-safe and performs image processing on a background thread.
         /// </summary>
-        /// <returns>A Task representing the asynchronous operation, which returns a Base64 encoded PNG string of the mask, or null if the mask is empty.</returns>
+        /// <param name="saveAsJpg">If true, the output is encoded as JPEG; otherwise, it's encoded as PNG. PNG is recommended for masks.</param>
+        /// <returns>A Task representing the asynchronous operation, which returns a Base64 encoded string of the mask, or null if the mask is empty.</returns>
         public async Task<string> GetMaskAsBase64Async()
         {
             if (!_maskEditingEnabled) return null;
+            
+            bool saveAsJpg = await Application.Current.Dispatcher.InvokeAsync(() => SaveAsJpgCheckBox.IsChecked == true);
             
             bool hasStrokes = await Application.Current.Dispatcher.InvokeAsync(() => MaskCanvas.Strokes.Count > 0);
             
             if (!hasStrokes) return null;
             
-            // Capture data from UI thread
             (int width, int height, float featherValue, byte[] rawMaskBytes) = await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 int w, h;
@@ -906,7 +925,6 @@ namespace Comfizen
 
                     if (MaskCanvas.ActualWidth <= 0 || MaskCanvas.ActualHeight <= 0) return (0, 0, 0, null);
 
-                    // Create a temporary canvas to render the mask in black and white without blurring
                     var tempCanvas = new InkCanvas { Background = Brushes.Black };
                     var strokesCopy = MaskCanvas.Strokes.Clone();
                     foreach (var stroke in strokesCopy)
@@ -944,24 +962,29 @@ namespace Comfizen
             
             if (rawMaskBytes == null) return null;
 
-            // Perform blurring and conversion on a background thread
             return await Task.Run(() =>
             {
                 using (var image = SixLabors.ImageSharp.Image.Load(rawMaskBytes))
                 {
-                    // Apply feather (Gaussian Blur) if needed
                     if (featherValue > 0)
                     {
                         image.Mutate(ctx => ctx.GaussianBlur(featherValue));
                     }
 
-                    // Convert to grayscale
                     image.Mutate(ctx => ctx.Grayscale());
 
                     using (var ms = new MemoryStream())
                     {
-                        SixLabors.ImageSharp.ImageExtensions.SaveAsPng(image, ms);
-                        // image.SaveAsPng(ms);
+                        if (saveAsJpg)
+                        {
+                            // english: Saving a mask as JPG is supported but not recommended due to lossy compression,
+                            // which can introduce artifacts and affect mask precision. PNG is preferred for masks.
+                            SixLabors.ImageSharp.ImageExtensions.SaveAsJpeg(image, ms, new JpegEncoder { Quality = 95 });
+                        }
+                        else
+                        {
+                            SixLabors.ImageSharp.ImageExtensions.SaveAsPng(image, ms);
+                        }
                         return Convert.ToBase64String(ms.ToArray());
                     }
                 }

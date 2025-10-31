@@ -136,6 +136,8 @@
   "Inpaint_Color": "Цвет:",
   "Inpaint_Eyedropper": "Пипетка",
   "Inpaint_TitleFullscreen": "Inpaint - Полный экран",
+  "Inpaint_SaveAsJpg": "Base64-JPG",
+  "Inpaint_SaveAsJpg_Tooltip": "Использовать сжатие JPG для уменьшения размера Base64",
   "ImageProcessing_DeleteConfirmTitle": "Подтверждение удаления",
   "ImageProcessing_DeleteConfirmMessageSingle": "Вы уверены, что хотите удалить '{0}'?",
   "ImageProcessing_DeleteConfirmMessageMultiple": "Вы уверены, что хотите удалить {0} элемент(ов)?",
