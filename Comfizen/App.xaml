@@ -43,6 +43,51 @@
         <SolidColorBrush x:Key="TextBrush" Color="#FFE0E0E0"/>
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="#FFA0A0A0"/>
         
+        <Style x:Key="SystemButton" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <Path Data="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" 
+                                  Stroke="{TemplateBinding Foreground}" 
+                                  StrokeThickness="1"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SystemButtonClose" TargetType="Button" BasedOn="{StaticResource SystemButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <Path Data="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" 
+                                  Stroke="{TemplateBinding Foreground}" 
+                                  StrokeThickness="1.5"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#C42B1C"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         
         <!-- Style for Icon ToggleButtons -->
         <Style x:Key="IconToggleButton" TargetType="ToggleButton">
@@ -136,102 +181,104 @@
     
     
     <!-- Custom Window Style -->
-<Style x:Key="CustomWindowStyle" TargetType="Window">
-    <Setter Property="WindowStyle" Value="None"/>
-    <Setter Property="AllowsTransparency" Value="True"/>
-    <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
-    <EventSetter Event="Loaded" Handler="Window_Loaded"/>
-    <Setter Property="Template">
-        <Setter.Value>
-            <ControlTemplate TargetType="Window">
-                <ControlTemplate.Resources>
-                    <Style x:Key="SystemButton" TargetType="Button">
-                        <Setter Property="Width" Value="46"/>
-                        <Setter Property="Height" Value="32"/>
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderThickness" Value="0"/>
-                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}">
-                                        <Path Data="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" 
-                                              Stroke="{TemplateBinding Foreground}" 
-                                              StrokeThickness="1"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                        <Style.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-
-                    <Style x:Key="SystemButtonClose" TargetType="Button" BasedOn="{StaticResource SystemButton}">
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}">
-                                        <Path Data="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" 
-                                              Stroke="{TemplateBinding Foreground}" 
-                                              StrokeThickness="1.5"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                        <Style.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#C42B1C"/>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </ControlTemplate.Resources>
-                
-                <Border BorderBrush="{StaticResource PrimaryAccentBrush}" BorderThickness="1" Background="{TemplateBinding Background}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="32"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+        <Style x:Key="CustomWindowStyle" TargetType="Window">
+            <Setter Property="WindowStyle" Value="None"/>
+            <Setter Property="AllowsTransparency" Value="True"/>
+            <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
+            <EventSetter Event="Loaded" Handler="Window_Loaded"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Window">
+                        <ControlTemplate.Resources>
+                            
+                        </ControlTemplate.Resources>
                         
-                        <Border x:Name="TitleBar" Grid.Row="0" Background="{StaticResource SecondaryBackground}">
+                        <Border BorderBrush="{StaticResource PrimaryAccentBrush}" BorderThickness="1" Background="{TemplateBinding Background}">
                             <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="32"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
                                 
-                                <Image Grid.Column="0" Source="{Binding Icon, RelativeSource={RelativeSource TemplatedParent}}" Height="16" Margin="8,0"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                <Border x:Name="TitleBar" Grid.Row="0" Background="{StaticResource SecondaryBackground}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <Image Grid.Column="0" Source="{Binding Icon, RelativeSource={RelativeSource TemplatedParent}}" Height="16" Margin="8,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
 
-                                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                    <Button x:Name="MinimizeButton" Style="{StaticResource SystemButton}" Content="M 0 5 H 10" ToolTip="{local:Translate Window_Minimize}"/>
-                                    <Button x:Name="MaximizeButton" Style="{StaticResource SystemButton}" Content="M 0 0 H 10 V 10 H 0 Z" ToolTip="{local:Translate Window_Maximize}"/>
-                                    <Button x:Name="RestoreButton" Style="{StaticResource SystemButton}" Content="M 0 2 H 8 V 10 H 0 Z M 2 0 H 10 V 8 H 2 Z" Visibility="Collapsed" ToolTip="{local:Translate Window_Restore}"/>
-                                    <Button x:Name="CloseButton" Style="{StaticResource SystemButtonClose}" Content="M 0 0 L 10 10 M 10 0 L 0 10" ToolTip="{local:Translate Window_Close}"/>
-                                </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                            <Button x:Name="MinimizeButton" Style="{StaticResource SystemButton}" Content="M 0 5 H 10" ToolTip="{local:Translate Window_Minimize}"/>
+                                            <Button x:Name="MaximizeButton" Style="{StaticResource SystemButton}" Content="M 0 0 H 10 V 10 H 0 Z" ToolTip="{local:Translate Window_Maximize}"/>
+                                            <Button x:Name="RestoreButton" Style="{StaticResource SystemButton}" Content="M 0 2 H 8 V 10 H 0 Z M 2 0 H 10 V 8 H 2 Z" Visibility="Collapsed" ToolTip="{local:Translate Window_Restore}"/>
+                                            <Button x:Name="CloseButton" Style="{StaticResource SystemButtonClose}" Content="M 0 0 L 10 10 M 10 0 L 0 10" ToolTip="{local:Translate Window_Close}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <ContentPresenter Grid.Row="1"/>
                             </Grid>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="WindowState" Value="Maximized">
+                                <Setter TargetName="MaximizeButton" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="RestoreButton" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="ToolWindowStyle" TargetType="Window">
+            <Setter Property="WindowStyle" Value="None"/>
+            <Setter Property="AllowsTransparency" Value="True"/>
+            <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
+            <EventSetter Event="Loaded" Handler="Window_Loaded"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Window">
+                        <Border BorderBrush="{StaticResource PrimaryAccentBrush}" BorderThickness="1" Background="{TemplateBinding Background}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <!-- Reduced height for a more compact title bar -->
+                                    <RowDefinition Height="26"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                
+                                <Border x:Name="TitleBar" Grid.Row="0" Background="{StaticResource SecondaryBackground}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <TextBlock Grid.Column="0" Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" Margin="8,0"/>
 
-                        <ContentPresenter Grid.Row="1"/>
-                    </Grid>
-                </Border>
-                <ControlTemplate.Triggers>
-                    <Trigger Property="WindowState" Value="Maximized">
-                        <Setter TargetName="MaximizeButton" Property="Visibility" Value="Collapsed"/>
-                        <Setter TargetName="RestoreButton" Property="Visibility" Value="Visible"/>
-                    </Trigger>
-                </ControlTemplate.Triggers>
-            </ControlTemplate>
-        </Setter.Value>
-    </Setter>
-</Style>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <!-- The preset controls will be inserted here -->
+                                            <ContentPresenter Content="{Binding DataContext, RelativeSource={RelativeSource TemplatedParent}}" 
+                                                              ContentTemplate="{DynamicResource GroupHeaderPresetControls}"/>
+                                            
+                                            <!-- Only the Close button remains -->
+                                            <Button x:Name="CloseButton" Style="{StaticResource SystemButtonClose}" Content="M 0 0 L 10 10 M 10 0 L 0 10" 
+                                                    ToolTip="{local:Translate Window_Close}"
+                                                    Width="32" Height="26"/> <!-- Adjusted size -->
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <ContentPresenter Grid.Row="1"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <!-- Style for the Video Slider -->
         <Style x:Key="VideoSliderStyle" TargetType="{x:Type Slider}">
@@ -510,6 +557,68 @@
         </Style>
         
         <!-- Input Field MVVM Templates -->
+        
+        <!-- ADD: Reusable template for group preset controls -->
+        <DataTemplate x:Key="GroupHeaderPresetControls">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <local:FilterableComboBox Margin="10,0,5,0" VerticalAlignment="Center"
+                                          ItemsSource="{Binding PresetNames}"
+                                          SelectedItem="{Binding SelectedPresetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          MinWidth="120"
+                                          MaxWidth="250"
+                                          Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"
+                                          PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
+                    <local:FilterableComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="{Binding}" 
+                                               VerticalAlignment="Center" 
+                                               TextTrimming="CharacterEllipsis" 
+                                               Padding="5,3"/>
+                                    
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5,0">
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <!-- Reserve space but hide the buttons by default -->
+                                                <Setter Property="Visibility" Value="Hidden"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                        <!-- Show buttons on hover -->
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+
+                                        <Button Content="&#xE70F;"
+                                                Command="{Binding DataContext.StartRenamePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="{local:Translate Presets_RenameTooltip}"
+                                                Style="{StaticResource IconButton}"/>
+                                        
+                                        <!-- FIX: Use the correct icon character code for the delete button -->
+                                        <Button Content="&#xE74D;" 
+                                                Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="{local:Translate Presets_DeleteTooltip}"
+                                                Style="{StaticResource IconButton}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </local:FilterableComboBox.ItemTemplate>
+                </local:FilterableComboBox>
+
+                <Button Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 
+                        Style="{StaticResource IconButton}" Width="24" Height="24"
+                        Command="{Binding OpenSavePresetPopupCommand}"
+                        ToolTip="{local:Translate Presets_SaveButton}"/>
+            </StackPanel>
+        </DataTemplate>
         
         <DataTemplate x:Key="UndockedGroupTemplate" DataType="{x:Type local:WorkflowGroupViewModel}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">

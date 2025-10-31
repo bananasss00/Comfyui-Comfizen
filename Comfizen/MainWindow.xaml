@@ -405,7 +405,7 @@
                                                                                     </StackPanel>
                                                                                     
                                                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
-                                                                                                Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
+                                                                                        Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
                                                                                         
                                                                                         <Button Content="&#xE8A7;" FontFamily="Segoe MDL2 Assets" 
                                                                                             Style="{StaticResource IconButton}" Width="24" Height="24"
@@ -413,65 +413,10 @@
                                                                                             CommandParameter="{Binding}"
                                                                                             ToolTip="Undock Group"/>
                                                                                         
-                                                                                        <local:FilterableComboBox Margin="10,0,5,0" VerticalAlignment="Center"
-                                                                                                                  ItemsSource="{Binding PresetNames}"
-                                                                                                                  SelectedItem="{Binding SelectedPresetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                                                                  MinWidth="120"
-                                                                                                                  MaxWidth="250"
-                                                                                                                  Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"
-                                                                                                                  PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
-                                                                                                
-                                                                                            <local:FilterableComboBox.ItemTemplate>
-                                                                                                <DataTemplate>
-                                                                                                    <Grid>
-                                                                                                        <Grid.ColumnDefinitions>
-                                                                                                            <ColumnDefinition Width="*" />
-                                                                                                            <ColumnDefinition Width="Auto" />
-                                                                                                        </Grid.ColumnDefinitions>
+                                                                                        <ContentPresenter Content="{Binding}"
+                                                                                            ContentTemplate="{StaticResource GroupHeaderPresetControls}"
+                                                                                            VerticalAlignment="Center"/>
 
-                                                                                                        <TextBlock Grid.Column="0" Text="{Binding}" 
-                                                                                                                   VerticalAlignment="Center" 
-                                                                                                                   TextTrimming="CharacterEllipsis" 
-                                                                                                                   Padding="5,3"/>
-                                                                                                        
-                                                                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5,0">
-                                                                                                            <StackPanel.Style>
-                                                                                                                <Style TargetType="StackPanel">
-                                                                                                                    <!-- Reserve space but hide the buttons by default -->
-                                                                                                                    <Setter Property="Visibility" Value="Hidden"/>
-                                                                                                                    <Style.Triggers>
-                                                                                                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                                                                                            <!-- Show buttons on hover -->
-                                                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                                                                        </DataTrigger>
-                                                                                                                    </Style.Triggers>
-                                                                                                                </Style>
-                                                                                                            </StackPanel.Style>
-
-                                                                                                            <Button Content="&#xE70F;"
-                                                                                                                    Command="{Binding DataContext.StartRenamePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
-                                                                                                                    CommandParameter="{Binding}"
-                                                                                                                    ToolTip="{local:Translate Presets_RenameTooltip}"
-                                                                                                                    Style="{StaticResource IconButton}"/>
-                                                                                                            
-                                                                                                            <!-- FIX: Use the correct icon character code for the delete button -->
-                                                                                                            <Button Content="&#xE74D;" 
-                                                                                                                    Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
-                                                                                                                    CommandParameter="{Binding}"
-                                                                                                                    ToolTip="{local:Translate Presets_DeleteTooltip}"
-                                                                                                                    Style="{StaticResource IconButton}"/>
-                                                                                                        </StackPanel>
-                                                                                                    </Grid>
-                                                                                                </DataTemplate>
-                                                                                            </local:FilterableComboBox.ItemTemplate>
-
-                                                                                              
-                                                                                        </local:FilterableComboBox>
-
-                                                                                        <Button Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 
-                                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
-                                                                                            Command="{Binding OpenSavePresetPopupCommand}"
-                                                                                            ToolTip="{local:Translate Presets_SaveButton}"/>
                                                                                     </StackPanel>
                                                                                 </Grid>
                                                                             </Border>

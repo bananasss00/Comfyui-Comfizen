@@ -1551,8 +1551,8 @@ namespace Comfizen
                     MinHeight = 200,
                     Background = (Brush)Application.Current.FindResource("PrimaryBackground"),
                     Foreground = (Brush)Application.Current.FindResource("TextBrush"),
-                    // Apply the same custom style as the main window
-                    Style = (Style)Application.Current.FindResource("CustomWindowStyle"),
+                    // CHANGE: Apply the new ToolWindowStyle
+                    Style = (Style)Application.Current.FindResource("ToolWindowStyle"),
                     // Use the DataTemplate we defined in App.xaml
                     ContentTemplate = (DataTemplate)Application.Current.FindResource("UndockedGroupTemplate")
                 };
