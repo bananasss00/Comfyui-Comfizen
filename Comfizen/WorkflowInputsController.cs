@@ -181,19 +181,19 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     
-    public string CreatePromptTask()
+    public async Task<string> CreatePromptTaskAsync()
     {
         var prompt = _workflow.JsonClone();
-        ProcessSpecialFields(prompt);
+        await ProcessSpecialFieldsAsync(prompt);
         return prompt.ToString();
     }
     
-    public void ProcessSpecialFields(JToken prompt, HashSet<string> pathsToIgnore = null)
+    public async Task ProcessSpecialFieldsAsync(JToken prompt, HashSet<string> pathsToIgnore = null)
     {
         ApplyPromptTokenFiltering(prompt);
         ApplyNodeBypass((JObject)prompt);
         ApplyWildcards(prompt);
-        ApplyInpaintData(prompt);
+        await ApplyInpaintDataAsync(prompt);
         ApplySeedControl(prompt, pathsToIgnore);
     }
     
@@ -433,28 +433,30 @@ public class WorkflowInputsController : INotifyPropertyChanged
         }
     }
 
-    private void ApplyInpaintData(JToken prompt)
+    private async Task ApplyInpaintDataAsync(JToken prompt)
     {
         foreach (var vm in _inpaintViewModels)
         {
-            // Если есть поле для изображения, обрабатываем его
+            // english: If an image field exists, process it
             if (vm.ImageField != null)
             {
                 var prop = Utils.GetJsonPropertyByPath((JObject)prompt, vm.ImageField.Path);
                 if (prop != null)
                 {
-                    var base64Image = vm.Editor.GetImageAsBase64();
+                    // english: Await the asynchronous method to get the Base64 image
+                    var base64Image = await vm.Editor.GetImageAsBase64Async();
                     if (base64Image != null) prop.Value = new JValue(base64Image);
                 }
             }
 
-            // Если есть поле для маски, обрабатываем его
+            // english: If a mask field exists, process it
             if (vm.MaskField != null)
             {
                 var prop = Utils.GetJsonPropertyByPath((JObject)prompt, vm.MaskField.Path);
                 if (prop != null)
                 {
-                    var base64Mask = vm.Editor.GetMaskAsBase64();
+                    // english: Await the asynchronous method to get the Base64 mask
+                    var base64Mask = await vm.Editor.GetMaskAsBase64Async();
                     if (base64Mask != null) prop.Value = new JValue(base64Mask);
                 }
             }

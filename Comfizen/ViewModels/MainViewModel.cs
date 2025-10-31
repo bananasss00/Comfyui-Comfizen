@@ -896,7 +896,7 @@ namespace Comfizen
             }
         }
         
-        private List<PromptTask> CreatePromptTasks(WorkflowTabViewModel tab)
+        private async Task<List<PromptTask>> CreatePromptTasks(WorkflowTabViewModel tab)
         {
             var tasks = new List<PromptTask>();
             var controller = tab.WorkflowInputsController;
@@ -981,7 +981,7 @@ namespace Comfizen
                                 }
                             }
 
-                            tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask, pathsToIgnore);
+                            await tab.WorkflowInputsController.ProcessSpecialFieldsAsync(apiPromptForTask, pathsToIgnore);
                             tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
                             
                             var fullStateForThisTask = new
@@ -1029,7 +1029,7 @@ namespace Comfizen
                 
                 // 2. Apply all per-task modifications (like seed randomization) to this clone.
                 // After this call, apiPromptForTask contains the *actual* values that will be sent to the API.
-                tab.WorkflowInputsController.ProcessSpecialFields(apiPromptForTask);
+                await tab.WorkflowInputsController.ProcessSpecialFieldsAsync(apiPromptForTask);
                 
                 tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
 
@@ -1112,7 +1112,7 @@ namespace Comfizen
         
             SelectedTab.ExecuteHook("on_queue_start", SelectedTab.Workflow.LoadedApi);
         
-            var promptTasks = await Task.Run(() => CreatePromptTasks(SelectedTab));
+            var promptTasks = await CreatePromptTasks(SelectedTab);
             if (promptTasks.Count == 0) return;
         
             if (_cancellationRequested || (_promptsQueue.IsEmpty && !_isProcessing))
@@ -1273,10 +1273,7 @@ namespace Comfizen
                         if (IsInfiniteQueueEnabled && !_cancellationRequested && lastTaskOriginTab != null)
                         {
                             List<PromptTask> newTasks = null;
-                            await Application.Current.Dispatcher.InvokeAsync(() =>
-                            {
-                                newTasks = CreatePromptTasks(lastTaskOriginTab);
-                            });
+                            newTasks = await CreatePromptTasks(lastTaskOriginTab);
 
                             if (newTasks != null)
                             {

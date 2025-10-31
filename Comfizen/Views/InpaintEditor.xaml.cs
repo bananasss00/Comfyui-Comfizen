@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -11,7 +12,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
-using Xceed.Wpf.Toolkit;
+using SixLabors.ImageSharp.Processing;
 using MessageBox = System.Windows.MessageBox;
 using WindowState = System.Windows.WindowState;
 
@@ -781,151 +782,190 @@ namespace Comfizen
         /// <summary>
         /// Exports the source image combined with the sketch canvas as a Base64 string.
         /// If no sketch is present, returns the original source image.
-        /// This method is thread-safe.
+        /// This method is thread-safe and performs image processing on a background thread.
         /// </summary>
-        /// <returns>A Base64 encoded PNG string, or null if no source image is available.</returns>
-        public string GetImageAsBase64()
+        /// <returns>A Task representing the asynchronous operation, which returns a Base64 encoded PNG string, or null if no source image is available.</returns>
+        public async Task<string> GetImageAsBase64Async()
         {
-            // --- START OF FIX: Ensure UI access is on the main thread ---
-            // This prevents a crash when this method is called from a background thread,
-            // for example, during prompt creation in a Task.Run().
-            if (!Application.Current.Dispatcher.CheckAccess())
-            {
-                return Application.Current.Dispatcher.Invoke(() => GetImageAsBase64());
-            }
-            // --- END OF FIX ---
-
-            if (!_imageEditingEnabled) return null;
+            if (!_imageEditingEnabled || _sourceImageBytes == null) return null;
             
-            if (_sourceImageBytes == null) return null;
+            // This is a fast check, can be done immediately
+            bool hasStrokes = await Application.Current.Dispatcher.InvokeAsync(() => SketchCanvas.Strokes.Count > 0);
 
-            if (SketchCanvas.Strokes.Count == 0)
+            if (!hasStrokes)
             {
-                return Convert.ToBase64String(_sourceImageBytes);
+                // If there's no sketch, we can just encode the source bytes on a background thread.
+                return await Task.Run(() => Convert.ToBase64String(_sourceImageBytes));
             }
 
-            if (SourceImage.Source is not BitmapSource bmpSource) return null;
-            
-            var originalSketchVisibility = SketchCanvas.Visibility;
-            try
+            // Capture necessary data from the UI thread
+            (int width, int height, byte[] sketchBytes) = await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                SketchCanvas.Visibility = Visibility.Visible;
-                SketchCanvas.Measure(new Size(ImageGrid.ActualWidth, ImageGrid.ActualHeight));
-                SketchCanvas.Arrange(new Rect(0, 0, ImageGrid.ActualWidth, ImageGrid.ActualHeight));
+                if (SourceImage.Source is not BitmapSource bmpSource) return (0, 0, null);
 
-                int width = bmpSource.PixelWidth;
-                int height = bmpSource.PixelHeight;
-
-                var drawingVisual = new DrawingVisual();
-                using (var drawingContext = drawingVisual.RenderOpen())
+                var originalSketchVisibility = SketchCanvas.Visibility;
+                try
                 {
-                    drawingContext.DrawImage(bmpSource, new Rect(0, 0, width, height));
-                
-                    if (SketchCanvas.ActualWidth > 0 && SketchCanvas.ActualHeight > 0)
+                    SketchCanvas.Visibility = Visibility.Visible;
+                    SketchCanvas.Measure(new System.Windows.Size(ImageGrid.ActualWidth, ImageGrid.ActualHeight));
+                    SketchCanvas.Arrange(new Rect(0, 0, ImageGrid.ActualWidth, ImageGrid.ActualHeight));
+
+                    int w = bmpSource.PixelWidth;
+                    int h = bmpSource.PixelHeight;
+
+                    // Render just the sketch layer to a bitmap
+                    var drawingVisual = new DrawingVisual();
+                    using (var drawingContext = drawingVisual.RenderOpen())
                     {
-                        double scaleX = width / SketchCanvas.ActualWidth;
-                        double scaleY = height / SketchCanvas.ActualHeight;
-                        drawingContext.PushTransform(new ScaleTransform(scaleX, scaleY));
-                        SketchCanvas.Strokes.Draw(drawingContext);
-                        drawingContext.Pop();
+                        // Draw a transparent background for the sketch layer
+                        drawingContext.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, w, h));
+                        
+                        if (SketchCanvas.ActualWidth > 0 && SketchCanvas.ActualHeight > 0)
+                        {
+                            double scaleX = w / SketchCanvas.ActualWidth;
+                            double scaleY = h / SketchCanvas.ActualHeight;
+                            drawingContext.PushTransform(new ScaleTransform(scaleX, scaleY));
+                            SketchCanvas.Strokes.Draw(drawingContext);
+                            drawingContext.Pop();
+                        }
+                    }
+
+                    var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+                    rtb.Render(drawingVisual);
+
+                    // Encode the sketch layer to PNG bytes
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(rtb));
+                    using (var ms = new MemoryStream())
+                    {
+                        encoder.Save(ms);
+                        return (w, h, ms.ToArray());
                     }
                 }
-
-                var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-                rtb.Render(drawingVisual);
-
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(rtb));
-                using (var ms = new MemoryStream())
+                finally
                 {
-                    encoder.Save(ms);
-                    return Convert.ToBase64String(ms.ToArray());
+                    SketchCanvas.Visibility = originalSketchVisibility;
                 }
-            }
-            finally
+            });
+
+            if (sketchBytes == null) return null;
+
+            // Perform heavy image composition on a background thread
+            return await Task.Run(() =>
             {
-                SketchCanvas.Visibility = originalSketchVisibility;
-            }
+                using (var baseImage = SixLabors.ImageSharp.Image.Load(_sourceImageBytes))
+                using (var sketchOverlay = SixLabors.ImageSharp.Image.Load(sketchBytes))
+                {
+                    // Draw the sketch on top of the base image
+                    baseImage.Mutate(ctx => ctx.DrawImage(sketchOverlay, 1f));
+                    
+                    using (var ms = new MemoryStream())
+                    {
+                        SixLabors.ImageSharp.ImageExtensions.SaveAsPng(baseImage, ms);
+                        // baseImage.SaveAsPng(ms);
+                        return Convert.ToBase64String(ms.ToArray());
+                    }
+                }
+            });
         }
 
         /// <summary>
         /// Exports the mask canvas as a grayscale Base64 PNG string.
-        /// This method is thread-safe.
+        /// This method is thread-safe and performs image processing on a background thread.
         /// </summary>
-        /// <returns>A Base64 encoded PNG string of the mask, or null if the mask is empty.</returns>
-        public string GetMaskAsBase64()
+        /// <returns>A Task representing the asynchronous operation, which returns a Base64 encoded PNG string of the mask, or null if the mask is empty.</returns>
+        public async Task<string> GetMaskAsBase64Async()
         {
-            // --- START OF FIX: Ensure UI access is on the main thread ---
-            // This prevents a crash when this method is called from a background thread.
-            if (!Application.Current.Dispatcher.CheckAccess())
-            {
-                return Application.Current.Dispatcher.Invoke(() => GetMaskAsBase64());
-            }
-            // --- END OF FIX ---
-
             if (!_maskEditingEnabled) return null;
             
-            if (MaskCanvas.Strokes.Count == 0) return null;
-
-            int width, height;
+            bool hasStrokes = await Application.Current.Dispatcher.InvokeAsync(() => MaskCanvas.Strokes.Count > 0);
             
-            if (SourceImage.Source is BitmapSource bmpSource)
+            if (!hasStrokes) return null;
+            
+            // Capture data from UI thread
+            (int width, int height, float featherValue, byte[] rawMaskBytes) = await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                width = bmpSource.PixelWidth;
-                height = bmpSource.PixelHeight;
-            }
-            else
-            {
-                width = MaskWidthUpDown.Value ?? 512;
-                height = MaskHeightUpDown.Value ?? 512;
-            }
-
-            var originalMaskVisibility = MaskCanvas.Visibility;
-            try
-            {
-                MaskCanvas.Visibility = Visibility.Visible;
-                MaskCanvas.Measure(new Size(ImageGrid.ActualWidth, ImageGrid.ActualHeight));
-                MaskCanvas.Arrange(new Rect(0, 0, ImageGrid.ActualWidth, ImageGrid.ActualHeight));
-                
-                if (MaskCanvas.ActualWidth <= 0 || MaskCanvas.ActualHeight <= 0) return null;
-                
-                var tempCanvas = new InkCanvas { Background = Brushes.Black };
-                var strokesCopy = MaskCanvas.Strokes.Clone();
-                foreach (var stroke in strokesCopy)
+                int w, h;
+                if (SourceImage.Source is BitmapSource bmpSource)
                 {
-                    var originalAttrs = stroke.DrawingAttributes;
-                    originalAttrs.Color = Color.FromArgb(originalAttrs.Color.A, 255, 255, 255);
-                    stroke.DrawingAttributes = originalAttrs;
+                    w = bmpSource.PixelWidth;
+                    h = bmpSource.PixelHeight;
                 }
-                tempCanvas.Strokes = strokesCopy;
-
-                double scaleX = width / MaskCanvas.ActualWidth;
-                double scaleY = height / MaskCanvas.ActualHeight;
-                tempCanvas.LayoutTransform = new ScaleTransform(scaleX, scaleY);
-            
-                tempCanvas.Effect = new BlurEffect { Radius = FeatherSlider.Value * scaleX };
-
-                var size = new Size(width, height);
-                tempCanvas.Measure(size);
-                tempCanvas.Arrange(new Rect(size));
-            
-                var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-                rtb.Render(tempCanvas);
-
-                var grayBitmap = new FormatConvertedBitmap(rtb, PixelFormats.Gray8, null, 0);
-
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(grayBitmap));
-                using (var ms = new MemoryStream())
+                else
                 {
-                    encoder.Save(ms);
-                    return Convert.ToBase64String(ms.ToArray());
+                    w = MaskWidthUpDown.Value ?? 512;
+                    h = MaskHeightUpDown.Value ?? 512;
                 }
-            }
-            finally
+
+                var originalMaskVisibility = MaskCanvas.Visibility;
+                try
+                {
+                    MaskCanvas.Visibility = Visibility.Visible;
+                    MaskCanvas.Measure(new System.Windows.Size(ImageGrid.ActualWidth, ImageGrid.ActualHeight));
+                    MaskCanvas.Arrange(new Rect(0, 0, ImageGrid.ActualWidth, ImageGrid.ActualHeight));
+
+                    if (MaskCanvas.ActualWidth <= 0 || MaskCanvas.ActualHeight <= 0) return (0, 0, 0, null);
+
+                    // Create a temporary canvas to render the mask in black and white without blurring
+                    var tempCanvas = new InkCanvas { Background = Brushes.Black };
+                    var strokesCopy = MaskCanvas.Strokes.Clone();
+                    foreach (var stroke in strokesCopy)
+                    {
+                        var originalAttrs = stroke.DrawingAttributes;
+                        originalAttrs.Color = Color.FromArgb(originalAttrs.Color.A, 255, 255, 255); // White
+                        stroke.DrawingAttributes = originalAttrs;
+                    }
+                    tempCanvas.Strokes = strokesCopy;
+
+                    double scaleX = w / MaskCanvas.ActualWidth;
+                    double scaleY = h / MaskCanvas.ActualHeight;
+                    tempCanvas.LayoutTransform = new ScaleTransform(scaleX, scaleY);
+                    
+                    var size = new System.Windows.Size(w, h);
+                    tempCanvas.Measure(size);
+                    tempCanvas.Arrange(new Rect(size));
+                    
+                    var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+                    rtb.Render(tempCanvas);
+
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(rtb));
+                    using (var ms = new MemoryStream())
+                    {
+                        encoder.Save(ms);
+                        return (w, h, (float)FeatherSlider.Value * (float)scaleX, ms.ToArray());
+                    }
+                }
+                finally
+                {
+                    MaskCanvas.Visibility = originalMaskVisibility;
+                }
+            });
+            
+            if (rawMaskBytes == null) return null;
+
+            // Perform blurring and conversion on a background thread
+            return await Task.Run(() =>
             {
-                MaskCanvas.Visibility = originalMaskVisibility;
-            }
+                using (var image = SixLabors.ImageSharp.Image.Load(rawMaskBytes))
+                {
+                    // Apply feather (Gaussian Blur) if needed
+                    if (featherValue > 0)
+                    {
+                        image.Mutate(ctx => ctx.GaussianBlur(featherValue));
+                    }
+
+                    // Convert to grayscale
+                    image.Mutate(ctx => ctx.Grayscale());
+
+                    using (var ms = new MemoryStream())
+                    {
+                        SixLabors.ImageSharp.ImageExtensions.SaveAsPng(image, ms);
+                        // image.SaveAsPng(ms);
+                        return Convert.ToBase64String(ms.ToArray());
+                    }
+                }
+            });
         }
 
         /// <summary>
