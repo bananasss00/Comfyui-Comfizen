@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
 
@@ -82,6 +83,14 @@ namespace Comfizen
         
         public WorkflowGroup Model => _model;
         public string Name { get; set; }
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether this group is currently displayed in a separate window.
+        /// This is a transient UI state and is not saved to the workflow file.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsUndocked { get; set; }
+        
         public bool IsExpanded
         {
             get => _model.IsExpanded;

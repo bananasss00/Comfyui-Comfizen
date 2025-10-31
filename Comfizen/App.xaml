@@ -511,6 +511,59 @@
         
         <!-- Input Field MVVM Templates -->
         
+        <DataTemplate x:Key="UndockedGroupTemplate" DataType="{x:Type local:WorkflowGroupViewModel}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding Fields}" Padding="8">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DataTemplate.Resources>
+                                <!-- This layout is copied from MainWindow to ensure consistency -->
+                                <ControlTemplate x:Key="NormalFieldLayoutTemplate" TargetType="ContentControl">
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" MinWidth="120"/>
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,10,0" VerticalAlignment="Top">
+                                            <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/>
+                                        </StackPanel>
+                                        <!-- CHANGE: Use DynamicResource to find the selector at the application level -->
+                                        <ContentPresenter Grid.Column="1" Content="{Binding}" ContentTemplateSelector="{DynamicResource FieldTemplateSelector}" VerticalAlignment="Top" />
+                                    </Grid>
+                                </ControlTemplate>
+                                <ControlTemplate x:Key="InpaintLayoutTemplate" TargetType="ContentControl">
+                                    <!-- CHANGE: Use DynamicResource to find the selector at the application level -->
+                                    <ContentPresenter Content="{Binding}" ContentTemplateSelector="{DynamicResource FieldTemplateSelector}" />
+                                </ControlTemplate>
+                                <ControlTemplate x:Key="FullWidthLayoutTemplate" TargetType="ContentControl">
+                                     <!-- CHANGE: Use DynamicResource to find the selector at the application level -->
+                                     <ContentPresenter Content="{Binding}" ContentTemplateSelector="{DynamicResource FieldTemplateSelector}" Margin="0,4" />
+                                </ControlTemplate>
+                            </DataTemplate.Resources>
+                            <ContentControl Content="{Binding}">
+                                <ContentControl.Style>
+                                    <Style TargetType="ContentControl">
+                                        <Setter Property="Template" Value="{StaticResource NormalFieldLayoutTemplate}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Converter={StaticResource IsInpaintViewModelConverter}}" Value="True">
+                                                <Setter Property="Template" Value="{StaticResource InpaintLayoutTemplate}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Converter={StaticResource IsMarkdownViewModelConverter}}" Value="True">
+                                                <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Type}" Value="ScriptButton">
+                                                <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ContentControl.Style>
+                            </ContentControl>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DataTemplate>
+        
         <DataTemplate x:Key="TextTemplate" DataType="{x:Type local:TextFieldViewModel}">
             <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                      AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="100" />

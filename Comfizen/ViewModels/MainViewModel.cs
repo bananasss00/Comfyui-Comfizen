@@ -235,6 +235,11 @@ namespace Comfizen
             public string YValue { get; set; }
             public XYGridConfig GridConfig { get; set; }
         }
+        // ADD: Command for undocking/redocking groups
+        public ICommand ToggleUndockGroupCommand { get; }
+        // ADD: Dictionary to keep track of floating windows
+        private readonly Dictionary<WorkflowGroupViewModel, Window> _undockedWindows = new();
+        
         
         public MainViewModel()
         {
@@ -415,6 +420,8 @@ namespace Comfizen
             }, canExecute: x => _promptsQueue.Any() || (_isProcessing && TotalTasks > CompletedTasks));
             
             QueueCommand = new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
+            
+            ToggleUndockGroupCommand = new RelayCommand(ToggleUndockGroup);
             
             CopyWorkflowLinkCommand = new RelayCommand(p =>
             {
@@ -1512,6 +1519,69 @@ namespace Comfizen
             }
             
             UpdateWorkflowDisplayList();
+        }
+        
+        /// <summary>
+        /// Handles the logic for undocking a group into a new window or redocking it by closing the existing window.
+        /// </summary>
+        /// <param name="parameter">The WorkflowGroupViewModel to toggle.</param>
+        private void ToggleUndockGroup(object parameter)
+        {
+            if (parameter is not WorkflowGroupViewModel groupVm) return;
+
+            // If the window for this group already exists, close it to re-dock.
+            if (_undockedWindows.TryGetValue(groupVm, out var existingWindow))
+            {
+                existingWindow.Close();
+            }
+            // Otherwise, create a new floating window for it.
+            else
+            {
+                var floatingWindow = new Window
+                {
+                    Title = groupVm.Name,
+                    DataContext = groupVm, // The ViewModel for the window
+                    Content = groupVm,     // The content to be templated
+                    Owner = Application.Current.MainWindow,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Topmost = true,
+                    Width = 400,
+                    Height = 600,
+                    MinWidth = 300,
+                    MinHeight = 200,
+                    Background = (Brush)Application.Current.FindResource("PrimaryBackground"),
+                    Foreground = (Brush)Application.Current.FindResource("TextBrush"),
+                    // Apply the same custom style as the main window
+                    Style = (Style)Application.Current.FindResource("CustomWindowStyle"),
+                    // Use the DataTemplate we defined in App.xaml
+                    ContentTemplate = (DataTemplate)Application.Current.FindResource("UndockedGroupTemplate")
+                };
+
+                floatingWindow.Closed += FloatingWindow_Closed;
+
+                _undockedWindows[groupVm] = floatingWindow;
+                groupVm.IsUndocked = true;
+                floatingWindow.Show();
+            }
+        }
+
+        /// <summary>
+        /// Event handler for when a floating group window is closed.
+        /// This triggers the re-docking logic.
+        /// </summary>
+        private void FloatingWindow_Closed(object sender, EventArgs e)
+        {
+            if (sender is not Window window || window.DataContext is not WorkflowGroupViewModel groupVm) return;
+
+            // Clean up event handler to prevent memory leaks
+            window.Closed -= FloatingWindow_Closed;
+            
+            // Check if the window is still in our tracking dictionary
+            if (_undockedWindows.ContainsKey(groupVm))
+            {
+                groupVm.IsUndocked = false;
+                _undockedWindows.Remove(groupVm);
+            }
         }
 
         public async Task SaveStateOnCloseAsync()

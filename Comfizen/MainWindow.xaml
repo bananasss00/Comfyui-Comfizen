@@ -356,6 +356,19 @@
                                         <ItemsControl ItemsSource="{Binding Groups}" Margin="0,5,0,0">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
+                                                    <ContentControl>
+                                                        <ContentControl.Style>
+                                                            <Style TargetType="ContentControl">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Style.Triggers>
+                                                                    <!-- ADD: This trigger hides the group from the main list when it's undocked -->
+                                                                    <DataTrigger Binding="{Binding IsUndocked}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </ContentControl.Style>
+                                                        
                                                     <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5">
                                             <Expander.Template>
                                                 <ControlTemplate TargetType="Expander">
@@ -393,6 +406,12 @@
                                                                                     
                                                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                                                                                                 Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
+                                                                                        
+                                                                                        <Button Content="&#xE8A7;" FontFamily="Segoe MDL2 Assets" 
+                                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                                            Command="{Binding DataContext.ToggleUndockGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                            CommandParameter="{Binding}"
+                                                                                            ToolTip="Undock Group"/>
                                                                                         
                                                                                         <local:FilterableComboBox Margin="10,0,5,0" VerticalAlignment="Center"
                                                                                                                   ItemsSource="{Binding PresetNames}"
@@ -568,6 +587,7 @@
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
                                         </Expander>
+                                                        </ContentControl>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
