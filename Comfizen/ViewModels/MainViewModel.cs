@@ -49,6 +49,8 @@ namespace Comfizen
     [AddINotifyPropertyChangedInterface]
     public class MainViewModel : INotifyPropertyChanged
     {
+        public static ICommand GlobalQueueCommand { get; private set; }
+        
         private ComfyuiModel _comfyuiModel;
         private AppSettings _settings;
         private readonly SettingsService _settingsService;
@@ -420,6 +422,8 @@ namespace Comfizen
             }, canExecute: x => _promptsQueue.Any() || (_isProcessing && TotalTasks > CompletedTasks));
             
             QueueCommand = new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
+            
+            GlobalQueueCommand = QueueCommand;
             
             ToggleUndockGroupCommand = new RelayCommand(ToggleUndockGroup);
             

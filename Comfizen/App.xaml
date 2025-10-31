@@ -186,6 +186,7 @@
             <Setter Property="AllowsTransparency" Value="True"/>
             <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
             <EventSetter Event="Loaded" Handler="Window_Loaded"/>
+            
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Window">
@@ -239,6 +240,15 @@
             <Setter Property="AllowsTransparency" Value="True"/>
             <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
             <EventSetter Event="Loaded" Handler="Window_Loaded"/>
+            
+            <Setter Property="local:InputBindingBehavior.InputBindings">
+                <Setter.Value>
+                    <InputBindingCollection>
+                        <KeyBinding Command="{x:Static local:MainViewModel.GlobalQueueCommand}" Gesture="Ctrl+Enter" />
+                    </InputBindingCollection>
+                </Setter.Value>
+            </Setter>
+            
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Window">

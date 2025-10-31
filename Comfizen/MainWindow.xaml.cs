@@ -509,7 +509,15 @@ namespace Comfizen
                 viewModel.FullScreen.CloseFullScreenCommand.Execute(null);
                 this.Focus();
             }
-            else if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) viewModel.QueueCommand.Execute(null);
+            else if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                if (MainViewModel.GlobalQueueCommand != null && MainViewModel.GlobalQueueCommand.CanExecute(null))
+                {
+                    MainViewModel.GlobalQueueCommand.Execute(null);
+                    // Mark the event as handled to prevent other controls from processing it (e.g., adding a newline to a TextBox).
+                    e.Handled = true;
+                }
+            }
             else if (e.Key == Key.V && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
                 viewModel.PasteImageCommand.Execute(null);
