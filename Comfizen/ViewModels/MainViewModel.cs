@@ -1575,13 +1575,18 @@ namespace Comfizen
 
             // Clean up event handler to prevent memory leaks
             window.Closed -= FloatingWindow_Closed;
-            
+    
             // Check if the window is still in our tracking dictionary
             if (_undockedWindows.ContainsKey(groupVm))
             {
                 groupVm.IsUndocked = false;
                 _undockedWindows.Remove(groupVm);
             }
+    
+            // ADD THIS LINE
+            // Explicitly activate the main window to restore focus.
+            // This prevents the main window from being minimized when the last Topmost window is closed.
+            Application.Current.MainWindow?.Activate();
         }
 
         public async Task SaveStateOnCloseAsync()
