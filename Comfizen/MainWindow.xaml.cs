@@ -87,10 +87,17 @@ namespace Comfizen
         
         private void Window_DragOver(object sender, DragEventArgs e)
         {
+            // ADDED: If the slider compare view is open, let it handle the drag events.
+            if (DataContext is MainViewModel vm && vm.SliderCompare.IsViewOpen)
+            {
+                // We don't set e.Handled = true here, allowing the event to continue to the child controls.
+                return;
+            }
+
             // Autoscroll logic
             const double scrollThreshold = 40.0;
             const double scrollSpeed = 8.0;
-            
+    
             Point position = e.GetPosition(ControlsScrollViewer);
 
             if (position.Y < scrollThreshold)
@@ -112,8 +119,15 @@ namespace Comfizen
 
         private void Window_Drop(object sender, DragEventArgs e)
         {
+            // ADDED: If the slider compare view is open, prevent the main window from handling the drop.
+            if (DataContext is MainViewModel mainVm && mainVm.SliderCompare.IsViewOpen)
+            {
+                e.Handled = true;
+                return;
+            }
+
             if (DataContext is not MainViewModel viewModel) return;
-            
+    
             // Case 1: Drop from our own gallery
             if (e.Data.GetData(typeof(ImageOutput)) is ImageOutput imageOutput)
             {

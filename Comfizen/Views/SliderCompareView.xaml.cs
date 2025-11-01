@@ -1,6 +1,4 @@
-﻿// --- START OF FILE SliderCompareView.xaml.cs ---
-
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows.Controls;
 using System.Windows;
 using System.Windows.Data;
@@ -31,7 +29,7 @@ namespace Comfizen
         }
     }
 
-    // Вспомогательный конвертер для позиционирования слайдера
+    // Helper converter for slider positioning
     public class MultiplyConverter : IValueConverter
     {
         public static readonly MultiplyConverter Instance = new MultiplyConverter();
