@@ -11,8 +11,7 @@ using Newtonsoft.Json;
 namespace Comfizen
 {
     public enum FileType { Image, Video }
-
-    // Добавляем интерфейс для уведомлений об изменении свойств
+    
     [AddINotifyPropertyChangedInterface]
     public class ImageOutput : INotifyPropertyChanged
     {
@@ -21,6 +20,26 @@ namespace Comfizen
         public ImageOutput()
         {
             PropertyChanged += (sender, args) => { }; 
+        }
+
+        /// <summary>
+        /// ADDED: New constructor to create an ImageOutput directly from a file path.
+        /// </summary>
+        /// <param name="filePath">The full path to the image or video file.</param>
+        public ImageOutput(string filePath) : this() // Chain to the default constructor
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException("The specified file does not exist.", filePath);
+            }
+
+            ImageBytes = File.ReadAllBytes(filePath);
+            FileName = Path.GetFileName(filePath);
+            FilePath = filePath;
+            // The prompt is unknown when loading from a random file.
+            Prompt = null; 
+            // Compute a hash for identification, especially useful for drag-and-drop.
+            VisualHash = Utils.ComputePixelHash(ImageBytes);
         }
         
         public byte[] ImageBytes { get; set; }

@@ -461,12 +461,22 @@ namespace Comfizen
             }, p => p is WorkflowTabViewModel tab && !tab.IsVirtual);
             
             CompareSelectedImagesCommand = new RelayCommand(param => {
-                if (param is not IList selectedItems || selectedItems.Count != 2) return;
+                if (param is not IList selectedItems || selectedItems.Count < 1) return;
             
                 var images = selectedItems.Cast<ImageOutput>().ToList();
-                SliderCompare.Open(images[0], images[1]);
+
+                if (images.Count == 1)
+                {
+                    // If only one image is selected, open it on the left side.
+                    SliderCompare.Open(images[0]);
+                }
+                else
+                {
+                    // If two (or more) are selected, use the first two.
+                    SliderCompare.Open(images[0], images[1]);
+                }
             
-            }, param => param is IList list && list.Count == 2);
+            }, param => param is IList list && list.Count >= 1); // Can execute if 1 or more images are selected.
         }
         
         private void HandleHighPriorityLog(LogLevel level)

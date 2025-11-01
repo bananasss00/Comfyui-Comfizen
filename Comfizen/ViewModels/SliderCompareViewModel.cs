@@ -1,7 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿// --- START OF FILE SliderCompareViewModel.cs ---
+
+using System;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
@@ -29,11 +31,15 @@ namespace Comfizen
             CloseCommand = new RelayCommand(_ => IsViewOpen = false);
             SwapImagesCommand = new RelayCommand(_ => {
                 (ImageLeft, ImageRight) = (ImageRight, ImageLeft);
-            });
+            }, _ => ImageLeft != null && ImageRight != null); // Can only swap if both images exist
+            
             ChangeImageLeftCommand = new RelayCommand(_ => ChangeImage(img => ImageLeft = img));
             ChangeImageRightCommand = new RelayCommand(_ => ChangeImage(img => ImageRight = img));
         }
 
+        /// <summary>
+        /// Opens the comparison view with two specified images.
+        /// </summary>
         public void Open(ImageOutput left, ImageOutput right)
         {
             ImageLeft = left;
@@ -41,72 +47,85 @@ namespace Comfizen
             SliderPosition = 50; // Reset slider position
             IsViewOpen = true;
         }
+
+        /// <summary>
+        /// Opens the comparison view with a single image, leaving the other side empty.
+        /// </summary>
+        public void Open(ImageOutput singleImage)
+        {
+            ImageLeft = singleImage;
+            ImageRight = null; // Clear the right image
+            SliderPosition = 50;
+            IsViewOpen = true;
+        }
         
+        /// <summary>
+        /// Opens a file dialog to let the user choose a new image.
+        /// </summary>
         private void ChangeImage(Action<ImageOutput> setImageAction)
         {
             var dialog = new OpenFileDialog
             {
-                Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp;*.webp|All Files|*.*"
+                Filter = "Image and Video Files|*.png;*.jpg;*.jpeg;*.bmp;*.webp;*.mp4;*.mov;*.webm;*.gif|All Files|*.*"
             };
 
             if (dialog.ShowDialog() == true)
             {
                 try
                 {
-                    var bytes = File.ReadAllBytes(dialog.FileName);
-                    var newImage = new ImageOutput
-                    {
-                        ImageBytes = bytes,
-                        FileName = Path.GetFileName(dialog.FileName),
-                        // We can't know the prompt, but we can compute hashes
-                        VisualHash = Utils.ComputePixelHash(bytes)
-                    };
-                    
+                    // Use the new ImageOutput constructor that takes a file path
+                    var newImage = new ImageOutput(dialog.FileName);
                     setImageAction(newImage);
                 }
                 catch (Exception ex)
                 {
                     Logger.Log(ex, "Failed to load image for comparison.");
+                    MessageBox.Show($"Error loading file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
         
+        /// <summary>
+        /// Handles drop operations from both the internal gallery and the file system.
+        /// </summary>
         public void HandleDrop(DragEventArgs e, string target)
         {
-            ImageOutput droppedImage = null;
+            ImageOutput newImage = null;
 
-            if (e.Data.GetData(typeof(ImageOutput)) is ImageOutput imageOutput)
+            // Case 1: Dropped from our own gallery (contains ImageOutput object)
+            if (e.Data.GetDataPresent(typeof(ImageOutput)))
             {
-                droppedImage = imageOutput;
+                newImage = e.Data.GetData(typeof(ImageOutput)) as ImageOutput;
             }
-            else if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+            // Case 2: Dropped from the file system (contains file paths)
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
-                try
+                if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
                 {
-                    var bytes = File.ReadAllBytes(files[0]);
-                    droppedImage = new ImageOutput
+                    string filePath = files[0]; // Take the first file
+                    try
                     {
-                        ImageBytes = bytes,
-                        FileName = Path.GetFileName(files[0]),
-                        VisualHash = Utils.ComputePixelHash(bytes)
-                    };
-                }
-                catch (Exception ex)
-                {
-                     Logger.Log(ex, "Failed to load dropped image for comparison.");
+                        // Create a new ImageOutput object from the file path.
+                        newImage = new ImageOutput(filePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(ex, $"Failed to create ImageOutput from dropped file: {filePath}");
+                        MessageBox.Show($"Error loading file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
                 }
             }
             
-            if (droppedImage != null)
+            if (newImage == null) return;
+
+            // Update the correct property based on the drop target ("Left" or "Right")
+            if (target == "Left")
             {
-                if (target == "Left")
-                {
-                    ImageLeft = droppedImage;
-                }
-                else if (target == "Right")
-                {
-                    ImageRight = droppedImage;
-                }
+                ImageLeft = newImage;
+            }
+            else if (target == "Right")
+            {
+                ImageRight = newImage;
             }
         }
     }
