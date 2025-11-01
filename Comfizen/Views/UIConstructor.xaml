@@ -455,8 +455,20 @@
                                                                                         </Grid>
                                                                                         <StackPanel Grid.Row="1" Margin="0,5,0,0">
                                                                                             <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="ComboBox"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
-                                                                                            <TextBlock Text="{local:Translate UIConstructor_Field_Items}"/>
-                                                                                            <TextBox Text="{Binding ComboBoxItems, Converter={StaticResource StringListConverter}, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="80"/>
+                                                                                            
+                                                                                            <Grid>
+                                                                                                <Grid.ColumnDefinitions>
+                                                                                                    <ColumnDefinition Width="*"/>
+                                                                                                    <ColumnDefinition Width="Auto"/>
+                                                                                                </Grid.ColumnDefinitions>
+                                                                                                <TextBlock Grid.Column="0" Text="{local:Translate UIConstructor_Field_Items}"/>
+                                                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                                                    <TextBlock Text="{local:Translate UIConstructor_Field_Separator}" Margin="0,0,5,0"/>
+                                                                                                    <TextBox Text="{Binding Separator, UpdateSourceTrigger=PropertyChanged}" Width="40" ToolTip="Use \n for new lines."/>
+                                                                                                </StackPanel>
+                                                                                            </Grid>
+                                                                                            
+                                                                                            <TextBox Text="{Binding ComboBoxItemsAsString, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="80"/>
                                                                                         </StackPanel>
                                                                                         <StackPanel Grid.Row="2" Margin="0,5,0,0">
                                                                                             <StackPanel.Style>

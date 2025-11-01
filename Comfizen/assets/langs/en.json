@@ -112,6 +112,7 @@
   "UIConstructor_Field_Items": "Items (comma-separated):",
   "UIConstructor_Field_ModelSubtype": "Model Subtype:",
   "UIConstructor_Field_SelectSubtype": "Select a subtype...",
+  "UIConstructor_Field_Separator": "Separator:",
   "UIConstructor_SetColor": "Set Color",
   "UIConstructor_ClearColor": "Clear Color",
   "Inpaint_ErrorLoadingImageTitle": "Error",

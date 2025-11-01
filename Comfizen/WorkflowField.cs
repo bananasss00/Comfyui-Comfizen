@@ -1,8 +1,12 @@
 ﻿// WorkflowField.cs
-﻿using System.Collections.Generic;
+
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using PropertyChanged;
 using System.ComponentModel;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 
 namespace Comfizen
@@ -33,6 +37,59 @@ namespace Comfizen
         
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public List<string> ComboBoxItems { get; set; } = new List<string>();
+        
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue("\\n")]
+        public string Separator { get; set; } = "\\n";
+        
+        [JsonIgnore]
+        public string ComboBoxItemsAsString
+        {
+            get
+            {
+                string sep;
+                try
+                {
+                    // Attempt to unescape the separator (e.g., "\\n" becomes "\n").
+                    sep = Regex.Unescape(Separator ?? "\\n");
+                }
+                catch (ArgumentException)
+                {
+                    // If Regex.Unescape fails (e.g., due to an invalid escape sequence like '\\т'),
+                    // fall back to using the separator string literally.
+                    sep = Separator ?? "\\n";
+                }
+                return string.Join(sep, ComboBoxItems);
+            }
+            set
+            {
+                string sep;
+                try
+                {
+                    // Attempt to unescape the separator.
+                    sep = Regex.Unescape(Separator ?? "\\n");
+                }
+                catch (ArgumentException)
+                {
+                    // Fallback to the literal string if unescaping fails.
+                    sep = Separator ?? "\\n";
+                }
+
+                // When the separator is a newline, we need to handle both LF (\n) and CRLF (\r\n) line endings
+                // common in text inputs, especially on Windows.
+                if (sep == "\n")
+                {
+                    ComboBoxItems = value.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).ToList();
+                }
+                else
+                {
+                    ComboBoxItems = value.Split(new[] { sep }, StringSplitOptions.None).ToList();
+                }
+                
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ComboBoxItems)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ComboBoxItemsAsString)));
+            }
+        }
 
         // --- START OF CHANGES ---
         /// <summary>

@@ -111,6 +111,7 @@
   "UIConstructor_Field_Items": "Элементы (через запятую):",
   "UIConstructor_Field_ModelSubtype": "Подтип модели:",
   "UIConstructor_Field_SelectSubtype": "Выберите подтип...",
+  "UIConstructor_Field_Separator": "Разделитель:",
   "UIConstructor_SetColor": "Задать цвет",
   "UIConstructor_ClearColor": "Сбросить цвет",
   "Inpaint_ErrorLoadingImageTitle": "Ошибка",
