@@ -1029,6 +1029,11 @@
                                     Command="{Binding ClearConsoleCommand}"
                                     Width="24" Height="24"
                                     ToolTip="{local:Translate Console_Clear}"/>
+                            
+                            <Button Content="&#xE711;" Style="{StaticResource IconButton}" 
+                                    Command="{Binding HideConsoleCommand}"
+                                    Width="24" Height="24"
+                                    ToolTip="{local:Translate Window_Close}"/>
                         </StackPanel>
                     </Grid>
                 </Border>

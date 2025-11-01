@@ -152,8 +152,8 @@ namespace Comfizen
         public bool IsSavePresetPopupOpen { get; set; }
         public string NewPresetName { get; set; }
         public ICommand OpenSavePresetPopupCommand { get; }
-        public ICommand StartRenamePresetCommand { get; }
-        private string _presetBeingRenamed; // Stores the original name during a rename operation
+        public ICommand StartUpdatePresetCommand { get; }
+        private string _presetToUpdateName;
         public ICommand SavePresetCommand { get; }
         public ICommand DeletePresetCommand { get; }
         public ICommand ApplyPresetCommand { get; }
@@ -199,11 +199,11 @@ namespace Comfizen
                 IsSavePresetPopupOpen = true; 
             });
             
-            StartRenamePresetCommand = new RelayCommand(param =>
+            StartUpdatePresetCommand = new RelayCommand(param =>
             {
                 if (param is string presetName)
                 {
-                    _presetBeingRenamed = presetName;
+                    _presetToUpdateName = presetName;
                     NewPresetName = presetName;
                     IsSavePresetPopupOpen = true;
                 }
@@ -213,41 +213,26 @@ namespace Comfizen
             {
                 if (string.IsNullOrWhiteSpace(NewPresetName)) return;
 
-                var finalNewName = NewPresetName;
-
-                // Check if we are in "rename" mode
-                if (!string.IsNullOrEmpty(_presetBeingRenamed))
+                // If we started by clicking an existing preset, we might need to remove the old entry if the name changed.
+                if (!string.IsNullOrEmpty(_presetToUpdateName) && !_presetToUpdateName.Equals(NewPresetName, StringComparison.OrdinalIgnoreCase))
                 {
-                    // This is a RENAME operation
+                    // This is a rename operation, so remove the preset with the old name.
                     if (_workflow.Presets.TryGetValue(Id, out var presets))
                     {
-                        var presetToRename = presets.FirstOrDefault(p => p.Name.Equals(_presetBeingRenamed, StringComparison.OrdinalIgnoreCase));
-                        if (presetToRename != null)
-                        {
-                            // If a preset with the new name already exists, remove it first to avoid duplicates.
-                            presets.RemoveAll(p => p.Name.Equals(finalNewName, StringComparison.OrdinalIgnoreCase) && p != presetToRename);
-                        
-                            // IMPORTANT: Only update the name, do not touch the values.
-                            presetToRename.Name = finalNewName;
-                        }
+                        presets.RemoveAll(p => p.Name.Equals(_presetToUpdateName, StringComparison.OrdinalIgnoreCase));
                     }
                 }
-                else
-                {
-                    // This is a regular SAVE or OVERWRITE operation
-                    SaveCurrentStateAsPreset(finalNewName);
-                }
+                
+                // SaveCurrentStateAsPreset will handle creating a new preset or overwriting an existing one with the NewPresetName.
+                SaveCurrentStateAsPreset(NewPresetName);
 
                 // Cleanup and UI refresh
-                _presetBeingRenamed = null;
+                _presetToUpdateName = null;
                 IsSavePresetPopupOpen = false;
                 NewPresetName = string.Empty;
 
                 LoadPresets();
                 PresetsModified?.Invoke();
-
-                // Reselect the newly named/saved preset
-                // SelectedPreset = Presets.FirstOrDefault(p => p.Name == finalNewName);
 
             }, _ => !string.IsNullOrWhiteSpace(NewPresetName));
 

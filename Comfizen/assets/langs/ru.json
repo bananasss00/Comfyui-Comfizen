@@ -249,6 +249,7 @@
   "Presets_DeleteConfirmTitle": "Подтвердите удаление",
   "Presets_DeleteConfirmMessage": "Вы уверены, что хотите безвозвратно удалить пресет '{0}'?",
   "Presets_ApplyTooltip": "Применить выбранный пресет повторно",
+  "Presets_UpdateTooltip": "Обновить пресет текущими значениями",
   "GlobalPresets_Header": "Глобальные пресеты",
   "GlobalPresets_Label": "Применить пресет:",
   "Tab_PauseQueue": "Поставить очередь на паузу (текущая задача завершится)",

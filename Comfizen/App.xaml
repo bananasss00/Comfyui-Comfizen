@@ -607,9 +607,9 @@
                                         </StackPanel.Style>
 
                                         <Button Content="&#xE70F;"
-                                                Command="{Binding DataContext.StartRenamePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
+                                                Command="{Binding DataContext.StartUpdatePresetCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
                                                 CommandParameter="{Binding}"
-                                                ToolTip="{local:Translate Presets_RenameTooltip}"
+                                                ToolTip="{local:Translate Presets_UpdateTooltip}"
                                                 Style="{StaticResource IconButton}"/>
                                         
                                         <!-- FIX: Use the correct icon character code for the delete button -->

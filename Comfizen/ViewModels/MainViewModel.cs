@@ -196,6 +196,7 @@ namespace Comfizen
         public ICommand ToggleConsoleCommand { get; }
         public ICommand ClearConsoleCommand { get; }
         public ICommand CopyConsoleCommand { get; }
+        public ICommand HideConsoleCommand { get; }
         public ICommand OpenWildcardBrowserCommand { get; }
         
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -279,6 +280,7 @@ namespace Comfizen
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
             ClearConsoleCommand = new RelayCommand(_ => _allConsoleLogMessages.Clear());
             CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => _allConsoleLogMessages.Any());
+            HideConsoleCommand = new RelayCommand(_ => IsConsoleVisible = false);
             
             CloseTabCommand = new RelayCommand(p => CloseTab(p as WorkflowTabViewModel));
 
@@ -1586,7 +1588,9 @@ namespace Comfizen
                     // CHANGE: Apply the new ToolWindowStyle
                     Style = (Style)Application.Current.FindResource("ToolWindowStyle"),
                     // Use the DataTemplate we defined in App.xaml
-                    ContentTemplate = (DataTemplate)Application.Current.FindResource("UndockedGroupTemplate")
+                    ContentTemplate = (DataTemplate)Application.Current.FindResource("UndockedGroupTemplate"),
+                    // ADDED: This line will hide the window from the taskbar.
+                    ShowInTaskbar = false
                 };
 
                 floatingWindow.Closed += FloatingWindow_Closed;
