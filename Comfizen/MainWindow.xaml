@@ -1260,22 +1260,22 @@
         </Grid>
         
         <Popup x:Name="GroupNavigationPopup"
-           IsOpen="{Binding IsGroupNavigationPopupOpen}"
-           StaysOpen="False"
-           Placement="Center"
-           AllowsTransparency="True">
-        <Border Background="{StaticResource SecondaryBackground}"
-                BorderBrush="{StaticResource PrimaryAccentBrush}"
-                BorderThickness="1"
-                CornerRadius="5"
-                MinWidth="250"
-                MaxHeight="400">
-            <DockPanel Margin="5">
-                <TextBlock DockPanel.Dock="Top" Text="{local:Translate GroupNavigation_Title}" FontWeight="Bold" Margin="5"/>
-                <ListBox ItemsSource="{Binding SelectedTab.WorkflowInputsController.InputGroups}"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+               IsOpen="{Binding IsGroupNavigationPopupOpen}"
+               StaysOpen="False"
+               Placement="Center"
+               AllowsTransparency="True">
+            <Border Background="{StaticResource SecondaryBackground}"
+                    BorderBrush="{StaticResource PrimaryAccentBrush}"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    MinWidth="250"
+                    MaxHeight="400">
+                <DockPanel Margin="5">
+                    <TextBlock DockPanel.Dock="Top" Text="{local:Translate GroupNavigation_Title}" FontWeight="Bold" Margin="5"/>
+                    <ListBox ItemsSource="{Binding AllGroupsInSelectedTab}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <Setter Property="Padding" Value="8,5"/>

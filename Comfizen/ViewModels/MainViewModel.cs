@@ -148,6 +148,12 @@ namespace Comfizen
         public ICommand OpenGroupNavigationCommand { get; }
         public ICommand GoToGroupCommand { get; }
         
+        public IEnumerable<WorkflowGroupViewModel> AllGroupsInSelectedTab => 
+            SelectedTab?.WorkflowInputsController.TabLayoouts
+                .SelectMany(tabLayout => tabLayout.Groups)
+                .OrderBy(g => g.Name)
+                .ToList() ?? Enumerable.Empty<WorkflowGroupViewModel>();
+        
         private LogFilterType _selectedLogFilterType = LogFilterType.All;
         public LogFilterType SelectedLogFilterType
         {

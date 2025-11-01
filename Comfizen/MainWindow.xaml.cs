@@ -30,18 +30,7 @@ namespace Comfizen
         public MainWindow()
         {
             InitializeComponent();
-            
-            if (DataContext is MainViewModel vm)
-            {
-                var settings = vm.Settings; // Access settings through the ViewModel
-                if (settings.MainWindowWidth > 100 && settings.MainWindowHeight > 100)
-                {
-                    this.Width = settings.MainWindowWidth;
-                    this.Height = settings.MainWindowHeight;
-                }
-                this.WindowState = settings.MainWindowState;
-            }
-            
+            this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
             
             if (DataContext is MainViewModel { ConsoleLogMessages: INotifyCollectionChanged collection } vm2)
@@ -62,6 +51,38 @@ namespace Comfizen
             string report = tester.RunAllTests();
             Debug.WriteLine(report);
 #endif
+        }
+        
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                var settings = vm.Settings;
+
+                // Сначала восстанавливаем размер и позицию для "нормального" режима
+                if (settings.MainWindowWidth > 100 && settings.MainWindowHeight > 100)
+                {
+                    this.Width = settings.MainWindowWidth;
+                    this.Height = settings.MainWindowHeight;
+                }
+
+                if (settings.MainWindowLeft >= 0 && (settings.MainWindowLeft + this.Width) <= SystemParameters.VirtualScreenWidth)
+                {
+                    this.Left = settings.MainWindowLeft;
+                }
+                if (settings.MainWindowTop >= 0 && (settings.MainWindowTop + this.Height) <= SystemParameters.VirtualScreenHeight)
+                {
+                    this.Top = settings.MainWindowTop;
+                }
+
+                if (settings.MainWindowState == WindowState.Maximized)
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        this.WindowState = WindowState.Maximized;
+                    }), DispatcherPriority.Loaded);
+                }
+            }
         }
         
         private void Window_DragOver(object sender, DragEventArgs e)
@@ -273,14 +294,19 @@ namespace Comfizen
                 if (WindowState == WindowState.Maximized)
                 {
                     viewModel.Settings.MainWindowState = WindowState.Maximized;
+                    // For maximized, save RestoreBounds for consistent size restoration
                     viewModel.Settings.MainWindowWidth = this.RestoreBounds.Width;
                     viewModel.Settings.MainWindowHeight = this.RestoreBounds.Height;
+                    viewModel.Settings.MainWindowLeft = this.RestoreBounds.Left;
+                    viewModel.Settings.MainWindowTop = this.RestoreBounds.Top;
                 }
-                else
+                else // Normal or Minimized
                 {
-                    viewModel.Settings.MainWindowState = WindowState.Normal;
+                    viewModel.Settings.MainWindowState = WindowState.Normal; // Always save as Normal if not Maximized
                     viewModel.Settings.MainWindowWidth = this.Width;
                     viewModel.Settings.MainWindowHeight = this.Height;
+                    viewModel.Settings.MainWindowLeft = this.Left;
+                    viewModel.Settings.MainWindowTop = this.Top;
                 }
 
                 await viewModel.SaveStateOnCloseAsync();
@@ -529,7 +555,6 @@ namespace Comfizen
         
         private void OnGroupNavigationRequested(WorkflowGroupViewModel groupVm)
         {
-            // --- START OF COMPLETE REWRITE OF THIS METHOD ---
             var mainVm = DataContext as MainViewModel;
             if (mainVm?.SelectedTab?.WorkflowInputsController == null) return;
         
@@ -545,12 +570,7 @@ namespace Comfizen
             // 3. Defer the rest of the logic until the UI has updated to show the new tab's content.
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                // 4. Find the ItemsControl inside the newly selected TabItem.
-                // It will be the one whose DataContext is our target group view model.
-                var tabItem = WorkflowTabsControl.ItemContainerGenerator.ContainerFromItem(targetTabLayout) as TabItem;
-                if (tabItem == null) return;
-        
-                var itemsControl = FindVisualChild<ItemsControl>(tabItem);
+                var itemsControl = FindVisualChild<ItemsControl>(WorkflowTabsControl);
                 if (itemsControl == null) return;
         
                 // 5. Find the Expander for the specific group within that ItemsControl.
@@ -565,7 +585,6 @@ namespace Comfizen
                     expander.BringIntoView();
                 }
             }), DispatcherPriority.ContextIdle);
-            // --- END OF COMPLETE REWRITE ---
         }
         
         private void GroupNavigationListBoxItem_Click(object sender, MouseButtonEventArgs e)

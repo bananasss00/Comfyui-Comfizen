@@ -66,10 +66,15 @@ namespace Comfizen
         public double MainWindowHeight { get; set; } = 768;
         public double MainWindowWidth { get; set; } = 1366;
         public WindowState MainWindowState { get; set; } = WindowState.Normal;
+        public double MainWindowLeft { get; set; } = 100;
+        public double MainWindowTop { get; set; } = 100;
         
         // Designer window dimensions
         public double DesignerWindowHeight { get; set; } = 700;
         public double DesignerWindowWidth { get; set; } = 1000;
+        public WindowState DesignerWindowState { get; set; } = WindowState.Normal;
+        public double DesignerWindowLeft { get; set; } = 150;
+        public double DesignerWindowTop { get; set; } = 150;
         
         // Designer settings
         public bool UseNodeTitlePrefixInDesigner { get; set; } = true;
@@ -144,8 +149,13 @@ namespace Comfizen
                     MainWindowHeight = 768,
                     MainWindowWidth = 1366,
                     MainWindowState = WindowState.Normal,
+                    MainWindowLeft = 100,
+                    MainWindowTop = 100,
                     DesignerWindowHeight = 700,
                     DesignerWindowWidth = 1000,
+                    DesignerWindowState = WindowState.Normal,
+                    DesignerWindowLeft = 150,
+                    DesignerWindowTop = 150,
                     UseNodeTitlePrefixInDesigner = true
                 };
                 
@@ -178,6 +188,10 @@ namespace Comfizen
             if (settings.MainWindowWidth <= 0) { settings.MainWindowWidth = 1366; needsResave = true; }
             if (settings.DesignerWindowHeight <= 0) { settings.DesignerWindowHeight = 700; needsResave = true; }
             if (settings.DesignerWindowWidth <= 0) { settings.DesignerWindowWidth = 1000; needsResave = true; }
+            if (settings.MainWindowLeft <= 0) { settings.MainWindowLeft = 100; needsResave = true; }
+            if (settings.MainWindowTop <= 0) { settings.MainWindowTop = 100; needsResave = true; }
+            if (settings.DesignerWindowLeft <= 0) { settings.DesignerWindowLeft = 150; needsResave = true; }
+            if (settings.DesignerWindowTop <= 0) { settings.DesignerWindowTop = 150; needsResave = true; }
 
             if (needsResave)
             {

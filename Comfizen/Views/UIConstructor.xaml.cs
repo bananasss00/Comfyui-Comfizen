@@ -1095,9 +1095,10 @@ namespace Comfizen
         public UIConstructor()
         {
             InitializeComponent();
+            WindowStartupLocation = WindowStartupLocation.Manual;
             _viewModel = new UIConstructorView();
             DataContext = _viewModel;
-            ApplyWindowSettings();
+            this.Loaded += UIConstructor_Loaded;
             this.Closing += UIConstructor_Closing;
             AttachCompletionEvents();
             ApplyHyperlinksColor();
@@ -1106,9 +1107,10 @@ namespace Comfizen
         public UIConstructor(string workflowFileName)
         {
             InitializeComponent();
+            WindowStartupLocation = WindowStartupLocation.Manual;
             _viewModel = new UIConstructorView(workflowFileName);
             DataContext = _viewModel;
-            ApplyWindowSettings();
+            this.Loaded += UIConstructor_Loaded;
             this.Closing += UIConstructor_Closing;
             AttachCompletionEvents();
             ApplyHyperlinksColor();
@@ -1118,28 +1120,81 @@ namespace Comfizen
         public UIConstructor(Workflow liveWorkflow, string workflowRelativePath)
         {
             InitializeComponent();
+            WindowStartupLocation = WindowStartupLocation.Manual;
             _viewModel = new UIConstructorView(liveWorkflow, workflowRelativePath);
             DataContext = _viewModel;
-            ApplyWindowSettings();
+            this.Loaded += UIConstructor_Loaded;
             this.Closing += UIConstructor_Closing;
             AttachCompletionEvents();
             ApplyHyperlinksColor();
         }
         
-        private void ApplyWindowSettings()
+        private void UIConstructor_Loaded(object sender, RoutedEventArgs e)
         {
-            if (_viewModel._settings.DesignerWindowWidth > 100 && _viewModel._settings.DesignerWindowHeight > 100)
+            if (_viewModel?._settings == null) return;
+            var settings = _viewModel._settings;
+
+            // First, restore the size.
+            if (settings.DesignerWindowWidth > 100 && settings.DesignerWindowHeight > 100)
             {
-                this.Width = _viewModel._settings.DesignerWindowWidth;
-                this.Height = _viewModel._settings.DesignerWindowHeight;
+                this.Width = settings.DesignerWindowWidth;
+                this.Height = settings.DesignerWindowHeight;
+            }
+    
+            // Then, check if the saved position is valid.
+            double savedLeft = settings.DesignerWindowLeft;
+            double savedTop = settings.DesignerWindowTop;
+
+            // A more robust way to check for visibility is to see if the window's rectangle
+            // intersects with the virtual screen rectangle. This correctly handles all multi-monitor setups.
+            var windowRect = new Rect(savedLeft, savedTop, this.Width, this.Height);
+            var virtualScreenRect = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop, 
+                SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
+
+            bool isPositionValid = virtualScreenRect.IntersectsWith(windowRect);
+
+            if (isPositionValid)
+            {
+                this.Left = savedLeft;
+                this.Top = savedTop;
+            }
+            
+            if (settings.DesignerWindowState == WindowState.Maximized)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    this.WindowState = WindowState.Maximized;
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
         }
 
         private void UIConstructor_Closing(object sender, CancelEventArgs e)
         {
             var settings = _viewModel._settings;
-            settings.DesignerWindowWidth = this.Width;
-            settings.DesignerWindowHeight = this.Height;
+
+            // We only want to save the window's geometry if it's in a predictable state.
+            // Saving while Minimized can result in incorrect negative coordinates.
+            if (this.WindowState == WindowState.Maximized)
+            {
+                settings.DesignerWindowState = WindowState.Maximized;
+                // For a maximized window, save the RestoreBounds for correct restoration.
+                settings.DesignerWindowWidth = this.RestoreBounds.Width;
+                settings.DesignerWindowHeight = this.RestoreBounds.Height;
+                settings.DesignerWindowLeft = this.RestoreBounds.Left;
+                settings.DesignerWindowTop = this.RestoreBounds.Top;
+            }
+            else if (this.WindowState == WindowState.Normal)
+            {
+                settings.DesignerWindowState = WindowState.Normal;
+                // For a normal window, save its current size and position.
+                settings.DesignerWindowWidth = this.Width;
+                settings.DesignerWindowHeight = this.Height;
+                settings.DesignerWindowLeft = this.Left;
+                settings.DesignerWindowTop = this.Top;
+            }
+            // If the window is Minimized, we don't save its geometry.
+            // This preserves the last known good position and size.
+
             settings.UseNodeTitlePrefixInDesigner = _viewModel.UseNodeTitlePrefix;
             SettingsService.Instance.SaveSettings();
         }
