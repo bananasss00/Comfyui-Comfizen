@@ -273,7 +273,25 @@
                                     <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_AvailableFields}" FontWeight="Bold" Margin="10,5,10,5"/>
                                     <ListBox ItemsSource="{Binding AvailableFields}" Background="Transparent" BorderThickness="0" Margin="5"
                                              AllowDrop="True" Drop="DeleteField_Drop" DragEnter="DeleteField_DragEnter">
-                                        <ListBox.ItemTemplate><DataTemplate><Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="AvailableField_PreviewMouseLeftButtonDown"><TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/></Border></DataTemplate></ListBox.ItemTemplate>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="AvailableField_PreviewMouseLeftButtonDown">
+                                                    <TextBlock Text="{Binding Name}">
+                                                        <TextBlock.ToolTip>
+                                                            <ToolTip>
+                                                                <TextBlock>
+                                                                    <Run Text="{Binding NodeTitle, StringFormat='Node: {0}'}" FontWeight="Bold"/>
+                                                                    <LineBreak/>
+                                                                    <Run Text="{Binding NodeType, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <LineBreak/>
+                                                                    <Run Text="{Binding Path, StringFormat='Path: {0}'}"/>
+                                                                </TextBlock>
+                                                            </ToolTip>
+                                                        </TextBlock.ToolTip>
+                                                    </TextBlock>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
                                         <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
                                     </ListBox>
                                 </DockPanel>
@@ -370,9 +388,25 @@
                                                                     <DataTemplate>
                                                                         <StackPanel AllowDrop="True" DragEnter="Field_DragOver" DragLeave="Field_DragLeave" DragOver="Field_DragOver" Drop="Field_Drop" Background="Transparent">
                                                                             <Border x:Name="DropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                                                            <Border BorderBrush="#44FFFFFF" BorderThickness="0,0,0,1" Margin="0,2" Padding="5" 
-                                                                                    MouseLeftButtonDown="GroupedField_MouseLeftButtonDown"
-                                                                                    MouseRightButtonUp="ShowColorPickerPopup">
+                                                                            <Border MouseLeftButtonDown="GroupedField_MouseLeftButtonDown"
+                                                                                MouseRightButtonUp="ShowColorPickerPopup">
+                                                                                <Border.Style>
+                                                                                    <Style TargetType="Border">
+                                                                                        <!-- Move default values here -->
+                                                                                        <Setter Property="BorderBrush" Value="#44FFFFFF"/>
+                                                                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                                                        <Setter Property="Margin" Value="0,2"/>
+                                                                                        <Setter Property="Padding" Value="5"/>
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding IsInvalid}" Value="True">
+                                                                                                <!-- This trigger can now override the setters above -->
+                                                                                                <Setter Property="BorderBrush" Value="{StaticResource ErrorBrush}"/>
+                                                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                                                                <Setter Property="CornerRadius" Value="3"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </Border.Style>
                                                                                 <Grid>
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="Auto"/> <!-- For the accent line -->
@@ -404,7 +438,22 @@
                                                                                             </Grid.ColumnDefinitions>
                                         
                                                                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}">
-                                                                                                <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}" MouseLeftButtonDown="FieldName_MouseLeftButtonDown"/>
+                                                                                                <TextBlock MouseLeftButtonDown="FieldName_MouseLeftButtonDown">
+                                                                                                    <TextBlock.Text>
+                                                                                                        <Binding Path="Name"/>
+                                                                                                    </TextBlock.Text>
+                                                                                                    <TextBlock.ToolTip>
+                                                                                                        <ToolTip>
+                                                                                                            <TextBlock>
+                                                                                                                <Run Text="{Binding NodeTitle, StringFormat='Node: {0}'}" FontWeight="Bold"/>
+                                                                                                                <LineBreak/>
+                                                                                                                <Run Text="{Binding NodeType, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                <LineBreak/>
+                                                                                                                <Run Text="{Binding Path, StringFormat='Path: {0}'}"/>
+                                                                                                            </TextBlock>
+                                                                                                        </ToolTip>
+                                                                                                    </TextBlock.ToolTip>
+                                                                                                </TextBlock>
                                                                                             </StackPanel>
                         
                                                                                             <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>

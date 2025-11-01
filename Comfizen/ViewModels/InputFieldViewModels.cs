@@ -476,6 +476,8 @@ namespace Comfizen
     {
         public string Name { get; }
         public string Path { get; } // START OF CHANGES: Add Path property
+        public string NodeTitle { get; }
+        public string NodeType { get; }
         public FieldType Type { get; protected set; }
         public JProperty? Property { get; } 
         
@@ -486,10 +488,12 @@ namespace Comfizen
         /// </summary>
         public string HighlightColor { get; set; }
 
-        protected InputFieldViewModel(WorkflowField field, JProperty? property)
+        protected InputFieldViewModel(WorkflowField field, JProperty? property, string nodeTitle = null, string nodeType = null)
         {
             Name = field.Name;
             Path = field.Path; // END OF CHANGES: Initialize Path property
+            NodeTitle = nodeTitle;
+            NodeType = nodeType;
             Property = property;
             HighlightColor = field.HighlightColor;
             FieldModel = field;
@@ -599,7 +603,7 @@ namespace Comfizen
             OnPropertyChanged(nameof(Value));
         }
 
-        public TextFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
+        public TextFieldViewModel(WorkflowField field, JProperty property, string nodeTitle = null, string nodeType = null) : base(field, property, nodeTitle, nodeType)
         {
             Type = field.Type;
         }
@@ -675,7 +679,7 @@ namespace Comfizen
                 }
             }
         }
-        public SeedFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
+        public SeedFieldViewModel(WorkflowField field, JProperty property, string nodeTitle = null, string nodeType = null) : base(field, property, nodeTitle, nodeType)
         {
             Type = FieldType.Seed;
             _field = field;
@@ -745,7 +749,7 @@ namespace Comfizen
         public string StringFormat { get; }
         private readonly WorkflowField _field;
 
-        public SliderFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
+        public SliderFieldViewModel(WorkflowField field, JProperty property, string nodeTitle = null, string nodeType = null) : base(field, property, nodeTitle, nodeType)
         {
             Type = field.Type;
             _field = field;
@@ -778,7 +782,7 @@ namespace Comfizen
         }
         public List<string> ItemsSource { get; set; }
 
-        public ComboBoxFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
+        public ComboBoxFieldViewModel(WorkflowField field, JProperty property, string nodeTitle = null, string nodeType = null) : base(field, property, nodeTitle, nodeType)
         {
             Type = field.Type;
             // ИСПРАВЛЕНИЕ: Сохраняем field в член класса
@@ -845,7 +849,7 @@ namespace Comfizen
                 }
             }
         }
-        public CheckBoxFieldViewModel(WorkflowField field, JProperty property) : base(field, property)
+        public CheckBoxFieldViewModel(WorkflowField field, JProperty property, string nodeTitle = null, string nodeType = null) : base(field, property, nodeTitle, nodeType)
         {
             Type = FieldType.Any; 
         }

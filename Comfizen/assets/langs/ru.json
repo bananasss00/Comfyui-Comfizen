@@ -107,6 +107,8 @@
   "UIConstructor_ExportSuccessMessage": "Workflow успешно экспортирован в:\n{0}",
   "UIConstructor_SaveErrorTitle": "Ошибка сохранения",
   "UIConstructor_SaveErrorMessage": "Не удалось сохранить файл: {0}",
+  "UIConstructor_InvalidFieldsFoundTitle": "Обнаружены неверные поля",
+  "UIConstructor_InvalidFieldsFoundMessage": "Следующие поля ссылаются на пути, которые больше не существуют в загруженном API workflow, и были помечены красным:\n\n{0}",
   "UIConstructor_Field_Precision": "Точность:",
   "UIConstructor_Field_Items": "Элементы (через запятую):",
   "UIConstructor_Field_ModelSubtype": "Подтип модели:",

@@ -488,7 +488,19 @@
                                                                     </Border>
                                                                     
                                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,10,0" VerticalAlignment="Top">
-                                                                        <TextBlock Text="{Binding Name}" ToolTip="{Binding Path}"/>
+                                                                        <TextBlock Text="{Binding Name}">
+                                                                            <TextBlock.ToolTip>
+                                                                                <ToolTip>
+                                                                                    <TextBlock>
+                                                                                        <Run Text="{Binding NodeTitle, Mode=OneWay, StringFormat='Node: {0}'}" FontWeight="Bold"/>
+                                                                                        <LineBreak/>
+                                                                                        <Run Text="{Binding NodeType, Mode=OneWay, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                        <LineBreak/>
+                                                                                        <Run Text="{Binding Path, Mode=OneWay, StringFormat='Path: {0}'}"/>
+                                                                                    </TextBlock>
+                                                                                </ToolTip>
+                                                                            </TextBlock.ToolTip>
+                                                                        </TextBlock>
                                                                         <TextBlock Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
                                                                             <TextBlock.Style>
                                                                                 <Style TargetType="TextBlock">

@@ -328,6 +328,7 @@ namespace Comfizen
                 NewWorkflowName = Path.ChangeExtension(workflowRelativePath, null);
                 UpdateAvailableFields();
                 UpdateWorkflowNodesList();
+                ValidateFieldPaths();
                 RefreshActionNames();
                 // --- ADDED: Initialize tabs and groups ---
                 UpdateGroupAssignments();
@@ -671,9 +672,50 @@ namespace Comfizen
                 Workflow.LoadApiWorkflow(dialog.FileName);
                 UpdateAvailableFields();
                 UpdateWorkflowNodesList();
+                ValidateFieldPaths();
                 _apiWasReplaced = true;
             }
             RefreshActionNames();
+        }
+        
+        private void ValidateFieldPaths()
+        {
+            if (!Workflow.IsLoaded) return;
+
+            var invalidFields = new List<string>();
+
+            foreach (var group in Workflow.Groups)
+            {
+                foreach (var field in group.Fields)
+                {
+                    // Virtual fields don't have a real path, so they can't be invalid in this context.
+                    if (field.Path.StartsWith("virtual_"))
+                    {
+                        field.IsInvalid = false;
+                        continue;
+                    }
+                    
+                    var property = Workflow.GetPropertyByPath(field.Path);
+                    if (property == null)
+                    {
+                        field.IsInvalid = true;
+                        invalidFields.Add($"{group.Name} -> {field.Name}");
+                    }
+                    else
+                    {
+                        field.IsInvalid = false;
+                    }
+                }
+            }
+
+            if (invalidFields.Any())
+            {
+                var message = string.Format(
+                    LocalizationService.Instance["UIConstructor_InvalidFieldsFoundMessage"],
+                    string.Join("\n", invalidFields)
+                );
+                MessageBox.Show(message, LocalizationService.Instance["UIConstructor_InvalidFieldsFoundTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
         
         private void UpdateWorkflowNodesList()
@@ -949,7 +991,7 @@ namespace Comfizen
         public void AddFieldToGroupAtIndex(WorkflowField field, WorkflowGroup group, int targetIndex = -1)
         {
             if (field == null || group == null || group.Fields.Any(f => f.Path == field.Path)) return;
-            var newField = new WorkflowField { Name = field.Name, Path = field.Path, Type = FieldType.Any };
+            var newField = new WorkflowField { Name = field.Name, Path = field.Path, Type = FieldType.Any, NodeTitle = field.NodeTitle, NodeType = field.NodeType };
             
             if (!this.UseNodeTitlePrefix && newField.Name.Contains("::"))
             {

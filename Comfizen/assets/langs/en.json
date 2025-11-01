@@ -108,6 +108,8 @@
   "UIConstructor_ExportSuccessMessage": "Workflow successfully exported to:\n{0}",
   "UIConstructor_SaveErrorTitle": "Save Error",
   "UIConstructor_SaveErrorMessage": "Failed to save file: {0}",
+  "UIConstructor_InvalidFieldsFoundTitle": "Invalid Fields Found",
+  "UIConstructor_InvalidFieldsFoundMessage": "The following fields point to paths that no longer exist in the loaded API workflow and have been marked in red:\n\n{0}",
   "UIConstructor_Field_Precision": "Precision:",
   "UIConstructor_Field_Items": "Items (comma-separated):",
   "UIConstructor_Field_ModelSubtype": "Model Subtype:",

@@ -235,6 +235,7 @@ namespace Comfizen
             foreach (var property in _loadedApi.Properties())
             {
                 var title = (string)property.Value["_meta"]?["title"] ?? property.Name;
+                var classType = (string)property.Value["class_type"]; // Get the class_type
                 var inputsObj = property.Value["inputs"];
 
                 if (inputsObj is JObject inputsDict)
@@ -248,7 +249,9 @@ namespace Comfizen
                         .Select(input => new WorkflowField()
                         {
                             Name = $"{title}::{input.Name}",
-                            Path = input.Path
+                            Path = input.Path,
+                            NodeTitle = title,
+                            NodeType = classType // Save the class_type
                         }));
                 }
             }

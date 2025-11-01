@@ -931,13 +931,33 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
     private InputFieldViewModel CreateDefaultFieldViewModel(WorkflowField field, JProperty? prop)
     {
+        string nodeTitle = null;
+        string nodeType = null;
+        if (!string.IsNullOrEmpty(field.Path) && !field.Path.StartsWith("virtual_"))
+        {
+            var pathParts = field.Path.Split('.');
+            if (pathParts.Length > 0)
+            {
+                string nodeId = pathParts[0];
+                var nodeData = _workflow.LoadedApi?[nodeId];
+                if (nodeData != null)
+                {
+                    nodeTitle = nodeData["_meta"]?["title"]?.ToString();
+                    nodeType = nodeData["class_type"]?.ToString();
+                }
+            }
+        }
+        
+        if (string.IsNullOrEmpty(nodeTitle)) nodeTitle = field.NodeTitle;
+        if (string.IsNullOrEmpty(nodeType)) nodeType = field.NodeType;
+        
         switch (field.Type)
         {
             case FieldType.Markdown:
                 return new MarkdownFieldViewModel(field);
                 
             case FieldType.Seed:
-                var seedVm = new SeedFieldViewModel(field, prop);
+                var seedVm = new SeedFieldViewModel(field, prop, nodeTitle, nodeType);
                 _seedViewModels.Add(seedVm);
                 return seedVm;
             // case FieldType.NodeBypass:
@@ -946,29 +966,29 @@ public class WorkflowInputsController : INotifyPropertyChanged
             case FieldType.Sampler:
             case FieldType.Scheduler:
             case FieldType.ComboBox:
-                return new ComboBoxFieldViewModel(field, prop);
+                return new ComboBoxFieldViewModel(field, prop, nodeTitle, nodeType);
                  
             case FieldType.SliderInt:
             case FieldType.SliderFloat:
-                return new SliderFieldViewModel(field, prop);
+                return new SliderFieldViewModel(field, prop, nodeTitle, nodeType);
 
             case FieldType.WildcardSupportPrompt:
                  _wildcardPropertyPaths.Add(prop.Path);
-                 return new TextFieldViewModel(field, prop);
+                 return new TextFieldViewModel(field, prop, nodeTitle, nodeType);
             
             case FieldType.Any: 
                  if (prop.Value.Type == JTokenType.Boolean)
                  {
-                     return new CheckBoxFieldViewModel(field, prop);
+                     return new CheckBoxFieldViewModel(field, prop, nodeTitle, nodeType);
                  }
-                 return new TextFieldViewModel(field, prop);
+                 return new TextFieldViewModel(field, prop, nodeTitle, nodeType);
             
             case FieldType.ScriptButton:
                 // We pass the ExecuteActionCommand from the controller itself
                 return new ScriptButtonFieldViewModel(field, this.ExecuteActionCommand);
             
             default:
-                return new TextFieldViewModel(field, prop);
+                return new TextFieldViewModel(field, prop, nodeTitle, nodeType);
         }
     }
 

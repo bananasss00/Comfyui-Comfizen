@@ -121,6 +121,14 @@ namespace Comfizen
 
         [JsonIgnore]
         public bool IsRenaming { get; set; } = false;
+        
+        [JsonIgnore]
+        public bool IsInvalid { get; set; } = false;
+        
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string NodeTitle { get; set; }
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string NodeType { get; set; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         
