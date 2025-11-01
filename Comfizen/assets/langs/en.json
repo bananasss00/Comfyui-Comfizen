@@ -283,5 +283,8 @@
   "UIConstructor_Field_UsePrefix": "Prefix",
   "UIConstructor_Field_UsePrefixTooltip": "Prefix field names with node titles",
   "Tab_GallerySortSimilarity": "Similarity",
-  "Tab_GallerySimilarityThreshold": "Threshold:"
+  "Tab_GallerySimilarityThreshold": "Threshold:",
+  "SliderCompare_Compare": "Compare",
+  "SliderCompare_Swap": "Swap Images",
+  "SliderCompare_Replace": "Replace"
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -67,6 +68,7 @@ namespace Comfizen
         
         public ImageProcessingViewModel ImageProcessing { get; private set; }
         public FullScreenViewModel FullScreen { get; private set; }
+        public SliderCompareViewModel SliderCompare { get; private set; }
 
         public ObservableCollection<WorkflowTabViewModel> OpenTabs { get; } = new ObservableCollection<WorkflowTabViewModel>();
 
@@ -147,6 +149,7 @@ namespace Comfizen
         public ICommand ClearBlockedNodesCommand { get; }
         public ICommand OpenGroupNavigationCommand { get; }
         public ICommand GoToGroupCommand { get; }
+        public ICommand CompareSelectedImagesCommand { get; }
         
         public IEnumerable<WorkflowGroupViewModel> AllGroupsInSelectedTab => 
             SelectedTab?.WorkflowInputsController.TabLayoouts
@@ -261,6 +264,7 @@ namespace Comfizen
             ImageProcessing.GalleryThumbnailSize = _settings.GalleryThumbnailSize;
             IsConsoleVisible = _settings.IsConsoleVisible;
             FullScreen = new FullScreenViewModel(this, _comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
+            SliderCompare = new SliderCompareViewModel();
             
             MaxQueueSize = _settings.MaxQueueSize;
             _sessionManager = new SessionManager(_settings);
@@ -455,6 +459,14 @@ namespace Comfizen
                     }
                 }
             }, p => p is WorkflowTabViewModel tab && !tab.IsVirtual);
+            
+            CompareSelectedImagesCommand = new RelayCommand(param => {
+                if (param is not IList selectedItems || selectedItems.Count != 2) return;
+            
+                var images = selectedItems.Cast<ImageOutput>().ToList();
+                SliderCompare.Open(images[0], images[1]);
+            
+            }, param => param is IList list && list.Count == 2);
         }
         
         private void HandleHighPriorityLog(LogLevel level)

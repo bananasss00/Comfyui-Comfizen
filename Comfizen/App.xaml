@@ -32,6 +32,7 @@
         <local:EqualityConverter x:Key="EqualityConverter" />
         <local:StringToBoolConverter x:Key="StringToBoolConverter" />
         <local:CornerRadiusConverter x:Key="CornerRadiusConverter" />
+        <local:SelectionCountToBooleanConverter x:Key="SelectionCountToBooleanConverter"/>
 
         <!-- Color Palette -->
         <SolidColorBrush x:Key="PrimaryBackground" Color="#FF2D2D30"/>

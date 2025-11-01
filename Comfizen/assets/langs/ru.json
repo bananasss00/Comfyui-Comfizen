@@ -282,5 +282,8 @@
   "UIConstructor_Field_UsePrefix": "Префикс",
   "UIConstructor_Field_UsePrefixTooltip": "Добавлять к имени поля префикс с названием ноды",
   "Tab_GallerySortSimilarity": "Похожие",
-  "Tab_GallerySimilarityThreshold": "Порог:"
+  "Tab_GallerySimilarityThreshold": "Порог:",
+  "SliderCompare_Compare": "Сравнить",
+  "SliderCompare_Swap": "Поменять местами",
+  "SliderCompare_Replace": "Заменить"
 }
