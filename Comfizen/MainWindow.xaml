@@ -96,53 +96,52 @@
         </Style>
         
         <ControlTemplate x:Key="CustomContextMenuTemplate" TargetType="ContextMenu">
-        <Border x:Name="Border" 
-                Background="{StaticResource SecondaryBackground}"
-                BorderBrush="{StaticResource TertiaryBackground}"
-                BorderThickness="1">
-            <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-        </Border>
-        <ControlTemplate.Triggers>
-            <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Border" Property="Background" Value="{StaticResource TertiaryBackground}"/>
-                <Setter TargetName="Border" Property="BorderBrush" Value="#454545"/>
-            </Trigger>
-        </ControlTemplate.Triggers>
-    </ControlTemplate>
+            <Border x:Name="Border" 
+                    Background="{StaticResource SecondaryBackground}"
+                    BorderBrush="{StaticResource TertiaryBackground}"
+                    BorderThickness="1">
+                <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter TargetName="Border" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                    <Setter TargetName="Border" Property="BorderBrush" Value="#454545"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
     
-    <Style x:Key="AppContextMenuStyle" TargetType="ContextMenu">
-        <Setter Property="OverridesDefaultStyle" Value="True"/>
-        <Setter Property="SnapsToDevicePixels" Value="True"/>
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-        <Setter Property="Template" Value="{StaticResource CustomContextMenuTemplate}"/>
-    </Style>
+        <Style x:Key="AppContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Template" Value="{StaticResource CustomContextMenuTemplate}"/>
+        </Style>
     
-    <Style TargetType="MenuItem">
-        <Setter Property="OverridesDefaultStyle" Value="True"/>
-        <Setter Property="Padding" Value="8,5"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="MenuItem">
-                    <Border x:Name="Border" 
-                            Background="Transparent"
-                            Padding="{TemplateBinding Padding}">
-                        <ContentPresenter ContentSource="Header" 
-                                          RecognizesAccessKey="True"
-                                          VerticalAlignment="Center"/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
-                        </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Foreground" Value="Gray"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-          
+        <Style TargetType="MenuItem">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Border" 
+                                Background="Transparent"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" 
+                                              RecognizesAccessKey="True"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="Gray"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -989,7 +988,6 @@
             </Grid>
         </Grid>
 
-        
         <GridSplitter Grid.Row="2"
                       Height="5"
                       HorizontalAlignment="Stretch"
@@ -1276,7 +1274,7 @@
             <Border x:Name="SafeZone" Background="Transparent" Margin="120, 80, 120, 100"/>
         </Grid>
         
-        <local:SliderCompareView DataContext="{Binding SliderCompare}" Grid.Row="0" Grid.RowSpan="4"/>
+        <local:SliderCompareView DataContext="{Binding SliderCompare}" Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="99"/>
         
         <Popup x:Name="GroupNavigationPopup"
                IsOpen="{Binding IsGroupNavigationPopupOpen}"

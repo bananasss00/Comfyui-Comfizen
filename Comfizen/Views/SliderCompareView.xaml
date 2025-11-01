@@ -8,7 +8,9 @@
              d:DesignHeight="800" d:DesignWidth="1200"
              Visibility="{Binding IsViewOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
     <UserControl.Resources>
-        <local:ClipConverter x:Key="ClipConverter"/>
+        <!-- Declare both converters -->
+        <local:LeftClipConverter x:Key="LeftClipConverter"/>
+        <local:RightClipConverter x:Key="RightClipConverter"/>
         
         <Style x:Key="OverlayButton" TargetType="Button">
             <Setter Property="Background" Value="#80000000"/>
@@ -36,53 +38,72 @@
     </UserControl.Resources>
     
     <Grid Background="#D8000000">
-        <!-- Главный контейнер для изображений -->
-        <Grid x:Name="ImageContainer" Margin="60">
-            <!-- Левое (нижнее) изображение -->
-            <Viewbox>
-                <Image Source="{Binding ImageLeft.Image}" Stretch="Uniform"
-                       AllowDrop="True" Drop="Image_Drop" DragOver="Image_DragOver" Tag="Left"/>
-            </Viewbox>
+        <!-- Main container with margins -->
+        <Grid Margin="60">
 
-            <!-- Правое (верхнее) изображение с отсечением -->
+            <!-- The Viewbox is now singular and wraps the entire comparison scene. -->
+            <!-- It will scale the inner Grid while preserving its aspect ratio. -->
             <Viewbox>
-                <Image Source="{Binding ImageRight.Image}" Stretch="Uniform"
-                       AllowDrop="True" Drop="Image_Drop" DragOver="Image_DragOver" Tag="Right">
-                    <Image.Clip>
-                        <MultiBinding Converter="{StaticResource ClipConverter}">
-                            <Binding Path="SliderPosition" RelativeSource="{RelativeSource AncestorType=local:SliderCompareView, Mode=FindAncestor}"/>
-                            <Binding ElementName="ImageContainer" Path="ActualWidth"/>
-                        </MultiBinding>
-                    </Image.Clip>
-                </Image>
-            </Viewbox>
+                <!-- This Grid is our "canvas". Its size is bound to the dimensions of the left image. -->
+                <!-- All child elements (images, slider) will operate within its coordinate system. -->
+                <Grid x:Name="ImageCanvas"
+                      Width="{Binding ImageLeft.Image.PixelWidth, FallbackValue=1200}"
+                      Height="{Binding ImageLeft.Image.PixelHeight, FallbackValue=800}"
+                      AllowDrop="True" Drop="Image_Drop" DragOver="Image_DragOver">
 
-            <!-- Слайдер-разделитель -->
-            <Slider x:Name="CompareSlider" Minimum="0" Maximum="100" 
-                    Value="{Binding SliderPosition, Mode=TwoWay}"
-                    Foreground="{StaticResource PrimaryAccentBrush}"
-                    Background="Transparent"
-                    VerticalAlignment="Stretch">
-                <Slider.Template>
-                    <ControlTemplate TargetType="Slider">
-                        <Grid>
-                            <Thumb x:Name="Thumb" Width="4" Cursor="SizeWE">
-                                <Thumb.Template>
-                                    <ControlTemplate TargetType="Thumb">
-                                        <Grid>
-                                            <Rectangle Fill="{TemplateBinding Foreground}" Width="2"/>
-                                            <Rectangle Fill="White" Width="4" Opacity="0.5"/>
-                                        </Grid>
-                                    </ControlTemplate>
-                                </Thumb.Template>
-                            </Thumb>
-                        </Grid>
-                    </ControlTemplate>
-                </Slider.Template>
-                <Slider.RenderTransform>
-                    <TranslateTransform X="{Binding RelativeSource={RelativeSource Self}, Path=ActualWidth, ConverterParameter=-0.5, Converter={x:Static local:MultiplyConverter.Instance}}"/>
-                </Slider.RenderTransform>
-            </Slider>
+                    <!-- Right image (bottom layer) -->
+                    <!-- Stretch="Fill" is used because the parent Grid already has the correct aspect ratio. -->
+                    <Image Source="{Binding ImageRight.Image}" Stretch="Fill" Tag="Right">
+                        <Image.Clip>
+                            <MultiBinding Converter="{StaticResource RightClipConverter}">
+                                <Binding Path="Value" ElementName="CompareSlider"/>
+                                <Binding Path="ActualWidth" ElementName="ImageCanvas"/>
+                                <Binding Path="ActualHeight" ElementName="ImageCanvas"/>
+                            </MultiBinding>
+                        </Image.Clip>
+                    </Image>
+
+                    <!-- Left image (top layer) -->
+                    <Image Source="{Binding ImageLeft.Image}" Stretch="Fill" Tag="Left">
+                        <Image.Clip>
+                            <MultiBinding Converter="{StaticResource LeftClipConverter}">
+                                <Binding Path="Value" ElementName="CompareSlider"/>
+                                <Binding Path="ActualWidth" ElementName="ImageCanvas"/>
+                                <Binding Path="ActualHeight" ElementName="ImageCanvas"/>
+                            </MultiBinding>
+                        </Image.Clip>
+                    </Image>
+
+                    <!-- Divider slider (on top of the images) -->
+                    <!-- It is also inside the ImageCanvas and will be scaled along with it. -->
+                    <Slider x:Name="CompareSlider" Minimum="0" Maximum="100"
+                            Value="{Binding SliderPosition, Mode=TwoWay}"
+                            Foreground="{StaticResource PrimaryAccentBrush}"
+                            Background="Transparent"
+                            VerticalAlignment="Stretch">
+                        <Slider.Template>
+                            <ControlTemplate TargetType="Slider">
+                                <Grid Background="Transparent">
+                                    <Track x:Name="PART_Track">
+                                        <Track.Thumb>
+                                            <Thumb x:Name="Thumb" Width="4" Cursor="SizeWE">
+                                                <Thumb.Template>
+                                                    <ControlTemplate TargetType="Thumb">
+                                                        <Grid>
+                                                            <Rectangle Fill="{TemplateBinding Foreground}" Width="2"/>
+                                                            <Rectangle Fill="White" Width="4" Opacity="0.5"/>
+                                                        </Grid>
+                                                    </ControlTemplate>
+                                                </Thumb.Template>
+                                            </Thumb>
+                                        </Track.Thumb>
+                                    </Track>
+                                </Grid>
+                            </ControlTemplate>
+                        </Slider.Template>
+                    </Slider>
+                </Grid>
+            </Viewbox>
         </Grid>
         
         <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20" Background="#A0000000" CornerRadius="5" Padding="8,4">
@@ -91,11 +112,9 @@
         <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20" Background="#A0000000" CornerRadius="5" Padding="8,4">
             <TextBlock Text="{Binding ImageRight.FileName}" TextTrimming="CharacterEllipsis" MaxWidth="300" Foreground="White" />
         </Border>
-        
         <Button Content="✕" Style="{StaticResource OverlayButton}" Command="{Binding CloseCommand}"
                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="5" Width="40" Height="40" FontSize="20"
                 ToolTip="{local:Translate Fullscreen_Close}"/>
-        
         <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="20" Background="#A0000000" CornerRadius="10" Padding="10">
             <StackPanel Orientation="Horizontal">
                 <Button Content="{local:Translate SliderCompare_Replace}" Command="{Binding ChangeImageLeftCommand}" Style="{StaticResource OverlayButton}" Width="Auto" Padding="15,10" FontSize="16" Height="Auto"/>
@@ -103,5 +122,6 @@
                 <Button Content="{local:Translate SliderCompare_Replace}" Command="{Binding ChangeImageRightCommand}" Style="{StaticResource OverlayButton}" Width="Auto" Padding="15,10" FontSize="16" Height="Auto"/>
             </StackPanel>
         </Border>
+
     </Grid>
 </UserControl>

@@ -4,25 +4,81 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace Comfizen;
-
-public class ClipConverter : IMultiValueConverter
+namespace Comfizen
 {
-    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    /// <summary>
+    /// Converts values into a RectangleGeometry for clipping the LEFT image.
+    /// The clipping rectangle starts from the left edge (0) and has a width
+    /// corresponding to the slider's position.
+    /// </summary>
+    public class LeftClipConverter : IMultiValueConverter
     {
-        if (values.Length < 2 || !(values[0] is double sliderValue) || !(values[1] is double actualWidth))
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            return null;
+            if (values.Length < 3 ||
+                !(values[0] is double sliderPosition) ||
+                !(values[1] is double containerWidth) ||
+                !(values[2] is double containerHeight))
+            {
+                return Geometry.Empty;
+            }
+
+            if (containerWidth <= 0 || containerHeight <= 0)
+            {
+                return Geometry.Empty;
+            }
+
+            double clipWidth = (sliderPosition / 100.0) * containerWidth;
+            var clipRect = new Rect(0, 0, clipWidth, containerHeight);
+
+            return new RectangleGeometry(clipRect);
         }
 
-        // sliderValue is from 0 to 100
-        double clipX = (sliderValue / 100.0) * actualWidth;
-
-        return new RectangleGeometry(new Rect(clipX, 0, actualWidth - clipX, 9999)); // Height is large to not clip vertically
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
     }
 
-    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+    /// <summary>
+    /// Converts values into a RectangleGeometry for clipping the RIGHT image.
+    /// The clipping rectangle starts from the slider's position and
+    /// extends to the right edge of the container.
+    /// </summary>
+    public class RightClipConverter : IMultiValueConverter
     {
-        throw new NotImplementedException();
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values.Length < 3 ||
+                !(values[0] is double sliderPosition) ||
+                !(values[1] is double containerWidth) ||
+                !(values[2] is double containerHeight))
+            {
+                return Geometry.Empty;
+            }
+
+            if (containerWidth <= 0 || containerHeight <= 0)
+            {
+                return Geometry.Empty;
+            }
+
+            // Calculate the starting X position for the clip (the slider's position).
+            double clipX = (sliderPosition / 100.0) * containerWidth;
+
+            // The clip width is the remaining space to the right edge.
+            double clipWidth = containerWidth - clipX;
+
+            // If the width is negative (due to floating point inaccuracies), treat it as zero.
+            if (clipWidth < 0) clipWidth = 0;
+
+            var clipRect = new Rect(clipX, 0, clipWidth, containerHeight);
+
+            return new RectangleGeometry(clipRect);
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
