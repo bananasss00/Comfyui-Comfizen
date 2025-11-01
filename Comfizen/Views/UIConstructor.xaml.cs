@@ -195,6 +195,9 @@ namespace Comfizen
 
                 // Link the group to the tab
                 defaultTab.GroupIds.Add(defaultGroup.Id);
+                
+                // Activate the newly created tab
+                SelectedTab = defaultTab;
             }
             
             LoadCommand = new RelayCommand(_ => LoadApiWorkflow());
