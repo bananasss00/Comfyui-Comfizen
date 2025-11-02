@@ -388,6 +388,11 @@ namespace Comfizen
                 Logger.Log("GetJsonPropertyByPath was called with a null or empty path.", LogLevel.Warning);
                 return null;
             }
+            
+            if (path.StartsWith("virtual_"))
+            {
+                return null;
+            }
 
             // ========================================================== //
             //     START OF FIX: Resiliency against incorrect paths       //
