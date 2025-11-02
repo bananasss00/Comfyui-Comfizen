@@ -183,7 +183,8 @@
                             Width="200" Margin="10,0"
                             Thumb.DragStarted="PositionSlider_DragStarted"
                             Thumb.DragCompleted="PositionSlider_DragCompleted"
-                            ValueChanged="PositionSlider_ValueChanged"/>
+                            ValueChanged="PositionSlider_ValueChanged"
+                            PreviewMouseLeftButtonDown="PositionSlider_PreviewMouseLeftButtonDown"/>
                     <TextBlock Text="{Binding MaxDurationFormatted}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
                     <Button Command="{Binding PlayPauseCommand}" Width="40" Height="40" FontSize="16">

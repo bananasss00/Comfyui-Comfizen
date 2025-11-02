@@ -1,13 +1,12 @@
-﻿// --- START OF FILE SliderCompareView.xaml.cs ---
-
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Globalization;
-using System.Windows.Controls;
 using System.Windows;
-using System.Windows.Data;
-using System.Windows.Threading;
+using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace Comfizen
 {
@@ -67,6 +66,8 @@ namespace Comfizen
                     }
                     break;
                 case nameof(SliderCompareViewModel.CurrentPositionSeconds):
+                    // Update position only if the user is NOT currently dragging the slider.
+                    // This prevents the timer from fighting with user input.
                     if (!_isDraggingSlider)
                     {
                         var newPosition = TimeSpan.FromSeconds(_viewModel.CurrentPositionSeconds);
@@ -112,7 +113,6 @@ namespace Comfizen
             }
         }
         
-        // --- ADDED: Method to handle looping ---
         private void MediaElement_MediaEnded(object sender, RoutedEventArgs e)
         {
             // If we are still in "playing" mode, loop the video from the beginning.
@@ -130,14 +130,23 @@ namespace Comfizen
         {
             if (_viewModel != null && !_isDraggingSlider && MediaElementLeft.NaturalDuration.HasTimeSpan)
             {
-                // ADDED: Check to prevent updating position past the max duration, which can happen before looping
+                // Check to prevent updating position past the max duration, which can happen just before looping
                 if (MediaElementLeft.Position.TotalSeconds < _viewModel.MaxDurationSeconds)
                 {
                     _viewModel.CurrentPositionSeconds = MediaElementLeft.Position.TotalSeconds;
                 }
             }
         }
-        
+
+        private void PositionSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // Pause playback as soon as the user interacts with the slider.
+            if (_viewModel != null && _viewModel.IsPlaying)
+            {
+                _viewModel.IsPlaying = false;
+            }
+        }
+
         private void PositionSlider_DragStarted(object sender, DragStartedEventArgs e)
         {
             _isDraggingSlider = true;
@@ -146,25 +155,41 @@ namespace Comfizen
         private void PositionSlider_DragCompleted(object sender, DragCompletedEventArgs e)
         {
             _isDraggingSlider = false;
-            if (_viewModel != null)
-            {
-                var newPosition = TimeSpan.FromSeconds(PositionSlider.Value);
-                MediaElementLeft.Position = newPosition;
-                MediaElementRight.Position = newPosition;
-            }
         }
 
         private void PositionSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_isDraggingSlider && _viewModel != null)
+            if (_viewModel == null) return;
+            
+            var newPosition = TimeSpan.FromSeconds(e.NewValue);
+
+            // Set the new position for both videos
+            MediaElementLeft.Position = newPosition;
+            MediaElementRight.Position = newPosition;
+
+            // --- THE DEFINITIVE FIX FOR LIVE SCRUBBING ON PAUSE ---
+            // A simple .Position change on a paused MediaElement does not update the frame.
+            // A synchronous Play()/Pause() is unreliable due to a race condition with the render thread.
+            // The solution is to schedule the Pause() call on the Dispatcher, giving the UI
+            // time to process the Play() command and render the new frame before pausing again.
+            if (!_viewModel.IsPlaying)
             {
-                var newPosition = TimeSpan.FromSeconds(e.NewValue);
-                MediaElementLeft.Position = newPosition;
-                MediaElementRight.Position = newPosition;
+                // Start playing from the new position to load the frame
+                MediaElementLeft.Play();
+                MediaElementRight.Play();
+
+                // Immediately schedule a pause operation. It will execute after the frame is rendered.
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    MediaElementLeft.Pause();
+                    MediaElementRight.Pause();
+                }), DispatcherPriority.Input); // Input priority is suitable for responsive UI
             }
+
+            // Also update the ViewModel property so the time text updates live.
+            _viewModel.CurrentPositionSeconds = e.NewValue;
         }
-
-
+        
         private void Image_DragOver(object sender, DragEventArgs e)
         {
             // Allow drop if the data is an ImageOutput from the gallery OR a file from the OS.
@@ -207,7 +232,7 @@ namespace Comfizen
         }
     }
 
-    // --- START OF CHANGE: ADDED Converters to get Width/Height from Resolution string ---
+    // Converters to get Width/Height from a "WidthxHeight" resolution string
     public class ResolutionToWidthConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -243,14 +268,13 @@ namespace Comfizen
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
     }
-    // --- END OF CHANGE ---
 
-    // Вспомогательный конвертер для позиционирования слайдера
+    // Helper converter for slider positioning
     public class MultiplyConverter : IValueConverter
     {
         public static readonly MultiplyConverter Instance = new MultiplyConverter();
 
-        public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is double val && parameter is string paramStr && double.TryParse(paramStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double param))
             {
@@ -259,9 +283,9 @@ namespace Comfizen
             return 0;
         }
 
-        public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
     }
 }
