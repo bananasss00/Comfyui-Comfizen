@@ -291,43 +291,84 @@
             </Setter>
         </Style>
 
+            
         <!-- Style for the Video Slider -->
         <Style x:Key="VideoSliderStyle" TargetType="{x:Type Slider}">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="White"/> <!-- Default color for the thumb -->
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Height" Value="24"/> <!-- Overall height for easier interaction -->
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Slider}">
-                        <Grid>
-                            <Border x:Name="TrackBackground" CornerRadius="1" Height="4" Background="#55FFFFFF" VerticalAlignment="Center"/>
-                            <Track x:Name="PART_Track">
-                                <Track.Thumb>
-                                    <Thumb x:Name="Thumb" Background="{TemplateBinding Foreground}" Width="12" Height="12">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="{x:Type Thumb}">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
+                        <Grid VerticalAlignment="Center">
+                            <!-- 1. The track's background. This is just a visual element. -->
+                            <Border x:Name="TrackBackground"
+                                    VerticalAlignment="Center"
+                                    Height="4"
+                                    CornerRadius="2"
+                                    Background="#55FFFFFF" />
+
+                            <!-- 2. The logical Track panel. It's invisible, but its height is large enough to contain the thumb. -->
+                            <Track x:Name="PART_Track"
+                                   Height="16"> <!-- <<<< KEY CHANGE: Track height matches the thumb height -->
+
+                                <!-- The progress part (blue) -->
                                 <Track.DecreaseRepeatButton>
-                                    <RepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
                                         <RepeatButton.Template>
-                                            <ControlTemplate>
-                                                <Border CornerRadius="1" Background="{StaticResource PrimaryAccentBrush}"/>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <!-- The visual part of the progress bar. It's thin and centered. -->
+                                                <Border VerticalAlignment="Center"
+                                                        Height="4"
+                                                        CornerRadius="2,0,0,2"
+                                                        Background="{StaticResource PrimaryAccentBrush}" />
                                             </ControlTemplate>
                                         </RepeatButton.Template>
                                     </RepeatButton>
                                 </Track.DecreaseRepeatButton>
+
+                                <!-- The remaining part -->
                                 <Track.IncreaseRepeatButton>
-                                    <RepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
                                         <RepeatButton.Template>
-                                            <ControlTemplate>
-                                                <Border Background="Transparent"/>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" />
                                             </ControlTemplate>
                                         </RepeatButton.Template>
                                     </RepeatButton>
                                 </Track.IncreaseRepeatButton>
+
+                                <!-- 3. The thumb. It now fits completely inside the Track panel and is not clipped. -->
+                                <Track.Thumb>
+                                    <Thumb x:Name="Thumb"
+                                           Width="16" Height="16"
+                                           Background="{TemplateBinding Foreground}">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="{x:Type Thumb}">
+                                                <Grid>
+                                                    <!-- Glow effect on hover/drag -->
+                                                    <Ellipse x:Name="Glow" Fill="{StaticResource PrimaryAccentBrush}" Opacity="0" Width="24" Height="24">
+                                                        <Ellipse.Effect>
+                                                            <BlurEffect Radius="8"/>
+                                                        </Ellipse.Effect>
+                                                    </Ellipse>
+                                                    <!-- The main thumb circle -->
+                                                    <Ellipse x:Name="Circle" Fill="{TemplateBinding Background}" Width="12" Height="12"/>
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Glow" Property="Opacity" Value="0.4"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter TargetName="Glow" Property="Opacity" Value="0.7"/>
+                                                        <Setter TargetName="Circle" Property="Fill" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
                             </Track>
                         </Grid>
                     </ControlTemplate>
@@ -335,12 +376,6 @@
             </Setter>
         </Style>
 
-  
-
-  
-
-  
-        
         <!-- Global Tooltip Style -->
         <Style TargetType="ToolTip">
             <Setter Property="Background" Value="{StaticResource SecondaryBackground}"/>
