@@ -179,6 +179,7 @@
                     <Button Content="&#xE72C;" Style="{StaticResource IconButton}" Command="{Binding RefreshModelsCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_RefreshModels}"/>
                     <Button Content="&#xE75F;" Style="{StaticResource IconButton}" Command="{Binding ToggleConsoleCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ToggleConsole}"/>
                     <Button Content="&#xE713;" Style="{StaticResource IconButton}" Command="{Binding OpenSettingsCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_Settings}"/>
+                    <Button Content="&#xE897;" Style="{StaticResource IconButton}" Command="{Binding OpenHelpCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_Help}"/>
                 </StackPanel>
 
                 <local:FilterableComboBox

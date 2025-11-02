@@ -6,8 +6,7 @@
              xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
              mc:Ignorable="d" 
              d:DesignHeight="150" d:DesignWidth="400"
-             x:Name="Root"
-             MaxHeight="200">
+             x:Name="Root">
     <Grid>
         <!-- The Viewer for formatted Markdown -->
         <!-- The Viewer for formatted Markdown -->

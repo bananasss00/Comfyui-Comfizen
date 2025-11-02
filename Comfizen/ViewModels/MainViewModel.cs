@@ -254,6 +254,7 @@ namespace Comfizen
         // ADD: Dictionary to keep track of floating windows
         private readonly Dictionary<WorkflowGroupViewModel, Window> _undockedWindows = new();
         
+        public ICommand OpenHelpCommand { get; }
         
         public MainViewModel()
         {
@@ -469,6 +470,8 @@ namespace Comfizen
                     }
                 }
             }, p => p is WorkflowTabViewModel tab && !tab.IsVirtual);
+            
+            OpenHelpCommand = new RelayCommand(OpenHelp);
             
             CompareSelectedImagesCommand = new RelayCommand(param => {
                 if (param is not IList selectedItems || selectedItems.Count < 1) return;
@@ -1208,6 +1211,43 @@ namespace Comfizen
             {
                 _ = ProcessQueueAsync(); 
             }
+        }
+        
+        private void OpenHelp(object o)
+        {
+            string helpTabHeader = LocalizationService.Instance["Help_TabHeader"];
+            
+            var existingHelpTab = OpenTabs.FirstOrDefault(t => t.Header == helpTabHeader);
+            if (existingHelpTab != null)
+            {
+                SelectedTab = existingHelpTab;
+                return;
+            }
+            
+            var helpWorkflow = new Workflow();
+            
+            var helpGroup = new WorkflowGroup { Name = "Comfizen Help" };
+            var markdownField = new WorkflowField
+            {
+                Name = helpTabHeader,
+                Type = FieldType.Markdown,
+                DefaultValue = LocalizationService.Instance["Help_Content"],
+                MaxDisplayLines = null
+            };
+            helpGroup.Fields.Add(markdownField);
+            helpWorkflow.Groups.Add(helpGroup);
+            
+            var helpTab = new WorkflowTabViewModel(
+                helpWorkflow,
+                helpTabHeader,
+                _comfyuiModel,
+                _settings,
+                _modelService,
+                _sessionManager
+            );
+            
+            OpenTabs.Add(helpTab);
+            SelectedTab = helpTab;
         }
 
         private async Task ProcessQueueAsync()

@@ -475,6 +475,10 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        
+        <Style x:Key="IconFontOverlayButton" TargetType="Button" BasedOn="{StaticResource OverlayIconButton}">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        </Style>
 
         <!-- Global Control Styles -->
         <Style TargetType="TextBlock">
@@ -720,17 +724,43 @@
         </DataTemplate>
         
         <DataTemplate x:Key="TextTemplate" DataType="{x:Type local:TextFieldViewModel}">
-            <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="100" />
+            <!-- WRAP IN GRID TO OVERLAY BUTTONS -->
+            <Grid>
+                <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                         AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="100"
+                         x:Name="MainTextBox" Padding="5,5,28,5"/>
+                <!-- UNDO/REDO BUTTONS -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0">
+                    <Button Content="&#xE7A7;" Style="{StaticResource IconFontOverlayButton}"
+                            Command="ApplicationCommands.Undo" CommandTarget="{Binding ElementName=MainTextBox}"
+                            ToolTip="{local:Translate Toolbar_Undo}"/>
+                    <Button Content="&#xE7A6;" Style="{StaticResource IconFontOverlayButton}"
+                            Command="ApplicationCommands.Redo" CommandTarget="{Binding ElementName=MainTextBox}"
+                            ToolTip="{local:Translate Toolbar_Redo}"/>
+                </StackPanel>
+            </Grid>
         </DataTemplate>
 
         <DataTemplate x:Key="AnyTypeTemplate" DataType="{x:Type local:TextFieldViewModel}">
-            <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="100"
-                     AllowDrop="True"
-                     PreviewDragOver="TextBox_PreviewDragOver"
-                     Drop="TextBox_Drop"
-                     PreviewKeyDown="TextBox_PreviewKeyDown"/>
+            <!-- WRAP IN GRID TO OVERLAY BUTTONS -->
+            <Grid>
+                <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                         AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="100"
+                         AllowDrop="True"
+                         PreviewDragOver="TextBox_PreviewDragOver"
+                         Drop="TextBox_Drop"
+                         PreviewKeyDown="TextBox_PreviewKeyDown"
+                         x:Name="AnyTypeTextBox" Padding="5,5,28,5"/>
+                <!-- UNDO/REDO BUTTONS -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0">
+                    <Button Content="&#xE7A7;" Style="{StaticResource IconFontOverlayButton}"
+                            Command="ApplicationCommands.Undo" CommandTarget="{Binding ElementName=AnyTypeTextBox}"
+                            ToolTip="{local:Translate Toolbar_Undo}"/>
+                    <Button Content="&#xE7A6;" Style="{StaticResource IconFontOverlayButton}"
+                            Command="ApplicationCommands.Redo" CommandTarget="{Binding ElementName=AnyTypeTextBox}"
+                            ToolTip="{local:Translate Toolbar_Redo}"/>
+                </StackPanel>
+            </Grid>
         </DataTemplate>
 
         <DataTemplate x:Key="WildcardTemplate" DataType="{x:Type local:TextFieldViewModel}">
@@ -739,14 +769,24 @@
                 <!-- Simple Editor (visible by default) -->
                 <Grid x:Name="SimpleEditor">
                     <TextBox x:Name="WildcardTextBox" Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                             AcceptsReturn="True" TextWrapping="Wrap" Padding="5,5,28,5"
+                             AcceptsReturn="True" TextWrapping="Wrap" Padding="5,5,52,5"
                              VerticalScrollBarVisibility="Auto" MaxHeight="100"
                              PreviewKeyDown="WildcardTextBox_PreviewKeyDown"/>
     
-                    <Button Content="..." Style="{StaticResource OverlayIconButton}"
-                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
-                            ToolTip="{local:Translate Wildcard_Browse}"
-                            Tag="OpenWildcardBrowser"/>
+                    <!-- GROUPED BUTTONS -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0">
+                        <!-- UNDO/REDO BUTTONS -->
+                        <Button Content="&#xE7A7;" Style="{StaticResource IconFontOverlayButton}"
+                                Command="ApplicationCommands.Undo" CommandTarget="{Binding ElementName=WildcardTextBox}"
+                                ToolTip="{local:Translate Toolbar_Undo}"/>
+                        <Button Content="&#xE7A6;" Style="{StaticResource IconFontOverlayButton}"
+                                Command="ApplicationCommands.Redo" CommandTarget="{Binding ElementName=WildcardTextBox}"
+                                ToolTip="{local:Translate Toolbar_Redo}"/>
+                        <!-- WILDCARD BROWSER BUTTON -->
+                        <Button Content="..." Style="{StaticResource OverlayIconButton}"
+                                ToolTip="{local:Translate Wildcard_Browse}"
+                                Tag="OpenWildcardBrowser"/>
+                    </StackPanel>
                 </Grid>
         
                 <!-- Advanced Editor (hidden by default) -->
