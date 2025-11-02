@@ -1,4 +1,5 @@
-﻿<UserControl x:Class="Comfizen.SliderCompareView"
+﻿<!-- SliderCompareView.xaml.txt -->
+<UserControl x:Class="Comfizen.SliderCompareView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -11,6 +12,8 @@
         <!-- Declare both converters -->
         <local:LeftClipConverter x:Key="LeftClipConverter"/>
         <local:RightClipConverter x:Key="RightClipConverter"/>
+        <local:ResolutionToWidthConverter x:Key="ResolutionToWidthConverter"/>
+        <local:ResolutionToHeightConverter x:Key="ResolutionToHeightConverter"/>
         
         <Style x:Key="OverlayButton" TargetType="Button">
             <Setter Property="Background" Value="#80000000"/>
@@ -35,6 +38,41 @@
                 <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.3"/></Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- ADDED: Style for the video position slider -->
+        <Style x:Key="VideoSliderStyle" TargetType="{x:Type Slider}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Slider}">
+                        <Grid>
+                            <Border x:Name="TrackBackground" CornerRadius="1" Height="4" Background="#55FFFFFF" VerticalAlignment="Center"/>
+                            <Track x:Name="PART_Track">
+                                <Track.Thumb>
+                                    <Thumb x:Name="Thumb" Background="{TemplateBinding Foreground}" Width="12" Height="12">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="{x:Type Thumb}">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton>
+                                        <RepeatButton.Template>
+                                            <ControlTemplate>
+                                                <Border CornerRadius="1" Background="{StaticResource PrimaryAccentBrush}"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
     
     <Grid Background="#D8000000">
@@ -47,32 +85,79 @@
                 <!-- This Grid is our "canvas". Its size is bound to the dimensions of the left image. -->
                 <!-- All child elements (images, slider) will operate within its coordinate system. -->
                 <Grid x:Name="ImageCanvas"
-                      Width="{Binding ImageLeft.Image.PixelWidth, FallbackValue=1200}"
-                      Height="{Binding ImageLeft.Image.PixelHeight, FallbackValue=800}"
+                      Width="{Binding ImageLeft.Resolution, Converter={StaticResource ResolutionToWidthConverter}, FallbackValue=1200}"
+                      Height="{Binding ImageLeft.Resolution, Converter={StaticResource ResolutionToHeightConverter}, FallbackValue=800}"
                       AllowDrop="True" Drop="Image_Drop" DragOver="Image_DragOver">
 
-                    <!-- Right image (bottom layer) -->
-                    <!-- Stretch="Fill" is used because the parent Grid already has the correct aspect ratio. -->
-                    <Image Source="{Binding ImageRight.Image}" Stretch="Fill" Tag="Right">
-                        <Image.Clip>
+                    <!-- Right image/video (bottom layer) -->
+                    <Grid Tag="Right">
+                        <Grid.Clip>
                             <MultiBinding Converter="{StaticResource RightClipConverter}">
                                 <Binding Path="Value" ElementName="CompareSlider"/>
                                 <Binding Path="ActualWidth" ElementName="ImageCanvas"/>
                                 <Binding Path="ActualHeight" ElementName="ImageCanvas"/>
                             </MultiBinding>
-                        </Image.Clip>
-                    </Image>
+                        </Grid.Clip>
+                        <Image Source="{Binding ImageRight.Image}" Stretch="Fill">
+                            <Image.Style>
+                                <Style TargetType="Image">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ImageRight.Type}" Value="{x:Static local:FileType.Video}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Image.Style>
+                        </Image>
+                        <MediaElement x:Name="MediaElementRight" Stretch="Fill" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened">
+                            <MediaElement.Style>
+                                <Style TargetType="MediaElement">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ImageRight.Type}" Value="{x:Static local:FileType.Video}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </MediaElement.Style>
+                        </MediaElement>
+                    </Grid>
 
-                    <!-- Left image (top layer) -->
-                    <Image Source="{Binding ImageLeft.Image}" Stretch="Fill" Tag="Left">
-                        <Image.Clip>
+                    <!-- Left image/video (top layer) -->
+                    <Grid Tag="Left">
+                        <Grid.Clip>
                             <MultiBinding Converter="{StaticResource LeftClipConverter}">
                                 <Binding Path="Value" ElementName="CompareSlider"/>
                                 <Binding Path="ActualWidth" ElementName="ImageCanvas"/>
                                 <Binding Path="ActualHeight" ElementName="ImageCanvas"/>
                             </MultiBinding>
-                        </Image.Clip>
-                    </Image>
+                        </Grid.Clip>
+                        <Image Source="{Binding ImageLeft.Image}" Stretch="Fill">
+                            <Image.Style>
+                                <Style TargetType="Image">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ImageLeft.Type}" Value="{x:Static local:FileType.Video}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Image.Style>
+                        </Image>
+                        <MediaElement x:Name="MediaElementLeft" Stretch="Fill" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened">
+                             <MediaElement.Style>
+                                <Style TargetType="MediaElement">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ImageLeft.Type}" Value="{x:Static local:FileType.Video}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </MediaElement.Style>
+                        </MediaElement>
+                    </Grid>
 
                     <!-- Divider slider (on top of the images) -->
                     <!-- It is also inside the ImageCanvas and will be scaled along with it. -->
@@ -120,6 +205,34 @@
                 <Button Content="{local:Translate SliderCompare_Replace}" Command="{Binding ChangeImageLeftCommand}" Style="{StaticResource OverlayButton}" Width="Auto" Padding="15,10" FontSize="16" Height="Auto"/>
                 <Button Content="↔" Command="{Binding SwapImagesCommand}" ToolTip="{local:Translate SliderCompare_Swap}" Margin="20,0" Style="{StaticResource OverlayButton}"/>
                 <Button Content="{local:Translate SliderCompare_Replace}" Command="{Binding ChangeImageRightCommand}" Style="{StaticResource OverlayButton}" Width="Auto" Padding="15,10" FontSize="16" Height="Auto"/>
+
+                <!-- ADDED: Video Controls -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0"
+                            Visibility="{Binding AreBothVideos, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="{Binding CurrentPositionFormatted}" Foreground="White" VerticalAlignment="Center"/>
+                    <Slider x:Name="PositionSlider" Style="{StaticResource VideoSliderStyle}"
+                            Value="{Binding CurrentPositionSeconds, Mode=TwoWay}"
+                            Maximum="{Binding MaxDurationSeconds}"
+                            IsMoveToPointEnabled="True"
+                            Width="200" Margin="10,0"
+                            Thumb.DragStarted="PositionSlider_DragStarted"
+                            Thumb.DragCompleted="PositionSlider_DragCompleted"
+                            ValueChanged="PositionSlider_ValueChanged"/>
+                    <TextBlock Text="{Binding MaxDurationFormatted}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                    <Button Command="{Binding PlayPauseCommand}" Width="40" Height="40" FontSize="16">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource OverlayButton}">
+                                <Setter Property="Content" Value="▶"/> <!-- Play Icon -->
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                        <Setter Property="Content" Value="⏸"/> <!-- Pause Icon -->
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
             </StackPanel>
         </Border>
 

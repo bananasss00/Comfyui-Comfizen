@@ -19,6 +19,16 @@ namespace Comfizen
         public ImageOutput ImageRight { get; set; }
         public double SliderPosition { get; set; } = 50; // Start in the middle
 
+        // --- START OF NEW PROPERTIES FOR VIDEO ---
+        public bool AreBothVideos => ImageLeft?.Type == FileType.Video && ImageRight?.Type == FileType.Video;
+        public bool IsPlaying { get; set; }
+        public double CurrentPositionSeconds { get; set; }
+        public double MaxDurationSeconds { get; set; }
+        public string CurrentPositionFormatted => FormatTimeSpan(TimeSpan.FromSeconds(CurrentPositionSeconds));
+        public string MaxDurationFormatted => FormatTimeSpan(TimeSpan.FromSeconds(MaxDurationSeconds));
+        public ICommand PlayPauseCommand { get; }
+        // --- END OF NEW PROPERTIES FOR VIDEO ---
+
         public ICommand CloseCommand { get; }
         public ICommand SwapImagesCommand { get; }
         public ICommand ChangeImageLeftCommand { get; }
@@ -35,6 +45,9 @@ namespace Comfizen
             
             ChangeImageLeftCommand = new RelayCommand(_ => ChangeImage(img => ImageLeft = img));
             ChangeImageRightCommand = new RelayCommand(_ => ChangeImage(img => ImageRight = img));
+
+            // --- ADDED: Initialize video command ---
+            PlayPauseCommand = new RelayCommand(_ => IsPlaying = !IsPlaying, _ => AreBothVideos);
         }
 
         /// <summary>
@@ -45,6 +58,10 @@ namespace Comfizen
             ImageLeft = left;
             ImageRight = right;
             SliderPosition = 50; // Reset slider position
+            
+            // --- ADDED: Reset video state ---
+            ResetVideoState();
+
             IsViewOpen = true;
         }
 
@@ -56,7 +73,19 @@ namespace Comfizen
             ImageLeft = singleImage;
             ImageRight = null; // Clear the right image
             SliderPosition = 50;
+
+            // --- ADDED: Reset video state ---
+            ResetVideoState();
+            
             IsViewOpen = true;
+        }
+
+        // --- ADDED: Helper method to reset video properties ---
+        private void ResetVideoState()
+        {
+            IsPlaying = false;
+            CurrentPositionSeconds = 0;
+            MaxDurationSeconds = 0;
         }
         
         /// <summary>
@@ -127,6 +156,14 @@ namespace Comfizen
             {
                 ImageRight = newImage;
             }
+        }
+
+        // --- ADDED: Helper to format time for display ---
+        private string FormatTimeSpan(TimeSpan ts)
+        {
+            if (ts.TotalHours >= 1)
+                return ts.ToString(@"h\:mm\:ss");
+            return ts.ToString(@"mm\:ss");
         }
     }
 }
