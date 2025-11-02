@@ -112,11 +112,29 @@ namespace Comfizen
             }
         }
         
+        // --- ADDED: Method to handle looping ---
+        private void MediaElement_MediaEnded(object sender, RoutedEventArgs e)
+        {
+            // If we are still in "playing" mode, loop the video from the beginning.
+            if (_viewModel != null && _viewModel.IsPlaying)
+            {
+                var newPosition = TimeSpan.Zero;
+                MediaElementLeft.Position = newPosition;
+                MediaElementRight.Position = newPosition;
+                MediaElementLeft.Play();
+                MediaElementRight.Play();
+            }
+        }
+
         private void Timer_Tick(object sender, EventArgs e)
         {
             if (_viewModel != null && !_isDraggingSlider && MediaElementLeft.NaturalDuration.HasTimeSpan)
             {
-                _viewModel.CurrentPositionSeconds = MediaElementLeft.Position.TotalSeconds;
+                // ADDED: Check to prevent updating position past the max duration, which can happen before looping
+                if (MediaElementLeft.Position.TotalSeconds < _viewModel.MaxDurationSeconds)
+                {
+                    _viewModel.CurrentPositionSeconds = MediaElementLeft.Position.TotalSeconds;
+                }
             }
         }
         

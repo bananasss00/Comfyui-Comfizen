@@ -59,10 +59,15 @@ namespace Comfizen
             ImageRight = right;
             SliderPosition = 50; // Reset slider position
             
-            // --- ADDED: Reset video state ---
             ResetVideoState();
 
             IsViewOpen = true;
+            
+            // --- ADDED: Autoplay if both are videos ---
+            if (AreBothVideos)
+            {
+                IsPlaying = true;
+            }
         }
 
         /// <summary>
@@ -74,13 +79,17 @@ namespace Comfizen
             ImageRight = null; // Clear the right image
             SliderPosition = 50;
 
-            // --- ADDED: Reset video state ---
             ResetVideoState();
             
             IsViewOpen = true;
+            
+            // --- ADDED: Autoplay if both are videos (won't trigger here, but good practice) ---
+            if (AreBothVideos)
+            {
+                IsPlaying = true;
+            }
         }
 
-        // --- ADDED: Helper method to reset video properties ---
         private void ResetVideoState()
         {
             IsPlaying = false;
@@ -102,7 +111,6 @@ namespace Comfizen
             {
                 try
                 {
-                    // Use the new ImageOutput constructor that takes a file path
                     var newImage = new ImageOutput(dialog.FileName);
                     setImageAction(newImage);
                 }
@@ -121,20 +129,17 @@ namespace Comfizen
         {
             ImageOutput newImage = null;
 
-            // Case 1: Dropped from our own gallery (contains ImageOutput object)
             if (e.Data.GetDataPresent(typeof(ImageOutput)))
             {
                 newImage = e.Data.GetData(typeof(ImageOutput)) as ImageOutput;
             }
-            // Case 2: Dropped from the file system (contains file paths)
             else if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
                 {
-                    string filePath = files[0]; // Take the first file
+                    string filePath = files[0];
                     try
                     {
-                        // Create a new ImageOutput object from the file path.
                         newImage = new ImageOutput(filePath);
                     }
                     catch (Exception ex)
@@ -147,7 +152,6 @@ namespace Comfizen
             
             if (newImage == null) return;
 
-            // Update the correct property based on the drop target ("Left" or "Right")
             if (target == "Left")
             {
                 ImageLeft = newImage;
@@ -158,7 +162,6 @@ namespace Comfizen
             }
         }
 
-        // --- ADDED: Helper to format time for display ---
         private string FormatTimeSpan(TimeSpan ts)
         {
             if (ts.TotalHours >= 1)

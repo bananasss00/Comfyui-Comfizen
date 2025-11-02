@@ -76,7 +76,7 @@
                                 </Style>
                             </Image.Style>
                         </Image>
-                        <MediaElement x:Name="MediaElementRight" Stretch="Fill" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened">
+                        <MediaElement x:Name="MediaElementRight" Stretch="Fill" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened" MediaEnded="MediaElement_MediaEnded">
                             <MediaElement.Style>
                                 <Style TargetType="MediaElement">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -111,7 +111,7 @@
                                 </Style>
                             </Image.Style>
                         </Image>
-                        <MediaElement x:Name="MediaElementLeft" Stretch="Fill" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened">
+                        <MediaElement x:Name="MediaElementLeft" Stretch="Fill" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened" MediaEnded="MediaElement_MediaEnded">
                              <MediaElement.Style>
                                 <Style TargetType="MediaElement">
                                     <Setter Property="Visibility" Value="Collapsed"/>
