@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.VisualBasic.Logging;
 using Microsoft.Win32;
 using PropertyChanged;
@@ -187,6 +188,7 @@ namespace Comfizen
         public int CompletedTasks { get; private set; }
         public int CurrentProgress { get; set; }
         public string EstimatedTimeRemaining { get; private set; }
+        private readonly DispatcherTimer _etaUpdateTimer;
         
         public ICommand SaveChangesToWorkflowCommand { get; private set; }
         
@@ -276,7 +278,13 @@ namespace Comfizen
             ConsoleLogMessages = CollectionViewSource.GetDefaultView(_allConsoleLogMessages);
             ConsoleLogMessages.Filter = FilterLogs;
             _consoleLogService.ConnectAsync();
- 
+            
+            _etaUpdateTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _etaUpdateTimer.Tick += EtaUpdateTimer_Tick;
+            
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
             ClearConsoleCommand = new RelayCommand(_ => _allConsoleLogMessages.Clear());
             CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => _allConsoleLogMessages.Any());
@@ -480,7 +488,21 @@ namespace Comfizen
             
             }, param => param is IList list && list.Count >= 1); // Can execute if 1 or more images are selected.
         }
-        
+
+        private void EtaUpdateTimer_Tick(object sender, EventArgs e)
+        {
+            // This logic is moved from the processing loop to be called every second.
+            if (_isProcessing && CompletedTasks > 0 && TotalTasks > CompletedTasks)
+            {
+                var elapsed = _queueStopwatch.Elapsed;
+                var timePerTask = elapsed.TotalSeconds / CompletedTasks;
+                var remainingSeconds = timePerTask * (TotalTasks - CompletedTasks);
+                var remainingTime = TimeSpan.FromSeconds(remainingSeconds);
+                EstimatedTimeRemaining = $"~{FormatEta(remainingTime)}";
+            }
+            // Don't clear the ETA here, it will be cleared when the queue finishes.
+        }
+
         private void HandleHighPriorityLog(LogLevel level)
         {
             // This method can be called from a background thread, so we dispatch the UI update.
@@ -1196,6 +1218,8 @@ namespace Comfizen
             
             try
             {
+                _etaUpdateTimer.Start();
+                
                 while (true)
                 {
                     while (IsQueuePaused && !_cancellationRequested)
@@ -1274,22 +1298,22 @@ namespace Comfizen
                                 CurrentProgress = (TotalTasks > 0) ? (CompletedTasks * 100) / TotalTasks : 0;
                             });
 
-                            if (CompletedTasks > 0 && TotalTasks > CompletedTasks)
-                            {
-                                var elapsed = _queueStopwatch.Elapsed;
-                                // Only show ETA after a second to get a more stable estimate
-                                if (elapsed.TotalSeconds > 1)
-                                {
-                                    var timePerTask = elapsed / CompletedTasks;
-                                    var remainingTime = timePerTask * (TotalTasks - CompletedTasks);
-                                    EstimatedTimeRemaining = $"~{FormatEta(remainingTime)}";
-                                }
-                            }
-                            else
-                            {
-                                // Clear when the last task is done or if there's only one task.
-                                EstimatedTimeRemaining = null;
-                            }
+                            // if (CompletedTasks > 0 && TotalTasks > CompletedTasks)
+                            // {
+                            //     var elapsed = _queueStopwatch.Elapsed;
+                            //     // Only show ETA after a second to get a more stable estimate
+                            //     if (elapsed.TotalSeconds > 1)
+                            //     {
+                            //         var timePerTask = elapsed / CompletedTasks;
+                            //         var remainingTime = timePerTask * (TotalTasks - CompletedTasks);
+                            //         EstimatedTimeRemaining = $"~{FormatEta(remainingTime)}";
+                            //     }
+                            // }
+                            // else
+                            // {
+                            //     // Clear when the last task is done or if there's only one task.
+                            //     EstimatedTimeRemaining = null;
+                            // }
                             
                             await Application.Current.Dispatcher.InvokeAsync(() => task.OriginTab?.ExecuteHook("on_queue_finish", promptForTask));
                         }
@@ -1335,6 +1359,8 @@ namespace Comfizen
             }
             finally
             {
+                _etaUpdateTimer.Stop();
+                
                 // After the queue is empty, check if we need to generate a grid image
                 if (gridResults != null && gridResults.Any() && gridConfig.CreateGridImage)
                 {
@@ -1580,16 +1606,14 @@ namespace Comfizen
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     Topmost = true,
                     Width = 400,
-                    Height = 600,
+                    SizeToContent = SizeToContent.Height,
+                    MaxHeight = SystemParameters.WorkArea.Height * 0.9,
                     MinWidth = 300,
-                    MinHeight = 200,
+                    MinHeight = 50,
                     Background = (Brush)Application.Current.FindResource("PrimaryBackground"),
                     Foreground = (Brush)Application.Current.FindResource("TextBrush"),
-                    // CHANGE: Apply the new ToolWindowStyle
                     Style = (Style)Application.Current.FindResource("ToolWindowStyle"),
-                    // Use the DataTemplate we defined in App.xaml
                     ContentTemplate = (DataTemplate)Application.Current.FindResource("UndockedGroupTemplate"),
-                    // ADDED: This line will hide the window from the taskbar.
                     ShowInTaskbar = false
                 };
 

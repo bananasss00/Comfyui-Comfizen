@@ -865,13 +865,14 @@
                                 </Grid>
                             </Border>
                             <Grid>
-                            <ListView x:Name="lvOutputs" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                      ItemsSource="{Binding ImageProcessing.FilteredImageOutputs}"
-                                      Background="Transparent" BorderThickness="0"
-                                      SelectionMode="Extended"
-                                      SelectionChanged="LvOutputs_SelectionChanged"
-                                      PreviewKeyDown="LvOutputs_PreviewKeyDown"
-                                      SelectedItem="{Binding ImageProcessing.SelectedGalleryImage, Mode=TwoWay}">
+                                <ListView x:Name="lvOutputs" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                          ItemsSource="{Binding ImageProcessing.FilteredImageOutputs}"
+                                          Background="Transparent" BorderThickness="0"
+                                          SelectionMode="Extended"
+                                          SelectionChanged="LvOutputs_SelectionChanged"
+                                          PreviewKeyDown="LvOutputs_PreviewKeyDown"
+                                          KeyDown="LvOutputs_KeyDown"
+                                          SelectedItem="{Binding ImageProcessing.SelectedGalleryImage, Mode=TwoWay}">
                                 <ListView.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" Margin="5"/></ItemsPanelTemplate></ListView.ItemsPanel>
                                 <ListView.ItemTemplate>
                                     <DataTemplate>

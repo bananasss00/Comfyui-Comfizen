@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
@@ -536,13 +537,29 @@ namespace Comfizen
             }
             else if (e.Key == Key.NumPad6) viewModel.FullScreen.MoveNextCommand.Execute(null);
             else if (e.Key == Key.NumPad4) viewModel.FullScreen.MovePreviousCommand.Execute(null);
-            else if (e.Key == Key.NumPad5 && viewModel.FullScreen.IsFullScreenOpen)
+            else if (e.Key == Key.NumPad5)
             {
-                if (viewModel.FullScreen.SaveCurrentImageCommand.CanExecute(null))
+                if (viewModel.FullScreen.IsFullScreenOpen)
                 {
-                    await Task.Run(() => viewModel.FullScreen.SaveCurrentImageCommand.Execute(null));
+                    if (viewModel.FullScreen.SaveCurrentImageCommand.CanExecute(null))
+                    {
+                        await Task.Run(() => viewModel.FullScreen.SaveCurrentImageCommand.Execute(null));
+                    }
                 }
-
+                else
+                {
+                    // Save selected item from the gallery if not in fullscreen
+                    if (lvOutputs.SelectedItem is ImageOutput selectedImage)
+                    {
+                        var command = viewModel.ImageProcessing.SaveSelectedImagesCommand;
+                        var parameter = new List<ImageOutput> { selectedImage };
+                        if (command.CanExecute(parameter))
+                        {
+                            // The command is async, so we just execute it (fire-and-forget)
+                            command.Execute(parameter);
+                        }
+                    }
+                }
             }
             else if (e.Key == Key.Escape)
             {
@@ -854,6 +871,24 @@ namespace Comfizen
 
                 // Mark the event as handled so it doesn't bubble up further.
                 e.Handled = true;
+            }
+        }
+
+        private void LvOutputs_KeyDown(object sender, KeyEventArgs e)
+        {
+            // ADDED: Handler for the Delete key on the gallery.
+            if (e.Key == Key.Delete)
+            {
+                if (DataContext is MainViewModel vm && lvOutputs.SelectedItems.Count > 0)
+                {
+                    var command = vm.ImageProcessing.DeleteSelectedImagesCommand;
+                    // The command expects an IList, and SelectedItems is already one.
+                    var parameter = lvOutputs.SelectedItems; 
+                    if (command.CanExecute(parameter))
+                    {
+                        command.Execute(parameter);
+                    }
+                }
             }
         }
     }
