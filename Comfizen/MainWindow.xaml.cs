@@ -54,6 +54,21 @@ namespace Comfizen
 #endif
         }
         
+        private void PresetPopup_Opened(object sender, EventArgs e)
+        {
+            if (sender is not Popup popup) return;
+            
+            var textBox = FindVisualChild<TextBox>(popup.Child);
+            if (textBox != null)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    textBox.Focus();
+                    textBox.SelectAll();
+                }), DispatcherPriority.Input);
+            }
+        }
+        
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             if (DataContext is MainViewModel vm)

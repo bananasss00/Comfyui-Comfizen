@@ -434,7 +434,8 @@
                                                                    StaysOpen="False" 
                                                                    Placement="Bottom" 
                                                                    PlacementTarget="{Binding ElementName=HeaderToggleButton}"
-                                                                   AllowsTransparency="True">
+                                                                   AllowsTransparency="True"
+                                                                   Opened="PresetPopup_Opened"> 
                                                                 <Border Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,2,0,0">
                                                                     <StackPanel>
                                                                         <TextBlock Text="{local:Translate Presets_SaveCurrentState}" FontWeight="Bold" Margin="0,0,0,5"/>
@@ -443,8 +444,8 @@
                                                                                 <ColumnDefinition Width="*"/>
                                                                                 <ColumnDefinition Width="Auto"/>
                                                                             </Grid.ColumnDefinitions>
-                                                                            <TextBox Grid.Column="0" MinWidth="150"
-                                                                                     Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" />
+                                                                            <TextBox x:Name="PresetNameTextBox" Grid.Column="0" MinWidth="150"
+                                                                                Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" />
                                                                             <Button Grid.Column="1" Content="{local:Translate Presets_SaveButton}" Margin="5,0,0,0"
                                                                                 Command="{Binding SavePresetCommand}"
                                                                                 IsDefault="True"/>
