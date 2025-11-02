@@ -142,6 +142,10 @@ namespace Comfizen
                     currentDelayMs = minDelayMs;
                     await ListenForMessages(token);
                 }
+                catch (Exception ex) when (ex is WebSocketException || ex is System.Net.Http.HttpRequestException)
+                {
+                    Logger.Log($"Failed to connect to ComfyUI log WebSocket: {ex.Message}", LogLevel.Error);
+                }
                 catch (OperationCanceledException)
                 {
                     if (token.IsCancellationRequested) break;

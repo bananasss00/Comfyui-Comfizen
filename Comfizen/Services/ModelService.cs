@@ -200,7 +200,7 @@ public class ModelService
                 {
                     _isConnectionErrorVisible = true;
                     // ADD: Log the full error to the file
-                    Logger.Log(ex, "Failed to fetch model types from ComfyUI API");
+                    // Logger.Log(ex, "Failed to fetch model types from ComfyUI API");
                     
                     Application.Current.Dispatcher.Invoke(() =>
                     {
