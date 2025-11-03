@@ -88,8 +88,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     private bool _hasWildcardFields;
     private readonly List<InpaintFieldViewModel> _inpaintViewModels = new();
     
-    public GlobalSettingsViewModel GlobalSettings { get; private set; }
-    public GlobalPresetsViewModel GlobalPresets { get; private set; }
+    public GlobalControlsViewModel GlobalControls { get; private set; }
     
     private readonly List<SeedFieldViewModel> _seedViewModels = new();
 
@@ -133,8 +132,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         });
         
-        GlobalSettings = new GlobalSettingsViewModel();
-        GlobalPresets = new GlobalPresetsViewModel(ApplyGlobalPreset);
+        GlobalControls = new GlobalControlsViewModel(ApplyGlobalPreset);
         
         this.PropertyChanged += (s, e) => {
             if (e.PropertyName == nameof(SelectedXField))
@@ -428,7 +426,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             {
                 var text = prop.Value.ToObject<string>();
                 // Используем значение из ViewModel
-                prop.Value = new JValue(Utils.ReplaceWildcards(text, GlobalSettings.WildcardSeed));
+                prop.Value = new JValue(Utils.ReplaceWildcards(text, GlobalControls.WildcardSeed));
             }
         }
     }
@@ -492,9 +490,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
 
-        if (_hasWildcardFields && !GlobalSettings.IsSeedLocked)
+        if (_hasWildcardFields && !GlobalControls.IsSeedLocked)
         {
-            var newSeed = GlobalSettings.WildcardSeed;
+            var newSeed = GlobalControls.WildcardSeed;
             switch (SelectedSeedControl)
             {
                 case SeedControl.Increment: newSeed++; break;
@@ -502,7 +500,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 case SeedControl.Randomize: newSeed = Utils.GenerateSeed(); break;
             }
             // Обновляем UI через свойство ViewModel
-            GlobalSettings.WildcardSeed = newSeed;
+            GlobalControls.WildcardSeed = newSeed;
         }
     }
 
@@ -512,7 +510,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         _hasWildcardFields = _workflow.Groups.SelectMany(g => g.Fields)
             .Any(f => f.Type == FieldType.WildcardSupportPrompt);
-        GlobalSettings.IsVisible = _hasWildcardFields;
+        GlobalControls.IsSeedSectionVisible = _hasWildcardFields;
         
         var groupVmLookup = new Dictionary<Guid, WorkflowGroupViewModel>();
         var comboBoxLoadTasks = new List<Task>();
@@ -822,7 +820,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     /// </summary>
     public void DiscoverGlobalPresets()
     {
-        GlobalPresets.GlobalPresetNames.Clear();
+        GlobalControls.GlobalPresetNames.Clear();
 
         if (_workflow.Presets == null) return;
 
@@ -835,7 +833,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         foreach (var name in sharedPresetNames)
         {
-            GlobalPresets.GlobalPresetNames.Add(name);
+            GlobalControls.GlobalPresetNames.Add(name);
         }
     }
 
@@ -848,12 +846,12 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         // Get all groups that can participate in global presets.
         var participatingGroups = TabLayoouts.SelectMany(t => t.Groups)
-            .Where(g => g.Presets.Any(p => GlobalPresets.GlobalPresetNames.Contains(p.Name)))
+            .Where(g => g.Presets.Any(p => GlobalControls.GlobalPresetNames.Contains(p.Name)))
             .ToList();
 
         if (!participatingGroups.Any())
         {
-            GlobalPresets.SetSelectedPresetSilently(null);
+            GlobalControls.SetSelectedPresetSilently(null);
             return;
         }
 
@@ -861,9 +859,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
         var firstPresetName = participatingGroups.First().SelectedPreset?.Name;
 
         // If the first group has no preset selected, there's no common selection.
-        if (firstPresetName == null || !GlobalPresets.GlobalPresetNames.Contains(firstPresetName))
+        if (firstPresetName == null || !GlobalControls.GlobalPresetNames.Contains(firstPresetName))
         {
-            GlobalPresets.SetSelectedPresetSilently(null);
+            GlobalControls.SetSelectedPresetSilently(null);
             return;
         }
 
@@ -872,7 +870,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             .All(g => g.SelectedPreset?.Name == firstPresetName);
 
         // If all match, update the global selection. Otherwise, clear it.
-        GlobalPresets.SetSelectedPresetSilently(allMatch ? firstPresetName : null);
+        GlobalControls.SetSelectedPresetSilently(allMatch ? firstPresetName : null);
     }
     
     /// <summary>
@@ -1096,9 +1094,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
         TabLayoouts.Clear();
 
         _hasWildcardFields = false;
-        if (GlobalSettings != null)
+        if (GlobalControls != null)
         {
-            GlobalSettings.IsVisible = false;
+            // english: Update the visibility on the new combined ViewModel.
+            GlobalControls.IsSeedSectionVisible = false;
         }
     }
 }

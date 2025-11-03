@@ -16,6 +16,76 @@ using SixLabors.ImageSharp.Formats.Jpeg;
 
 namespace Comfizen
 {
+    /// <summary>
+    /// A ViewModel for the combined global controls section, managing both wildcard seed and global presets.
+    /// </summary>
+    [AddINotifyPropertyChangedInterface]
+    public class GlobalControlsViewModel : INotifyPropertyChanged
+    {
+        public string Header { get; set; } = LocalizationService.Instance["GlobalSettings_Header"];
+        public bool IsExpanded { get; set; } = true;
+        
+        // english: Combined visibility logic
+        public bool IsSeedSectionVisible { get; set; } = false;
+        public bool IsPresetsSectionVisible => GlobalPresetNames.Any();
+        public bool IsVisible => IsSeedSectionVisible || IsPresetsSectionVisible;
+
+        // english: From former GlobalSettingsViewModel
+        public long WildcardSeed { get; set; } = Utils.GenerateSeed();
+        public bool IsSeedLocked { get; set; } = false;
+        
+        // english: From former GlobalPresetsViewModel
+        public ObservableCollection<string> GlobalPresetNames { get; } = new();
+        private readonly Action<string> _applyPresetAction;
+        private string _selectedGlobalPreset;
+        private bool _isInternalSet = false;
+
+        public string SelectedGlobalPreset
+        {
+            get => _selectedGlobalPreset;
+            set
+            {
+                if (_selectedGlobalPreset == value) return;
+                
+                _selectedGlobalPreset = value;
+                OnPropertyChanged(nameof(SelectedGlobalPreset));
+
+                if (!_isInternalSet && value != null)
+                {
+                    _applyPresetAction?.Invoke(value);
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+            // english: Add cascading notifications for the main visibility property
+            if (name == nameof(IsSeedSectionVisible) || name == nameof(IsPresetsSectionVisible))
+            {
+                OnPropertyChanged(nameof(IsVisible));
+            }
+        }
+        
+        public GlobalControlsViewModel(Action<string> applyPresetAction)
+        {
+            _applyPresetAction = applyPresetAction;
+            GlobalPresetNames.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsPresetsSectionVisible));
+        }
+        
+        /// <summary>
+        /// Sets the selected preset without triggering the application action.
+        /// Used for syncing the UI from the model state.
+        /// </summary>
+        public void SetSelectedPresetSilently(string presetName)
+        {
+            _isInternalSet = true;
+            SelectedGlobalPreset = presetName;
+            _isInternalSet = false;
+        }
+    }
+
     [AddINotifyPropertyChangedInterface]
     public class GroupPresetViewModel
     {
@@ -62,19 +132,6 @@ namespace Comfizen
                 maskEditingEnabled: MaskField != null
             );
         }
-    }
-    
-    [AddINotifyPropertyChangedInterface]
-    public class GlobalSettingsViewModel : INotifyPropertyChanged
-    {
-        public string Header { get; set; } = LocalizationService.Instance["GlobalSettings_Header"];
-        public bool IsExpanded { get; set; } = true;
-        public bool IsVisible { get; set; } = false;
-
-        public long WildcardSeed { get; set; } = Utils.GenerateSeed();
-        public bool IsSeedLocked { get; set; } = false;
-        
-        public event PropertyChangedEventHandler PropertyChanged;
     }
     
     // --- ViewModel для группы ---

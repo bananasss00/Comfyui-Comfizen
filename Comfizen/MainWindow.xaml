@@ -280,65 +280,64 @@
                 </Grid.ColumnDefinitions>
                 
                 <Border Grid.Column="0" Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,0,5" Margin="5,0,0,5">
-                    <ScrollViewer x:Name="ControlsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                   <ScrollViewer x:Name="ControlsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                   Visibility="{Binding SelectedTab, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"
                                   PreviewMouseWheel="ControlsScrollViewer_PreviewMouseWheel"
                                   Button.Click="WorkflowField_ButtonClick">
                         <StackPanel>
                             <StackPanel.Resources>
-                                <DataTemplate DataType="{x:Type local:GlobalSettingsViewModel}">
+                                <DataTemplate DataType="{x:Type local:GlobalControlsViewModel}">
                                     <Expander Header="{Binding Header}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" BorderBrush="Orange" Margin="5">
-                                        <Grid Margin="5">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,10,0" VerticalAlignment="Center">
-                                                <TextBlock Text="{local:Translate Tab_WildcardSeed}"/>
-                                                <TextBlock Text="💡" VerticalAlignment="Center" Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" />
-                                            </StackPanel>
-                                            <Grid Grid.Column="1">
-                                                <TextBox Text="{Binding WildcardSeed, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="5,5,28,5" />
-                                                <ToggleButton IsChecked="{Binding IsSeedLocked, Mode=TwoWay}" Style="{StaticResource LockToggleButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <StackPanel Margin="5">
+                                            <!-- Seed Controls -->
+                                            <Grid Visibility="{Binding IsSeedSectionVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{local:Translate Tab_WildcardSeed}"/>
+                                                    <TextBlock Text="💡" VerticalAlignment="Center" Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                </StackPanel>
+                                                <Grid Grid.Column="1">
+                                                    <TextBox Text="{Binding WildcardSeed, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="5,5,28,5" />
+                                                    <ToggleButton IsChecked="{Binding IsSeedLocked, Mode=TwoWay}" Style="{StaticResource LockToggleButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                </Grid>
                                             </Grid>
-                                        </Grid>
-                                    </Expander>
-                                </DataTemplate>
-                                <DataTemplate DataType="{x:Type local:GlobalPresetsViewModel}">
-                                    <Expander Header="{Binding Header}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" BorderBrush="#4CAF50" Margin="5">
-                                        <Grid Margin="5">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{local:Translate GlobalPresets_Label}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                            <local:FilterableComboBox Grid.Column="1"
-                                                                      ItemsSource="{Binding GlobalPresetNames}"
-                                                                      SelectedItem="{Binding SelectedGlobalPreset, Mode=TwoWay}"
-                                                                      PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
-                                                <local:FilterableComboBox.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Text="{Binding}" Padding="2"/>
-                                                    </DataTemplate>
-                                                </local:FilterableComboBox.ItemTemplate>
-                                                <local:FilterableComboBox.Style>
-                                                    <Style TargetType="local:FilterableComboBox">
-                                                        <Setter Property="IsEnabled" Value="True"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding GlobalPresetNames.Count}" Value="0">
-                                                                <Setter Property="IsEnabled" Value="False"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </local:FilterableComboBox.Style>
-                                            </local:FilterableComboBox>
-                                        </Grid>
+                                            <!-- Preset Controls -->
+                                            <Grid Visibility="{Binding IsPresetsSectionVisible, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,5,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{local:Translate GlobalPresets_Label}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                <local:FilterableComboBox Grid.Column="1"
+                                                                          ItemsSource="{Binding GlobalPresetNames}"
+                                                                          SelectedItem="{Binding SelectedGlobalPreset, Mode=TwoWay}"
+                                                                          PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
+                                                    <local:FilterableComboBox.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding}" Padding="2"/>
+                                                        </DataTemplate>
+                                                    </local:FilterableComboBox.ItemTemplate>
+                                                    <local:FilterableComboBox.Style>
+                                                        <Style TargetType="local:FilterableComboBox">
+                                                            <Setter Property="IsEnabled" Value="True"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding GlobalPresetNames.Count}" Value="0">
+                                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </local:FilterableComboBox.Style>
+                                                </local:FilterableComboBox>
+                                            </Grid>
+                                        </StackPanel>
                                     </Expander>
                                 </DataTemplate>
                             </StackPanel.Resources>
                             
-                            <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalSettings}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalSettings.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                            <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalPresets}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalPresets.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalControls}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalControls.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             
                             <TabControl x:Name="WorkflowTabsControl" 
                                         ItemsSource="{Binding SelectedTab.WorkflowInputsController.TabLayoouts}" 
