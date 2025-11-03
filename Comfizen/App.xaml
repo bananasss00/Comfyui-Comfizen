@@ -923,7 +923,37 @@
         </DataTemplate>
         
         <DataTemplate x:Key="InpaintTemplate" DataType="{x:Type local:InpaintFieldViewModel}">
-            <ContentControl Content="{Binding Editor}" Margin="0,5"/>
+            <!-- 
+                This ContentControl acts as the host for the InpaintEditor.
+                We use a Style with a DataTrigger to correctly handle re-parenting the control
+                between the main window and the undocked window.
+            -->
+            <ContentControl Margin="0,5">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl">
+                        <!-- 
+                            DEFAULT STATE: The Content is bound to the Editor property.
+                            When the group is docked, this setter is active, and the InpaintEditor is shown here.
+                        -->
+                        <Setter Property="Content" Value="{Binding Editor}" />
+                        <Style.Triggers>
+                            <!-- 
+                                UNDOCKED STATE: This trigger activates when the parent Expander's DataContext (the WorkflowGroupViewModel)
+                                has its IsUndocked property set to True.
+                            -->
+                            <DataTrigger Binding="{Binding Path=DataContext.IsUndocked, RelativeSource={RelativeSource AncestorType=Expander}}" Value="True">
+                                <!-- 
+                                    CRITICAL STEP: We set the Content to null. This forces WPF to DETACH the InpaintEditor
+                                    control from the main window's visual tree. This makes it "free" to be adopted 
+                                    by the new floating window without errors. When IsUndocked becomes false again,
+                                    the default Setter re-applies, re-attaching the control.
+                                -->
+                                <Setter Property="Content" Value="{x:Null}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+            </ContentControl>
         </DataTemplate>
 
         <DataTemplate x:Key="MarkdownTemplate" DataType="{x:Type local:MarkdownFieldViewModel}">
