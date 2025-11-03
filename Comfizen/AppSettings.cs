@@ -116,6 +116,20 @@ namespace Comfizen
         /// <returns>The loaded AppSettings object.</returns>
         private AppSettings LoadSettings()
         {
+            var sliderDefaults = new List<string>()
+            {
+                "KSampler::cfg=1.0 15.0 0.5 2",
+                "cfg=1.0 15.0 0.5 2",
+                "denoise=0 1 0.05 2",
+                "steps=4 50 1",
+                "width=512 4096 128",
+                "height=512 4096 128",
+                "strength_model=0 1 0.05 2",
+                "weight=0 1 0.05 2",
+                "start_at=0 1 0.05 2",
+                "end_at=0 1 0.05 2",
+            };
+            
             if (!File.Exists(SettingsFilePath))
             {
                 var initialLanguage = InitialLanguage();
@@ -145,7 +159,7 @@ namespace Comfizen
                     ServerAddress = "127.0.0.1:8188",
                     SpecialModelValues = new List<string> { "None" },
                     Language = initialLanguage,
-                    SliderDefaults = new List<string>(),
+                    SliderDefaults = sliderDefaults,
                     MainWindowHeight = 768,
                     MainWindowWidth = 1366,
                     MainWindowState = WindowState.Normal,
@@ -183,7 +197,7 @@ namespace Comfizen
             if (string.IsNullOrEmpty(settings.ServerAddress)) { settings.ServerAddress = "127.0.0.1:8188"; needsResave = true; }
             if (string.IsNullOrEmpty(settings.Language)) { settings.Language = InitialLanguage(); needsResave = true; }
             if (settings.GalleryThumbnailSize == 0.0) { settings.GalleryThumbnailSize = 128.0; needsResave = true; }
-            if (settings.SliderDefaults == null) { settings.SliderDefaults = new List<string>() {"KSampler::cfg=1.0 15.0 0.5 2"}; needsResave = true; }
+            if (settings.SliderDefaults == null) { settings.SliderDefaults = sliderDefaults; needsResave = true; }
             if (settings.MainWindowHeight <= 0) { settings.MainWindowHeight = 768; needsResave = true; }
             if (settings.MainWindowWidth <= 0) { settings.MainWindowWidth = 1366; needsResave = true; }
             if (settings.DesignerWindowHeight <= 0) { settings.DesignerWindowHeight = 700; needsResave = true; }
