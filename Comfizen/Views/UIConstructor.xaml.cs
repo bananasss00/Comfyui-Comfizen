@@ -1009,6 +1009,14 @@ namespace Comfizen
             {
                 newField.Type = FieldType.Seed;
             }
+            else if (rawFieldName.Equals("sampler_name", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Sampler;
+            }
+            else if (rawFieldName.Equals("scheduler", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Scheduler;
+            }
             
             newField.PropertyChanged += OnFieldPropertyChanged;
             if (targetIndex < 0 || targetIndex >= group.Fields.Count) group.Fields.Add(newField);
