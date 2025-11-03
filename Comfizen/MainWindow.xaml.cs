@@ -33,6 +33,7 @@ namespace Comfizen
             InitializeComponent();
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
+            this.StateChanged += MainWindow_StateChanged;
             
             if (DataContext is MainViewModel { ConsoleLogMessages: INotifyCollectionChanged collection } vm2)
             {
@@ -563,11 +564,11 @@ namespace Comfizen
                 }
                 else
                 {
-                    // Save selected item from the gallery if not in fullscreen
-                    if (lvOutputs.SelectedItem is ImageOutput selectedImage)
+                    // Save selected items from the gallery if not in fullscreen
+                    if (lvOutputs.SelectedItems.Count > 0)
                     {
                         var command = viewModel.ImageProcessing.SaveSelectedImagesCommand;
-                        var parameter = new List<ImageOutput> { selectedImage };
+                        var parameter = lvOutputs.SelectedItems; // Pass all selected items
                         if (command.CanExecute(parameter))
                         {
                             // The command is async, so we just execute it (fire-and-forget)
@@ -597,6 +598,19 @@ namespace Comfizen
             }
 
             base.OnKeyDown(e);
+        }
+        
+        private void MainWindow_StateChanged(object sender, EventArgs e)
+        {
+            // English: Handles minimizing and restoring undocked windows along with the main window.
+            if (DataContext is MainViewModel viewModel)
+            {
+                var state = this.WindowState == WindowState.Minimized ? WindowState.Minimized : WindowState.Normal;
+                foreach (var window in viewModel.UndockedWindows.Values)
+                {
+                    window.WindowState = state;
+                }
+            }
         }
         
         private void OnGroupNavigationRequested(WorkflowGroupViewModel groupVm)

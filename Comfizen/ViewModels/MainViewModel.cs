@@ -61,6 +61,7 @@ namespace Comfizen
         private ConsoleLogService _consoleLogService;
         
         public AppSettings Settings => _settings;
+        public Dictionary<WorkflowGroupViewModel, Window> UndockedWindows => _undockedWindows;
 
         /// <summary>
         /// Provides access to the ConsoleLogService instance for external configuration.
@@ -1643,8 +1644,8 @@ namespace Comfizen
                     Title = groupVm.Name,
                     DataContext = groupVm, // The ViewModel for the window
                     Content = groupVm,     // The content to be templated
-                    Owner = Application.Current.MainWindow,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    // Owner = Application.Current.MainWindow, // Remove this line to decouple the windows
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen, // Change from CenterOwner to CenterScreen
                     Topmost = true,
                     Width = 400,
                     SizeToContent = SizeToContent.Height,
