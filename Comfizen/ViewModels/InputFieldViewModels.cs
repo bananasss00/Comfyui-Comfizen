@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -10,6 +11,8 @@ using System.Windows.Input;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
 
 namespace Comfizen
 {
@@ -583,6 +586,25 @@ namespace Comfizen
         public void UpdateWithImageData(byte[] imageBytes)
         {
             if (imageBytes == null) return;
+            
+            var settings = SettingsService.Instance.Settings;
+            if (settings.CompressAnyFieldImagesToJpg)
+            {
+                try
+                {
+                    using var image = Image.Load(imageBytes);
+                    using var ms = new MemoryStream();
+                    var encoder = new JpegEncoder { Quality = settings.AnyFieldJpgCompressionQuality };
+                    image.SaveAsJpeg(ms, encoder);
+                    imageBytes = ms.ToArray();
+                }
+                catch (Exception ex)
+                {
+                    // If conversion fails, log it and proceed with the original bytes
+                    Logger.Log(ex, "Failed to compress image to JPG for 'Any' field. Using original format.");
+                }
+            }
+            
             var base64String = Convert.ToBase64String(imageBytes);
             Property.Value = new JValue(base64String);
             OnPropertyChanged(nameof(Value));

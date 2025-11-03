@@ -171,6 +171,8 @@
   "Settings_PngCompressionTooltip": "0 - без сжатия, 9 - максимальное сжатие.",
   "Settings_WebpQuality": "Качество WebP (1-100):",
   "Settings_JpgQuality": "Качество JPG (1-100):",
+  "Settings_CompressAnyFieldImages": "Сжимать вставляемые/перетаскиваемые изображения в JPG",
+  "Settings_CompressAnyFieldImagesTooltip": "Если включено, изображения, добавляемые в поля типа 'Any', будут конвертированы в JPG для уменьшения размера перед отправкой в API.",
   "Settings_Queue": "Очередь",
   "Settings_MaxQueueSize": "Максимальный размер очереди:",
   "Settings_Interface": "Интерфейс",

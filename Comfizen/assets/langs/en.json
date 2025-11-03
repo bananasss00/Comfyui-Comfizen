@@ -172,6 +172,8 @@
   "Settings_PngCompressionTooltip": "0 - no compression, 9 - maximum compression.",
   "Settings_WebpQuality": "WebP Quality (1-100):",
   "Settings_JpgQuality": "JPG Quality (1-100):",
+  "Settings_CompressAnyFieldImages": "Compress pasted/dropped images to JPG",
+  "Settings_CompressAnyFieldImagesTooltip": "When enabled, images added to 'Any' type fields will be converted to JPG to reduce size before being sent to the API.",
   "Settings_Queue": "Queue",
   "Settings_MaxQueueSize": "Maximum queue size:",
   "Settings_Interface": "Interface",

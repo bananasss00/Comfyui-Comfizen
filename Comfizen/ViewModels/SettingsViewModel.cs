@@ -46,6 +46,8 @@ namespace Comfizen
         public int PngCompressionLevel { get; set; }
         public int WebpQuality { get; set; }
         public int JpgQuality { get; set; }
+        public bool CompressAnyFieldImagesToJpg { get; set; }
+        public int AnyFieldJpgCompressionQuality { get; set; }
         public IEnumerable<ImageSaveFormat> ImageSaveFormatValues => System.Enum.GetValues(typeof(ImageSaveFormat)).Cast<ImageSaveFormat>();
         public int MaxRecentWorkflows { get; set; }
         public int MaxQueueSize { get; set; }
@@ -101,6 +103,8 @@ namespace Comfizen
             PngCompressionLevel = _settings.PngCompressionLevel;
             WebpQuality = _settings.WebpQuality;
             JpgQuality = _settings.JpgQuality;
+            CompressAnyFieldImagesToJpg = _settings.CompressAnyFieldImagesToJpg;
+            AnyFieldJpgCompressionQuality = _settings.AnyFieldJpgCompressionQuality;
             MaxQueueSize = _settings.MaxQueueSize;
             MaxRecentWorkflows = _settings.MaxRecentWorkflows;
             ShowDeleteConfirmation = _settings.ShowDeleteConfirmation;
@@ -201,6 +205,8 @@ namespace Comfizen
                     _settings.PngCompressionLevel = PngCompressionLevel;
                     _settings.WebpQuality = WebpQuality;
                     _settings.JpgQuality = JpgQuality;
+                    _settings.CompressAnyFieldImagesToJpg = CompressAnyFieldImagesToJpg;
+                    _settings.AnyFieldJpgCompressionQuality = AnyFieldJpgCompressionQuality;
                     _settings.MaxQueueSize = MaxQueueSize;
                     _settings.MaxRecentWorkflows = MaxRecentWorkflows;
                     _settings.ShowDeleteConfirmation = ShowDeleteConfirmation;

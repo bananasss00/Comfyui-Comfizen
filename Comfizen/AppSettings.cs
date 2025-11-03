@@ -52,6 +52,16 @@ namespace Comfizen
         public List<string> SpecialModelValues { get; set; } = new List<string>();
         
         /// <summary>
+        /// Gets or sets a value indicating whether images pasted or dropped into 'Any' type fields should be compressed to JPG.
+        /// </summary>
+        public bool CompressAnyFieldImagesToJpg { get; set; } = false;
+
+        /// <summary>
+        /// Gets or sets the quality for JPG compression of images in 'Any' type fields.
+        /// </summary>
+        public int AnyFieldJpgCompressionQuality { get; set; } = 95;
+        
+        /// <summary>
         /// Gets or sets the selected language code (e.g., "en").
         /// </summary>
         public string Language { get; set; }
@@ -160,6 +170,8 @@ namespace Comfizen
                     SpecialModelValues = new List<string> { "None" },
                     Language = initialLanguage,
                     SliderDefaults = sliderDefaults,
+                    CompressAnyFieldImagesToJpg = false,
+                    AnyFieldJpgCompressionQuality = 95,
                     MainWindowHeight = 768,
                     MainWindowWidth = 1366,
                     MainWindowState = WindowState.Normal,
@@ -206,6 +218,8 @@ namespace Comfizen
             if (settings.MainWindowTop <= 0) { settings.MainWindowTop = 100; needsResave = true; }
             if (settings.DesignerWindowLeft <= 0) { settings.DesignerWindowLeft = 150; needsResave = true; }
             if (settings.DesignerWindowTop <= 0) { settings.DesignerWindowTop = 150; needsResave = true; }
+            if (!jsonRead.Contains("\"CompressAnyFieldImagesToJpg\"")) { settings.CompressAnyFieldImagesToJpg = false; needsResave = true; }
+            if (!jsonRead.Contains("\"AnyFieldJpgCompressionQuality\"")) { settings.AnyFieldJpgCompressionQuality = 95; needsResave = true; }
 
             if (needsResave)
             {
