@@ -268,6 +268,7 @@ namespace Comfizen
             ImageProcessing.GalleryThumbnailSize = _settings.GalleryThumbnailSize;
             IsConsoleVisible = _settings.IsConsoleVisible;
             FullScreen = new FullScreenViewModel(this, _comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
+            FullScreen.PropertyChanged += FullScreen_PropertyChanged;
             SliderCompare = new SliderCompareViewModel();
             
             MaxQueueSize = _settings.MaxQueueSize;
@@ -1877,5 +1878,25 @@ namespace Comfizen
             }
         }
         // --- END OF CHANGE ---
+        
+        private void FullScreen_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(FullScreenViewModel.IsFullScreenOpen))
+            {
+                // When fullscreen is toggled, hide or show all undocked windows to prevent them from overlapping.
+                bool isFullScreen = FullScreen.IsFullScreenOpen;
+                foreach (var window in _undockedWindows.Values)
+                {
+                    if (isFullScreen)
+                    {
+                        window.Hide();
+                    }
+                    else
+                    {
+                        window.Show();
+                    }
+                }
+            }
+        }
     }
 }
