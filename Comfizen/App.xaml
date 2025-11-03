@@ -253,7 +253,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Window">
-                        <Border BorderBrush="{StaticResource PrimaryAccentBrush}" BorderThickness="1" Background="{TemplateBinding Background}">
+                        <Border BorderBrush="{StaticResource PrimaryAccentBrush}" BorderThickness="1" Background="{TemplateBinding Background}" CornerRadius="3">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <!-- Reduced height for a more compact title bar -->
@@ -267,7 +267,7 @@
                                     </Border.Background>
                                 </Border>
 
-                                <Border x:Name="TitleBar" Grid.Row="0" Background="{StaticResource SecondaryBackground}">
+                                <Border x:Name="TitleBar" Grid.Row="0" Background="{StaticResource SecondaryBackground}" CornerRadius="3,3,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
