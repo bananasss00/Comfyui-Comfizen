@@ -804,6 +804,29 @@ namespace Comfizen
             }
         }
         
+        private void ExpanderHeader_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // This handler prevents the expander from toggling when the user clicks away
+            // from an open preset ComboBox popup that is located within the header.
+            if (sender is not ToggleButton headerToggleButton) return;
+            
+            // Find the FilterableComboBox within the header's content.
+            var childComboBox = FindVisualChild<FilterableComboBox>(headerToggleButton);
+            if (childComboBox != null)
+            {
+                // Find the popup within the combobox's template.
+                var popup = childComboBox.FindName("ItemPopup") as System.Windows.Controls.Primitives.Popup;
+                
+                // If the popup is open, this click's primary purpose is to close it.
+                // We handle the event to prevent the ToggleButton from processing the click
+                // and changing the expander's state.
+                if (popup != null && popup.IsOpen)
+                {
+                    e.Handled = true;
+                }
+            }
+        }
+        
         /// <summary>
         /// Handles smart scrolling for the main controls area.
         /// It allows the parent ScrollViewer to scroll when a child control (like a TextBox or InpaintEditor)
