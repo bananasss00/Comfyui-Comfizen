@@ -107,7 +107,7 @@ namespace Comfizen
         /// For Markdown fields, specifies the maximum number of lines to display before a scrollbar appears.
         /// </summary>
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
-        public int? MaxDisplayLines { get; set; } = 10;
+        public int? MaxDisplayLines { get; set; } = 0;
         
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public ObservableCollection<string> BypassNodeIds { get; set; } = new ObservableCollection<string>();
