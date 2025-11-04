@@ -28,6 +28,10 @@ namespace Comfizen
         private bool _isUserInteractingWithSlider = false;
         private DispatcherTimer _positionUpdateTimer;
         
+        private bool _isConsoleScrolling;
+        private Point _consoleScrollStartPoint;
+        private double _consoleScrollStartOffset;
+        
         public MainWindow()
         {
             InitializeComponent();
@@ -53,6 +57,52 @@ namespace Comfizen
             string report = tester.RunAllTests();
             Debug.WriteLine(report);
 #endif
+        }
+        
+        // Handles the start of a drag-to-scroll action on the console panel.
+        private void Console_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // If the user clicks directly on text, they probably want to select it, so we do nothing.
+            if (e.OriginalSource is TextBlock)
+            {
+                return;
+            }
+    
+            // Ignore clicks on scrollbar parts to allow normal scrollbar interaction.
+            if (e.OriginalSource is System.Windows.Controls.Primitives.Thumb || e.OriginalSource is System.Windows.Controls.Primitives.RepeatButton)
+            {
+                return;
+            }
+
+            // If the click is on the background, initiate the scroll drag.
+            _isConsoleScrolling = true;
+            _consoleScrollStartPoint = e.GetPosition(ConsoleScrollViewer);
+            _consoleScrollStartOffset = ConsoleScrollViewer.VerticalOffset;
+            ConsoleContentGrid.CaptureMouse();
+            ConsoleContentGrid.Cursor = Cursors.ScrollNS;
+            e.Handled = true;
+        }
+
+        // Handles the mouse movement during a drag-to-scroll action to update the scroll position.
+        private void Console_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isConsoleScrolling && e.LeftButton == MouseButtonState.Pressed)
+            {
+                Point currentPoint = e.GetPosition(ConsoleScrollViewer);
+                Vector delta = currentPoint - _consoleScrollStartPoint;
+                ConsoleScrollViewer.ScrollToVerticalOffset(_consoleScrollStartOffset - delta.Y);
+            }
+        }
+
+        // Handles the end of a drag-to-scroll action, releasing mouse capture and resetting the cursor.
+        private void Console_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isConsoleScrolling)
+            {
+                _isConsoleScrolling = false;
+                ConsoleContentGrid.ReleaseMouseCapture();
+                ConsoleContentGrid.Cursor = null;
+            }
         }
         
         private void PresetPopup_Opened(object sender, EventArgs e)

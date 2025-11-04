@@ -1039,7 +1039,11 @@
                         </StackPanel>
                     </Grid>
                 </Border>
-                <Grid>
+                    
+                <Grid x:Name="ConsoleContentGrid"
+                      PreviewMouseLeftButtonDown="Console_PreviewMouseLeftButtonDown"
+                      PreviewMouseMove="Console_PreviewMouseMove"
+                      PreviewMouseLeftButtonUp="Console_PreviewMouseLeftButtonUp">
                     <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Padding="15" Margin="10"
                             HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Border.Style>
