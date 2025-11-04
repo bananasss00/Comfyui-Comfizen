@@ -239,11 +239,90 @@ namespace Comfizen
             }
         }
         
+        // The parent window, used to listen for clicks outside the control.
+        private Window _parentWindow;
+        
         // Этот обработчик устанавливает фокус на поле поиска, когда Popup открывается
         private void ItemPopup_Opened(object sender, EventArgs e)
         {
             FilterTextBox.Focus();
             ItemListBox.SelectedIndex = -1;
+
+            // Find the parent window of this control.
+            _parentWindow = Window.GetWindow(this);
+            if (_parentWindow != null)
+            {
+                // Add a temporary event handler to the window's preview mouse down event.
+                // The 'true' argument means we will receive the event even if another control handles it first.
+                _parentWindow.AddHandler(PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(Window_PreviewMouseLeftButtonDown), true);
+            }
+        }
+
+        // This handler is called when the popup is fully closed.
+        private void ItemPopup_Closed(object sender, EventArgs e)
+        {
+            // If we have previously subscribed to the parent window's events, unsubscribe now.
+            // This is crucial to prevent memory leaks and unwanted behavior.
+            if (_parentWindow != null)
+            {
+                _parentWindow.RemoveHandler(PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(Window_PreviewMouseLeftButtonDown));
+                _parentWindow = null; // Clear the reference.
+            }
+        }
+        
+        // This is the temporary event handler that listens for all clicks on the window
+        // while our popup is open.
+        private void Window_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // If the popup is not open, we shouldn't be here. Unsubscribe and exit.
+            if (!ItemPopup.IsOpen)
+            {
+                ItemPopup_Closed(null, null); // Defensive cleanup
+                return;
+            }
+
+            // Check if the click originated from within this control or its popup.
+            // e.OriginalSource is the element that was directly clicked.
+            var source = e.OriginalSource as DependencyObject;
+
+            // 1. Check if the click was inside the main FilterableComboBox control itself.
+            var current = source;
+            while (current != null)
+            {
+                if (current == this)
+                {
+                    // The click was inside our control (e.g., the textbox). Let it be.
+                    return;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            // 2. Check if the click was inside the popup's content.
+            // This is a separate check because the popup lives in its own visual tree.
+            current = source;
+            while (current != null)
+            {
+                if (current == ItemPopup.Child)
+                {
+                    // The click was inside the popup (e.g., on a button in the list). Let it be.
+                    return;
+                }
+                // For popups, we can't just traverse the parent. This check is more direct.
+                if (current is FrameworkElement fe && fe.DataContext == ItemPopup.Child)
+                {
+                    return;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
+    
+            // If we reach this point, the click was OUTSIDE both the control and its popup.
+    
+            // Close the popup.
+            ItemPopup.IsOpen = false;
+    
+            // CRITICAL: Mark the event as handled. This stops the click event from propagating
+            // any further, preventing the underlying Expander from receiving it and toggling.
+            e.Handled = true;
         }
         
         /// <summary>

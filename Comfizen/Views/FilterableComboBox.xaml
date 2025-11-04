@@ -100,6 +100,7 @@
                PlacementTarget="{Binding ElementName=DropDownToggle}"
                StaysOpen="False"
                Opened="ItemPopup_Opened"
+               Closed="ItemPopup_Closed"  
                Placement="Bottom" 
                AllowsTransparency="True">
             
