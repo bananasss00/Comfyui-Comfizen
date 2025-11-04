@@ -36,6 +36,8 @@ namespace Comfizen
         
         public event PropertyChangedEventHandler PropertyChanged;
 
+        public bool IsMediaReady { get; set; }
+        
         public SliderCompareViewModel()
         {
             CloseCommand = new RelayCommand(_ => IsViewOpen = false);
@@ -47,7 +49,7 @@ namespace Comfizen
             ChangeImageRightCommand = new RelayCommand(_ => ChangeImage(img => ImageRight = img));
 
             // --- ADDED: Initialize video command ---
-            PlayPauseCommand = new RelayCommand(_ => IsPlaying = !IsPlaying, _ => AreBothVideos);
+            PlayPauseCommand = new RelayCommand(_ => IsPlaying = !IsPlaying, _ => AreBothVideos && IsMediaReady);
         }
 
         /// <summary>
@@ -95,6 +97,7 @@ namespace Comfizen
             IsPlaying = false;
             CurrentPositionSeconds = 0;
             MaxDurationSeconds = 0;
+            IsMediaReady = false;
         }
         
         /// <summary>

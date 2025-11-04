@@ -41,7 +41,7 @@
 
     </UserControl.Resources>
     
-    <Grid Background="#D8000000">
+    <Grid x:Name="RootGrid" Background="#D8000000" Focusable="True" PreviewKeyDown="RootGrid_PreviewKeyDown">
         <!-- Main container with margins -->
         <Grid Margin="60">
 

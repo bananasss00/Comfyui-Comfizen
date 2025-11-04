@@ -48,7 +48,14 @@ namespace Comfizen
         private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if (_viewModel == null) return;
-
+            
+            // When the view opens, set focus to the root grid to capture keyboard events.
+            if (e.PropertyName == nameof(SliderCompareViewModel.IsViewOpen) && _viewModel.IsViewOpen)
+            {
+                // Use BeginInvoke to ensure focus is set after the UI has been rendered.
+                Dispatcher.BeginInvoke(new Action(() => RootGrid.Focus()), DispatcherPriority.Input);
+            }
+            
             switch (e.PropertyName)
             {
                 case nameof(SliderCompareViewModel.IsPlaying):
@@ -99,7 +106,13 @@ namespace Comfizen
             var durationLeft = MediaElementLeft.NaturalDuration.HasTimeSpan ? MediaElementLeft.NaturalDuration.TimeSpan.TotalSeconds : 0;
             var durationRight = MediaElementRight.NaturalDuration.HasTimeSpan ? MediaElementRight.NaturalDuration.TimeSpan.TotalSeconds : 0;
             _viewModel.MaxDurationSeconds = Math.Max(durationLeft, durationRight);
-
+            
+            // Check if both media elements are ready before enabling playback controls.
+            if (MediaElementLeft.NaturalDuration.HasTimeSpan && MediaElementRight.NaturalDuration.HasTimeSpan)
+            {
+                _viewModel.IsMediaReady = true;
+            }
+            
             // Sync initial position
             var initialPosition = TimeSpan.FromSeconds(_viewModel.CurrentPositionSeconds);
             MediaElementLeft.Position = initialPosition;
@@ -229,6 +242,23 @@ namespace Comfizen
             // 6. Mark the event as handled to stop it from bubbling up to the MainWindow.
             //    This is crucial to prevent the main window from trying to import the dropped file.
             e.Handled = true;
+        }
+        
+        // english: Handles key presses on the root grid to control video playback.
+        private void RootGrid_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (_viewModel == null) return;
+    
+            // english: If the spacebar is pressed, execute the PlayPause command, but only if it's allowed.
+            if (e.Key == Key.Space)
+            {
+                if (_viewModel.PlayPauseCommand.CanExecute(null))
+                {
+                    _viewModel.PlayPauseCommand.Execute(null);
+                }
+                // english: Mark the event as handled to prevent any default behavior (like clicking a focused button).
+                e.Handled = true;
+            }
         }
     }
 
