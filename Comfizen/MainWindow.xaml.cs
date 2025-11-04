@@ -527,6 +527,33 @@ namespace Comfizen
         private void PositionSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _isUserInteractingWithSlider = true;
+    
+            if (sender is not Slider slider) return;
+    
+            // english: If the user clicked directly on the draggable thumb, 
+            // english: let the default behavior and the Thumb.DragStarted event handle it.
+            if (e.OriginalSource is Thumb)
+            {
+                return;
+            }
+    
+            // english: For clicks on the track, capture the mouse and update the value.
+            slider.CaptureMouse();
+            Point position = e.GetPosition(slider);
+            double newValue = (position.X / slider.ActualWidth) * slider.Maximum;
+            slider.Value = Math.Max(0, Math.Min(slider.Maximum, newValue));
+            e.Handled = true;
+        }
+
+// english: Handles mouse movement when scrubbing to update the slider's position.
+        private void PositionSlider_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isUserInteractingWithSlider && sender is Slider slider && slider.IsMouseCaptured)
+            {
+                Point position = e.GetPosition(slider);
+                double newValue = (position.X / slider.ActualWidth) * slider.Maximum;
+                slider.Value = Math.Max(0, Math.Min(slider.Maximum, newValue));
+            }
         }
 
         private void PositionSlider_DragStarted(object sender, DragStartedEventArgs e)
@@ -541,7 +568,10 @@ namespace Comfizen
 
         private void PositionSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            FullScreenMediaElement.Position = TimeSpan.FromSeconds(PositionSlider.Value);
+            if (sender is Slider slider && slider.IsMouseCaptured)
+            {
+                slider.ReleaseMouseCapture();
+            }
             _isUserInteractingWithSlider = false;
         }
 

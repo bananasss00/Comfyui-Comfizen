@@ -1267,8 +1267,8 @@
                             
                             <Slider x:Name="PositionSlider" Grid.Column="1" VerticalAlignment="Center"
                                     Style="{StaticResource VideoSliderStyle}"
-                                    IsMoveToPointEnabled="True"
                                     ValueChanged="PositionSlider_ValueChanged"
+                                    MouseMove="PositionSlider_MouseMove"
                                     PreviewMouseLeftButtonUp="PositionSlider_PreviewMouseLeftButtonUp"
                                     Thumb.DragStarted="PositionSlider_DragStarted"
                                     Thumb.DragCompleted="PositionSlider_DragCompleted"/>

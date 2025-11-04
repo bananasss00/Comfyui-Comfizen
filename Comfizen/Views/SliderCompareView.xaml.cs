@@ -14,7 +14,7 @@ namespace Comfizen
     {
         private SliderCompareViewModel _viewModel;
         private readonly DispatcherTimer _timer;
-        private bool _isDraggingSlider = false;
+        private bool _isScrubbingPositionSlider = false;
 
         public SliderCompareView()
         {
@@ -75,7 +75,7 @@ namespace Comfizen
                 case nameof(SliderCompareViewModel.CurrentPositionSeconds):
                     // Update position only if the user is NOT currently dragging the slider.
                     // This prevents the timer from fighting with user input.
-                    if (!_isDraggingSlider)
+                    if (!_isScrubbingPositionSlider)
                     {
                         var newPosition = TimeSpan.FromSeconds(_viewModel.CurrentPositionSeconds);
                         MediaElementLeft.Position = newPosition;
@@ -141,7 +141,7 @@ namespace Comfizen
 
         private void Timer_Tick(object sender, EventArgs e)
         {
-            if (_viewModel != null && !_isDraggingSlider && MediaElementLeft.NaturalDuration.HasTimeSpan)
+            if (_viewModel != null && !_isScrubbingPositionSlider && MediaElementLeft.NaturalDuration.HasTimeSpan)
             {
                 // Check to prevent updating position past the max duration, which can happen just before looping
                 if (MediaElementLeft.Position.TotalSeconds < _viewModel.MaxDurationSeconds)
@@ -158,16 +158,58 @@ namespace Comfizen
             {
                 _viewModel.IsPlaying = false;
             }
+
+            if (sender is not Slider slider) return;
+
+            // If the user clicked directly on the draggable thumb, 
+            // let the default behavior and the Thumb.DragStarted event handle it.
+            if (e.OriginalSource is Thumb)
+            {
+                return;
+            }
+
+            // For clicks on the track:
+            // 1. Set the scrubbing flag.
+            _isScrubbingPositionSlider = true;
+            // 2. Capture the mouse immediately. This is the crucial change to allow dragging.
+            slider.CaptureMouse();
+            // 3. Now, calculate and set the new value.
+            Point position = e.GetPosition(slider);
+            double newValue = (position.X / slider.ActualWidth) * slider.Maximum;
+            slider.Value = Math.Max(0, Math.Min(slider.Maximum, newValue));
+
+            e.Handled = true;
+        }
+        
+        // Handles mouse movement when scrubbing to update the slider's position.
+        private void PositionSlider_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isScrubbingPositionSlider && sender is Slider slider && slider.IsMouseCaptured)
+            {
+                Point position = e.GetPosition(slider);
+                double newValue = (position.X / slider.ActualWidth) * slider.Maximum;
+                slider.Value = Math.Max(0, Math.Min(slider.Maximum, newValue));
+            }
         }
 
+        // Releases mouse capture when the user finishes scrubbing.
+        private void PositionSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isScrubbingPositionSlider && sender is Slider slider)
+            {
+                _isScrubbingPositionSlider = false;
+                slider.ReleaseMouseCapture();
+            }
+        }
+        
         private void PositionSlider_DragStarted(object sender, DragStartedEventArgs e)
         {
-            _isDraggingSlider = true;
+            _isScrubbingPositionSlider = true;
         }
-
+        
         private void PositionSlider_DragCompleted(object sender, DragCompletedEventArgs e)
         {
-            _isDraggingSlider = false;
+            _isScrubbingPositionSlider = false;
         }
 
         private void PositionSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
