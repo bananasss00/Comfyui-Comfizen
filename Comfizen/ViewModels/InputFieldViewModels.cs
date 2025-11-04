@@ -350,33 +350,75 @@ namespace Comfizen
             _isApplyingPreset = true; // Set flag at the beginning
             try
             {
+                var changedFields = new List<InputFieldViewModel>();
+
                 foreach (var valuePair in presetVM.Model.Values)
                 {
                     var fieldPath = valuePair.Key;
                     var presetValue = valuePair.Value;
-    
+
                     // Find the ViewModel corresponding to the path from the preset
                     var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
                     if (fieldVM == null) continue;
-    
+
+                    bool valueChanged = false;
                     if (fieldVM is MarkdownFieldViewModel markdownVm)
                     {
-                        markdownVm.Value = presetValue.ToString();
+                        if (markdownVm.Value != presetValue.ToString())
+                        {
+                            markdownVm.Value = presetValue.ToString();
+                            valueChanged = true;
+                        }
                     }
                     else
                     {
                         var prop = _workflow.GetPropertyByPath(fieldPath);
-                        if (prop != null)
+                        if (prop != null && !Utils.AreJTokensEquivalent(prop.Value, presetValue))
                         {
                             prop.Value = presetValue.DeepClone();
                             (fieldVM as dynamic)?.RefreshValue();
+                            valueChanged = true;
                         }
                     }
+
+                    if (valueChanged)
+                    {
+                        changedFields.Add(fieldVM);
+                    }
+                }
+
+                // english: Trigger highlight effect if any fields were changed. This is a fire-and-forget async void method,
+                // which is acceptable here for a purely visual effect that doesn't need to be awaited.
+                if (changedFields.Any())
+                {
+                    TriggerHighlightEffect(changedFields);
                 }
             }
             finally
             {
                 _isApplyingPreset = false; // Unset flag at the end
+            }
+        }
+        
+        /// <summary>
+        /// Asynchronously applies a temporary highlight effect to a list of fields on the UI thread.
+        /// </summary>
+        /// <param name="fields">The list of InputFieldViewModel to highlight.</param>
+        private async void TriggerHighlightEffect(List<InputFieldViewModel> fields)
+        {
+            // english: Set IsHighlighted to true on the UI thread to trigger the animation.
+            foreach (var field in fields)
+            {
+                field.IsHighlighted = true;
+            }
+
+            // english: Wait for the animation to complete. This does not block the UI thread.
+            await Task.Delay(1500);
+
+            // english: Set IsHighlighted back to false to reset the trigger state.
+            foreach (var field in fields)
+            {
+                field.IsHighlighted = false;
             }
         }
 
@@ -527,6 +569,11 @@ namespace Comfizen
         public JProperty? Property { get; } 
         
         public WorkflowField FieldModel { get; }
+        
+        // This is a transient UI property and is not saved.
+        // It is used to trigger a highlight animation when a preset changes the field's value.
+        [JsonIgnore]
+        public bool IsHighlighted { get; set; }
         
         /// <summary>
         /// The highlight color for the field in HEX format.

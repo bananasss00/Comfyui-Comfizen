@@ -516,13 +516,82 @@
                                                                         </TextBlock>
                                                                     </StackPanel>
                                                                     <ContentPresenter Grid.Column="2" Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" VerticalAlignment="Top" />
+
+                                                                    <!-- english: This border is now last, so it will be drawn on top of the other elements. -->
+                                                                    <Border x:Name="HighlightOverlay"
+                                                                            Grid.Column="0" Grid.ColumnSpan="3"
+                                                                            Background="{StaticResource PrimaryAccentBrush}"
+                                                                            Opacity="0"
+                                                                            CornerRadius="3"
+                                                                            IsHitTestVisible="False"/>
                                                                 </Grid>
+                                                                <!-- english: Trigger for the highlight animation. -->
+                                                                <ControlTemplate.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                                                        <DataTrigger.EnterActions>
+                                                                            <BeginStoryboard>
+                                                                                <Storyboard>
+                                                                                    <DoubleAnimation Storyboard.TargetName="HighlightOverlay"
+                                                                                                     Storyboard.TargetProperty="Opacity"
+                                                                                                     From="0" To="0.3" Duration="0:0:0.2"
+                                                                                                     AutoReverse="True" RepeatBehavior="2x" />
+                                                                                </Storyboard>
+                                                                            </BeginStoryboard>
+                                                                        </DataTrigger.EnterActions>
+                                                                    </DataTrigger>
+                                                                </ControlTemplate.Triggers>
                                                             </ControlTemplate>
                                                             <ControlTemplate x:Key="InpaintLayoutTemplate" TargetType="ContentControl">
-                                                                <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
+                                                                <Grid>
+                                                                    <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
+                                                                    <!-- english: This border is now last, so it will be drawn on top of the other elements. -->
+                                                                    <Border x:Name="HighlightOverlay"
+                                                                            Background="{StaticResource PrimaryAccentBrush}"
+                                                                            Opacity="0"
+                                                                            CornerRadius="3"
+                                                                            IsHitTestVisible="False"/>
+                                                                </Grid>
+                                                                <!-- english: Trigger for the highlight animation. -->
+                                                                <ControlTemplate.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                                                        <DataTrigger.EnterActions>
+                                                                            <BeginStoryboard>
+                                                                                <Storyboard>
+                                                                                    <DoubleAnimation Storyboard.TargetName="HighlightOverlay"
+                                                                                                     Storyboard.TargetProperty="Opacity"
+                                                                                                     From="0" To="0.3" Duration="0:0:0.2"
+                                                                                                     AutoReverse="True" RepeatBehavior="2x" />
+                                                                                </Storyboard>
+                                                                            </BeginStoryboard>
+                                                                        </DataTrigger.EnterActions>
+                                                                    </DataTrigger>
+                                                                </ControlTemplate.Triggers>
                                                             </ControlTemplate>
                                                             <ControlTemplate x:Key="FullWidthLayoutTemplate" TargetType="ContentControl">
-                                                                 <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" Margin="0,4" />
+                                                                    <Grid>
+                                                                    <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" Margin="0,4" />
+                                                                    <!-- english: This border is now last, so it will be drawn on top of the other elements. -->
+                                                                    <Border x:Name="HighlightOverlay"
+                                                                            Background="{StaticResource PrimaryAccentBrush}"
+                                                                            Opacity="0"
+                                                                            CornerRadius="3"
+                                                                            IsHitTestVisible="False"/>
+                                                                </Grid>
+                                                                <!-- english: Trigger for the highlight animation. -->
+                                                                <ControlTemplate.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                                                        <DataTrigger.EnterActions>
+                                                                            <BeginStoryboard>
+                                                                                <Storyboard>
+                                                                                    <DoubleAnimation Storyboard.TargetName="HighlightOverlay"
+                                                                                                     Storyboard.TargetProperty="Opacity"
+                                                                                                     From="0" To="0.3" Duration="0:0:0.2"
+                                                                                                     AutoReverse="True" RepeatBehavior="2x" />
+                                                                                </Storyboard>
+                                                                            </BeginStoryboard>
+                                                                        </DataTrigger.EnterActions>
+                                                                    </DataTrigger>
+                                                                </ControlTemplate.Triggers>
                                                             </ControlTemplate>
                                                         </DataTemplate.Resources>
                                                         <ContentControl Content="{Binding}">
