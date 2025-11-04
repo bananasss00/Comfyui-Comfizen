@@ -34,6 +34,23 @@ namespace Comfizen
         public bool ShowSaveConfirmation { get; set; }
         public string SaveConfirmationText { get; set; }
         
+        private bool _isPlaying;
+        // Gets or sets a value indicating whether the video is currently playing.
+        public bool IsPlaying
+        {
+            get => _isPlaying;
+            set
+            {
+                if (_isPlaying != value)
+                {
+                    _isPlaying = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsPlaying)));
+                }
+            }
+        }
+        
+        public ICommand PlayPauseCommand { get; }
+        
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public FullScreenViewModel(MainViewModel mainViewModel, ComfyuiModel comfyuiModel, AppSettings settings, ObservableCollection<ImageOutput> galleryItems)
@@ -49,11 +66,16 @@ namespace Comfizen
                 {
                     IsFullScreenOpen = true;
                     CurrentFullScreenImage = selectedImage;
+                    IsPlaying = selectedImage.Type == FileType.Video; // Auto-play videos on open
                     UpdateIndexAndCount();
                 }
             });
 
-            CloseFullScreenCommand = new RelayCommand(x => IsFullScreenOpen = false);
+            CloseFullScreenCommand = new RelayCommand(x =>
+            {
+                IsPlaying = false; // Stop playback
+                IsFullScreenOpen = false;
+            });
 
             SaveCurrentImageCommand = new AsyncRelayCommand(async x =>
             {
@@ -70,8 +92,6 @@ namespace Comfizen
                     promptToSave = CurrentFullScreenImage.Prompt;
                 }
                 
-                // START OF CHANGE: Use FileName as a fallback for FilePath.
-                // This handles client-generated images like XY Grids that don't have a server file path.
                 string fileIdentifier = CurrentFullScreenImage.FilePath ?? CurrentFullScreenImage.FileName;
 
                 if (CurrentFullScreenImage.Type == FileType.Video)
@@ -93,7 +113,6 @@ namespace Comfizen
                         _settings
                     );
                 }
-                // END OF CHANGE
                 
                 CurrentFullScreenImage.IsSaved = true;
                 SaveConfirmationText = LocalizationService.Instance["Fullscreen_Saved"]; 
@@ -109,6 +128,7 @@ namespace Comfizen
                     if (currentIndex + 1 < _currentGalleryItems.Count)
                     {
                         CurrentFullScreenImage = _currentGalleryItems[currentIndex + 1];
+                        IsPlaying = CurrentFullScreenImage.Type == FileType.Video; // Auto-play on navigate
                         UpdateIndexAndCount();
                     }
                 }
@@ -122,10 +142,18 @@ namespace Comfizen
                     if (currentIndex - 1 >= 0)
                     {
                         CurrentFullScreenImage = _currentGalleryItems[currentIndex - 1];
+                        IsPlaying = CurrentFullScreenImage.Type == FileType.Video; // Auto-play on navigate
                         UpdateIndexAndCount();
                     }
                 }
             }, x => CurrentFullScreenImage != null && _currentGalleryItems.IndexOf(CurrentFullScreenImage) > 0);
+            
+            PlayPauseCommand = new RelayCommand(TogglePlayPause, x => CurrentFullScreenImage?.Type == FileType.Video);
+        }
+        
+        private void TogglePlayPause(object o)
+        {
+            IsPlaying = !IsPlaying;
         }
         
         private void UpdateIndexAndCount()

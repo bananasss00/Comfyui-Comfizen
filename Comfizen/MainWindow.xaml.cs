@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -124,6 +125,8 @@ namespace Comfizen
         {
             if (DataContext is MainViewModel vm)
             {
+                vm.FullScreen.PropertyChanged += FullScreen_PropertyChanged;
+                
                 var settings = vm.Settings;
 
                 // Сначала восстанавливаем размер и позицию для "нормального" режима
@@ -148,6 +151,26 @@ namespace Comfizen
                     {
                         this.WindowState = WindowState.Maximized;
                     }), DispatcherPriority.Loaded);
+                }
+            }
+        }
+        
+        private void FullScreen_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(FullScreenViewModel.IsPlaying))
+            {
+                if (DataContext is MainViewModel { FullScreen: { IsFullScreenOpen: true, CurrentFullScreenImage.Type: FileType.Video } } vm)
+                {
+                    if (vm.FullScreen.IsPlaying)
+                    {
+                        FullScreenMediaElement.Play();
+                        _positionUpdateTimer.Start();
+                    }
+                    else
+                    {
+                        FullScreenMediaElement.Pause();
+                        _positionUpdateTimer.Stop();
+                    }
                 }
             }
         }
@@ -486,13 +509,15 @@ namespace Comfizen
             {
                 var vm = DataContext as MainViewModel;
                 RequestUpdatePlayerSource(vm?.FullScreen.CurrentFullScreenImage);
+                // Ensure focus for keyboard events, just like in SliderCompareView
+                Dispatcher.BeginInvoke(new Action(() => FullScreenViewer.Focus()), DispatcherPriority.Input);
             }
             else 
             {
                 RequestUpdatePlayerSource(null);
             }
         }
-        
+    
         private void FullScreenMediaElement_MediaOpened(object sender, RoutedEventArgs e)
         {
             if (FullScreenMediaElement.DataContext is ImageOutput io)
@@ -505,7 +530,11 @@ namespace Comfizen
                 var totalDuration = FullScreenMediaElement.NaturalDuration.TimeSpan;
                 DurationTextBlock.Text = FormatTimeSpan(totalDuration);
                 PositionSlider.Maximum = totalDuration.TotalSeconds;
-                _positionUpdateTimer?.Start();
+            
+                if (DataContext is MainViewModel vm && vm.FullScreen.IsPlaying)
+                {
+                    _positionUpdateTimer?.Start();
+                }
             }
             else
             {
@@ -526,18 +555,20 @@ namespace Comfizen
         
         private void PositionSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (DataContext is MainViewModel vm && vm.FullScreen.IsPlaying)
+            {
+                vm.FullScreen.IsPlaying = false;
+            }
+        
             _isUserInteractingWithSlider = true;
     
             if (sender is not Slider slider) return;
-    
-            // english: If the user clicked directly on the draggable thumb, 
-            // english: let the default behavior and the Thumb.DragStarted event handle it.
+        
             if (e.OriginalSource is Thumb)
             {
                 return;
             }
-    
-            // english: For clicks on the track, capture the mouse and update the value.
+        
             slider.CaptureMouse();
             Point position = e.GetPosition(slider);
             double newValue = (position.X / slider.ActualWidth) * slider.Maximum;
@@ -558,6 +589,10 @@ namespace Comfizen
 
         private void PositionSlider_DragStarted(object sender, DragStartedEventArgs e)
         {
+            if (DataContext is MainViewModel vm && vm.FullScreen.IsPlaying)
+            {
+                vm.FullScreen.IsPlaying = false;
+            }
             _isUserInteractingWithSlider = true;
         }
 
@@ -579,9 +614,23 @@ namespace Comfizen
         {
             var newPosition = TimeSpan.FromSeconds(e.NewValue);
             CurrentTimeTextBlock.Text = FormatTimeSpan(newPosition);
-            if (_isUserInteractingWithSlider)
+
+            // This check ensures we only apply the frame-update logic while the user is dragging.
+            if (!_isUserInteractingWithSlider) return;
+
+            FullScreenMediaElement.Position = newPosition;
+
+            // The definitive fix for live scrubbing on pause.
+            if (DataContext is MainViewModel { FullScreen.IsPlaying: false })
             {
-                FullScreenMediaElement.Position = newPosition;
+                // Start playing from the new position to load the frame
+                FullScreenMediaElement.Play();
+
+                // Immediately schedule a pause operation. It will execute after the frame is rendered.
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    FullScreenMediaElement.Pause();
+                }), DispatcherPriority.Input);
             }
         }
 
@@ -621,11 +670,26 @@ namespace Comfizen
                 FullScreenMediaElement.Stretch = Stretch.Uniform;
             }
         }
+        
+        private void FullScreenViewer_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (DataContext is not MainViewModel viewModel) return;
+    
+            if (e.Key == Key.Space)
+            {
+                if (viewModel.FullScreen.PlayPauseCommand.CanExecute(null))
+                {
+                    viewModel.FullScreen.PlayPauseCommand.Execute(null);
+                }
+                // Mark the event as handled to prevent any default behavior.
+                e.Handled = true;
+            }
+        }
 
         private async void MainWindow_OnKeyDown(object sender, KeyEventArgs e)
         {
             if (DataContext is not MainViewModel viewModel) return;
-            
+
             if (e.Key == Key.G && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 viewModel.OpenGroupNavigationCommand.Execute(null);
