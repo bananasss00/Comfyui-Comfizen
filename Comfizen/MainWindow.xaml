@@ -368,8 +368,11 @@
                                                             </Style>
                                                         </ContentControl.Style>
                                                         
-                                                    <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5">
-                                            <Expander.Template>
+                                                    <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="5">
+                                                        <Expander.Header>
+                                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" />
+                                                        </Expander.Header>
+                                                        <Expander.Template>
                                                 <ControlTemplate TargetType="Expander">
                                                     <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Background="Transparent">
                                                         <DockPanel>

@@ -280,8 +280,8 @@
                                             </Border.Background>
                                         </Border>
                                         
-                                        <TextBlock Grid.Column="0" Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" Margin="8,0"/>
-
+                                        <TextBlock Grid.Column="0" Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" Margin="8,0" FontWeight="Bold"/>
+                                        
                                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                                             <!-- The preset controls will be inserted here -->
                                             <ContentPresenter Content="{Binding DataContext, RelativeSource={RelativeSource TemplatedParent}}" 
