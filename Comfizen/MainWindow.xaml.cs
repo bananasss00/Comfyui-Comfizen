@@ -419,6 +419,11 @@ namespace Comfizen
         {
             if (DataContext is MainViewModel viewModel)
             {
+                foreach (var window in viewModel.UndockedWindows.Values.ToList())
+                {
+                    window.Close();
+                }
+
                 if (WindowState == WindowState.Maximized)
                 {
                     viewModel.Settings.MainWindowState = WindowState.Maximized;

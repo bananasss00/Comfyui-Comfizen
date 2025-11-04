@@ -409,15 +409,16 @@
                                                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                                                                                         Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
                                                                                         
+                                                                                        <ContentPresenter Content="{Binding}"
+                                                                                            ContentTemplate="{StaticResource GroupHeaderPresetControls}"
+                                                                                            VerticalAlignment="Center"/>
+                                                                                        
                                                                                         <Button Content="&#xE8A7;" FontFamily="Segoe MDL2 Assets" 
                                                                                             Style="{StaticResource IconButton}" Width="24" Height="24"
                                                                                             Command="{Binding DataContext.ToggleUndockGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                                             CommandParameter="{Binding}"
-                                                                                            ToolTip="Undock Group"/>
-                                                                                        
-                                                                                        <ContentPresenter Content="{Binding}"
-                                                                                            ContentTemplate="{StaticResource GroupHeaderPresetControls}"
-                                                                                            VerticalAlignment="Center"/>
+                                                                                            ToolTip="Undock Group"
+                                                                                            Margin="5,0,0,0"/>
 
                                                                                     </StackPanel>
                                                                                 </Grid>
