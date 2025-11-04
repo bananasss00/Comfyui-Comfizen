@@ -260,6 +260,56 @@ namespace Comfizen
                 e.Handled = true;
             }
         }
+        
+        // Handles the mouse click on the slider track to move the thumb directly to that point.
+        private void Slider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // english: If the user clicked directly on the draggable thumb, let the default behavior handle it.
+            if (e.OriginalSource is Thumb)
+            {
+                return;
+            }
+
+            if (DataContext is not SliderCompareViewModel vm || sender is not Slider slider)
+            {
+                return;
+            }
+
+            // english: Calculate the new position based on the click location.
+            Point position = e.GetPosition(slider);
+            double newValue = (position.X / slider.ActualWidth) * 100;
+            vm.SliderPosition = Math.Max(0, Math.Min(100, newValue));
+
+            // english: Capture the mouse to handle dragging along the track.
+            slider.CaptureMouse();
+            e.Handled = true;
+        }
+
+        // Handles mouse movement while the button is pressed to allow dragging anywhere on the track.
+        private void Slider_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (DataContext is not SliderCompareViewModel vm || sender is not Slider slider)
+            {
+                return;
+            }
+
+            // english: If we have captured the mouse and the left button is down, update the slider position.
+            if (slider.IsMouseCaptured && e.LeftButton == MouseButtonState.Pressed)
+            {
+                Point position = e.GetPosition(slider);
+                double newValue = (position.X / slider.ActualWidth) * 100;
+                vm.SliderPosition = Math.Max(0, Math.Min(100, newValue));
+            }
+        }
+
+        // Releases the mouse capture when the user releases the mouse button.
+        private void Slider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Slider slider && slider.IsMouseCaptured)
+            {
+                slider.ReleaseMouseCapture();
+            }
+        }
     }
 
     // Converters to get Width/Height from a "WidthxHeight" resolution string

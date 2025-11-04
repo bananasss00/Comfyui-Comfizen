@@ -131,7 +131,10 @@
                             Value="{Binding SliderPosition, Mode=TwoWay}"
                             Foreground="{StaticResource PrimaryAccentBrush}"
                             Background="Transparent"
-                            VerticalAlignment="Stretch">
+                            VerticalAlignment="Stretch"
+                            PreviewMouseLeftButtonDown="Slider_PreviewMouseLeftButtonDown"
+                            PreviewMouseLeftButtonUp="Slider_PreviewMouseLeftButtonUp"
+                            MouseMove="Slider_MouseMove">
                         <Slider.Template>
                             <ControlTemplate TargetType="Slider">
                                 <Grid Background="Transparent">
