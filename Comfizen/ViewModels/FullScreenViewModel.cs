@@ -15,6 +15,7 @@ namespace Comfizen
     public class FullScreenViewModel : INotifyPropertyChanged
     {
         private readonly MainViewModel _mainViewModel;
+        private readonly ImageProcessingViewModel _imageProcessing;
         private readonly ComfyuiModel _comfyuiModel;
         private readonly AppSettings _settings;
         
@@ -25,7 +26,23 @@ namespace Comfizen
         
         public bool IsFullScreenOpen { get; set; }
         
-        public ImageOutput CurrentFullScreenImage { get; set; }
+        private ImageOutput _currentFullScreenImage;
+        public ImageOutput CurrentFullScreenImage
+        {
+            get => _currentFullScreenImage;
+            set
+            {
+                if (_currentFullScreenImage == value) return;
+                _currentFullScreenImage = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentFullScreenImage)));
+
+                // Sync selection back to the main gallery
+                if (_imageProcessing != null)
+                {
+                    _imageProcessing.SelectedGalleryImage = value;
+                }
+            }
+        }
         public int CurrentImageIndex { get; set; }
         public int TotalImages { get; set; }
         public ICommand MoveNextCommand { get; set; }
@@ -53,9 +70,10 @@ namespace Comfizen
         
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        public FullScreenViewModel(MainViewModel mainViewModel, ComfyuiModel comfyuiModel, AppSettings settings, ObservableCollection<ImageOutput> galleryItems)
+        public FullScreenViewModel(MainViewModel mainViewModel, ImageProcessingViewModel imageProcessing, ComfyuiModel comfyuiModel, AppSettings settings, ObservableCollection<ImageOutput> galleryItems)
         {
             _mainViewModel = mainViewModel;
+            _imageProcessing = imageProcessing;
             _comfyuiModel = comfyuiModel;
             _settings = settings;
             

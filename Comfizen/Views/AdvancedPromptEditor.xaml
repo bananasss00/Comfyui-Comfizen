@@ -33,10 +33,17 @@
                      Padding="5,5,28,5"
                      LostFocus="PromptTextBox_LostFocus"/>
 
-            <Button Content="..." Style="{StaticResource OverlayIconButton}"
-                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
-                    ToolTip="{local:Translate Wildcard_Browse}"
-                    Click="WildcardButton_Click"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0">
+                <Button Content="&#xE7A7;" Style="{StaticResource IconFontOverlayButton}"
+                        Command="ApplicationCommands.Undo" CommandTarget="{Binding ElementName=PromptTextBox}"
+                        ToolTip="{local:Translate Toolbar_Undo}"/>
+                <Button Content="&#xE7A6;" Style="{StaticResource IconFontOverlayButton}"
+                        Command="ApplicationCommands.Redo" CommandTarget="{Binding ElementName=PromptTextBox}"
+                        ToolTip="{local:Translate Toolbar_Redo}"/>
+                <Button Content="..." Style="{StaticResource OverlayIconButton}"
+                        ToolTip="{local:Translate Wildcard_Browse}"
+                        Click="WildcardButton_Click"/>
+            </StackPanel>
         </Grid>
         
         <!-- The area where token buttons will be displayed -->

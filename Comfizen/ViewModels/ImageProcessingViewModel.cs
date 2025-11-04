@@ -36,6 +36,7 @@ namespace Comfizen
         public double SimilarityThreshold { get; set; } = 95.0;
         public bool IsSimilaritySortActive => SelectedSortOption == SortOption.Similarity;
         
+        public ImageOutput SelectedGalleryImage { get; set; }
         public double GalleryThumbnailSize { get; set; } = 128.0;
             
         public int SelectedItemsCount { get; set; }

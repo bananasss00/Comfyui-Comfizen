@@ -63,14 +63,14 @@ namespace Comfizen
         // Handles the start of a drag-to-scroll action on the console panel.
         private void Console_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // If the user clicks directly on text, they probably want to select it, so we do nothing.
-            if (e.OriginalSource is TextBlock)
+            // If the click originated from within the scrollbar, let it handle the event.
+            if (e.OriginalSource is DependencyObject depObj && depObj.TryFindParent<ScrollBar>() != null)
             {
                 return;
             }
     
-            // Ignore clicks on scrollbar parts to allow normal scrollbar interaction.
-            if (e.OriginalSource is System.Windows.Controls.Primitives.Thumb || e.OriginalSource is System.Windows.Controls.Primitives.RepeatButton)
+            // If the user clicks directly on text, they probably want to select it, so we also do nothing.
+            if (e.OriginalSource is TextBlock)
             {
                 return;
             }
@@ -126,6 +126,7 @@ namespace Comfizen
             if (DataContext is MainViewModel vm)
             {
                 vm.FullScreen.PropertyChanged += FullScreen_PropertyChanged;
+                vm.ImageProcessing.PropertyChanged += ImageProcessing_PropertyChanged;
                 
                 var settings = vm.Settings;
 
@@ -151,6 +152,29 @@ namespace Comfizen
                     {
                         this.WindowState = WindowState.Maximized;
                     }), DispatcherPriority.Loaded);
+                }
+            }
+        }
+        
+        private void ImageProcessing_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ImageProcessingViewModel.SelectedGalleryImage))
+            {
+                if (DataContext is MainViewModel vm && sender is ImageProcessingViewModel ipVm && ipVm.SelectedGalleryImage != null && vm.FullScreen.IsFullScreenOpen)
+                {
+                    // Use dispatcher to ensure UI is ready
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (lvOutputs.ItemContainerGenerator.ContainerFromItem(ipVm.SelectedGalleryImage) is ListViewItem item)
+                        {
+                            item.BringIntoView();
+                        }
+                        // If the container is not generated yet (virtualized), we can scroll to the item.
+                        else
+                        {
+                            lvOutputs.ScrollIntoView(ipVm.SelectedGalleryImage);
+                        }
+                    }), DispatcherPriority.ApplicationIdle);
                 }
             }
         }

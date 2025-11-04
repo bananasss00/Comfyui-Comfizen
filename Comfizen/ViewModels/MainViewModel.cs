@@ -254,6 +254,11 @@ namespace Comfizen
         public ICommand ToggleUndockGroupCommand { get; }
         // ADD: Dictionary to keep track of floating windows
         private readonly Dictionary<WorkflowGroupViewModel, Window> _undockedWindows = new();
+        private Point _nextUndockPosition = new Point(100, 100);
+        private double _currentRowMaxHeight = 0;
+        private const double WindowSpacing = 10;
+        private const double InitialLeft = 100;
+        private const double InitialTop = 100;
         
         public ICommand OpenHelpCommand { get; }
         
@@ -268,7 +273,7 @@ namespace Comfizen
             ImageProcessing = new ImageProcessingViewModel(_comfyuiModel, _settings);
             ImageProcessing.GalleryThumbnailSize = _settings.GalleryThumbnailSize;
             IsConsoleVisible = _settings.IsConsoleVisible;
-            FullScreen = new FullScreenViewModel(this, _comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
+            FullScreen = new FullScreenViewModel(this, ImageProcessing, _comfyuiModel, _settings, ImageProcessing.FilteredImageOutputs);
             FullScreen.PropertyChanged += FullScreen_PropertyChanged;
             SliderCompare = new SliderCompareViewModel();
             
@@ -1624,6 +1629,16 @@ namespace Comfizen
         }
         
         /// <summary>
+        /// Resets the starting position for the next undocked window.
+        /// Called when all undocked windows are closed.
+        /// </summary>
+        private void ResetUndockPositioning()
+        {
+            _nextUndockPosition = new Point(InitialLeft, InitialTop);
+            _currentRowMaxHeight = 0;
+        }
+        
+        /// <summary>
         /// Handles the logic for undocking a group into a new window or redocking it by closing the existing window.
         /// </summary>
         /// <param name="parameter">The WorkflowGroupViewModel to toggle.</param>
@@ -1639,15 +1654,38 @@ namespace Comfizen
             // Otherwise, create a new floating window for it.
             else
             {
+                // --- START OF REWORKED PLACEMENT LOGIC ---
+                var screenWidth = SystemParameters.WorkArea.Width;
+                var screenHeight = SystemParameters.WorkArea.Height;
+                const double defaultWindowWidth = 400; 
+                const double estimatedWindowHeight = 300; // An estimate since height is dynamic
+
+                // Check if the next window would go off the right edge of the screen
+                if ((_nextUndockPosition.X + defaultWindowWidth) > screenWidth)
+                {
+                    // Line break: Move to the next row
+                    _nextUndockPosition.X = InitialLeft;
+                    _nextUndockPosition.Y += _currentRowMaxHeight + WindowSpacing;
+                    _currentRowMaxHeight = 0; // Reset max height for the new row
+                }
+
+                // Check if the new row would go off the bottom of the screen
+                if ((_nextUndockPosition.Y + estimatedWindowHeight) > screenHeight)
+                {
+                    // We've run out of non-overlapping space. Reset to the top-left to start cascading/overlapping.
+                    ResetUndockPositioning();
+                }
+                
                 var floatingWindow = new Window
                 {
                     Title = groupVm.Name,
                     DataContext = groupVm, // The ViewModel for the window
                     Content = groupVm,     // The content to be templated
-                    // Owner = Application.Current.MainWindow, // Remove this line to decouple the windows
-                    WindowStartupLocation = WindowStartupLocation.CenterScreen, // Change from CenterOwner to CenterScreen
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    Left = _nextUndockPosition.X,
+                    Top = _nextUndockPosition.Y,
                     Topmost = true,
-                    Width = 400,
+                    Width = defaultWindowWidth,
                     SizeToContent = SizeToContent.Height,
                     MaxHeight = SystemParameters.WorkArea.Height * 0.9,
                     MinWidth = 300,
@@ -1658,6 +1696,16 @@ namespace Comfizen
                     ContentTemplate = (DataTemplate)Application.Current.FindResource("UndockedGroupTemplate"),
                     ShowInTaskbar = false
                 };
+                
+                // After the window is shown and rendered, update the placement state
+                floatingWindow.Loaded += (s, e) => {
+                    // Update the max height of the current row
+                    _currentRowMaxHeight = Math.Max(_currentRowMaxHeight, floatingWindow.ActualHeight);
+                    // Update the X position for the next window in the same row
+                    _nextUndockPosition.X += floatingWindow.ActualWidth + WindowSpacing;
+                };
+
+                // --- END OF REWORKED PLACEMENT LOGIC ---
 
                 floatingWindow.Closed += FloatingWindow_Closed;
 
@@ -1667,7 +1715,6 @@ namespace Comfizen
             }
         }
 
-        /// <summary>
         /// Event handler for when a floating group window is closed.
         /// This triggers the re-docking logic.
         /// </summary>
@@ -1685,9 +1732,13 @@ namespace Comfizen
                 _undockedWindows.Remove(groupVm);
             }
     
-            // ADD THIS LINE
+            // If this was the last undocked window, reset the smart placement logic.
+            if (!_undockedWindows.Any())
+            {
+                ResetUndockPositioning();
+            }
+
             // Explicitly activate the main window to restore focus.
-            // This prevents the main window from being minimized when the last Topmost window is closed.
             Application.Current.MainWindow?.Activate();
         }
 
