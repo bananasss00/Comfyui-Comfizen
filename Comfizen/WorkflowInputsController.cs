@@ -773,7 +773,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     private void OnFieldViewModelPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
         // We only care about properties that represent the field's actual value.
-        if (e.PropertyName != "Value" && e.PropertyName != "IsChecked")
+        if (e.PropertyName != "Value" && e.PropertyName != "IsChecked" && e.PropertyName != "IsEnabled")
             return;
     
         // If a preset is currently being applied, do nothing to avoid loops.
@@ -881,6 +881,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         if (string.IsNullOrEmpty(presetName)) return;
         
         _isUpdatingFromGlobalPreset = true; // Set flag to prevent feedback loop
+        _isApplyingPreset = true; // Also set this flag to stop auto-selection during application
 
         try
         {
@@ -890,14 +891,14 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 var presetToApply = groupVm.Presets.FirstOrDefault(p => p.Name == presetName);
                 if (presetToApply != null)
                 {
-                    // This will apply the values and set the group's SelectedPreset
-                    groupVm.SelectedPreset = presetToApply; 
+                    groupVm.ApplyPreset(presetToApply); 
                 }
             }
         }
         finally
         {
             _isUpdatingFromGlobalPreset = false; // Unset the flag
+            _isApplyingPreset = false;
         }
     }
     
@@ -919,12 +920,17 @@ public class WorkflowInputsController : INotifyPropertyChanged
             return;
         }
         
-        // The IsStateMatchingPreset method is designed to correctly ignore Seed fields
-        // and provides a more reliable comparison.
         var matchingPresetVm = groupVm.Presets.FirstOrDefault(presetVm => groupVm.IsStateMatchingPreset(presetVm));
 
-        // Update the SelectedPreset. This will be null if no match was found.
-        groupVm.SelectedPreset = matchingPresetVm;
+        // Only update the property if the found preset is different from the currently selected one.
+        // This avoids triggering the PropertyChanged event unnecessarily, which could lead to loops.
+        if (groupVm.SelectedPreset != matchingPresetVm)
+        {
+            // This is a "silent" update. We set the flag to prevent the preset from being re-applied.
+            _isApplyingPreset = true;
+            groupVm.SelectedPreset = matchingPresetVm;
+            _isApplyingPreset = false;
+        }
     }
 
     private InputFieldViewModel CreateDefaultFieldViewModel(WorkflowField field, JProperty? prop)

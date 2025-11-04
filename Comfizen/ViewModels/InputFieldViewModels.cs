@@ -16,6 +16,14 @@ using SixLabors.ImageSharp.Formats.Jpeg;
 
 namespace Comfizen
 {
+    [AddINotifyPropertyChangedInterface]
+    public class PresetFieldSelectionViewModel
+    {
+        public string Name { get; set; }
+        public string Path { get; set; }
+        public bool IsSelected { get; set; }
+    }
+    
     /// <summary>
     /// A ViewModel for the combined global controls section, managing both wildcard seed and global presets.
     /// </summary>
@@ -176,6 +184,7 @@ namespace Comfizen
         
         public Guid Id => _model.Id;
         public ObservableCollection<GroupPresetViewModel> Presets { get; } = new();
+        public ObservableCollection<PresetFieldSelectionViewModel> FieldsForPresetSelection { get; } = new();
 
         private GroupPresetViewModel _selectedPreset;
         public GroupPresetViewModel SelectedPreset
@@ -218,6 +227,8 @@ namespace Comfizen
         public ICommand DeletePresetCommand { get; }
         public ICommand ApplyPresetCommand { get; }
         public ICommand ApplySelectedPresetCommand { get; }
+        public ICommand SelectAllFieldsForPresetCommand { get; }
+        public ICommand DeselectAllFieldsForPresetCommand { get; }
         
         /// <summary>
         /// This event is raised whenever presets are added or removed, signaling a need to save the workflow.
@@ -240,9 +251,7 @@ namespace Comfizen
             {
                 if (args.PropertyName == nameof(SelectedPreset) && SelectedPreset != null && !_isApplyingPreset)
                 {
-                    _isApplyingPreset = true;
                     ApplyPreset(SelectedPreset);
-                    _isApplyingPreset = false;
                 }
             };
             LoadPresets();
@@ -256,6 +265,21 @@ namespace Comfizen
             {
                 // Pre-fill the textbox with the currently selected name, if any
                 NewPresetName = SelectedPresetName;
+                
+                FieldsForPresetSelection.Clear();
+                var savableFields = Fields
+                    .Where(f => f.Type != FieldType.ScriptButton) // Exclude non-savable fields
+                    .OrderBy(f => f.Name);
+
+                foreach (var field in savableFields)
+                {
+                    FieldsForPresetSelection.Add(new PresetFieldSelectionViewModel
+                    {
+                        Name = field.Name,
+                        Path = field.Path,
+                        IsSelected = true // Select all by default
+                    });
+                }
                 IsSavePresetPopupOpen = true; 
             });
             
@@ -265,6 +289,25 @@ namespace Comfizen
                 {
                     _presetToUpdateName = presetName;
                     NewPresetName = presetName;
+                    
+                    FieldsForPresetSelection.Clear();
+                    var existingPreset = Presets.FirstOrDefault(p => p.Name == presetName)?.Model;
+                    var existingPresetPaths = new HashSet<string>(existingPreset?.Values.Keys ?? Enumerable.Empty<string>());
+
+                    var savableFields = Fields
+                        .Where(f => f.Type != FieldType.ScriptButton)
+                        .OrderBy(f => f.Name);
+
+                    foreach (var field in savableFields)
+                    {
+                        FieldsForPresetSelection.Add(new PresetFieldSelectionViewModel
+                        {
+                            Name = field.Name,
+                            Path = field.Path,
+                            // Select if it's in the existing preset, or if there's no preset (new save)
+                            IsSelected = existingPreset == null || existingPresetPaths.Contains(field.Path)
+                        });
+                    }
                     IsSavePresetPopupOpen = true;
                 }
             });
@@ -283,8 +326,7 @@ namespace Comfizen
                     }
                 }
                 
-                // SaveCurrentStateAsPreset will handle creating a new preset or overwriting an existing one with the NewPresetName.
-                SaveCurrentStateAsPreset(NewPresetName);
+                SaveCurrentStateAsPreset(NewPresetName, FieldsForPresetSelection.Where(f => f.IsSelected));
 
                 // Cleanup and UI refresh
                 _presetToUpdateName = null;
@@ -323,6 +365,17 @@ namespace Comfizen
                     ApplyPreset(presetVM);
                 }
             });
+            
+            SelectAllFieldsForPresetCommand = new RelayCommand(_ => ToggleAllFieldsForPreset(true));
+            DeselectAllFieldsForPresetCommand = new RelayCommand(_ => ToggleAllFieldsForPreset(false));
+        }
+        
+        private void ToggleAllFieldsForPreset(bool isSelected)
+        {
+            foreach (var field in FieldsForPresetSelection)
+            {
+                field.IsSelected = isSelected;
+            }
         }
 
         protected void OnPropertyChanged(string name)
@@ -351,7 +404,12 @@ namespace Comfizen
             try
             {
                 var changedFields = new List<InputFieldViewModel>();
-
+                
+                if (SelectedPreset != presetVM)
+                {
+                    SelectedPreset = presetVM;
+                }
+                
                 foreach (var valuePair in presetVM.Model.Values)
                 {
                     var fieldPath = valuePair.Key;
@@ -422,36 +480,29 @@ namespace Comfizen
             }
         }
 
-        private void SaveCurrentStateAsPreset(string name)
+        private void SaveCurrentStateAsPreset(string name, IEnumerable<PresetFieldSelectionViewModel> selectedFields)
         {
             var newPreset = new GroupPreset { Name = name };
+            var selectedFieldPaths = new HashSet<string>(selectedFields.Select(f => f.Path));
             foreach (var field in Fields)
             {
-                // START OF CHANGE: Updated logic to include Markdown fields in presets
-                
-                // 1. Skip fields that should never be in a preset
-                if (field.Type == FieldType.ScriptButton || field.Type == FieldType.Seed)
+                if (!selectedFieldPaths.Contains(field.Path))
                 {
                     continue;
                 }
-
-                // 2. Handle Markdown fields (which are virtual and have no JProperty)
+                
                 if (field is MarkdownFieldViewModel markdownVm)
                 {
-                    // Save the value directly from the ViewModel into the preset
                     newPreset.Values[field.Path] = new JValue(markdownVm.Value);
                 }
-                // 3. Handle all other standard fields
                 else if (field.Property != null)
                 {
-                    // Save the value from the main JObject
                     var prop = _workflow.GetPropertyByPath(field.Path);
                     if (prop != null)
                     {
                         newPreset.Values[field.Path] = prop.Value.DeepClone();
                     }
                 }
-                // END OF CHANGE
             }
 
             if (!_workflow.Presets.ContainsKey(Id))
@@ -486,12 +537,13 @@ namespace Comfizen
         }
         
         /// <summary>
-        /// Compares the current state of the group's fields against a preset to check for exact match.
-        /// This method explicitly ignores fields of type Seed and ScriptButton, so modifying them
-        /// will not result in a mismatch.
+        /// Compares the current state of the group's fields against a preset to check for a match.
+        /// A preset is considered "matching" if all the values defined *within the preset*
+        /// are identical to the current values of the corresponding fields in the UI.
+        /// UI fields that are not part of the preset are ignored.
         /// </summary>
         /// <param name="presetVM">The preset view model to compare against.</param>
-        /// <returns>True if the current state perfectly matches the preset, otherwise false.</returns>
+        /// <returns>True if the current state matches the preset's defined values, otherwise false.</returns>
         public bool IsStateMatchingPreset(GroupPresetViewModel presetVM)
         {
             if (presetVM == null)
@@ -501,58 +553,50 @@ namespace Comfizen
             
             var presetValues = presetVM.Model.Values;
 
-            // Check if all values in the preset match the current state.
-            foreach (var field in Fields)
-            {
-                // Ignore fields that are not saved in presets
-                if (field.Type == FieldType.Seed || field.Type == FieldType.ScriptButton)
-                {
-                    continue;
-                }
-
-                // If the preset contains a value for this field, compare it.
-                if (presetValues.TryGetValue(field.Path, out var presetValue))
-                {
-                    JToken currentValue;
-                    if (field is MarkdownFieldViewModel markdownVm)
-                    {
-                        currentValue = new JValue(markdownVm.Value);
-                    }
-                    else if (field.Property != null)
-                    {
-                        currentValue = _workflow.GetPropertyByPath(field.Path)?.Value;
-                    }
-                    else
-                    {
-                        continue; // Should not happen for persistable fields.
-                    }
-
-                    // --- START OF FIX: Use the special comparison method ---
-                    // This correctly handles floating-point comparisons with tolerance.
-                    if (currentValue == null || !Utils.AreJTokensEquivalent(currentValue, presetValue))
-                    {
-                        return false; // Mismatch found
-                    }
-                    // --- END OF FIX ---
-                }
-                // If the preset does NOT contain this field, it's a mismatch.
-                else
-                {
-                    return false;
-                }
-            }
-
-            // Final check: ensure the preset doesn't contain extra fields that are no longer in the UI.
-            var uiFieldPaths = new HashSet<string>(Fields
-                .Where(f => f.Type != FieldType.Seed && f.Type != FieldType.ScriptButton)
-                .Select(f => f.Path));
-
-            if (presetValues.Keys.Any(key => !uiFieldPaths.Contains(key)))
+            // If a preset has no values, it can't be matched against.
+            if (!presetValues.Any())
             {
                 return false;
             }
 
-            // If all checks pass, the state matches.
+            // Iterate through only the values defined in the preset.
+            foreach (var valuePair in presetValues)
+            {
+                var fieldPath = valuePair.Key;
+                var presetValue = valuePair.Value;
+
+                // Find the corresponding field in the UI.
+                var fieldVm = Fields.FirstOrDefault(f => f.Path == fieldPath);
+
+                // If the field from the preset doesn't exist in the UI anymore, it's a mismatch.
+                if (fieldVm == null)
+                {
+                    return false;
+                }
+
+                // Get the current value from the UI field.
+                JToken currentValue;
+                if (fieldVm is MarkdownFieldViewModel markdownVm)
+                {
+                    currentValue = new JValue(markdownVm.Value);
+                }
+                else if (fieldVm.Property != null)
+                {
+                    currentValue = _workflow.GetPropertyByPath(fieldPath)?.Value;
+                }
+                else
+                {
+                    continue; // Should not happen for persistable fields.
+                }
+
+                // If the current value doesn't match the preset's value, it's not a match.
+                if (currentValue == null || !Utils.AreJTokensEquivalent(currentValue, presetValue))
+                {
+                    return false; 
+                }
+            }
+
+            // If all values in the preset have been checked and matched, then the state matches.
             return true;
         }
         // --- END OF CHANGES ---
