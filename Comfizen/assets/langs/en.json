@@ -44,6 +44,7 @@
   "Console_FilterComfy": "Comfy",
   "Console_FilterLocal": "Local",
   "Console_FilterPython": "Python",
+  "Console_CopyItem": "Copy",
   "Console_Instructions": "To intercept output from the ComfyUI console, ensure the custom node Comfyui-ConsoleBridgeNode.py is installed in the custom_nodes folder and the server has been restarted.",
   "Fullscreen_Close": "Close",
   "Fullscreen_Previous": "Previous",

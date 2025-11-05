@@ -198,6 +198,7 @@ namespace Comfizen
         public ICommand ToggleConsoleCommand { get; }
         public ICommand ClearConsoleCommand { get; }
         public ICommand CopyConsoleCommand { get; }
+        public ICommand CopyConsoleItemCommand { get; }
         public ICommand HideConsoleCommand { get; }
         public ICommand OpenWildcardBrowserCommand { get; }
         
@@ -295,6 +296,7 @@ namespace Comfizen
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
             ClearConsoleCommand = new RelayCommand(_ => _allConsoleLogMessages.Clear());
             CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => _allConsoleLogMessages.Any());
+            CopyConsoleItemCommand = new RelayCommand(CopyConsoleItem);
             HideConsoleCommand = new RelayCommand(_ => IsConsoleVisible = false);
             
             CloseTabCommand = new RelayCommand(p => CloseTab(p as WorkflowTabViewModel));
@@ -496,6 +498,22 @@ namespace Comfizen
                 }
             
             }, param => param is IList list && list.Count >= 1); // Can execute if 1 or more images are selected.
+        }
+        
+        private void CopyConsoleItem(object item)
+        {
+            if (item is LogMessage logMessage)
+            {
+                var lineText = string.Concat(logMessage.Segments.Select(s => s.Text));
+                try
+                {
+                    Clipboard.SetText(lineText);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, "Failed to copy console item to clipboard");
+                }
+            }
         }
 
         private void EtaUpdateTimer_Tick(object sender, EventArgs e)

@@ -43,6 +43,7 @@
   "Console_FilterComfy": "Comfy",
   "Console_FilterLocal": "Локальные",
   "Console_FilterPython": "Python",
+  "Console_CopyItem": "Копировать",
   "Console_Instructions": "Для перехвата вывода из консоли ComfyUI, убедитесь, что в папку custom_nodes установлен кастомный узел Comfyui-ConsoleBridgeNode.py и сервер был перезапущен.",
   "Fullscreen_Close": "Закрыть",
   "Fullscreen_Previous": "Предыдущее",
