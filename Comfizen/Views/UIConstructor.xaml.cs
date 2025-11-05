@@ -1017,6 +1017,41 @@ namespace Comfizen
             {
                 newField.Type = FieldType.Scheduler;
             }
+            else if (rawFieldName.Equals("ckpt_name", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Model;
+                newField.ModelType = "checkpoints";
+            }
+            else if (rawFieldName.StartsWith("lora_name", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Model;
+                newField.ModelType = "loras";
+            }
+            else if (rawFieldName.StartsWith("clip_name", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Model;
+                newField.ModelType = "clip";
+            }
+            else if (rawFieldName.Equals("unet_name", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Model;
+                newField.ModelType = "diffusion_models";
+            }
+            else if (rawFieldName.Equals("control_net_name", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Model;
+                newField.ModelType = "controlnet";
+            }
+            else if (rawFieldName.Equals("style_model_name", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Model;
+                newField.ModelType = "style_models";
+            }
+            else if (rawFieldName.Equals("model_name", StringComparison.OrdinalIgnoreCase))
+            {
+                newField.Type = FieldType.Model;
+                newField.ModelType = "upscale_models";
+            }
             
             newField.PropertyChanged += OnFieldPropertyChanged;
             if (targetIndex < 0 || targetIndex >= group.Fields.Count) group.Fields.Add(newField);
