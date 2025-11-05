@@ -775,13 +775,26 @@ namespace Comfizen
         
         private void MainWindow_StateChanged(object sender, EventArgs e)
         {
-            // English: Handles minimizing and restoring undocked windows along with the main window.
             if (DataContext is MainViewModel viewModel)
             {
-                var state = this.WindowState == WindowState.Minimized ? WindowState.Minimized : WindowState.Normal;
-                foreach (var window in viewModel.UndockedWindows.Values)
+                if (this.WindowState == WindowState.Minimized)
                 {
-                    window.WindowState = state;
+                    foreach (var window in viewModel.UndockedWindows.Values)
+                    {
+                        window.Hide();
+                    }
+                }
+                else // Restored to Normal or Maximized
+                {
+                    foreach (var window in viewModel.UndockedWindows.Values)
+                    {
+                        window.Show();
+                        // If an undocked window was also minimized, restore it to Normal state.
+                        if (window.WindowState == WindowState.Minimized)
+                        {
+                            window.WindowState = WindowState.Normal;
+                        }
+                    }
                 }
             }
         }
