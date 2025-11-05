@@ -209,7 +209,7 @@ namespace Comfizen
             if (string.IsNullOrEmpty(settings.ServerAddress)) { settings.ServerAddress = "127.0.0.1:8188"; needsResave = true; }
             if (string.IsNullOrEmpty(settings.Language)) { settings.Language = InitialLanguage(); needsResave = true; }
             if (settings.GalleryThumbnailSize == 0.0) { settings.GalleryThumbnailSize = 128.0; needsResave = true; }
-            if (settings.SliderDefaults == null) { settings.SliderDefaults = sliderDefaults; needsResave = true; }
+            if (settings.SliderDefaults == null || settings.SliderDefaults.Count == 0) { settings.SliderDefaults = sliderDefaults; needsResave = true; }
             if (settings.MainWindowHeight <= 0) { settings.MainWindowHeight = 768; needsResave = true; }
             if (settings.MainWindowWidth <= 0) { settings.MainWindowWidth = 1366; needsResave = true; }
             if (settings.DesignerWindowHeight <= 0) { settings.DesignerWindowHeight = 700; needsResave = true; }

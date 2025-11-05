@@ -1004,8 +1004,16 @@ namespace Comfizen
             var rawFieldName = field.Name.Contains("::") 
                 ? field.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1] 
                 : field.Name;
-
-            if (rawFieldName.Equals("seed", StringComparison.OrdinalIgnoreCase))
+            
+            if (_sliderDefaultsService.TryGetDefaults(newField.NodeType, rawFieldName, out var defaults))
+            {
+                newField.Type = defaults.Precision.HasValue ? FieldType.SliderFloat : FieldType.SliderInt;
+                newField.MinValue = defaults.Min;
+                newField.MaxValue = defaults.Max;
+                newField.StepValue = defaults.Step;
+                newField.Precision = defaults.Precision;
+            }
+            else if (rawFieldName.Equals("seed", StringComparison.OrdinalIgnoreCase))
             {
                 newField.Type = FieldType.Seed;
             }
