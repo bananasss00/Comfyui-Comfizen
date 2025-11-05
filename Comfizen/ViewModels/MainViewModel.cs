@@ -84,10 +84,9 @@ namespace Comfizen
 
                 if (_selectedTab != null && _selectedTab.Workflow.IsLoaded && !_selectedTab.IsVirtual)
                 {
-                    // START OF CHANGE: Pass the active inner tab name
                     string activeInnerTabName = _selectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
-                    _sessionManager.SaveSession(_selectedTab.Workflow, _selectedTab.FilePath, activeInnerTabName);
-                    // END OF CHANGE
+                    var hookStates = _selectedTab.WorkflowInputsController.GlobalControls.GetHookStates();
+                    _sessionManager.SaveSession(_selectedTab.Workflow, _selectedTab.FilePath, activeInnerTabName, hookStates);
                 }
 
                 _selectedTab = value;
@@ -662,6 +661,11 @@ namespace Comfizen
                     await tabToUpdate.Reload(e.SaveType);
                 });
             }
+            else
+            {
+                var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, e.FilePath).Replace(Path.DirectorySeparatorChar, '/');
+                OpenOrSwitchToWorkflow(relativePath);
+            }
             
             UpdateWorkflows();
             UpdateWorkflowDisplayList();
@@ -727,10 +731,9 @@ namespace Comfizen
 
             if (!tabToClose.IsVirtual && tabToClose.Workflow.IsLoaded)
             {
-                // START OF CHANGE: Pass the active inner tab name
                 string activeInnerTabName = tabToClose.WorkflowInputsController.SelectedTabLayout?.Header;
-                _sessionManager.SaveSession(tabToClose.Workflow, tabToClose.FilePath, activeInnerTabName);
-                // END OF CHANGE
+                var hookStates = tabToClose.WorkflowInputsController.GlobalControls.GetHookStates();
+                _sessionManager.SaveSession(tabToClose.Workflow, tabToClose.FilePath, activeInnerTabName, hookStates);
             }
             
             OpenTabs.Remove(tabToClose);
@@ -742,7 +745,8 @@ namespace Comfizen
 
             var workflowToReload = SelectedTab.FilePath;
             string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
-            _sessionManager.SaveSession(SelectedTab.Workflow, workflowToReload, activeInnerTabName);
+            var hookStates = SelectedTab.WorkflowInputsController.GlobalControls.GetHookStates();
+            _sessionManager.SaveSession(SelectedTab.Workflow, workflowToReload, activeInnerTabName, hookStates);
             
             ModelService.ResetConnectionErrorFlag();
             ModelService.ClearCache();
@@ -775,7 +779,8 @@ namespace Comfizen
                 
                 SelectedTab.Workflow.SaveWorkflowWithCurrentState(relativePathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/'));
                 string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
-                _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName);
+                var hookStates = SelectedTab.WorkflowInputsController.GlobalControls.GetHookStates();
+                _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName, hookStates);
 
                 Logger.Log(LocalizationService.Instance["MainVM_ValuesSavedMessage"]);
             }
@@ -1790,7 +1795,8 @@ namespace Comfizen
             if (SelectedTab != null && !SelectedTab.IsVirtual && SelectedTab.Workflow.IsLoaded)
             {
                 string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
-                _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName);
+                var hookStates = SelectedTab.WorkflowInputsController.GlobalControls.GetHookStates();
+                _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName, hookStates);
             }
             
             if (SelectedTab != null)

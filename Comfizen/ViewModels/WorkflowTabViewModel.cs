@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 using PropertyChanged;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -107,6 +108,8 @@ namespace Comfizen
         /// </summary>
         private async void InitializeFromPreloadedAsync()
         {
+            // For virtual tabs, just populate the hooks. There's no session state to apply.
+            WorkflowInputsController.PopulateHooks(Workflow.Scripts);
             await WorkflowInputsController.LoadInputs();
             ExecuteHook("on_workflow_load", Workflow.LoadedApi);
         }
@@ -165,6 +168,14 @@ namespace Comfizen
                     if (sessionData.GroupsState != null) Workflow.Groups = sessionData.GroupsState;
                     if (sessionData.BlockedNodeIds != null) Workflow.BlockedNodeIds = sessionData.BlockedNodeIds;
                 }
+                
+                // Populate hooks based on the loaded workflow scripts.
+                WorkflowInputsController.PopulateHooks(Workflow.Scripts);
+                // Apply the saved enabled/disabled states from the session.
+                if (sessionData?.HookStates != null)
+                {
+                    WorkflowInputsController.GlobalControls.ApplyHookStates(sessionData.HookStates);
+                }
 
                 // --- НАЧАЛО ИЗМЕНЕНИЯ: Добавлена миграция после загрузки сессии ---
                 // 3. Выполняем миграцию. Этот код теперь сработает как на данных из файла,
@@ -203,6 +214,13 @@ namespace Comfizen
         
         public void ExecuteHook(string hookName, JObject? prompt = null, ImageOutput? output = null)
         {
+            // Check if the hook is enabled in the UI before executing.
+            var hookToggle = WorkflowInputsController.GlobalControls.ImplementedHooks.FirstOrDefault(h => h.HookName == hookName);
+            if (hookToggle != null && !hookToggle.IsEnabled)
+            {
+                return; // Hook is disabled, do nothing.
+            }
+
             if (Workflow.Scripts.Hooks.TryGetValue(hookName, out var script))
             {
                 var contextPrompt = prompt ?? Workflow.LoadedApi;
@@ -283,6 +301,13 @@ namespace Comfizen
             
             // START OF CHANGE: Also update Reload to pass the last active tab from the reloaded session
             var sessionData = _sessionManager.LoadSession(this.FilePath);
+            
+            // Re-populate hooks and apply their saved state after reloading the workflow file.
+            WorkflowInputsController.PopulateHooks(Workflow.Scripts);
+            if (sessionData?.HookStates != null)
+            {
+                WorkflowInputsController.GlobalControls.ApplyHookStates(sessionData.HookStates);
+            }
             // END OF CHANGE
 
             if (saveType == WorkflowSaveType.LayoutOnly && currentWidgetState != null)
@@ -296,7 +321,10 @@ namespace Comfizen
                     // sessionJObject is renamed to sessionData
                     if (sessionData != null)
                     {
-                        Workflow.LoadedApi = sessionData.ApiState;
+                        if (sessionData.ApiState != null)
+                        {
+                            Workflow.LoadedApi = sessionData.ApiState;
+                        }
                         if (sessionData.GroupsState != null)
                         {
                             Workflow.Groups = sessionData.GroupsState;

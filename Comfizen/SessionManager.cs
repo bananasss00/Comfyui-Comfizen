@@ -17,6 +17,7 @@ namespace Comfizen
         public ObservableCollection<WorkflowGroup> GroupsState { get; set; }
         public HashSet<string> BlockedNodeIds { get; set; }
         public string LastActiveTabName { get; set; }
+        public Dictionary<string, bool> HookStates { get; set; }
     }
 
     public class SessionManager
@@ -89,72 +90,8 @@ namespace Comfizen
                 }
             }
         }
-
-        /// <summary>
-        /// Scans workflow files to find one that matches the given fingerprint (UI + scripts).
-        /// </summary>
-        /// <param name="fingerprint">The fingerprint to search for.</param>
-        /// <returns>The full path to the matching workflow file, or null if not found.</returns>
-        public string FindWorkflowByFingerprint(string fingerprint)
-        {
-            if (string.IsNullOrEmpty(fingerprint) || !Directory.Exists(Workflow.WorkflowsDir))
-            {
-                return null;
-            }
-    
-            var files = Directory.EnumerateFiles(Workflow.WorkflowsDir, "*.json", SearchOption.AllDirectories);
-
-            foreach (var file in files)
-            {
-                try
-                {
-                    var jsonString = File.ReadAllText(file);
-                    
-                    // Deserialize both promptTemplate and scripts from the file.
-                    var data = JsonConvert.DeserializeAnonymousType(jsonString, 
-                        new { 
-                            promptTemplate = default(ObservableCollection<WorkflowGroup>),
-                            scripts = default(ScriptCollection) 
-                        });
-
-                    if (data.promptTemplate != null)
-                    {
-                        // Generate the fingerprint using both parts.
-                        // Use an empty ScriptCollection for old files that don't have a scripts block.
-                        var currentFingerprint = GenerateFingerprint(data.promptTemplate, data.scripts ?? new ScriptCollection());
-                        if (fingerprint.Equals(currentFingerprint, System.StringComparison.OrdinalIgnoreCase))
-                        {
-                            return Path.GetFullPath(file);
-                        }
-                    }
-                }
-                catch
-                {
-                    // Ignore corrupted or invalid files
-                }
-            }
-
-            return null;
-        }
-
-        public void SaveSession(JObject workflowJObject, ObservableCollection<WorkflowGroup> groups, string workflowFullPath)
-        {
-            if (string.IsNullOrEmpty(workflowFullPath) || workflowJObject == null) return;
-
-            var sessionData = new SessionData
-            {
-                ApiState = workflowJObject,
-                GroupsState = groups,
-            };
-
-            string sessionFileName = GetSessionFileName(workflowFullPath);
-            string sessionFilePath = Path.Combine(_settings.SessionsDirectory, sessionFileName);
-
-            var json = JsonConvert.SerializeObject(sessionData, Formatting.Indented);
-            File.WriteAllText(sessionFilePath, json);
-        }
         
-        public void SaveSession(Workflow workflow, string workflowFullPath, string activeTabName)
+        public void SaveSession(Workflow workflow, string workflowFullPath, string activeTabName, Dictionary<string, bool> hookStates)
         {
             if (string.IsNullOrEmpty(workflowFullPath) || workflow.LoadedApi == null) return;
 
@@ -163,9 +100,8 @@ namespace Comfizen
                 ApiState = workflow.LoadedApi,
                 GroupsState = workflow.Groups,
                 BlockedNodeIds = workflow.BlockedNodeIds,
-                // START OF CHANGE: Save the active tab's name
-                LastActiveTabName = activeTabName
-                // END OF CHANGE
+                LastActiveTabName = activeTabName,
+                HookStates = hookStates
             };
 
             string sessionFileName = GetSessionFileName(workflowFullPath);

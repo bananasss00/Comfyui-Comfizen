@@ -164,6 +164,14 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         });
     }
+    
+    /// <summary>
+    /// Populates the hook toggles in the GlobalControlsViewModel based on the workflow's scripts.
+    /// </summary>
+    public void PopulateHooks(ScriptCollection scripts)
+    {
+        GlobalControls.PopulateHooks(scripts);
+    }
 
     public ObservableCollection<WorkflowUITabLayoutViewModel> TabLayoouts { get; set; } = new();
 

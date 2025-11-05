@@ -25,6 +25,16 @@ namespace Comfizen
     }
     
     /// <summary>
+    /// A ViewModel for a single hook toggle switch in the UI.
+    /// </summary>
+    [AddINotifyPropertyChangedInterface]
+    public class HookToggleViewModel
+    {
+        public string HookName { get; set; }
+        public bool IsEnabled { get; set; } = true; // Hooks are enabled by default
+    }
+    
+    /// <summary>
     /// A ViewModel for the combined global controls section, managing both wildcard seed and global presets.
     /// </summary>
     [AddINotifyPropertyChangedInterface]
@@ -33,10 +43,13 @@ namespace Comfizen
         public string Header { get; set; } = LocalizationService.Instance["GlobalSettings_Header"];
         public bool IsExpanded { get; set; } = true;
         
+        public bool IsHooksSectionVisible => ImplementedHooks.Any();
+        public ObservableCollection<HookToggleViewModel> ImplementedHooks { get; } = new();
+        
         // english: Combined visibility logic
         public bool IsSeedSectionVisible { get; set; } = false;
         public bool IsPresetsSectionVisible => GlobalPresetNames.Any();
-        public bool IsVisible => IsSeedSectionVisible || IsPresetsSectionVisible;
+        public bool IsVisible => IsSeedSectionVisible || IsPresetsSectionVisible || IsHooksSectionVisible;
 
         // english: From former GlobalSettingsViewModel
         public long WildcardSeed { get; set; } = Utils.GenerateSeed();
@@ -69,8 +82,8 @@ namespace Comfizen
         protected void OnPropertyChanged(string name)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-            // english: Add cascading notifications for the main visibility property
-            if (name == nameof(IsSeedSectionVisible) || name == nameof(IsPresetsSectionVisible))
+            // Add cascading notifications for the main visibility property
+            if (name == nameof(IsSeedSectionVisible) || name == nameof(IsPresetsSectionVisible) || name == nameof(IsHooksSectionVisible))
             {
                 OnPropertyChanged(nameof(IsVisible));
             }
@@ -80,6 +93,46 @@ namespace Comfizen
         {
             _applyPresetAction = applyPresetAction;
             GlobalPresetNames.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsPresetsSectionVisible));
+            ImplementedHooks.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsHooksSectionVisible));
+        }
+        
+        /// <summary>
+        /// Populates the list of hook toggles based on which hooks are implemented in the workflow.
+        /// </summary>
+        public void PopulateHooks(ScriptCollection scripts)
+        {
+            ImplementedHooks.Clear();
+            if (scripts?.Hooks != null)
+            {
+                // Add toggles only for hooks that have a script written.
+                foreach (var hook in scripts.Hooks.Where(h => !string.IsNullOrWhiteSpace(h.Value)).OrderBy(h => h.Key))
+                {
+                    ImplementedHooks.Add(new HookToggleViewModel { HookName = hook.Key });
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Gets the current enabled/disabled state of all hooks.
+        /// </summary>
+        public Dictionary<string, bool> GetHookStates()
+        {
+            return ImplementedHooks.ToDictionary(h => h.HookName, h => h.IsEnabled);
+        }
+
+        /// <summary>
+        /// Applies saved hook states from a session file.
+        /// </summary>
+        public void ApplyHookStates(Dictionary<string, bool> hookStates)
+        {
+            if (hookStates == null) return;
+            foreach (var hookVM in ImplementedHooks)
+            {
+                if (hookStates.TryGetValue(hookVM.HookName, out var isEnabled))
+                {
+                    hookVM.IsEnabled = isEnabled;
+                }
+            }
         }
         
         /// <summary>

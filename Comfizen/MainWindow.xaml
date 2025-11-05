@@ -287,7 +287,8 @@
                         <StackPanel>
                             <StackPanel.Resources>
                                 <DataTemplate DataType="{x:Type local:GlobalControlsViewModel}">
-                                    <Expander Header="{Binding Header}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" BorderBrush="Orange" Margin="5">
+                                    <Expander Header="{Binding Header}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" BorderBrush="Orange" Margin="5"
+                                              Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                         <StackPanel Margin="5">
                                             <!-- Seed Controls -->
                                             <Grid Visibility="{Binding IsSeedSectionVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -332,12 +333,32 @@
                                                     </local:FilterableComboBox.Style>
                                                 </local:FilterableComboBox>
                                             </Grid>
+                                            
+                                            <Border Margin="0,5,0,0" Padding="0,5,0,0" BorderThickness="0,1,0,0" BorderBrush="{StaticResource TertiaryBackground}"
+                                                    Visibility="{Binding IsHooksSectionVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <ItemsControl ItemsSource="{Binding ImplementedHooks}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel Orientation="Horizontal"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="{x:Type local:HookToggleViewModel}">
+                                                            <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                                      Margin="0,0,15,5"
+                                                                      VerticalContentAlignment="Center">
+                                                                <TextBlock Text="{Binding HookName}"/>
+                                                            </CheckBox>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Border>
                                         </StackPanel>
                                     </Expander>
                                 </DataTemplate>
                             </StackPanel.Resources>
                             
-                            <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalControls}" Visibility="{Binding SelectedTab.WorkflowInputsController.GlobalControls.IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <ContentControl Content="{Binding SelectedTab.WorkflowInputsController.GlobalControls}" />
                             
                             <TabControl x:Name="WorkflowTabsControl" 
                                         ItemsSource="{Binding SelectedTab.WorkflowInputsController.TabLayoouts}" 
