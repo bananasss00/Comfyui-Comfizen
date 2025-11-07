@@ -33,7 +33,8 @@
         <local:StringToBoolConverter x:Key="StringToBoolConverter" />
         <local:CornerRadiusConverter x:Key="CornerRadiusConverter" />
         <local:SelectionCountToBooleanConverter x:Key="SelectionCountToBooleanConverter"/>
-        
+        <local:AddOneConverter x:Key="AddOneConverter"/>
+
         <!-- ScrollBar Thumb Style -->
         <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
             <Setter Property="OverridesDefaultStyle" Value="true"/>

@@ -151,6 +151,31 @@ namespace Comfizen
         public ICommand OpenGroupNavigationCommand { get; }
         public ICommand GoToGroupCommand { get; }
         public ICommand CompareSelectedImagesCommand { get; }
+        public ICommand DeleteSelectedQueueItemCommand { get; }
+        public ObservableCollection<QueueItemViewModel> PendingQueueItems { get; } = new ObservableCollection<QueueItemViewModel>();
+        
+        public void UpdateQueueItemIndexes()
+        {
+            for (int i = 0; i < PendingQueueItems.Count; i++)
+            {
+                PendingQueueItems[i].DisplayIndex = i + 1;
+            }
+        }
+        
+        
+        private QueueItemViewModel _selectedQueueItem;
+        public QueueItemViewModel SelectedQueueItem
+        {
+            get => _selectedQueueItem;
+            set
+            {
+                if (_selectedQueueItem != value)
+                {
+                    _selectedQueueItem = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedQueueItem)));
+                }
+            }
+        }
         
         public IEnumerable<WorkflowGroupViewModel> AllGroupsInSelectedTab => 
             SelectedTab?.WorkflowInputsController.TabLayoouts
@@ -206,6 +231,9 @@ namespace Comfizen
         
         public bool IsInfiniteQueueEnabled { get; set; } = false;
         public bool IsQueuePaused { get; set; } = false;
+        public bool IsQueueManagerVisible { get; set; } = false;
+        public ICommand ToggleQueueManagerCommand { get; }
+        public ICommand HideQueueManagerCommand { get; }
 
         public ICommand ToggleInfiniteQueueCommand { get; }
         
@@ -230,7 +258,7 @@ namespace Comfizen
             public bool CreateGridImage { get; set; }
         }
         
-        private class PromptTask
+        public class PromptTask
         {
             /// <summary>
             /// The raw API JSON sent to the ComfyUI server.
@@ -298,6 +326,8 @@ namespace Comfizen
             CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => _allConsoleLogMessages.Any());
             CopyConsoleItemCommand = new RelayCommand(CopyConsoleItem);
             HideConsoleCommand = new RelayCommand(_ => IsConsoleVisible = false);
+            ToggleQueueManagerCommand = new RelayCommand(_ => IsQueueManagerVisible = !IsQueueManagerVisible);
+            HideQueueManagerCommand = new RelayCommand(_ => IsQueueManagerVisible = false);
             
             CloseTabCommand = new RelayCommand(p => CloseTab(p as WorkflowTabViewModel));
 
@@ -391,6 +421,16 @@ namespace Comfizen
                 }
             });
             
+            DeleteSelectedQueueItemCommand = new RelayCommand(param =>
+            {
+                if (param is QueueItemViewModel item)
+                {
+                    PendingQueueItems.Remove(item);
+                }
+            }, param => param is QueueItemViewModel);
+            
+            PendingQueueItems.CollectionChanged += (sender, args) => UpdateQueueItemIndexes();;
+            
             OpenWildcardBrowserCommand = new RelayCommand(param =>
             {
                 if (param is not TextFieldViewModel fieldVm) return;
@@ -442,13 +482,13 @@ namespace Comfizen
                 // It lets the processing loop finish the current task gracefully.
                 _cancellationRequested = true;
                 IsInfiniteQueueEnabled = false;
-                _promptsQueue.Clear(); // Immediately remove all waiting tasks.
+                PendingQueueItems.Clear();
 
                 CompletedTasks = 0;
                 TotalTasks = 0;
                 CurrentProgress = 0;
             
-            }, canExecute: x => _promptsQueue.Any() || (_isProcessing && TotalTasks > CompletedTasks));
+            }, canExecute: x => PendingQueueItems.Any() || (_isProcessing && TotalTasks > CompletedTasks));
             
             QueueCommand = new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
             
@@ -927,7 +967,7 @@ namespace Comfizen
         }
         
         private readonly Stopwatch _queueStopwatch = new();
-        private ConcurrentQueue<PromptTask> _promptsQueue = new();
+
         private bool _cancellationRequested = false;
         private PromptTask _currentTask; // --- ADDED: To track the currently executing task ---
 
@@ -1181,16 +1221,18 @@ namespace Comfizen
             };
 
             // Dispatch the critical part (modifying collections and starting the processor) to the UI thread.
-            Application.Current.Dispatcher.Invoke(() => EnqueueTaskInternal(task));
+            Application.Current.Dispatcher.Invoke(() => EnqueueTaskInternal(task, originTab.Workflow.JsonClone()));
         }
         
         /// <summary>
         /// The internal implementation for enqueuing a task. This method MUST be called on the UI thread.
         /// </summary>
-        private void EnqueueTaskInternal(PromptTask task)
+        private void EnqueueTaskInternal(PromptTask task, JObject templatePrompt)
         {
-            _promptsQueue.Enqueue(task);
-            TotalTasks++; // This is now safe and will update the UI correctly.
+            var queueItem = new QueueItemViewModel(task, task.OriginTab.Header, templatePrompt);
+            PopulateQueueItemDetails(queueItem);
+            PendingQueueItems.Add(queueItem);
+            TotalTasks++;
 
             lock (_processingLock)
             {
@@ -1205,13 +1247,15 @@ namespace Comfizen
         private async Task Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
+            
+            var templatePrompt = SelectedTab.Workflow.JsonClone();
         
             SelectedTab.ExecuteHook("on_queue_start", SelectedTab.Workflow.LoadedApi);
         
             var promptTasks = await CreatePromptTasks(SelectedTab);
             if (promptTasks.Count == 0) return;
         
-            if (_cancellationRequested || (_promptsQueue.IsEmpty && !_isProcessing))
+            if (_cancellationRequested || (PendingQueueItems.Count == 0 && !_isProcessing))
             {
                 CompletedTasks = 0;
                 TotalTasks = 0;
@@ -1223,7 +1267,9 @@ namespace Comfizen
     
             foreach (var task in promptTasks)
             {
-                _promptsQueue.Enqueue(task);
+                var queueItem = new QueueItemViewModel(task, SelectedTab.Header, templatePrompt);
+                PopulateQueueItemDetails(queueItem);
+                PendingQueueItems.Add(queueItem);
             }
             TotalTasks += promptTasks.Count;
     
@@ -1299,8 +1345,19 @@ namespace Comfizen
                     
                     if (_cancellationRequested) break;
     
-                    if (_promptsQueue.TryDequeue(out var task))
+                    QueueItemViewModel taskVm = null;
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
+                        taskVm = PendingQueueItems.FirstOrDefault();
+                        if (taskVm != null)
+                        {
+                            PendingQueueItems.RemoveAt(0);
+                        }
+                    });
+
+                    if (taskVm != null)
+                    {
+                        var task = taskVm.Task;
                         _currentTask = task;
                         lastTaskOriginTab = task.OriginTab;
                         
@@ -1412,9 +1469,12 @@ namespace Comfizen
 
                             if (newTasks != null)
                             {
+                                // ADD NEW TASKS TO UI QUEUE
                                 foreach (var p in newTasks)
                                 {
-                                    _promptsQueue.Enqueue(p);
+                                    var templatePrompt = lastTaskOriginTab.Workflow.JsonClone();
+                                    var queueItem = new QueueItemViewModel(p, lastTaskOriginTab.Header, templatePrompt);
+                                    await Application.Current.Dispatcher.InvokeAsync(() => PendingQueueItems.Add(queueItem));
                                 }
                                 TotalTasks += newTasks.Count;
                             }
@@ -1516,7 +1576,7 @@ namespace Comfizen
             
                 if (_cancellationRequested)
                 {
-                    _promptsQueue.Clear();
+                    await Application.Current.Dispatcher.InvokeAsync(() => PendingQueueItems.Clear());
                 
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
@@ -1531,6 +1591,60 @@ namespace Comfizen
                 {
                     await Application.Current.Dispatcher.InvokeAsync(() => lastTaskOriginTab.ExecuteHook("on_batch_finished", lastTaskOriginTab.Workflow.LoadedApi));
                 }
+            }
+        }
+        
+        /// <summary>
+        /// Populates the Details collection of a QueueItemViewModel by comparing its task state
+        /// against the original workflow file state.
+        /// </summary>
+        private void PopulateQueueItemDetails(QueueItemViewModel item)
+        {
+            item.Details.Clear();
+            if (item == null) return;
+
+            try
+            {
+                var taskPrompt = JObject.Parse(item.Task.JsonPromptForApi);
+                var originalApiPrompt = item.Task.OriginTab.Workflow.OriginalApi;
+
+                if (taskPrompt == null || originalApiPrompt == null) return;
+
+                var allFields = item.Task.OriginTab.Workflow.Groups.SelectMany(g => g.Fields);
+
+                // Use SelectTokens for a deep search, which is more robust
+                foreach (var taskToken in taskPrompt.SelectTokens("..*").OfType<JValue>())
+                {
+                    var path = taskToken.Path;
+                    var templateToken = originalApiPrompt.SelectToken(path);
+
+                    if (templateToken is JValue && !Utils.AreJTokensEquivalent(taskToken, templateToken))
+                    {
+                        var field = allFields.FirstOrDefault(f => f.Path == path);
+                        var detail = new QueueItemDetailViewModel
+                        {
+                            FieldPath = path,
+                            DisplayName = field?.Name ?? path.Split('.').Last(),
+                            NewValue = taskToken.ToString(Formatting.None).Trim('"')
+                        };
+                        
+                        string newValueString = taskToken.ToString(Formatting.None).Trim('"');
+                        if (newValueString.Length > 1000 && (newValueString.StartsWith("iVBOR") || newValueString.StartsWith("/9j/") || newValueString.StartsWith("UklG")))
+                        {
+                            detail.NewValue = string.Format(LocalizationService.Instance["TextField_Base64Placeholder"], newValueString.Length / 1024);
+                        }
+                        else
+                        {
+                            detail.NewValue = newValueString;
+                        }
+                        
+                        item.Details.Add(detail);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to generate queue item details.");
             }
         }
         
@@ -1787,15 +1901,16 @@ namespace Comfizen
                     GridConfig = _currentTask.GridConfig
                 });
             }
-            queueToSave.AddRange(_promptsQueue.Select(t => new SerializablePromptTask
+
+            queueToSave.AddRange(PendingQueueItems.Select(vm => new SerializablePromptTask
             {
-                JsonPromptForApi = t.JsonPromptForApi,
-                FullWorkflowStateJson = t.FullWorkflowStateJson,
-                OriginTabFilePath = !t.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, t.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
-                IsGridTask = t.IsGridTask,
-                XValue = t.XValue,
-                YValue = t.YValue,
-                GridConfig = t.GridConfig
+                JsonPromptForApi = vm.Task.JsonPromptForApi,
+                FullWorkflowStateJson = vm.Task.FullWorkflowStateJson,
+                OriginTabFilePath = !vm.Task.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, vm.Task.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
+                IsGridTask = vm.Task.IsGridTask,
+                XValue = vm.Task.XValue,
+                YValue = vm.Task.YValue,
+                GridConfig = vm.Task.GridConfig
             }));
 
             var queueFilePath = Path.Combine(Directory.GetCurrentDirectory(), "queue.json");
@@ -1922,23 +2037,14 @@ namespace Comfizen
                             YValue = st.YValue,
                             GridConfig = st.GridConfig
                         };
-                        _promptsQueue.Enqueue(task);
+
+                        EnqueueTaskInternal(task, originTab.Workflow.JsonClone());
                     }
                 }
 
-                TotalTasks = _promptsQueue.Count;
-                if (TotalTasks > 0)
+                if (PendingQueueItems.Any())
                 {
-                    Logger.Log($"Restored {TotalTasks} tasks from the previous session's queue.");
-                    // Start processing the restored queue
-                    lock (_processingLock)
-                    {
-                        if (!_isProcessing)
-                        {
-                            _isProcessing = true;
-                            _ = Task.Run(ProcessQueueAsync);
-                        }
-                    }
+                    Logger.Log($"Restored {PendingQueueItems.Count} tasks from the previous session's queue.");
                 }
 
                 // Delete the file after successfully loading to prevent re-execution

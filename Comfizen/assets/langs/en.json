@@ -296,5 +296,11 @@
   "Tab_GallerySimilarityThreshold": "Threshold:",
   "SliderCompare_Compare": "Compare",
   "SliderCompare_Swap": "Swap Images",
-  "SliderCompare_Replace": "Replace"
+  "SliderCompare_Replace": "Replace",
+  "QueueManager_Title": "Queue Manager",
+  "QueueManager_Details": "Task Details (changes only)",
+  "QueueManager_Field": "Field",
+  "QueueManager_OriginalValue": "Original Value",
+  "QueueManager_NewValue": "New Value",
+  "QueueManager_DeleteItem": "Delete from Queue"
 }

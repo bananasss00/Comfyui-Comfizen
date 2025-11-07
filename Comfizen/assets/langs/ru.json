@@ -295,5 +295,11 @@
   "Tab_GallerySimilarityThreshold": "Порог:",
   "SliderCompare_Compare": "Сравнить",
   "SliderCompare_Swap": "Поменять местами",
-  "SliderCompare_Replace": "Заменить"
+  "SliderCompare_Replace": "Заменить",
+  "QueueManager_Title": "Менеджер очереди",
+  "QueueManager_Details": "Детали задачи (только изменения)",
+  "QueueManager_Field": "Поле",
+  "QueueManager_OriginalValue": "Оригинал",
+  "QueueManager_NewValue": "Новое значение",
+  "QueueManager_DeleteItem": "Удалить из очереди"
 }
