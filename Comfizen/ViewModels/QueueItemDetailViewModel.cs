@@ -1,6 +1,4 @@
-﻿// QueueItemDetailViewModel.cs
-
-using PropertyChanged;
+﻿using PropertyChanged;
 using System.ComponentModel;
 
 namespace Comfizen
@@ -13,7 +11,9 @@ namespace Comfizen
     {
         public string FieldPath { get; set; }
         public string DisplayName { get; set; }
-        public string OriginalValue { get; set; }
+        // START OF CHANGE: OriginalValue is no longer needed
+        // public string OriginalValue { get; set; }
+        // END OF CHANGE
         public string NewValue { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -278,7 +278,9 @@
                     <ColumnDefinition Width="5" />
                     <ColumnDefinition Width="2*" MinWidth="400" />
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="1*" MinWidth="250"/>
+                    <!-- START OF CHANGE: Modified column definition for queue -->
+                    <ColumnDefinition Width="{Binding IsQueueManagerVisible, Converter={StaticResource BoolToGridLengthConverter}, ConverterParameter='1*'}" MinWidth="0"/>
+                    <!-- END OF CHANGE -->
                 </Grid.ColumnDefinitions>
                 
                 <Border Grid.Column="0" Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,0,5" Margin="5,0,0,5">
@@ -789,6 +791,13 @@
                                             <ComboBox x:Name="SeedControlComboBox" ItemsSource="{Binding SeedControlEnumValues}" SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedSeedControl}" MinWidth="100"/>
                                         </StackPanel>
                                         
+                                        <!-- START OF CHANGE: Added queue manager toggle button -->
+                                        <Button Content="&#xE945;" Style="{StaticResource IconButton}" 
+                                                Command="{Binding ToggleQueueManagerCommand}" 
+                                                Margin="0,0,10,0"
+                                                ToolTip="{local:Translate QueueManager_Title}"/>
+                                        <!-- END OF CHANGE -->
+
                                         <ToggleButton x:Name="XyGridToggleButton"
                                                       Content="XY"
                                                       FontWeight="Bold"
@@ -1112,21 +1121,24 @@
                               HorizontalAlignment="Center"
                               VerticalAlignment="Stretch"/>
 
+                <!-- START OF CHANGE: Updated Queue Manager Section -->
                 <Border Grid.Column="4" Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,5,0" Margin="0,0,5,5">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" Padding="8,5" Background="{StaticResource TertiaryBackground}">
+                            <Grid>
+                                <TextBlock Text="{local:Translate QueueManager_Title}" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                <Button Content="&#xE711;" Style="{StaticResource IconButton}" 
+                                        Command="{Binding HideQueueManagerCommand}"
+                                        Width="24" Height="24"
+                                        ToolTip="{local:Translate Window_Close}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
 
-                        <TextBlock Grid.Row="0" Text="{local:Translate QueueManager_Title}" FontWeight="Bold" Margin="10" />
+                        <ListBox ItemsSource="{Binding PendingQueueItems}" SelectedItem="{Binding SelectedQueueItem}"
+                                 Background="{StaticResource TertiaryBackground}" Margin="5" BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
 
-                        <ListBox Grid.Row="1" ItemsSource="{Binding PendingQueueItems}" SelectedItem="{Binding SelectedQueueItem}"
-                                 Background="{StaticResource TertiaryBackground}" Margin="5,0,5,5" BorderThickness="0">
-                            <!-- START OF CHANGE -->
-                                
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem">
                                     <Setter Property="AllowDrop" Value="True"/>
@@ -1135,54 +1147,85 @@
                                     <EventSetter Event="Drop" Handler="QueueItem_Drop"/>
                                     <EventSetter Event="DragOver" Handler="QueueItem_DragOver"/>
                                     <EventSetter Event="DragLeave" Handler="QueueItem_DragLeave"/>
-                                    <Setter Property="Padding" Value="5"/>
-                                    
-                                    <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
-                                    
-                                    <Setter Property="ContextMenu">
+                                    <Setter Property="Template">
                                         <Setter.Value>
-                                            <ContextMenu Style="{StaticResource AppContextMenuStyle}">
-                                                <MenuItem Header="{local:Translate QueueManager_DeleteItem}"
-                                                          Command="{Binding PlacementTarget.Tag.DeleteSelectedQueueItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding}"/>
-                                            </ContextMenu>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <ContentPresenter/>
+                                            </ControlTemplate>
                                         </Setter.Value>
                                     </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect ShadowDepth="0" Color="{Binding Source={StaticResource PrimaryAccentBrush}, Path=Color}" BlurRadius="8" Opacity="0.8"/>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </Style.Triggers>
                                 </Style>
                             </ListBox.ItemContainerStyle>
 
-
                             <ListBox.ItemTemplate>
-                                <DataTemplate>
+                                <DataTemplate DataType="{x:Type local:QueueItemViewModel}">
                                     <StackPanel>
                                         <Border x:Name="DropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                        <TextBlock>
-                                            <Run Text="{Binding Converter={StaticResource ItemToIndexConverter}, Mode=OneWay}"/>
-                                            <Run Text=": "/>
-                                            <Run Text="{Binding WorkflowName, Mode=OneWay}"/>
-                                        </TextBlock>
+                                        <Border Background="{StaticResource PrimaryBackground}" CornerRadius="3" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" Margin="0,2" Padding="8">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                
+                                                <Grid Grid.Row="0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <TextBlock Grid.Column="0" FontWeight="Bold" VerticalAlignment="Center">
+                                                        <Run Text="{Binding Converter={StaticResource ItemToIndexConverter}, Mode=OneWay, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                                                        <Run Text=": "/>
+                                                        <Run Text="{Binding WorkflowName, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    
+                                                    <Button Grid.Column="1" Content="&#xE74D;" Style="{StaticResource IconButton}" 
+                                                            Width="20" Height="20"
+                                                            ToolTip="{local:Translate QueueManager_DeleteItem}"
+                                                            Command="{Binding DataContext.DeleteSelectedQueueItemCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </Grid>
+
+                                                <ItemsControl Grid.Row="1" ItemsSource="{Binding Details}" Margin="0,5,0,0">
+                                                    <ItemsControl.Style>
+                                                        <Style TargetType="ItemsControl">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Details.Count, Converter={StaticResource CountToBooleanConverter}}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ItemsControl.Style>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="{x:Type local:QueueItemDetailViewModel}">
+                                                            <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis">
+                                                                <Run Text="{Binding DisplayName}" FontWeight="SemiBold"/>:
+                                                                <Run Text="{Binding NewValue}"/>
+                                                            </TextBlock>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Grid>
+                                        </Border>
                                         <Border x:Name="DropIndicatorAfter" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                        
-                        <GridSplitter Grid.Row="2" Style="{StaticResource HorizontalGridSplitterStyle}" ResizeDirection="Rows"/>
-
-                        <DockPanel Grid.Row="3">
-                             <TextBlock DockPanel.Dock="Top" Text="{local:Translate QueueManager_Details}" FontWeight="Bold" Margin="10,10,10,5"/>
-                             <ListView ItemsSource="{Binding SelectedQueueItemDetails}" Background="{StaticResource TertiaryBackground}" Margin="5,0,5,5" BorderThickness="0">
-                                 <ListView.View>
-                                     <GridView>
-                                         <GridViewColumn Header="{local:Translate QueueManager_Field}" DisplayMemberBinding="{Binding DisplayName}" Width="120"/>
-                                         <GridViewColumn Header="{local:Translate QueueManager_NewValue}" DisplayMemberBinding="{Binding NewValue}" Width="100"/>
-                                         <GridViewColumn Header="{local:Translate QueueManager_OriginalValue}" DisplayMemberBinding="{Binding OriginalValue}" Width="100"/>
-                                     </GridView>
-                                 </ListView.View>
-                             </ListView>
-                        </DockPanel>
-                    </Grid>
+                    </DockPanel>
                 </Border>
+                <!-- END OF CHANGE -->
 
                 <Border Grid.Column="0" Grid.ColumnSpan="3" Background="{StaticResource PrimaryBackground}" Margin="5,0,5,5">
                      <Border.Style>

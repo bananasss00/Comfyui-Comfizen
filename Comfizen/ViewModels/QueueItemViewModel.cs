@@ -1,6 +1,5 @@
-﻿// QueueItemViewModel.cs
-
-using System;
+﻿using System;
+using System.Collections.ObjectModel; // Add this
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
 using System.ComponentModel;
@@ -21,6 +20,10 @@ namespace Comfizen
         /// A snapshot of the workflow's API state at the moment of queuing. Used for comparison.
         /// </summary>
         public JObject TemplatePrompt { get; }
+        
+        // START OF CHANGE: Add collection for details
+        public ObservableCollection<QueueItemDetailViewModel> Details { get; } = new ObservableCollection<QueueItemDetailViewModel>();
+        // END OF CHANGE
 
         public event PropertyChangedEventHandler PropertyChanged;
 
