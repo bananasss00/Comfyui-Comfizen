@@ -1203,6 +1203,11 @@
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate DataType="{x:Type local:QueueItemDetailViewModel}">
                                                             <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis">
+                                                                <TextBlock.ToolTip>
+                                                                    <ToolTip>
+                                                                        <TextBlock Text="{Binding NewValue}" MaxWidth="500" TextWrapping="Wrap"/>
+                                                                    </ToolTip>
+                                                                </TextBlock.ToolTip>
                                                                 <Run Text="{Binding DisplayName}" FontWeight="SemiBold"/>:
                                                                 <Run Text="{Binding NewValue}" Foreground="#E6DB74"/>
                                                             </TextBlock>

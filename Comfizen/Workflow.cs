@@ -114,7 +114,7 @@ namespace Comfizen
         }
         
         // New public method to initialize a workflow object from parts.
-        public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts, ObservableCollection<WorkflowTabDefinition> tabs)
+        public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts, ObservableCollection<WorkflowTabDefinition> tabs, Dictionary<Guid, List<GroupPreset>> presets)
         {
             OriginalApi = prompt;
             LoadedApi = prompt?.DeepClone() as JObject;
@@ -129,6 +129,7 @@ namespace Comfizen
 
             Scripts = scripts ?? new ScriptCollection();
             Tabs = tabs ?? new ObservableCollection<WorkflowTabDefinition>();
+            Presets = presets ?? new Dictionary<Guid, List<GroupPreset>>();
             
             // Run the migration logic here as well to handle older imported formats.
             if (LoadedApi != null)
