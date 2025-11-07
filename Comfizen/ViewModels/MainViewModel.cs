@@ -154,6 +154,15 @@ namespace Comfizen
         public ICommand DeleteSelectedQueueItemCommand { get; }
         public ObservableCollection<QueueItemViewModel> PendingQueueItems { get; } = new ObservableCollection<QueueItemViewModel>();
         
+        public void UpdateQueueItemIndexes()
+        {
+            for (int i = 0; i < PendingQueueItems.Count; i++)
+            {
+                PendingQueueItems[i].DisplayIndex = i + 1;
+            }
+        }
+        
+        
         private QueueItemViewModel _selectedQueueItem;
         public QueueItemViewModel SelectedQueueItem
         {
@@ -422,13 +431,15 @@ namespace Comfizen
                 {
                     PendingQueueItems.Remove(item);
                     // START OF FIX: Decrement total tasks when an item is removed
-                    if (TotalTasks > 0)
-                    {
-                        TotalTasks--;
-                    }
+                    // if (TotalTasks > 0)
+                    // {
+                    //     TotalTasks--;
+                    // }
                     // END OF FIX
                 }
             }, param => param is QueueItemViewModel);
+            
+            PendingQueueItems.CollectionChanged += (sender, args) => UpdateQueueItemIndexes();;
             
             OpenWildcardBrowserCommand = new RelayCommand(param =>
             {

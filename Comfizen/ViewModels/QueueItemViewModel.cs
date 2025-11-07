@@ -13,6 +13,21 @@ namespace Comfizen
     public class QueueItemViewModel : INotifyPropertyChanged
     {
         public Guid Id { get; } = Guid.NewGuid();
+        
+        private int _displayIndex;
+        public int DisplayIndex
+        {
+            get => _displayIndex;
+            set
+            {
+                if (_displayIndex != value)
+                {
+                    _displayIndex = value;
+                    OnPropertyChanged(nameof(DisplayIndex));
+                }
+            }
+        }
+        
         public MainViewModel.PromptTask Task { get; }
         public string WorkflowName { get; }
 
@@ -26,6 +41,11 @@ namespace Comfizen
         // END OF CHANGE
 
         public event PropertyChangedEventHandler PropertyChanged;
+        
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
 
         public QueueItemViewModel(MainViewModel.PromptTask task, string workflowName, JObject templatePrompt)
         {

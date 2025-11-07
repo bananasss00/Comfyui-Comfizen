@@ -1137,9 +1137,16 @@
 
                         <ListBox ItemsSource="{Binding PendingQueueItems}" SelectedItem="{Binding SelectedQueueItem}"
                                  Background="{StaticResource TertiaryBackground}" Margin="5" BorderThickness="0"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 AlternationCount="{Binding Items.Count, RelativeSource={RelativeSource Self}}">
-
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <!-- Perfomance rip -->
+                            <!-- START OF CHANGE: Disable virtualization to fix index updates on drag-drop -->
+                            <!-- <ListBox.ItemsPanel> -->
+                            <!--     <ItemsPanelTemplate> -->
+                            <!--         <StackPanel/> -->
+                            <!--     </ItemsPanelTemplate> -->
+                            <!-- </ListBox.ItemsPanel> -->
+                            <!-- END OF CHANGE -->
+                            
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem">
                                     <Setter Property="AllowDrop" Value="True"/>
@@ -1185,16 +1192,8 @@
                                                     </Grid.ColumnDefinitions>
                                                     
                                                     <TextBlock Grid.Column="0" FontWeight="Bold" VerticalAlignment="Center">
-                                                        <!-- START OF FIX: Use MultiBinding with RelativeSource -->
-                                                        <TextBlock.Text>
-                                                            <MultiBinding StringFormat="{}{0}: {1}">
-                                                                <Binding Path="(ItemsControl.AlternationIndex)"
-                                                                         RelativeSource="{RelativeSource AncestorType=ListBoxItem}"
-                                                                         Converter="{StaticResource AddOneConverter}" />
-                                                                <Binding Path="WorkflowName" />
-                                                            </MultiBinding>
-                                                        </TextBlock.Text>
-                                                        <!-- END OF FIX -->
+                                                        <Run Text="{Binding DisplayIndex, StringFormat='{}{0}: '}"/>
+                                                        <Run Text="{Binding WorkflowName, Mode=OneWay}"/>
                                                     </TextBlock>
                                                     
                                                     <Button Grid.Column="1" Content="&#xE74D;" Style="{StaticResource IconButton}" 

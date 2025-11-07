@@ -1247,6 +1247,9 @@ namespace Comfizen
                 _lastQueueIndicator = null;
             }
             e.Handled = true;
+            
+            if (DataContext is MainViewModel mainViewModel)
+                mainViewModel.UpdateQueueItemIndexes(); 
         }
     }
 }
