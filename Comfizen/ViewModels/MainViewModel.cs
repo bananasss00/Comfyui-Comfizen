@@ -1641,6 +1641,17 @@ namespace Comfizen
                             DisplayName = field?.Name ?? path.Split('.').Last(),
                             NewValue = taskToken.ToString(Formatting.None).Trim('"')
                         };
+                        
+                        string newValueString = taskToken.ToString(Formatting.None).Trim('"');
+                        if (newValueString.Length > 1000 && (newValueString.StartsWith("iVBOR") || newValueString.StartsWith("/9j/") || newValueString.StartsWith("UklG")))
+                        {
+                            detail.NewValue = string.Format(LocalizationService.Instance["TextField_Base64Placeholder"], newValueString.Length / 1024);
+                        }
+                        else
+                        {
+                            detail.NewValue = newValueString;
+                        }
+                        
                         item.Details.Add(detail);
                     }
                 }
