@@ -26,6 +26,8 @@ namespace Comfizen
     {
         private Point? _galleryDragStartPoint;
         private Point _tabDragStartPoint;
+        private Point? _queueDragStartPoint;
+        private Border _lastQueueIndicator;
         private bool _isUserInteractingWithSlider = false;
         private DispatcherTimer _positionUpdateTimer;
         
@@ -933,19 +935,20 @@ namespace Comfizen
             }
         }
 
-        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        private static T FindVisualChild<T>(DependencyObject parent, string childName = null) where T : DependencyObject
         {
             if (parent == null) return null;
 
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
             {
                 var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T typedChild)
+
+                if (child is T typedChild && (string.IsNullOrEmpty(childName) || (child is FrameworkElement fe && fe.Name == childName)))
                 {
                     return typedChild;
                 }
 
-                var childOfChild = FindVisualChild<T>(child);
+                T childOfChild = FindVisualChild<T>(child, childName);
                 if (childOfChild != null)
                 {
                     return childOfChild;
@@ -1105,6 +1108,107 @@ namespace Comfizen
                     }
                 }
             }
+        }
+        
+        private void QueueItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _queueDragStartPoint = e.GetPosition(null);
+        }
+
+        private void QueueItem_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && _queueDragStartPoint.HasValue)
+            {
+                Point position = e.GetPosition(null);
+                if (Math.Abs(position.X - _queueDragStartPoint.Value.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(position.Y - _queueDragStartPoint.Value.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    if (sender is ListBoxItem item && item.DataContext is QueueItemViewModel vm)
+                    {
+                        DragDrop.DoDragDrop(item, vm, DragDropEffects.Move);
+                        _queueDragStartPoint = null;
+                    }
+                }
+            }
+        }
+
+        private void QueueItem_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(typeof(QueueItemViewModel)))
+            {
+                e.Effects = DragDropEffects.Move;
+
+                if (sender is ListBoxItem item)
+                {
+                    // Hide previous indicator
+                    if (_lastQueueIndicator != null)
+                        _lastQueueIndicator.Visibility = Visibility.Collapsed;
+
+                    var position = e.GetPosition(item);
+                    var indicator = position.Y < item.ActualHeight / 2
+                        ? FindVisualChild<Border>(item, "DropIndicatorBefore")
+                        : FindVisualChild<Border>(item, "DropIndicatorAfter");
+
+                    if (indicator != null)
+                    {
+                        indicator.Visibility = Visibility.Visible;
+                        _lastQueueIndicator = indicator;
+                    }
+                }
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        private void QueueItem_DragLeave(object sender, DragEventArgs e)
+        {
+            if (_lastQueueIndicator != null)
+            {
+                _lastQueueIndicator.Visibility = Visibility.Collapsed;
+                _lastQueueIndicator = null;
+            }
+        }
+        
+        private void QueueItem_Drop(object sender, DragEventArgs e)
+        {
+            if (sender is ListBoxItem targetItem && DataContext is MainViewModel viewModel)
+            {
+                var draggedVm = e.Data.GetData(typeof(QueueItemViewModel)) as QueueItemViewModel;
+                var targetVm = targetItem.DataContext as QueueItemViewModel;
+
+                if (draggedVm != null && targetVm != null && draggedVm != targetVm)
+                {
+                    var oldIndex = viewModel.PendingQueueItems.IndexOf(draggedVm);
+                    var targetIndex = viewModel.PendingQueueItems.IndexOf(targetVm);
+
+                    if (oldIndex != -1 && targetIndex != -1)
+                    {
+                        // Adjust index based on which indicator was visible
+                        var indicator = FindVisualChild<Border>(targetItem, "DropIndicatorAfter");
+                        if (indicator != null && indicator.Visibility == Visibility.Visible)
+                        {
+                            targetIndex++;
+                        }
+                        
+                        if (oldIndex < targetIndex)
+                        {
+                            targetIndex--;
+                        }
+
+                        viewModel.PendingQueueItems.Move(oldIndex, targetIndex);
+                    }
+                }
+            }
+            
+            if (_lastQueueIndicator != null)
+            {
+                _lastQueueIndicator.Visibility = Visibility.Collapsed;
+                _lastQueueIndicator = null;
+            }
+            e.Handled = true;
         }
     }
 }

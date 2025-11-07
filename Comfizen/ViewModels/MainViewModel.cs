@@ -151,6 +151,24 @@ namespace Comfizen
         public ICommand OpenGroupNavigationCommand { get; }
         public ICommand GoToGroupCommand { get; }
         public ICommand CompareSelectedImagesCommand { get; }
+        public ICommand DeleteSelectedQueueItemCommand { get; }
+        public ObservableCollection<QueueItemViewModel> PendingQueueItems { get; } = new ObservableCollection<QueueItemViewModel>();
+        public ObservableCollection<QueueItemDetailViewModel> SelectedQueueItemDetails { get; } = new ObservableCollection<QueueItemDetailViewModel>();
+        
+        private QueueItemViewModel _selectedQueueItem;
+        public QueueItemViewModel SelectedQueueItem
+        {
+            get => _selectedQueueItem;
+            set
+            {
+                if (_selectedQueueItem != value)
+                {
+                    _selectedQueueItem = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedQueueItem)));
+                    UpdateQueueItemDetails();
+                }
+            }
+        }
         
         public IEnumerable<WorkflowGroupViewModel> AllGroupsInSelectedTab => 
             SelectedTab?.WorkflowInputsController.TabLayoouts
@@ -230,7 +248,7 @@ namespace Comfizen
             public bool CreateGridImage { get; set; }
         }
         
-        private class PromptTask
+        public class PromptTask
         {
             /// <summary>
             /// The raw API JSON sent to the ComfyUI server.
@@ -391,6 +409,14 @@ namespace Comfizen
                 }
             });
             
+            DeleteSelectedQueueItemCommand = new RelayCommand(param =>
+            {
+                if (param is QueueItemViewModel item)
+                {
+                    PendingQueueItems.Remove(item);
+                }
+            }, param => param is QueueItemViewModel);
+            
             OpenWildcardBrowserCommand = new RelayCommand(param =>
             {
                 if (param is not TextFieldViewModel fieldVm) return;
@@ -442,13 +468,13 @@ namespace Comfizen
                 // It lets the processing loop finish the current task gracefully.
                 _cancellationRequested = true;
                 IsInfiniteQueueEnabled = false;
-                _promptsQueue.Clear(); // Immediately remove all waiting tasks.
+                PendingQueueItems.Clear();
 
                 CompletedTasks = 0;
                 TotalTasks = 0;
                 CurrentProgress = 0;
             
-            }, canExecute: x => _promptsQueue.Any() || (_isProcessing && TotalTasks > CompletedTasks));
+            }, canExecute: x => PendingQueueItems.Any() || (_isProcessing && TotalTasks > CompletedTasks));
             
             QueueCommand = new AsyncRelayCommand(Queue, canExecute: x => SelectedTab?.Workflow.IsLoaded ?? false);
             
@@ -1205,13 +1231,15 @@ namespace Comfizen
         private async Task Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
+            
+            var templatePrompt = SelectedTab.Workflow.JsonClone();
         
             SelectedTab.ExecuteHook("on_queue_start", SelectedTab.Workflow.LoadedApi);
         
             var promptTasks = await CreatePromptTasks(SelectedTab);
             if (promptTasks.Count == 0) return;
         
-            if (_cancellationRequested || (_promptsQueue.IsEmpty && !_isProcessing))
+            if (_cancellationRequested || (PendingQueueItems.Count == 0 && !_isProcessing))
             {
                 CompletedTasks = 0;
                 TotalTasks = 0;
@@ -1221,9 +1249,11 @@ namespace Comfizen
             }
             _cancellationRequested = false;
     
+            // CHANGE THE LOGIC HERE
             foreach (var task in promptTasks)
             {
-                _promptsQueue.Enqueue(task);
+                var queueItem = new QueueItemViewModel(task, SelectedTab.Header, templatePrompt);
+                PendingQueueItems.Add(queueItem);
             }
             TotalTasks += promptTasks.Count;
     
@@ -1299,8 +1329,19 @@ namespace Comfizen
                     
                     if (_cancellationRequested) break;
     
-                    if (_promptsQueue.TryDequeue(out var task))
+                    QueueItemViewModel taskVm = null;
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
+                        taskVm = PendingQueueItems.FirstOrDefault();
+                        if (taskVm != null)
+                        {
+                            PendingQueueItems.RemoveAt(0);
+                        }
+                    });
+
+                    if (taskVm != null)
+                    {
+                        var task = taskVm.Task;
                         _currentTask = task;
                         lastTaskOriginTab = task.OriginTab;
                         
@@ -1412,9 +1453,12 @@ namespace Comfizen
 
                             if (newTasks != null)
                             {
+                                // ADD NEW TASKS TO UI QUEUE
                                 foreach (var p in newTasks)
                                 {
-                                    _promptsQueue.Enqueue(p);
+                                    var templatePrompt = lastTaskOriginTab.Workflow.JsonClone();
+                                    var queueItem = new QueueItemViewModel(p, lastTaskOriginTab.Header, templatePrompt);
+                                    await Application.Current.Dispatcher.InvokeAsync(() => PendingQueueItems.Add(queueItem));
                                 }
                                 TotalTasks += newTasks.Count;
                             }
@@ -1516,7 +1560,7 @@ namespace Comfizen
             
                 if (_cancellationRequested)
                 {
-                    _promptsQueue.Clear();
+                    await Application.Current.Dispatcher.InvokeAsync(() => PendingQueueItems.Clear());
                 
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
@@ -1531,6 +1575,52 @@ namespace Comfizen
                 {
                     await Application.Current.Dispatcher.InvokeAsync(() => lastTaskOriginTab.ExecuteHook("on_batch_finished", lastTaskOriginTab.Workflow.LoadedApi));
                 }
+            }
+        }
+        
+        private void UpdateQueueItemDetails()
+        {
+            SelectedQueueItemDetails.Clear();
+            if (SelectedQueueItem == null) return;
+
+            try
+            {
+                var taskPrompt = JObject.Parse(SelectedQueueItem.Task.JsonPromptForApi);
+                var templatePrompt = SelectedQueueItem.TemplatePrompt;
+
+                if (taskPrompt == null || templatePrompt == null) return;
+
+                var allFields = SelectedQueueItem.Task.OriginTab.Workflow.Groups.SelectMany(g => g.Fields);
+
+                foreach (var property in taskPrompt.Properties())
+                {
+                    var nodeId = property.Name;
+                    if (property.Value["inputs"] is not JObject taskInputs || templatePrompt[nodeId]?["inputs"] is not JObject templateInputs) continue;
+
+                    foreach (var inputProp in taskInputs.Properties())
+                    {
+                        var inputName = inputProp.Name;
+                        var taskValue = inputProp.Value;
+                        var templateValue = templateInputs[inputName];
+
+                        if (templateValue != null && !Utils.AreJTokensEquivalent(taskValue, templateValue))
+                        {
+                            var field = allFields.FirstOrDefault(f => f.Path == inputProp.Path);
+                            var detail = new QueueItemDetailViewModel
+                            {
+                                FieldPath = inputProp.Path,
+                                DisplayName = field?.Name ?? $"{nodeId}::{inputName}",
+                                OriginalValue = templateValue.ToString(Formatting.None),
+                                NewValue = taskValue.ToString(Formatting.None)
+                            };
+                            SelectedQueueItemDetails.Add(detail);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to generate queue item details.");
             }
         }
         
