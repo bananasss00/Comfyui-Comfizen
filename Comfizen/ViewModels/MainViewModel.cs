@@ -426,6 +426,11 @@ namespace Comfizen
                 if (param is QueueItemViewModel item)
                 {
                     PendingQueueItems.Remove(item);
+                    
+                    if (TotalTasks > 0)
+                    {
+                        TotalTasks--;
+                    }
                 }
             }, param => param is QueueItemViewModel);
             
