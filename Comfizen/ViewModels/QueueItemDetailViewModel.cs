@@ -12,6 +12,8 @@ namespace Comfizen
         public string FieldPath { get; set; }
         public string DisplayName { get; set; }
         public string NewValue { get; set; }
+        public string NodeTitle { get; set; }
+        public string NodeType { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }

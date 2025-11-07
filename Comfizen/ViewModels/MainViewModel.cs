@@ -153,6 +153,7 @@ namespace Comfizen
         public ICommand CompareSelectedImagesCommand { get; }
         public ICommand DeleteSelectedQueueItemCommand { get; }
         public ObservableCollection<QueueItemViewModel> PendingQueueItems { get; } = new ObservableCollection<QueueItemViewModel>();
+        public QueueItemViewModel CurrentTaskVm { get; private set; }
         
         public void UpdateQueueItemIndexes()
         {
@@ -1361,6 +1362,7 @@ namespace Comfizen
                         if (taskVm != null)
                         {
                             PendingQueueItems.RemoveAt(0);
+                            CurrentTaskVm = taskVm;
                         }
                     });
 
@@ -1476,7 +1478,7 @@ namespace Comfizen
                             List<PromptTask> newTasks = null;
                             newTasks = await CreatePromptTasks(lastTaskOriginTab);
 
-                            if (newTasks != null)
+                            if (newTasks != null && newTasks.Any())
                             {
                                 // ADD NEW TASKS TO UI QUEUE
                                 foreach (var p in newTasks)
@@ -1486,8 +1488,12 @@ namespace Comfizen
                                     await Application.Current.Dispatcher.InvokeAsync(() => PendingQueueItems.Add(queueItem));
                                 }
                                 TotalTasks += newTasks.Count;
+                                await Task.Delay(100);
                             }
-                            await Task.Delay(100);
+                            else
+                            {
+                                break; // No new tasks generated, so stop the queue.
+                            }
                         }
                         else
                         {
@@ -1499,6 +1505,8 @@ namespace Comfizen
             finally
             {
                 _etaUpdateTimer.Stop();
+                
+                await Application.Current.Dispatcher.InvokeAsync(() => CurrentTaskVm = null);
                 
                 // After the queue is empty, check if we need to generate a grid image
                 if (gridResults != null && gridResults.Any() && gridConfig.CreateGridImage)
@@ -1634,7 +1642,9 @@ namespace Comfizen
                         {
                             FieldPath = path,
                             DisplayName = field?.Name ?? path.Split('.').Last(),
-                            NewValue = taskToken.ToString(Formatting.None).Trim('"')
+                            NewValue = taskToken.ToString(Formatting.None).Trim('"'),
+                            NodeTitle = field?.NodeTitle,
+                            NodeType = field?.NodeType
                         };
                         
                         string newValueString = taskToken.ToString(Formatting.None).Trim('"');
