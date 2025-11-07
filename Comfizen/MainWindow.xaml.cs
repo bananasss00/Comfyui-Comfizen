@@ -1134,20 +1134,47 @@ namespace Comfizen
 
         private void QueueItem_DragOver(object sender, DragEventArgs e)
         {
+            // This logic will scroll the parent ListBox when dragging near the top or bottom edges.
+            if (sender is ListBoxItem item)
+            {
+                // Find the parent ListBox and its internal ScrollViewer
+                var listBox = ItemsControl.ItemsControlFromItemContainer(item) as ListBox;
+                var scrollViewer = FindVisualChild<ScrollViewer>(listBox);
+
+                if (scrollViewer != null)
+                {
+                    const double scrollThreshold = 40.0; // The distance from the edge to trigger scrolling
+                    const double scrollSpeed = 8.0;      // How fast to scroll
+
+                    Point position = e.GetPosition(scrollViewer);
+
+                    if (position.Y < scrollThreshold)
+                    {
+                        // Scroll up
+                        scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - scrollSpeed);
+                    }
+                    else if (position.Y > scrollViewer.ActualHeight - scrollThreshold)
+                    {
+                        // Scroll down
+                        scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + scrollSpeed);
+                    }
+                }
+            }
+            
             if (e.Data.GetDataPresent(typeof(QueueItemViewModel)))
             {
                 e.Effects = DragDropEffects.Move;
 
-                if (sender is ListBoxItem item)
+                if (sender is ListBoxItem item2)
                 {
                     // Hide previous indicator
                     if (_lastQueueIndicator != null)
                         _lastQueueIndicator.Visibility = Visibility.Collapsed;
 
-                    var position = e.GetPosition(item);
-                    var indicator = position.Y < item.ActualHeight / 2
-                        ? FindVisualChild<Border>(item, "DropIndicatorBefore")
-                        : FindVisualChild<Border>(item, "DropIndicatorAfter");
+                    var position = e.GetPosition(item2);
+                    var indicator = position.Y < item2.ActualHeight / 2
+                        ? FindVisualChild<Border>(item2, "DropIndicatorBefore")
+                        : FindVisualChild<Border>(item2, "DropIndicatorAfter");
 
                     if (indicator != null)
                     {
