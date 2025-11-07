@@ -1184,9 +1184,14 @@
                                                     </Grid.ColumnDefinitions>
                                                     
                                                     <TextBlock Grid.Column="0" FontWeight="Bold" VerticalAlignment="Center">
-                                                        <Run Text="{Binding Converter={StaticResource ItemToIndexConverter}, Mode=OneWay, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
-                                                        <Run Text=": "/>
-                                                        <Run Text="{Binding WorkflowName, Mode=OneWay}"/>
+                                                        <!-- START OF FIX: Use MultiBinding with RelativeSource -->
+                                                        <TextBlock.Text>
+                                                            <MultiBinding Converter="{StaticResource QueueItemDisplayConverter}">
+                                                                <Binding Path="."/>
+                                                                <Binding RelativeSource="{RelativeSource AncestorType=ListBox}" Path="Items"/>
+                                                            </MultiBinding>
+                                                        </TextBlock.Text>
+                                                        <!-- END OF FIX -->
                                                     </TextBlock>
                                                     
                                                     <Button Grid.Column="1" Content="&#xE74D;" Style="{StaticResource IconButton}" 

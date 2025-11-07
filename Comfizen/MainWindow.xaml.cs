@@ -1134,6 +1134,17 @@ namespace Comfizen
 
         private void QueueItem_DragOver(object sender, DragEventArgs e)
         {
+            // --- START OF FIX: Prevent drag logic from interfering with buttons ---
+            // If the mouse is over a button, do not proceed with drag-over logic.
+            if (e.OriginalSource is Button)
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+            // --- END OF FIX ---
+
+            // --- START OF NEW AUTO-SCROLL LOGIC ---
             // This logic will scroll the parent ListBox when dragging near the top or bottom edges.
             if (sender is ListBoxItem item)
             {

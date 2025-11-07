@@ -421,6 +421,12 @@ namespace Comfizen
                 if (param is QueueItemViewModel item)
                 {
                     PendingQueueItems.Remove(item);
+                    // START OF FIX: Decrement total tasks when an item is removed
+                    if (TotalTasks > 0)
+                    {
+                        TotalTasks--;
+                    }
+                    // END OF FIX
                 }
             }, param => param is QueueItemViewModel);
             
