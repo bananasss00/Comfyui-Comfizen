@@ -34,6 +34,7 @@
         <local:CornerRadiusConverter x:Key="CornerRadiusConverter" />
         <local:SelectionCountToBooleanConverter x:Key="SelectionCountToBooleanConverter"/>
         <local:QueueItemDisplayConverter x:Key="QueueItemDisplayConverter"/>
+        <local:AddOneConverter x:Key="AddOneConverter"/>
 
         <!-- ScrollBar Thumb Style -->
         <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">

@@ -1137,7 +1137,8 @@
 
                         <ListBox ItemsSource="{Binding PendingQueueItems}" SelectedItem="{Binding SelectedQueueItem}"
                                  Background="{StaticResource TertiaryBackground}" Margin="5" BorderThickness="0"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 AlternationCount="{Binding Items.Count, RelativeSource={RelativeSource Self}}">
 
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem">
@@ -1186,9 +1187,11 @@
                                                     <TextBlock Grid.Column="0" FontWeight="Bold" VerticalAlignment="Center">
                                                         <!-- START OF FIX: Use MultiBinding with RelativeSource -->
                                                         <TextBlock.Text>
-                                                            <MultiBinding Converter="{StaticResource QueueItemDisplayConverter}">
-                                                                <Binding Path="."/>
-                                                                <Binding RelativeSource="{RelativeSource AncestorType=ListBox}" Path="Items"/>
+                                                            <MultiBinding StringFormat="{}{0}: {1}">
+                                                                <Binding Path="(ItemsControl.AlternationIndex)"
+                                                                         RelativeSource="{RelativeSource AncestorType=ListBoxItem}"
+                                                                         Converter="{StaticResource AddOneConverter}" />
+                                                                <Binding Path="WorkflowName" />
                                                             </MultiBinding>
                                                         </TextBlock.Text>
                                                         <!-- END OF FIX -->
