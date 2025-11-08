@@ -1248,5 +1248,74 @@ namespace Comfizen
             if (DataContext is MainViewModel mainViewModel)
                 mainViewModel.UpdateQueueItemIndexes(); 
         }
+        
+        /// <summary>
+        /// Handles the DragDelta event from a Thumb to resize a text field,
+        /// supporting both simple TextBox and the AdvancedPromptEditor.
+        /// </summary>
+        private void OnResizeThumbDragDelta(object sender, DragDeltaEventArgs e)
+        {
+            if (e.OriginalSource is not Thumb thumb) return;
+        
+            // Go up the visual tree to find the ContentPresenter that hosts this entire field's UI.
+            var fieldContentPresenter = thumb.TryFindParent<ContentPresenter>();
+            if (fieldContentPresenter == null) return;
+        
+            // Now, search down from this specific ContentPresenter to find the named controls.
+            // This is much more reliable as it's scoped to the correct item.
+            var simpleEditorTextBox = FindVisualChild<TextBox>(fieldContentPresenter, "WildcardTextBox");
+            var advancedEditor = FindVisualChild<AdvancedPromptEditor>(fieldContentPresenter, "AdvancedEditor");
+
+            if (simpleEditorTextBox != null && simpleEditorTextBox.IsVisible)
+            {
+                // Resize the simple TextBox
+                simpleEditorTextBox.Height = Math.Max(60, simpleEditorTextBox.ActualHeight + e.VerticalChange);
+            }
+            else if (advancedEditor != null && advancedEditor.IsVisible)
+            {
+                // Find the ScrollViewer inside the AdvancedPromptEditor
+                var tokenScrollViewer = FindVisualChild<ScrollViewer>(advancedEditor, "TokenScrollViewer");
+                if (tokenScrollViewer != null)
+                {
+                    // Resize the ScrollViewer, which contains the tokens. This effectively makes the whole control larger.
+                    tokenScrollViewer.Height = Math.Max(30, tokenScrollViewer.ActualHeight + e.VerticalChange);
+                }
+            }
+        
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Commits or cancels the renaming of a workflow tab when the textbox loses focus.
+        /// </summary>
+        private void RenameTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is not TextBox textBox || textBox.DataContext is not WorkflowTabViewModel tabVm) return;
+            if (!tabVm.IsRenaming) return; // Avoid re-triggering if already handled by KeyDown
+
+            var mainVm = DataContext as MainViewModel;
+            mainVm?.RenameWorkflow(tabVm, textBox.Text);
+        }
+
+        /// <summary>
+        /// Handles Enter and Escape keys during tab renaming.
+        /// </summary>
+        private void RenameTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (sender is not TextBox textBox || textBox.DataContext is not WorkflowTabViewModel tabVm) return;
+            var mainVm = DataContext as MainViewModel;
+
+            if (e.Key == Key.Enter)
+            {
+                mainVm?.RenameWorkflow(tabVm, textBox.Text);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                // Cancel rename
+                tabVm.IsRenaming = false; 
+                e.Handled = true;
+            }
+        }
     }
 }

@@ -302,5 +302,11 @@
   "QueueManager_Field": "Field",
   "QueueManager_OriginalValue": "Original Value",
   "QueueManager_NewValue": "New Value",
-  "QueueManager_DeleteItem": "Delete from Queue"
+  "QueueManager_DeleteItem": "Delete from Queue",
+  "ContextMenu_RenameWorkflow": "Rename Workflow",
+  "ContextMenu_DeleteWorkflow": "Delete Workflow",
+  "ContextMenu_ExportState": "Export Current State",
+  "ContextMenu_ResetSession": "Reset Session",
+  "ContextMenu_ClearBlockedNodes": "Clear Blocked Nodes",
+  "ContextMenu_SaveChanges": "Save Current Values to Workflow"
 }
