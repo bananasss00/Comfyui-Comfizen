@@ -313,7 +313,7 @@
                     <ColumnDefinition Width="5" />
                     <ColumnDefinition Width="2*" MinWidth="400" />
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="{Binding IsQueueManagerVisible, Converter={StaticResource BoolToGridLengthConverter}, ConverterParameter='1*'}" MinWidth="0"/>
+                    <ColumnDefinition Width="1*" MinWidth="300"/>
                 </Grid.ColumnDefinitions>
                 
                 <Border Grid.Column="0" Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,0,5" Margin="5,0,0,5">
@@ -731,6 +731,16 @@
                               VerticalAlignment="Stretch"/>
             
                 <Grid Grid.Column="2">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsQueueManagerVisible}" Value="False">
+                                    <Setter Property="Grid.ColumnSpan" Value="3" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    
                     <Border Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,5,0" Margin="0,0,5,5">
                         <DockPanel>
                             <Border DockPanel.Dock="Top" Padding="8" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,0,0,1">
@@ -1150,9 +1160,11 @@
                               Style="{StaticResource VerticalGridSplitterStyle}"
                               ResizeBehavior="PreviousAndNext"
                               HorizontalAlignment="Center"
-                              VerticalAlignment="Stretch"/>
+                              VerticalAlignment="Stretch"
+                              Visibility="{Binding IsQueueManagerVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                <Border Grid.Column="4" Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,5,0" Margin="0,0,5,5">
+                <Border Grid.Column="4" Background="{StaticResource SecondaryBackground}" CornerRadius="0,0,5,0" Margin="0,0,5,5"
+                        Visibility="{Binding IsQueueManagerVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <DockPanel>
                         <DockPanel.Resources>
                             <DataTemplate x:Key="QueueItemTemplate" DataType="{x:Type local:QueueItemViewModel}">
