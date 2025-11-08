@@ -1485,7 +1485,11 @@ namespace Comfizen
                                 {
                                     var templatePrompt = lastTaskOriginTab.Workflow.JsonClone();
                                     var queueItem = new QueueItemViewModel(p, lastTaskOriginTab.Header, templatePrompt);
-                                    await Application.Current.Dispatcher.InvokeAsync(() => PendingQueueItems.Add(queueItem));
+                                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                                    {
+                                        PopulateQueueItemDetails(queueItem);
+                                        PendingQueueItems.Add(queueItem);
+                                    });
                                 }
                                 TotalTasks += newTasks.Count;
                                 await Task.Delay(100);
