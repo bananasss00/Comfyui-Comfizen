@@ -1161,7 +1161,8 @@
                                                 </ItemsControl.Style>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate DataType="{x:Type local:QueueItemDetailViewModel}">
-                                                        <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis">
+                                                        <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"
+                                                                   ToolTipService.InitialShowDelay="0" ToolTipService.ShowDuration="20000">
                                                             <TextBlock.ToolTip>
                                                                 <ToolTip>
                                                                     <TextBlock Text="{Binding NewValue}" MaxWidth="500" TextWrapping="Wrap"/>
