@@ -240,6 +240,8 @@ namespace Comfizen
         
         public ICommand CopyWorkflowLinkCommand { get; }
         
+        public ICommand RenameWorkflowCommand { get; }
+        
         // Helper classes to manage grid processing state
         private class GridCellResult
         {
@@ -359,8 +361,9 @@ namespace Comfizen
                 _ => _isProcessing
             );
             
-            ClearSessionCommand = new RelayCommand(o => ClearSessionForCurrentWorkflow(), 
-                o => SelectedTab != null && !SelectedTab.IsVirtual);
+            ClearSessionCommand = new RelayCommand(o => {
+                if (o is WorkflowTabViewModel tab) ClearSessionForWorkflow(tab);
+            }, o => o is WorkflowTabViewModel tab && !tab.IsVirtual);
 
             PasteImageCommand = new RelayCommand(
                 _ => SelectedTab?.WorkflowInputsController.HandlePasteOperation(),
@@ -370,13 +373,17 @@ namespace Comfizen
             RefreshModelsCommand = new RelayCommand(RefreshModels, 
                 o => SelectedTab != null && SelectedTab.Workflow.IsLoaded && !SelectedTab.IsVirtual);
             
-            SaveChangesToWorkflowCommand = new RelayCommand(SaveChangesToWorkflow, 
-                // Disable this command for virtual tabs, as they have no "default file" to overwrite.
-                o => SelectedTab != null && SelectedTab.Workflow.IsLoaded && !SelectedTab.IsVirtual);
+            SaveChangesToWorkflowCommand = new RelayCommand(o => {
+                if (o is WorkflowTabViewModel tab) SaveChangesToWorkflow(tab);
+            }, o => o is WorkflowTabViewModel tab && !tab.IsVirtual && tab.Workflow.IsLoaded);
             
-            ExportCurrentStateCommand = new RelayCommand(ExportCurrentState, o => SelectedTab?.Workflow.IsLoaded ?? false);
+            ExportCurrentStateCommand = new RelayCommand(o => {
+                if (o is WorkflowTabViewModel tab) ExportCurrentState(tab);
+            }, o => o is WorkflowTabViewModel tab && tab.Workflow.IsLoaded);
             // Disable delete for virtual tabs (they are just closed, not deleted from disk).
-            DeleteWorkflowCommand = new RelayCommand(DeleteSelectedWorkflow, _ => SelectedTab != null && !SelectedTab.IsVirtual);
+            DeleteWorkflowCommand = new RelayCommand(o => {
+                if (o is WorkflowTabViewModel tab) DeleteWorkflow(tab);
+            }, o => o is WorkflowTabViewModel tab && !tab.IsVirtual);
             
             BlockNodeCommand = new RelayCommand(p =>
             {
@@ -394,12 +401,14 @@ namespace Comfizen
                 }
             }, p => p is ImageOutput);
             
-            ClearBlockedNodesCommand = new RelayCommand(_ =>
+            ClearBlockedNodesCommand = new RelayCommand(o =>
             {
-                if (SelectedTab == null) return;
-                SelectedTab.Workflow.BlockedNodeIds.Clear();
-                Logger.LogToConsole(LocalizationService.Instance["MainVM_ClearBlockedNodesSuccessMessage"]);
-            }, _ => SelectedTab != null && SelectedTab.Workflow.BlockedNodeIds.Any());
+                if (o is WorkflowTabViewModel tab)
+                {
+                    tab.Workflow.BlockedNodeIds.Clear();
+                    Logger.LogToConsole(LocalizationService.Instance["MainVM_ClearBlockedNodesSuccessMessage"]);
+                }
+            }, o => o is WorkflowTabViewModel tab && tab.Workflow.BlockedNodeIds.Any());
             
             TogglePauseQueueCommand = new RelayCommand(_ => IsQueuePaused = !IsQueuePaused, _ => _isProcessing);
             
@@ -544,6 +553,88 @@ namespace Comfizen
                 }
             
             }, param => param is IList list && list.Count >= 1); // Can execute if 1 or more images are selected.
+            
+            RenameWorkflowCommand = new RelayCommand(p => {
+                if (p is WorkflowTabViewModel tab)
+                {
+                    // Set the IsRenaming flag to show the TextBox
+                    tab.IsRenaming = true; 
+                }
+            }, p => p is WorkflowTabViewModel tab && !tab.IsVirtual);
+        }
+        
+        /// <summary>
+        /// Handles the logic of renaming a workflow file and updating all related application state.
+        /// Supports moving the file to a subdirectory by including slashes in the new name.
+        /// </summary>
+        /// <param name="tab">The view model of the tab being renamed.</param>
+        /// <param name="newName">The desired new name, which can include a relative path (e.g., "subdir/new_name").</param>
+        public void RenameWorkflow(WorkflowTabViewModel tab, string newName)
+        {
+            if (tab == null || !tab.IsRenaming) return;
+
+            tab.IsRenaming = false;
+            // Store old display name for logs and potential revert
+            string oldHeaderForDisplay = tab.Header; 
+            string normalizedNewName = newName.Replace('\\', '/');
+
+            // CORRECTED CHECK: Compare the new normalized name against the old relative path tooltip.
+            if (string.IsNullOrWhiteSpace(normalizedNewName) || normalizedNewName.Equals(tab.RelativePathTooltip, StringComparison.OrdinalIgnoreCase))
+            {
+                return; // No change, do nothing.
+            }
+
+            try
+            {
+                var oldRelativePath = Path.GetRelativePath(Workflow.WorkflowsDir, tab.FilePath).Replace(Path.DirectorySeparatorChar, '/');
+                var newRelativePath = normalizedNewName + ".json";
+                
+                var oldFullPath = Path.GetFullPath(tab.FilePath);
+                var newFullPath = Path.GetFullPath(Path.Combine(Workflow.WorkflowsDir, newRelativePath));
+
+                if (File.Exists(newFullPath))
+                {
+                    MessageBox.Show($"A workflow named '{normalizedNewName}' already exists.", "Rename Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // Ensure the target directory exists
+                var newDirectory = Path.GetDirectoryName(newFullPath);
+                if (!string.IsNullOrEmpty(newDirectory))
+                {
+                    Directory.CreateDirectory(newDirectory);
+                }
+                
+                // Perform the rename/move
+                File.Move(oldFullPath, newFullPath);
+                Logger.Log($"Renamed workflow '{oldHeaderForDisplay}' to '{normalizedNewName}'.");
+
+                // Clear old session file
+                _sessionManager.ClearSession(oldFullPath);
+
+                // Update tab properties
+                tab.Header = Path.GetFileNameWithoutExtension(normalizedNewName);
+                // This will force RelativePathTooltip to update as well
+                typeof(WorkflowTabViewModel).GetProperty(nameof(WorkflowTabViewModel.FilePath)).SetValue(tab, newFullPath, null);
+                
+                // Update the main workflows list
+                UpdateWorkflows();
+
+                // Update recent workflows list
+                var recentIndex = Settings.RecentWorkflows.IndexOf(oldRelativePath);
+                if (recentIndex != -1)
+                {
+                    Settings.RecentWorkflows[recentIndex] = newRelativePath;
+                }
+                _settingsService.SaveSettings();
+                UpdateWorkflowDisplayList();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, $"Failed to rename workflow '{oldHeaderForDisplay}'.");
+                MessageBox.Show($"Error renaming workflow: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                tab.Header = oldHeaderForDisplay; // Revert header on failure
+            }
         }
         
         private void CopyConsoleItem(object item)
@@ -824,12 +915,12 @@ namespace Comfizen
             SelectedTab = newTab;
         }
         
-        private void SaveChangesToWorkflow(object obj)
+        private void SaveChangesToWorkflow(WorkflowTabViewModel tab)
         {
-            if (SelectedTab == null) return;
+            if (tab == null) return;
 
             var result = MessageBox.Show(
-                string.Format(LocalizationService.Instance["MainVM_SaveConfirmationMessage"], SelectedTab.Header),
+                string.Format(LocalizationService.Instance["MainVM_SaveConfirmationMessage"], tab.Header),
                 LocalizationService.Instance["MainVM_SaveConfirmationTitle"],
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning);
@@ -838,14 +929,14 @@ namespace Comfizen
 
             try
             {
-                var fullPath = SelectedTab.FilePath;
+                var fullPath = tab.FilePath;
                 var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, fullPath);
                 var relativePathWithoutExtension = Path.ChangeExtension(relativePath, null);
-                
-                SelectedTab.Workflow.SaveWorkflowWithCurrentState(relativePathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/'));
-                string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
-                var hookStates = SelectedTab.WorkflowInputsController.GlobalControls.GetHookStates();
-                _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName, hookStates);
+        
+                tab.Workflow.SaveWorkflowWithCurrentState(relativePathWithoutExtension.Replace(Path.DirectorySeparatorChar, '/'));
+                string activeInnerTabName = tab.WorkflowInputsController.SelectedTabLayout?.Header;
+                var hookStates = tab.WorkflowInputsController.GlobalControls.GetHookStates();
+                _sessionManager.SaveSession(tab.Workflow, tab.FilePath, activeInnerTabName, hookStates);
 
                 Logger.Log(LocalizationService.Instance["MainVM_ValuesSavedMessage"]);
             }
@@ -861,9 +952,9 @@ namespace Comfizen
 
         private const bool stripMeta = false;
         
-        private void ExportCurrentState(object obj)
+        private void ExportCurrentState(WorkflowTabViewModel tab)
         {
-            if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded || SelectedTab.Workflow.LoadedApi == null)
+            if (tab == null || !tab.Workflow.IsLoaded || tab.Workflow.LoadedApi == null)
             {
                 Logger.Log(LocalizationService.Instance["MainVM_ExportErrorMessage"], LogLevel.Error);
                 return;
@@ -871,7 +962,7 @@ namespace Comfizen
 
             var dialog = new SaveFileDialog
             {
-                FileName = Path.GetFileNameWithoutExtension(SelectedTab.Header) + "_current.json",
+                FileName = Path.GetFileNameWithoutExtension(tab.Header) + "_current.json",
                 Filter = "JSON File (*.json)|*.json",
                 Title = LocalizationService.Instance["MainVM_ExportDialogTitle"]
             };
@@ -880,21 +971,11 @@ namespace Comfizen
             {
                 try
                 {
-                    // --- START OF REWORKED EXPORT LOGIC ---
-                    // 1. Create a deep clone to avoid modifying the live workflow object.
-                    var promptToExport = SelectedTab.Workflow.LoadedApi.DeepClone() as JObject;
-
-                    // 2. Apply the current bypass settings to this clone.
-                    SelectedTab.WorkflowInputsController.ApplyNodeBypass(promptToExport);
-
-                    // 3. Remove all internal "_meta" properties for a clean export.
+                    var promptToExport = tab.Workflow.LoadedApi.DeepClone() as JObject;
+                    tab.WorkflowInputsController.ApplyNodeBypass(promptToExport);
                     if (stripMeta)
                         Utils.StripAllMetaProperties(promptToExport);
-
-                    // 4. Serialize the cleaned and bypassed object.
                     string jsonContent = promptToExport.ToString(Formatting.Indented);
-                    // --- END OF REWORKED EXPORT LOGIC ---
-                    
                     File.WriteAllText(dialog.FileName, jsonContent);
                     Logger.Log(string.Format(LocalizationService.Instance["MainVM_ExportSuccessMessage"], dialog.FileName));
                 }
@@ -1976,9 +2057,8 @@ namespace Comfizen
             _settingsService.SaveSettings();
         }
         
-        private void DeleteSelectedWorkflow(object obj)
+        private void DeleteWorkflow(WorkflowTabViewModel tabToDelete)
         {
-            var tabToDelete = SelectedTab;
             if (tabToDelete == null) return;
 
             var workflowName = tabToDelete.Header;
@@ -2001,14 +2081,14 @@ namespace Comfizen
                 {
                     File.Delete(filePath);
                 }
-                
+        
                 var relativePath = Path.GetRelativePath(Workflow.WorkflowsDir, filePath).Replace(Path.DirectorySeparatorChar, '/');
                 if (_settings.RecentWorkflows.Contains(relativePath))
                 {
                     _settings.RecentWorkflows.Remove(relativePath);
                     _settingsService.SaveSettings();
                 }
-            
+    
                 UpdateWorkflows();
             }
             catch (Exception ex)
@@ -2019,13 +2099,13 @@ namespace Comfizen
             }
         }
         
-        private void ClearSessionForCurrentWorkflow()
+        private void ClearSessionForWorkflow(WorkflowTabViewModel tab)
         {
-            if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
-            
-            SelectedTab.ResetState();
-            
-            MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_SessionResetMessage"], SelectedTab.Header), 
+            if (tab == null || !tab.Workflow.IsLoaded) return;
+    
+            tab.ResetState();
+    
+            MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_SessionResetMessage"], tab.Header), 
                 LocalizationService.Instance["MainVM_SessionResetTitle"], 
                 MessageBoxButton.OK, 
                 MessageBoxImage.Information);

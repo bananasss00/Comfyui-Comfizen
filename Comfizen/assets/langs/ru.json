@@ -301,5 +301,11 @@
   "QueueManager_Field": "Поле",
   "QueueManager_OriginalValue": "Оригинал",
   "QueueManager_NewValue": "Новое значение",
-  "QueueManager_DeleteItem": "Удалить из очереди"
+  "QueueManager_DeleteItem": "Удалить из очереди",
+  "ContextMenu_RenameWorkflow": "Переименовать процесс",
+  "ContextMenu_DeleteWorkflow": "Удалить процесс",
+  "ContextMenu_ExportState": "Экспортировать текущее состояние",
+  "ContextMenu_ResetSession": "Сбросить сессию",
+  "ContextMenu_ClearBlockedNodes": "Очистить список блокировок",
+  "ContextMenu_SaveChanges": "Сохранить текущие значения в процесс"
 }

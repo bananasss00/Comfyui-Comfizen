@@ -126,16 +126,17 @@
                         <Border x:Name="Border" 
                                 Background="Transparent"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter ContentSource="Header" 
-                                              RecognizesAccessKey="True"
-                                              VerticalAlignment="Center"/>
+                            <TextBlock x:Name="HeaderText"
+                                       Text="{TemplateBinding Header}"
+                                       VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                <Setter TargetName="HeaderText" Property="Foreground" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Foreground" Value="Gray"/>
+                                <Setter TargetName="HeaderText" Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -171,11 +172,6 @@
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="10,0,0,0">
                     <Button Content="&#xE70F;" Style="{StaticResource IconButton}" Command="{Binding EditWorkflowCommand}" ToolTip="{local:Translate Toolbar_EditWorkflow}"/>
                     <Button Content="&#xE710;" Style="{StaticResource IconButton}" Command="{Binding OpenConstructorCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_NewWorkflow}"/>
-                    <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Command="{Binding DeleteWorkflowCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_DeleteWorkflow}"/>
-                    <Button Content="&#xE7A7;" Style="{StaticResource IconButton}" Command="{Binding ClearSessionCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ResetSession}"/>
-                    <Button Content="&#xE738;" Style="{StaticResource IconButton}" Command="{Binding ClearBlockedNodesCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ClearBlockedNodes}"/>
-                    <Button Content="&#xE74E;" Style="{StaticResource IconButton}" Command="{Binding SaveChangesToWorkflowCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_SaveChanges}"/>
-                    <Button Content="&#xE78C;" Style="{StaticResource IconButton}" Command="{Binding ExportCurrentStateCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ExportState}"/>
                     <Button Content="&#xE72C;" Style="{StaticResource IconButton}" Command="{Binding RefreshModelsCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_RefreshModels}"/>
                     <Button Content="&#xE75F;" Style="{StaticResource IconButton}" Command="{Binding ToggleConsoleCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_ToggleConsole}"/>
                     <Button Content="&#xE713;" Style="{StaticResource IconButton}" Command="{Binding OpenSettingsCommand}" Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_Settings}"/>
@@ -225,12 +221,34 @@
                         <EventSetter Event="Drop" Handler="TabItem_Drop"/>
                         <EventSetter Event="MouseMove" Handler="TabItem_MouseMove"/>
                         <EventSetter Event="PreviewMouseUp" Handler="TabItem_PreviewMouseUp"/>
-                        
+
                         <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=TabControl}}"/>
-                        
+
+                            
                         <Setter Property="ContextMenu">
                             <Setter.Value>
                                 <ContextMenu Style="{StaticResource AppContextMenuStyle}">
+                                    <MenuItem Header="{local:Translate ContextMenu_RenameWorkflow}"
+                                              Command="{Binding PlacementTarget.Tag.RenameWorkflowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                    <MenuItem Header="{local:Translate ContextMenu_DeleteWorkflow}"
+                                              Command="{Binding PlacementTarget.Tag.DeleteWorkflowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                    <Separator/>
+                                    <MenuItem Header="{local:Translate ContextMenu_SaveChanges}"
+                                              Command="{Binding PlacementTarget.Tag.SaveChangesToWorkflowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                    <MenuItem Header="{local:Translate ContextMenu_ExportState}"
+                                              Command="{Binding PlacementTarget.Tag.ExportCurrentStateCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                    <Separator/>
+                                    <MenuItem Header="{local:Translate ContextMenu_ResetSession}"
+                                              Command="{Binding PlacementTarget.Tag.ClearSessionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                    <MenuItem Header="{local:Translate ContextMenu_ClearBlockedNodes}"
+                                              Command="{Binding PlacementTarget.Tag.ClearBlockedNodesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}"/>
+                                    <Separator/>
                                     <MenuItem Header="{local:Translate ContextMenu_CopyMarkdownLink}"
                                               Command="{Binding PlacementTarget.Tag.CopyWorkflowLinkCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding}"/>
@@ -261,13 +279,30 @@
                 </TabControl.ItemContainerStyle>
                 <TabControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Horizontal" ToolTip="{Binding RelativePathTooltip}">
-                            <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
-                            <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
-                                    Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=TabControl}}"
-                                    CommandParameter="{Binding}"
-                                    Style="{StaticResource IconButton}" Width="20" Height="20" Margin="8,0,0,0"/>
-                        </StackPanel>
+                        <Grid ToolTip="{Binding RelativePathTooltip}">
+                            <StackPanel Orientation="Horizontal" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}">
+                                <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
+                                <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                        Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource IconButton}" Width="20" Height="20" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <TextBox Text="{Binding EditableHeader, UpdateSourceTrigger=Explicit}" 
+                                     Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                     MinWidth="100"
+                                     KeyDown="RenameTextBox_KeyDown"
+                                     LostFocus="RenameTextBox_LostFocus">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsVisible" Value="True">
+                                                <Setter Property="FocusManager.FocusedElement" Value="{Binding RelativeSource={RelativeSource Self}}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                        </Grid>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
             </TabControl>

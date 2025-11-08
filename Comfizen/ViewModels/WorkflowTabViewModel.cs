@@ -21,7 +21,20 @@ namespace Comfizen
         private ModelService _modelService;
 
         public string Header { get; set; }
-        public string? FilePath { get; }
+        public string? FilePath { get; set; }
+        
+        [JsonIgnore]
+        public bool IsRenaming { get; set; }
+        
+        public string EditableHeader
+        {
+            get => RelativePathTooltip;
+            set
+            {
+                // The setter logic is handled by the RenameWorkflow command,
+                // this property is primarily for binding to the TextBox.
+            }
+        }
         
         public string RelativePathTooltip
         {
