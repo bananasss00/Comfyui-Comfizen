@@ -122,24 +122,46 @@
             <Setter Property="Padding" Value="8,5"/>
             <Setter Property="Template">
                 <Setter.Value>
+                        
+                        
+                        
                     <ControlTemplate TargetType="MenuItem">
                         <Border x:Name="Border" 
                                 Background="Transparent"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter ContentSource="Header" 
-                                              RecognizesAccessKey="True"
-                                              VerticalAlignment="Center"
-                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                            <!-- 
+        ЗАМЕНЯЕМ ContentPresenter на TextBlock.
+        Мы даем ему имя, чтобы триггеры могли его найти.
+        Text="{TemplateBinding Header}" связывает его с текстом заголовка MenuItem.
+        -->
+                            <TextBlock x:Name="HeaderText"
+                                       Text="{TemplateBinding Header}"
+                                       VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <!-- Этот триггер для подсветки при наведении -->
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                <!-- Дополнительно можно сделать текст белым при подсветке для контраста -->
+                                <Setter TargetName="HeaderText" Property="Foreground" Value="White"/>
                             </Trigger>
+
+                            <!-- 
+        А ЭТОТ ТРИГГЕР ТЕПЕРЬ СРАБОТАЕТ ПРАВИЛЬНО.
+        Он напрямую находит TextBlock с именем HeaderText и меняет его цвет.
+        Это имеет более высокий приоритет, чем глобальный стиль из App.xaml.
+        -->
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                <Setter TargetName="HeaderText" Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
+
+
+
+
+
+
                 </Setter.Value>
             </Setter>
         </Style>
