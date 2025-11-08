@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -484,6 +485,37 @@ namespace Comfizen
             {
                 Environment.Exit(1);
             }
+        }
+        
+        /// <summary>
+        /// Handles the DragDelta event from a Thumb to resize a text field,
+        /// supporting both simple TextBox and the AdvancedPromptEditor.
+        /// </summary>
+        public void OnResizeThumbDragDelta(object sender, DragDeltaEventArgs e)
+        {
+            if (e.OriginalSource is not Thumb thumb) return;
+        
+            // The thumb's parent is the Grid that contains both editors.
+            // This is a much more reliable way to find the sibling controls.
+            if (thumb.Parent is not Grid parentGrid) return;
+        
+            // Use FindName, which is scoped to the DataTemplate's namescope,
+            // making it the correct tool for this job.
+            var simpleEditorTextBox = parentGrid.FindName("WildcardTextBox") as TextBox;
+            var advancedEditor = parentGrid.FindName("AdvancedEditor") as AdvancedPromptEditor;
+    
+            if (simpleEditorTextBox != null && simpleEditorTextBox.IsVisible)
+            {
+                // Resize the simple TextBox
+                simpleEditorTextBox.Height = Math.Max(60, simpleEditorTextBox.ActualHeight + e.VerticalChange);
+            }
+            else if (advancedEditor != null && advancedEditor.IsVisible)
+            {
+                // Resize the AdvancedPromptEditor control itself.
+                advancedEditor.Height = Math.Max(150, advancedEditor.ActualHeight + e.VerticalChange);
+            }
+        
+            e.Handled = true;
         }
         
         #region Window Resizing and Maximizing Code

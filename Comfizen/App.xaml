@@ -356,6 +356,7 @@
             <Setter Property="AllowsTransparency" Value="True"/>
             <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
             <EventSetter Event="Loaded" Handler="Window_Loaded"/>
+            <EventSetter Event="Thumb.DragDelta" Handler="OnResizeThumbDragDelta"/>
             
             <Setter Property="local:InputBindingBehavior.InputBindings">
                 <Setter.Value>
@@ -990,6 +991,7 @@
                 <Thumb Grid.Row="1" Height="5" Cursor="SizeNS" Margin="0,2,0,0">
                     <Thumb.Style>
                         <Style TargetType="Thumb">
+                            <EventSetter Event="DragDelta" Handler="OnResizeThumbDragDelta" />
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="Thumb">

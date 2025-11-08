@@ -18,8 +18,8 @@
     
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="1.5*"/>
         </Grid.RowDefinitions>
         
         <!-- The main TextBox for editing the prompt -->
@@ -30,7 +30,6 @@
                      TextWrapping="Wrap"
                      VerticalScrollBarVisibility="Auto"
                      MinHeight="60"
-                     MaxHeight="120"
                      Padding="5,5,28,5"
                      LostFocus="PromptTextBox_LostFocus"/>
 
