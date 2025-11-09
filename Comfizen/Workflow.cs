@@ -119,8 +119,8 @@ namespace Comfizen
             var serialized = JsonConvert.SerializeObject(this);
             // Deserialize the string back into a new Workflow object.
             var cloned = JsonConvert.DeserializeObject<Workflow>(serialized);
-            // Убедимся, что все данные корректно перенеслись (хотя десериализация должна это сделать)
-            cloned.SetWorkflowData(cloned.OriginalApi, cloned.Groups, cloned.Scripts, cloned.Tabs, cloned.Presets, cloned.NodeConnectionSnapshots);
+            // The SetWorkflowData call was incorrect here and has been removed.
+            // Deserialization correctly populates all properties, including LoadedApi and OriginalApi.
             return cloned;
         }
         

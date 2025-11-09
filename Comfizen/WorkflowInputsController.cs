@@ -370,6 +370,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
         {
             if (nodeProperty.Value is not JObject node || node["inputs"] is not JObject nodeInputs) continue;
 
+            // A list to hold input properties that need to be removed from this node
+            // because their connection chain leads to a bypassed source node.
+            var inputsToRemove = new List<JProperty>();
+
             // Check every input of the current node.
             foreach (var inputProperty in nodeInputs.Properties())
             {
@@ -380,17 +384,16 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
                 JArray currentLink = originalLink;
                 int depth = 0;
-                const int maxDepth = 20; // Safety break to prevent infinite loops from cyclic dependencies.
-                
+                const int maxDepth = 20; // Safety break.
+
                 // Trace back the connection chain until we find a non-bypassed source.
                 while (depth < maxDepth)
                 {
                     string sourceNodeId = currentLink[0].ToString();
 
-                    // If the source is NOT in our bypass list, we've found the final, valid source.
                     if (!nodesToBypassThisRun.Contains(sourceNodeId))
                     {
-                        break;
+                        break; // Found a valid, non-bypassed source.
                     }
 
                     // The source is bypassed, so we look it up in our redirection map.
@@ -404,18 +407,34 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     }
                     else
                     {
-                        // The chain is broken (e.g., the input was a widget value, not a link). Stop tracing.
+                        // The chain is broken. The current `sourceNodeId` is a bypassed node
+                        // but it has no incoming links to follow (it's a bypassed source like a loader).
+                        // We stop tracing here. The final check below will handle this case.
                         break;
                     }
                     depth++;
                 }
                 
-                // If the final resolved link is different from the original one, update the prompt.
-                if (currentLink != originalLink)
+                // FINAL CHECK: After tracing, is the final resolved source *still* a bypassed node?
+                string finalSourceNodeId = currentLink[0].ToString();
+                if (nodesToBypassThisRun.Contains(finalSourceNodeId))
                 {
-                    // Use DeepClone to ensure the new value is a separate JArray instance.
+                    // If yes, it means the connection leads to a dead end (a bypassed source).
+                    // This entire input connection is invalid and must be removed.
+                    inputsToRemove.Add(inputProperty);
+                }
+                else if (currentLink != originalLink)
+                {
+                    // If the source is valid (not bypassed) and the link has changed, update it.
                     inputProperty.Value = currentLink.DeepClone();
                 }
+            }
+            
+            // After checking all inputs for the current node, remove the invalid ones.
+            // This is done after the loop to avoid modifying the collection while iterating over it.
+            foreach (var propToRemove in inputsToRemove)
+            {
+                propToRemove.Remove();
             }
         }
     }
