@@ -1066,8 +1066,8 @@
                                             <Border.ToolTip>
                                                 <ToolTip>
                                                     <TextBlock>
-                                                        <!-- english: Display node and type information, similar to the widget tooltips -->
                                                         <Run Text="{Binding NodeTitle, Mode=OneWay, StringFormat='Node: {0}'}" FontWeight="Bold"/>
+                                                        <Run Text="{Binding NodeId, Mode=OneWay, StringFormat=' ({0})'}" FontWeight="Bold"/>
                                                         <LineBreak/>
                                                         <Run Text="{Binding NodeType, Mode=OneWay, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
                                                         <LineBreak/>
