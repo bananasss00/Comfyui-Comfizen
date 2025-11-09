@@ -308,5 +308,7 @@
   "ContextMenu_ExportState": "Export Current State",
   "ContextMenu_ResetSession": "Reset Session",
   "ContextMenu_ClearBlockedNodes": "Clear Blocked Nodes",
-  "ContextMenu_SaveChanges": "Save Current Values to Workflow"
+  "ContextMenu_SaveChanges": "Save Current Values to Workflow",
+  "UIConstructor_ApiReplacedTitle": "API Replaced",
+  "UIConstructor_ApiReplacedSuccess": "The API workflow has been successfully replaced."
 }

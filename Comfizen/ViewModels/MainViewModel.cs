@@ -2173,14 +2173,16 @@ namespace Comfizen
         /// Handles the import of a raw ComfyUI API JSON file by opening the UI Constructor.
         /// </summary>
         /// <param name="jsonContent">The string content of the API JSON file.</param>
-        public void ImportApiWorkflow(string jsonContent)
+        /// <param name="sourceFilePath">The path of the file being imported, used to set the default name.</param>
+        public void ImportApiWorkflow(string jsonContent, string sourceFilePath)
         {
             try
             {
                 var apiJson = JObject.Parse(jsonContent);
+                var workflowName = Path.GetFileNameWithoutExtension(sourceFilePath);
 
-                // Create a new UIConstructorView and pass the raw API object to it
-                var constructorViewModel = new UIConstructorView(apiJson);
+                // Create a new UIConstructorView and pass the raw API object and name to it
+                var constructorViewModel = new UIConstructorView(apiJson, workflowName);
         
                 // Create and show the constructor window
                 var constructorWindow = new UIConstructor

@@ -291,7 +291,7 @@ namespace Comfizen
                         else
                         {
                             // It's a raw ComfyUI API file, open it in the constructor.
-                            viewModel.ImportApiWorkflow(jsonContent);
+                            viewModel.ImportApiWorkflow(jsonContent, filePath);
                         }
                     }
                     catch (Exception ex)

@@ -307,5 +307,7 @@
   "ContextMenu_ExportState": "Экспортировать текущее состояние",
   "ContextMenu_ResetSession": "Сбросить сессию",
   "ContextMenu_ClearBlockedNodes": "Очистить список блокировок",
-  "ContextMenu_SaveChanges": "Сохранить текущие значения в процесс"
+  "ContextMenu_SaveChanges": "Сохранить текущие значения в процесс",
+  "UIConstructor_ApiReplacedTitle": "API Заменен",
+  "UIConstructor_ApiReplacedSuccess": "API воркфлоу был успешно заменен."
 }

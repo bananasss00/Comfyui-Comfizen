@@ -349,12 +349,14 @@ namespace Comfizen
             }
         }
         
-        // Constructor for importing a raw ComfyUI API JSON object.
-        public UIConstructorView(JObject apiJson) : this()
+        // english: Constructor for importing a raw ComfyUI API JSON object.
+        /// <param name="apiJson">The JObject of the API to import.</param>
+        /// <param name="workflowName">The default name for the new workflow, typically from the filename.</param>
+        public UIConstructorView(JObject apiJson, string workflowName) : this()
         {
-            // english: Load the provided API and set a default name.
+            // english: Load the provided API and set the name.
             Workflow.LoadApiWorkflow(apiJson);
-            NewWorkflowName = "imported_workflow";
+            NewWorkflowName = workflowName;
             _apiWasReplaced = true;
     
             // english: Update the UI with the new API data.
@@ -2195,6 +2197,11 @@ namespace Comfizen
                             if (DataContext is UIConstructorView vm)
                             {
                                 vm.ReplaceApiWorkflow(apiJson);
+                                MessageBox.Show(
+                                    LocalizationService.Instance["UIConstructor_ApiReplacedSuccess"],
+                                    LocalizationService.Instance["UIConstructor_ApiReplacedTitle"],
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Information);
                             }
                         }
                     }
