@@ -720,6 +720,20 @@ namespace Comfizen
                 MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ImportGenericError"], ex.Message), LocalizationService.Instance["MainVM_ImportErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);            }
         }
         
+        private void PatchPromptWithOriginalTexts(JObject prompt, Dictionary<string, string> originalTexts)
+        {
+            if (prompt == null || originalTexts == null) return;
+
+            foreach (var entry in originalTexts)
+            {
+                var prop = Utils.GetJsonPropertyByPath(prompt, entry.Key);
+                if (prop != null)
+                {
+                    prop.Value = new JValue(entry.Value);
+                }
+            }
+        }
+        
         public void ImportStateFromJObject(JObject data, string sourceFileName)
         {
             // --- START OF NEW LOGIC: Handle composite grid prompt ---
@@ -744,13 +758,16 @@ namespace Comfizen
             var tabs = workflowData["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
             var presets = workflowData["presets"]?.ToObject<Dictionary<Guid, List<GroupPreset>>>() ?? new Dictionary<Guid, List<GroupPreset>>();
             var nodeConnectionSnapshots = workflowData["nodeConnectionSnapshots"]?.ToObject<Dictionary<string, JObject>>() ?? new Dictionary<string, JObject>();
+            var advancedPromptOriginalTexts = workflowData["advancedPromptOriginalTexts"]?.ToObject<Dictionary<string, string>>();
             
             if (promptData == null || uiDefinition == null)
             {
                 MessageBox.Show(LocalizationService.Instance["MainVM_ImportInvalidFileError"], LocalizationService.Instance["MainVM_ImportInvalidFileTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
+            
+            PatchPromptWithOriginalTexts(promptData, advancedPromptOriginalTexts);
+            
             // Create a new in-memory Workflow object.
             var importedWorkflow = new Workflow();
             importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets, nodeConnectionSnapshots);
@@ -1125,8 +1142,23 @@ namespace Comfizen
         {
             var tasks = new List<PromptTask>();
             var controller = tab.WorkflowInputsController;
-            
-            // XYGrid
+
+            Dictionary<string, string> GetAdvancedPromptOriginalTexts(JObject prompt)
+            {
+                var originalTexts = new Dictionary<string, string>();
+                if (controller.WildcardPropertyPaths == null) return originalTexts;
+                
+                foreach (var path in controller.WildcardPropertyPaths)
+                {
+                    var prop = Utils.GetJsonPropertyByPath(prompt, path);
+                    if (prop != null && prop.Value.Type == JTokenType.String)
+                    {
+                        originalTexts[path] = prop.Value.ToObject<string>();
+                    }
+                }
+                return originalTexts;
+            }
+
             if (controller.IsXyGridEnabled && controller.SelectedXField != null && !string.IsNullOrWhiteSpace(controller.XValues))
             {
                 var xValuesList = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
@@ -1206,6 +1238,8 @@ namespace Comfizen
                                 }
                             }
 
+                            var advancedPromptOriginalTexts = GetAdvancedPromptOriginalTexts(apiPromptForTask);
+
                             await tab.WorkflowInputsController.ProcessSpecialFieldsAsync(apiPromptForTask, pathsToIgnore);
                             tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
                             
@@ -1216,9 +1250,9 @@ namespace Comfizen
                                 scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
                                 tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
                                 presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
-                                nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null
+                                nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null,
+                                advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null
                             };
-                        
                             string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
 
                             tasks.Add(new PromptTask
@@ -1254,8 +1288,8 @@ namespace Comfizen
                 // 1. Create a clone of the API prompt that will be modified for this specific task.
                 var apiPromptForTask = tab.Workflow.JsonClone();
                 
-                // 2. Apply all per-task modifications (like seed randomization) to this clone.
-                // After this call, apiPromptForTask contains the *actual* values that will be sent to the API.
+                var advancedPromptOriginalTexts = GetAdvancedPromptOriginalTexts(apiPromptForTask);
+
                 await tab.WorkflowInputsController.ProcessSpecialFieldsAsync(apiPromptForTask);
                 
                 tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
@@ -1269,7 +1303,8 @@ namespace Comfizen
                     scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
                     tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
                     presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
-                    nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null
+                    nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null,
+                    advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null
                 };
             
                 // 4. Serialize this complete and correct state for embedding.
