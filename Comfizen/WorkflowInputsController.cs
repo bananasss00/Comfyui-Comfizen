@@ -276,22 +276,19 @@ public class WorkflowInputsController : INotifyPropertyChanged
             .ToList();
 
         // --- SECTION 2: CRITICAL - Restore all nodes to their original state ---
-        // This step is essential to make the bypass operation idempotent and stateless.
-        // Before applying any new bypasses, we revert all nodes that have a backup
-        // in their `_meta` property to their original connection state. This ensures
-        // that disabling a bypass switch correctly restores the original workflow.
-        foreach (var nodeProperty in prompt.Properties())
+        // This logic is now cleaner. It iterates through our central snapshot store
+        // instead of searching through the entire prompt for `_meta` properties.
+        foreach (var snapshot in _workflow.NodeConnectionSnapshots)
         {
-            if (nodeProperty.Value is not JObject node ||
-                node["_meta"]?["original_inputs"] is not JObject originalInputs ||
-                node["inputs"] is not JObject currentInputs)
+            var nodeId = snapshot.Key;
+            var originalConnections = snapshot.Value;
+
+            if (prompt[nodeId] is JObject node && node["inputs"] is JObject currentInputs)
             {
-                // Skip if the node doesn't have a backup.
-                continue;
+                // Merge the backup back into the current inputs. This overwrites only the
+                // connection properties (JArrays), preserving any changes to widget values.
+                currentInputs.Merge(originalConnections.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
             }
-            // Merge the backup back into the current inputs. This overwrites only the
-            // connection properties (JArrays), preserving any changes to widget values.
-            currentInputs.Merge(originalInputs.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
         }
 
         // If there are no bypass controls defined in the UI, there's nothing more to do.
@@ -345,15 +342,15 @@ public class WorkflowInputsController : INotifyPropertyChanged
         var redirectionMap = new Dictionary<string, JArray>();
         foreach (var bypassedNodeId in nodesToBypassThisRun)
         {
-            var bypassedNode = prompt[bypassedNodeId] as JObject;
-            if (bypassedNode == null) continue;
-            
-            // IMPORTANT: We read the connections from the `_meta.original_inputs` snapshot,
+            // IMPORTANT: We read the connections from our new central snapshot store,
             // because we just deleted the live connections in the step above.
-            var originalInputs = bypassedNode["_meta"]?["original_inputs"] as JObject;
-            if (originalInputs == null) continue;
-
+            if (!_workflow.NodeConnectionSnapshots.TryGetValue(bypassedNodeId, out var originalInputs))
+            {
+                continue; // No snapshot for this node, nothing to redirect.
+            }
+        
             int outputIndex = 0;
+            // The logic to build the map remains the same, just the source of `originalInputs` has changed.
             foreach (var inputProp in originalInputs.Properties())
             {
                 if (inputProp.Value is JArray sourceLink)
@@ -625,13 +622,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
                         {
                             if (_workflow.LoadedApi?[nodeId] is not JObject node) continue;
                             
-                            if (node["_meta"] is not JObject meta)
-                            {
-                                meta = new JObject();
-                                node["_meta"] = meta;
-                            }
-                            
-                            if (meta["original_inputs"] == null && node["inputs"] is JObject inputsToSave)
+                            // CHANGE: Instead of creating _meta, we now check and write to the workflow's snapshot dictionary.
+                            // If a snapshot for this node already exists, we don't overwrite it.
+                            if (!_workflow.NodeConnectionSnapshots.ContainsKey(nodeId) && node["inputs"] is JObject inputsToSave)
                             {
                                 // Create a snapshot of *only* the connections (JArray properties).
                                 var originalConnections = new JObject();
@@ -642,7 +635,8 @@ public class WorkflowInputsController : INotifyPropertyChanged
                                 
                                 if (originalConnections.HasValues)
                                 {
-                                    meta["original_inputs"] = originalConnections;
+                                    // Save the snapshot to the central dictionary in the Workflow object.
+                                    _workflow.NodeConnectionSnapshots[nodeId] = originalConnections;
                                 }
                             }
                         }

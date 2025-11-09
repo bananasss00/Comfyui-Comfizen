@@ -743,6 +743,7 @@ namespace Comfizen
             var scripts = workflowData["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
             var tabs = workflowData["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
             var presets = workflowData["presets"]?.ToObject<Dictionary<Guid, List<GroupPreset>>>() ?? new Dictionary<Guid, List<GroupPreset>>();
+            var nodeConnectionSnapshots = workflowData["nodeConnectionSnapshots"]?.ToObject<Dictionary<string, JObject>>() ?? new Dictionary<string, JObject>();
             
             if (promptData == null || uiDefinition == null)
             {
@@ -752,7 +753,7 @@ namespace Comfizen
 
             // Create a new in-memory Workflow object.
             var importedWorkflow = new Workflow();
-            importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets);
+            importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets, nodeConnectionSnapshots);
             
             // Create a new "virtual" tab using the new constructor.
             var newTab = new WorkflowTabViewModel(

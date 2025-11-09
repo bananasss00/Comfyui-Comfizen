@@ -72,6 +72,15 @@ namespace Comfizen
         /// The original, unmodified API definition from the workflow file. Used for fingerprinting.
         /// </summary>
         public JObject OriginalApi { get; private set; }
+        
+        /// <summary>
+        /// Stores snapshots of the original node connections for nodes controlled by a NodeBypass field.
+        /// This data is persisted within the Comfizen workflow file, making it safe from external API cleaners.
+        /// Key: The string ID of the node.
+        /// Value: A JObject containing only the input properties that were connections (JArrays).
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public Dictionary<string, JObject> NodeConnectionSnapshots { get; set; } = new Dictionary<string, JObject>();
 
         // --- START OF NEW PROPERTY ---
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
@@ -110,19 +119,16 @@ namespace Comfizen
             var serialized = JsonConvert.SerializeObject(this);
             // Deserialize the string back into a new Workflow object.
             var cloned = JsonConvert.DeserializeObject<Workflow>(serialized);
+            // Убедимся, что все данные корректно перенеслись (хотя десериализация должна это сделать)
+            cloned.SetWorkflowData(cloned.OriginalApi, cloned.Groups, cloned.Scripts, cloned.Tabs, cloned.Presets, cloned.NodeConnectionSnapshots);
             return cloned;
         }
         
         // New public method to initialize a workflow object from parts.
-        public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts, ObservableCollection<WorkflowTabDefinition> tabs, Dictionary<Guid, List<GroupPreset>> presets)
+        public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts, ObservableCollection<WorkflowTabDefinition> tabs, Dictionary<Guid, List<GroupPreset>> presets, Dictionary<string, JObject> nodeConnectionSnapshots)
         {
             OriginalApi = prompt;
             LoadedApi = prompt?.DeepClone() as JObject;
-
-            // START OF FIX: Restore original inputs immediately after loading API state
-            RestoreBypassedNodesFromMeta(LoadedApi);
-            RestoreAdvancedPromptsFromMeta(LoadedApi);
-            // END OF FIX
 
             Groups.Clear();
             if (promptTemplate != null) { foreach (var group in promptTemplate) Groups.Add(group); }
@@ -130,6 +136,7 @@ namespace Comfizen
             Scripts = scripts ?? new ScriptCollection();
             Tabs = tabs ?? new ObservableCollection<WorkflowTabDefinition>();
             Presets = presets ?? new Dictionary<Guid, List<GroupPreset>>();
+            NodeConnectionSnapshots = nodeConnectionSnapshots ?? new Dictionary<string, JObject>();
             
             // Run the migration logic here as well to handle older imported formats.
             if (LoadedApi != null)
@@ -208,7 +215,8 @@ namespace Comfizen
                 scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null,
                 presets = Presets.Any() ? Presets : null,
                 // --- ADDED: Save tabs information ---
-                tabs = Tabs.Any() ? Tabs : null 
+                tabs = Tabs.Any() ? Tabs : null,
+                nodeConnectionSnapshots = NodeConnectionSnapshots.Any() ? NodeConnectionSnapshots : null
             };
 
             var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
@@ -225,9 +233,8 @@ namespace Comfizen
                 promptTemplate = Groups,
                 scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null,
                 presets = Presets.Any() ? Presets : null,
-                // --- START OF CHANGE: Add tabs serialization ---
-                tabs = Tabs.Any() ? Tabs : null
-                // --- END OF CHANGE ---
+                tabs = Tabs.Any() ? Tabs : null,
+                nodeConnectionSnapshots = NodeConnectionSnapshots.Any() ? NodeConnectionSnapshots : null
             };
 
             var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
@@ -279,16 +286,12 @@ namespace Comfizen
                 scripts = default(ScriptCollection),
                 presets = default(Dictionary<Guid, List<GroupPreset>>),
                 // --- ADDED: Load tabs information ---
-                tabs = default(ObservableCollection<WorkflowTabDefinition>)
+                tabs = default(ObservableCollection<WorkflowTabDefinition>),
+                nodeConnectionSnapshots = default(Dictionary<string, JObject>)
             });
 
             OriginalApi = data.prompt;
             LoadedApi = data.prompt?.DeepClone() as JObject;
-
-            // START OF FIX: Restore original inputs immediately after loading API state
-            RestoreBypassedNodesFromMeta(LoadedApi);
-            RestoreAdvancedPromptsFromMeta(LoadedApi);
-            // END OF FIX
 
             Groups.Clear();
             if (data.promptTemplate != null) { foreach (var group in data.promptTemplate) Groups.Add(group); }
@@ -296,6 +299,7 @@ namespace Comfizen
             Tabs = data.tabs ?? new ObservableCollection<WorkflowTabDefinition>();
             Scripts = data.scripts ?? new ScriptCollection();
             Presets = data.presets ?? new Dictionary<Guid, List<GroupPreset>>();
+            NodeConnectionSnapshots = data.nodeConnectionSnapshots ?? new Dictionary<string, JObject>();
 
             // --- НАЧАЛО МИГРАЦИИ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ---
             if (LoadedApi != null)
@@ -322,68 +326,6 @@ namespace Comfizen
                 }
             }
             // --- КОНЕЦ МИГРАЦИИ ---
-        }
-        
-        /// <summary>
-        /// Iterates through all nodes in the provided JObject and restores their 'inputs'
-        /// from the '_meta.original_inputs' backup if it exists. This ensures the workflow
-        /// is always in its original, un-bypassed state after loading.
-        /// </summary>
-        /// <param name="prompt">The JObject representing the workflow API.</param>
-        private void RestoreBypassedNodesFromMeta(JObject prompt)
-        {
-            if (prompt == null) return;
-
-            foreach (var nodeProperty in prompt.Properties())
-            {
-                if (nodeProperty.Value is not JObject node || 
-                    node["_meta"]?["original_inputs"] is not JObject originalInputs ||
-                    node["inputs"] is not JObject currentInputs)
-                {
-                    continue;
-                }
-
-                // Merge the original connections back into the current inputs.
-                // This preserves any widget value changes while restoring connections.
-                currentInputs.Merge(originalInputs.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
-            }
-        }
-        
-        /// <summary>
-        /// Iterates through all nodes and restores advanced prompt fields from their
-        /// backup in '_meta.original_advanced_prompts' if it exists.
-        /// This is used to restore the full state (including disabled tokens) upon loading or import.
-        /// </summary>
-        /// <param name="prompt">The JObject representing the workflow API.</param>
-        private void RestoreAdvancedPromptsFromMeta(JObject prompt)
-        {
-            if (prompt == null) return;
-
-            // Iterate over all nodes in the prompt
-            foreach (var nodeProperty in prompt.Properties())
-            {
-                // Check if the node has the necessary structure
-                if (nodeProperty.Value is not JObject node ||
-                    node["_meta"]?["original_advanced_prompts"] is not JObject originalPrompts ||
-                    node["inputs"] is not JObject currentInputs)
-                {
-                    continue;
-                }
-
-                // Restore each backed-up prompt field
-                foreach (var originalPromptProp in originalPrompts.Properties())
-                {
-                    // The property name (e.g., "text")
-                    var propertyName = originalPromptProp.Name;
-                    
-                    // Check if the target property exists in the current 'inputs'
-                    if (currentInputs.Property(propertyName) != null)
-                    {
-                        // Overwrite the (potentially filtered) value with the full original value
-                        currentInputs[propertyName] = originalPromptProp.Value.DeepClone();
-                    }
-                }
-            }
         }
     }
 }
