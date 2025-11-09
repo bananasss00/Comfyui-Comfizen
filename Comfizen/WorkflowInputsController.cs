@@ -93,6 +93,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     private readonly List<SeedFieldViewModel> _seedViewModels = new();
 
     private readonly List<string> _wildcardPropertyPaths = new();
+    public IReadOnlyList<string> WildcardPropertyPaths => _wildcardPropertyPaths;
     
     public ICommand ExecuteActionCommand { get; }
     private bool _isUpdatingFromGlobalPreset = false; // Flag to prevent recursion

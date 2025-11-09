@@ -720,6 +720,20 @@ namespace Comfizen
                 MessageBox.Show(string.Format(LocalizationService.Instance["MainVM_ImportGenericError"], ex.Message), LocalizationService.Instance["MainVM_ImportErrorTitle"], MessageBoxButton.OK, MessageBoxImage.Error);            }
         }
         
+        private void PatchPromptWithOriginalTexts(JObject prompt, Dictionary<string, string> originalTexts)
+        {
+            if (prompt == null || originalTexts == null) return;
+
+            foreach (var entry in originalTexts)
+            {
+                var prop = Utils.GetJsonPropertyByPath(prompt, entry.Key);
+                if (prop != null)
+                {
+                    prop.Value = new JValue(entry.Value);
+                }
+            }
+        }
+        
         public void ImportStateFromJObject(JObject data, string sourceFileName)
         {
             // --- START OF NEW LOGIC: Handle composite grid prompt ---
@@ -744,13 +758,16 @@ namespace Comfizen
             var tabs = workflowData["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
             var presets = workflowData["presets"]?.ToObject<Dictionary<Guid, List<GroupPreset>>>() ?? new Dictionary<Guid, List<GroupPreset>>();
             var nodeConnectionSnapshots = workflowData["nodeConnectionSnapshots"]?.ToObject<Dictionary<string, JObject>>() ?? new Dictionary<string, JObject>();
+            var advancedPromptOriginalTexts = workflowData["advancedPromptOriginalTexts"]?.ToObject<Dictionary<string, string>>();
             
             if (promptData == null || uiDefinition == null)
             {
                 MessageBox.Show(LocalizationService.Instance["MainVM_ImportInvalidFileError"], LocalizationService.Instance["MainVM_ImportInvalidFileTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
+            
+            PatchPromptWithOriginalTexts(promptData, advancedPromptOriginalTexts);
+            
             // Create a new in-memory Workflow object.
             var importedWorkflow = new Workflow();
             importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets, nodeConnectionSnapshots);
@@ -1125,8 +1142,23 @@ namespace Comfizen
         {
             var tasks = new List<PromptTask>();
             var controller = tab.WorkflowInputsController;
-            
-            // XYGrid
+
+            Dictionary<string, string> GetAdvancedPromptOriginalTexts(JObject prompt)
+            {
+                var originalTexts = new Dictionary<string, string>();
+                if (controller.WildcardPropertyPaths == null) return originalTexts;
+                
+                foreach (var path in controller.WildcardPropertyPaths)
+                {
+                    var prop = Utils.GetJsonPropertyByPath(prompt, path);
+                    if (prop != null && prop.Value.Type == JTokenType.String)
+                    {
+                        originalTexts[path] = prop.Value.ToObject<string>();
+                    }
+                }
+                return originalTexts;
+            }
+
             if (controller.IsXyGridEnabled && controller.SelectedXField != null && !string.IsNullOrWhiteSpace(controller.XValues))
             {
                 var xValuesList = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
@@ -1157,58 +1189,39 @@ namespace Comfizen
                     .SelectMany(g => g.Fields)
                     .OfType<NodeBypassFieldViewModel>()
                     .ToList();
-                
 
                 foreach (var yValue in yValuesList)
                 {
                     foreach (var xValue in xValuesList)
                     {
-                        var xBypassVmInstance = controller.SelectedXField is NodeBypassFieldViewModel xBypassVm
-                            ? allBypassVms.FirstOrDefault(vm => vm.Path == xBypassVm.Path)
-                            : null;
-                
-                        var yBypassVmInstance = controller.SelectedYField is NodeBypassFieldViewModel yBypassVm
-                            ? allBypassVms.FirstOrDefault(vm => vm.Path == yBypassVm.Path)
-                            : null;
-                
+                        var xBypassVmInstance = controller.SelectedXField is NodeBypassFieldViewModel xBypassVm ? allBypassVms.FirstOrDefault(vm => vm.Path == xBypassVm.Path) : null;
+                        var yBypassVmInstance = controller.SelectedYField is NodeBypassFieldViewModel yBypassVm ? allBypassVms.FirstOrDefault(vm => vm.Path == yBypassVm.Path) : null;
                         bool? originalXState = xBypassVmInstance?.IsEnabled;
                         bool? originalYState = yBypassVmInstance?.IsEnabled;
-                        
+
                         try
                         {
-                             var apiPromptForTask = tab.Workflow.JsonClone();
-    
-                            // Apply X value
-                            if (xBypassVmInstance != null)
-                            {
-                                xBypassVmInstance.IsEnabled = ConvertStringToBool(xValue);
-                            }
+                            var apiPromptForTask = tab.Workflow.JsonClone();
+
+                            if (xBypassVmInstance != null) xBypassVmInstance.IsEnabled = ConvertStringToBool(xValue);
                             else if (controller.SelectedXField != null)
                             {
                                 var xProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedXField.Path);
-                                if (xProp != null)
-                                {
-                                    xProp.Value = ConvertValueToJToken(xValue, controller.SelectedXField);
-                                }
+                                if (xProp != null) xProp.Value = ConvertValueToJToken(xValue, controller.SelectedXField);
                             }
-
-                            // Apply Y value if applicable
-                            if (yBypassVmInstance != null)
-                            {
-                                yBypassVmInstance.IsEnabled = ConvertStringToBool(yValue);
-                            }
+                            if (yBypassVmInstance != null) yBypassVmInstance.IsEnabled = ConvertStringToBool(yValue);
                             else if (controller.SelectedYField != null)
                             {
                                 var yProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedYField.Path);
-                                if (yProp != null)
-                                {
-                                    yProp.Value = ConvertValueToJToken(yValue, controller.SelectedYField);
-                                }
+                                if (yProp != null) yProp.Value = ConvertValueToJToken(yValue, controller.SelectedYField);
+            
                             }
+
+                            var advancedPromptOriginalTexts = GetAdvancedPromptOriginalTexts(apiPromptForTask);
 
                             await tab.WorkflowInputsController.ProcessSpecialFieldsAsync(apiPromptForTask, pathsToIgnore);
                             tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
-                            
+
                             var fullStateForThisTask = new
                             {
                                 prompt = apiPromptForTask,
@@ -1216,11 +1229,11 @@ namespace Comfizen
                                 scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
                                 tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
                                 presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
-                                nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null
+                                nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null,
+                                advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null
                             };
-                        
                             string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
-
+                            
                             tasks.Add(new PromptTask
                             {
                                 JsonPromptForApi = apiPromptForTask.ToString(),
@@ -1234,52 +1247,39 @@ namespace Comfizen
                         }
                         finally
                         {
-                            // Restore original state
-                            if (xBypassVmInstance != null && originalXState.HasValue)
-                            {
-                                xBypassVmInstance.IsEnabled = originalXState.Value;
-                            }
-                            if (yBypassVmInstance != null && originalYState.HasValue)
-                            {
-                                yBypassVmInstance.IsEnabled = originalYState.Value;
-                            }
+                            if (xBypassVmInstance != null && originalXState.HasValue) xBypassVmInstance.IsEnabled = originalXState.Value;
+                            if (yBypassVmInstance != null && originalYState.HasValue) yBypassVmInstance.IsEnabled = originalYState.Value;
                         }
                     }
                 }
                 return tasks;
             }
-            
+
             for (int i = 0; i < QueueSize; i++)
             {
-                // 1. Create a clone of the API prompt that will be modified for this specific task.
                 var apiPromptForTask = tab.Workflow.JsonClone();
                 
-                // 2. Apply all per-task modifications (like seed randomization) to this clone.
-                // After this call, apiPromptForTask contains the *actual* values that will be sent to the API.
+                var advancedPromptOriginalTexts = GetAdvancedPromptOriginalTexts(apiPromptForTask);
+
                 await tab.WorkflowInputsController.ProcessSpecialFieldsAsync(apiPromptForTask);
-                
                 tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
 
-                // 3. NOW, create the full state object using the MODIFIED prompt clone.
-                // This ensures that the state we save to metadata is identical to what's used for generation.
                 var fullStateForThisTask = new
                 {
-                    prompt = apiPromptForTask, // Use the modified prompt here
+                    prompt = apiPromptForTask,
                     promptTemplate = tab.Workflow.Groups,
                     scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
                     tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
                     presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
-                    nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null
+                    nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null,
+                    advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null
                 };
-            
-                // 4. Serialize this complete and correct state for embedding.
                 string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
-                
-                // 5. Add the new task with the correct data.
+
                 tasks.Add(new PromptTask
                 {
-                    JsonPromptForApi = apiPromptForTask.ToString(), // This is sent to the server
-                    FullWorkflowStateJson = fullWorkflowStateJsonForThisTask, // This is saved in the image
+                    JsonPromptForApi = apiPromptForTask.ToString(),
+                    FullWorkflowStateJson = fullWorkflowStateJsonForThisTask,
                     OriginTab = tab
                 });
             }
