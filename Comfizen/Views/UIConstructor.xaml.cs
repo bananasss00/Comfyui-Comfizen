@@ -986,7 +986,11 @@ namespace Comfizen
             var usedFieldPaths = Workflow.Groups.SelectMany(g => g.Fields).Select(f => f.Path).ToHashSet();
             var available = allFields.Where(f => !usedFieldPaths.Contains(f.Path));
             if (!string.IsNullOrWhiteSpace(SearchFilter))
-                available = available.Where(f => f.Name.IndexOf(SearchFilter, StringComparison.OrdinalIgnoreCase) >= 0);
+            {
+                string[] searchTerms = SearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                available = available.Where(f => searchTerms.All(term => 
+                    f.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
+            }
             AvailableFields.Clear();
             foreach (var field in available.OrderBy(f => f.Name)) AvailableFields.Add(field);
         }
