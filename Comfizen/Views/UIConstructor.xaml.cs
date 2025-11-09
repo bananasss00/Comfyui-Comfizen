@@ -711,6 +711,7 @@ namespace Comfizen
             UpdateAvailableFields();
             UpdateWorkflowNodesList();
             ValidateFieldPaths();
+            RefreshActionNames();
         }
         
         
