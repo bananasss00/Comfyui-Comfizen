@@ -1063,6 +1063,18 @@
                                         <Border x:Name="ItemBorder" CornerRadius="3" Margin="5" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1"
                                                 Width="{Binding ElementName=ThumbnailSizeSlider, Path=Value}"
                                                 Height="{Binding ElementName=ThumbnailSizeSlider, Path=Value}">
+                                            <Border.ToolTip>
+                                                <ToolTip>
+                                                    <TextBlock>
+                                                        <!-- english: Display node and type information, similar to the widget tooltips -->
+                                                        <Run Text="{Binding NodeTitle, Mode=OneWay, StringFormat='Node: {0}'}" FontWeight="Bold"/>
+                                                        <LineBreak/>
+                                                        <Run Text="{Binding NodeType, Mode=OneWay, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                        <LineBreak/>
+                                                        <Run Text="{Binding FileName, Mode=OneWay, StringFormat='File: {0}'}"/>
+                                                    </TextBlock>
+                                                </ToolTip>
+                                            </Border.ToolTip>
                                             <Grid>
                                                 <Border Background="Transparent"/>
                                                 <Image x:Name="ImgDisplay" Source="{Binding Image}" Visibility="Visible" Stretch="Uniform" />

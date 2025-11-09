@@ -1467,7 +1467,12 @@ namespace Comfizen
                             {
                                 // A check here is no longer needed as we want the task to finish
                                 io.Prompt = task.FullWorkflowStateJson;
-
+                                if (task.OriginTab?.Workflow.LoadedApi?[io.NodeId] is JObject nodeData)
+                                {
+                                    io.NodeTitle = nodeData["_meta"]?["title"]?.ToString() ?? "Untitled";
+                                    io.NodeType = nodeData["class_type"]?.ToString();
+                                }
+                                
                                 await Application.Current.Dispatcher.InvokeAsync(() =>
                                 {
                                     if (task.OriginTab.Workflow.BlockedNodeIds.Contains(io.NodeId))

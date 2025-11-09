@@ -50,6 +50,8 @@ namespace Comfizen
         public string FilePath { get; set; }
         public string NodeId { get; set; }
         public bool IsSaved { get; set; }
+        public string NodeTitle { get; set; }
+        public string NodeType { get; set; }
         
         /// <summary>
         /// A 64-bit perceptual hash of the image, used for similarity comparison.
