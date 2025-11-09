@@ -216,39 +216,6 @@ public class WorkflowInputsController : INotifyPropertyChanged
             var originalText = prop.Value.ToObject<string>();
             if (string.IsNullOrWhiteSpace(originalText)) continue;
 
-            // --- START OF NEW LOGIC: Save original prompt to _meta ---
-            
-            // Extract node ID and input name from the path (e.g., "6.inputs.text" -> "6" and "text")
-            // NOTE: A helper method to parse the path might be cleaner, but this works for the expected format.
-            var pathParts = path.Split('.');
-            if (pathParts.Length >= 3 && pathParts[1] == "inputs")
-            {
-                var nodeId = pathParts[0];
-                var inputName = pathParts[2];
-
-                if (prompt[nodeId] is JObject node)
-                {
-                    // Ensure _meta object exists
-                    if (node["_meta"] is not JObject meta)
-                    {
-                        meta = new JObject();
-                        node["_meta"] = meta;
-                    }
-
-                    // Ensure original_advanced_prompts object exists within _meta
-                    if (meta["original_advanced_prompts"] is not JObject originalPrompts)
-                    {
-                        originalPrompts = new JObject();
-                        meta["original_advanced_prompts"] = originalPrompts;
-                    }
-
-                    // Save the full, unfiltered prompt text.
-                    // This will be stored in the generated image's metadata.
-                    originalPrompts[inputName] = originalText;
-                }
-            }
-            // --- END OF NEW LOGIC ---
-
             // Tokenize, filter out disabled tokens, and join the remaining ones back into a string.
             var allTokens = PromptUtils.Tokenize(originalText);
             var enabledTokens = allTokens.Where(t => !t.StartsWith(PromptUtils.DISABLED_TOKEN_PREFIX));
@@ -276,22 +243,19 @@ public class WorkflowInputsController : INotifyPropertyChanged
             .ToList();
 
         // --- SECTION 2: CRITICAL - Restore all nodes to their original state ---
-        // This step is essential to make the bypass operation idempotent and stateless.
-        // Before applying any new bypasses, we revert all nodes that have a backup
-        // in their `_meta` property to their original connection state. This ensures
-        // that disabling a bypass switch correctly restores the original workflow.
-        foreach (var nodeProperty in prompt.Properties())
+        // This logic is now cleaner. It iterates through our central snapshot store
+        // instead of searching through the entire prompt for `_meta` properties.
+        foreach (var snapshot in _workflow.NodeConnectionSnapshots)
         {
-            if (nodeProperty.Value is not JObject node ||
-                node["_meta"]?["original_inputs"] is not JObject originalInputs ||
-                node["inputs"] is not JObject currentInputs)
+            var nodeId = snapshot.Key;
+            var originalConnections = snapshot.Value;
+
+            if (prompt[nodeId] is JObject node && node["inputs"] is JObject currentInputs)
             {
-                // Skip if the node doesn't have a backup.
-                continue;
+                // Merge the backup back into the current inputs. This overwrites only the
+                // connection properties (JArrays), preserving any changes to widget values.
+                currentInputs.Merge(originalConnections.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
             }
-            // Merge the backup back into the current inputs. This overwrites only the
-            // connection properties (JArrays), preserving any changes to widget values.
-            currentInputs.Merge(originalInputs.DeepClone(), new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Replace });
         }
 
         // If there are no bypass controls defined in the UI, there's nothing more to do.
@@ -345,15 +309,15 @@ public class WorkflowInputsController : INotifyPropertyChanged
         var redirectionMap = new Dictionary<string, JArray>();
         foreach (var bypassedNodeId in nodesToBypassThisRun)
         {
-            var bypassedNode = prompt[bypassedNodeId] as JObject;
-            if (bypassedNode == null) continue;
-            
-            // IMPORTANT: We read the connections from the `_meta.original_inputs` snapshot,
+            // IMPORTANT: We read the connections from our new central snapshot store,
             // because we just deleted the live connections in the step above.
-            var originalInputs = bypassedNode["_meta"]?["original_inputs"] as JObject;
-            if (originalInputs == null) continue;
-
+            if (!_workflow.NodeConnectionSnapshots.TryGetValue(bypassedNodeId, out var originalInputs))
+            {
+                continue; // No snapshot for this node, nothing to redirect.
+            }
+        
             int outputIndex = 0;
+            // The logic to build the map remains the same, just the source of `originalInputs` has changed.
             foreach (var inputProp in originalInputs.Properties())
             {
                 if (inputProp.Value is JArray sourceLink)
@@ -373,6 +337,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
         {
             if (nodeProperty.Value is not JObject node || node["inputs"] is not JObject nodeInputs) continue;
 
+            // A list to hold input properties that need to be removed from this node
+            // because their connection chain leads to a bypassed source node.
+            var inputsToRemove = new List<JProperty>();
+
             // Check every input of the current node.
             foreach (var inputProperty in nodeInputs.Properties())
             {
@@ -383,17 +351,16 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
                 JArray currentLink = originalLink;
                 int depth = 0;
-                const int maxDepth = 20; // Safety break to prevent infinite loops from cyclic dependencies.
-                
+                const int maxDepth = 20; // Safety break.
+
                 // Trace back the connection chain until we find a non-bypassed source.
                 while (depth < maxDepth)
                 {
                     string sourceNodeId = currentLink[0].ToString();
 
-                    // If the source is NOT in our bypass list, we've found the final, valid source.
                     if (!nodesToBypassThisRun.Contains(sourceNodeId))
                     {
-                        break;
+                        break; // Found a valid, non-bypassed source.
                     }
 
                     // The source is bypassed, so we look it up in our redirection map.
@@ -407,18 +374,34 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     }
                     else
                     {
-                        // The chain is broken (e.g., the input was a widget value, not a link). Stop tracing.
+                        // The chain is broken. The current `sourceNodeId` is a bypassed node
+                        // but it has no incoming links to follow (it's a bypassed source like a loader).
+                        // We stop tracing here. The final check below will handle this case.
                         break;
                     }
                     depth++;
                 }
                 
-                // If the final resolved link is different from the original one, update the prompt.
-                if (currentLink != originalLink)
+                // FINAL CHECK: After tracing, is the final resolved source *still* a bypassed node?
+                string finalSourceNodeId = currentLink[0].ToString();
+                if (nodesToBypassThisRun.Contains(finalSourceNodeId))
                 {
-                    // Use DeepClone to ensure the new value is a separate JArray instance.
+                    // If yes, it means the connection leads to a dead end (a bypassed source).
+                    // This entire input connection is invalid and must be removed.
+                    inputsToRemove.Add(inputProperty);
+                }
+                else if (currentLink != originalLink)
+                {
+                    // If the source is valid (not bypassed) and the link has changed, update it.
                     inputProperty.Value = currentLink.DeepClone();
                 }
+            }
+            
+            // After checking all inputs for the current node, remove the invalid ones.
+            // This is done after the loop to avoid modifying the collection while iterating over it.
+            foreach (var propToRemove in inputsToRemove)
+            {
+                propToRemove.Remove();
             }
         }
     }
@@ -625,13 +608,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
                         {
                             if (_workflow.LoadedApi?[nodeId] is not JObject node) continue;
                             
-                            if (node["_meta"] is not JObject meta)
-                            {
-                                meta = new JObject();
-                                node["_meta"] = meta;
-                            }
-                            
-                            if (meta["original_inputs"] == null && node["inputs"] is JObject inputsToSave)
+                            // CHANGE: Instead of creating _meta, we now check and write to the workflow's snapshot dictionary.
+                            // If a snapshot for this node already exists, we don't overwrite it.
+                            if (!_workflow.NodeConnectionSnapshots.ContainsKey(nodeId) && node["inputs"] is JObject inputsToSave)
                             {
                                 // Create a snapshot of *only* the connections (JArray properties).
                                 var originalConnections = new JObject();
@@ -642,7 +621,8 @@ public class WorkflowInputsController : INotifyPropertyChanged
                                 
                                 if (originalConnections.HasValues)
                                 {
-                                    meta["original_inputs"] = originalConnections;
+                                    // Save the snapshot to the central dictionary in the Workflow object.
+                                    _workflow.NodeConnectionSnapshots[nodeId] = originalConnections;
                                 }
                             }
                         }

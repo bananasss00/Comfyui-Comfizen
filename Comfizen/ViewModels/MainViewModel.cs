@@ -743,6 +743,7 @@ namespace Comfizen
             var scripts = workflowData["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
             var tabs = workflowData["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
             var presets = workflowData["presets"]?.ToObject<Dictionary<Guid, List<GroupPreset>>>() ?? new Dictionary<Guid, List<GroupPreset>>();
+            var nodeConnectionSnapshots = workflowData["nodeConnectionSnapshots"]?.ToObject<Dictionary<string, JObject>>() ?? new Dictionary<string, JObject>();
             
             if (promptData == null || uiDefinition == null)
             {
@@ -752,7 +753,7 @@ namespace Comfizen
 
             // Create a new in-memory Workflow object.
             var importedWorkflow = new Workflow();
-            importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets);
+            importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets, nodeConnectionSnapshots);
             
             // Create a new "virtual" tab using the new constructor.
             var newTab = new WorkflowTabViewModel(
@@ -1214,7 +1215,8 @@ namespace Comfizen
                                 promptTemplate = tab.Workflow.Groups,
                                 scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
                                 tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
-                                presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null
+                                presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
+                                nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null
                             };
                         
                             string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
@@ -1266,7 +1268,8 @@ namespace Comfizen
                     promptTemplate = tab.Workflow.Groups,
                     scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
                     tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
-                    presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null
+                    presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
+                    nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null
                 };
             
                 // 4. Serialize this complete and correct state for embedding.
@@ -1299,7 +1302,8 @@ namespace Comfizen
                 promptTemplate = originTab.Workflow.Groups,
                 scripts = (originTab.Workflow.Scripts.Hooks.Any() || originTab.Workflow.Scripts.Actions.Any()) ? originTab.Workflow.Scripts : null,
                 tabs = originTab.Workflow.Tabs.Any() ? originTab.Workflow.Tabs : null,
-                presets = originTab.Workflow.Presets.Any() ? originTab.Workflow.Presets : null
+                presets = originTab.Workflow.Presets.Any() ? originTab.Workflow.Presets : null,
+                nodeConnectionSnapshots = originTab.Workflow.NodeConnectionSnapshots.Any() ? originTab.Workflow.NodeConnectionSnapshots : null
             };
     
             string fullWorkflowStateJson = JsonConvert.SerializeObject(fullState, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });

@@ -697,6 +697,7 @@ namespace Comfizen
                 UpdateWorkflowNodesList();
                 ValidateFieldPaths();
                 _apiWasReplaced = true;
+                RefreshBypassNodeFields();
             }
             RefreshActionNames();
         }
@@ -714,6 +715,29 @@ namespace Comfizen
             UpdateWorkflowNodesList();
             ValidateFieldPaths();
             RefreshActionNames();
+            RefreshBypassNodeFields();
+        }
+        
+        /// <summary>
+        /// Iterates through all fields in all groups and forces a UI update for NodeBypass fields.
+        /// This is necessary after the API is replaced to refresh the list of available nodes in their ComboBoxes.
+        /// </summary>
+        private void RefreshBypassNodeFields()
+        {
+            if (Workflow == null) return;
+
+            foreach (var group in Workflow.Groups)
+            {
+                foreach (var field in group.Fields)
+                {
+                    if (field.Type == FieldType.NodeBypass)
+                    {
+                        // This notification triggers the MultiBinding that uses AvailableNodesConverter,
+                        // causing the list of available nodes for this field to be requeried.
+                        field.NotifyBypassNodeIdsChanged();
+                    }
+                }
+            }
         }
         
         
