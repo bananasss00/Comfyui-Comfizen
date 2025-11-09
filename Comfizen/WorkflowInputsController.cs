@@ -216,39 +216,6 @@ public class WorkflowInputsController : INotifyPropertyChanged
             var originalText = prop.Value.ToObject<string>();
             if (string.IsNullOrWhiteSpace(originalText)) continue;
 
-            // --- START OF NEW LOGIC: Save original prompt to _meta ---
-            
-            // Extract node ID and input name from the path (e.g., "6.inputs.text" -> "6" and "text")
-            // NOTE: A helper method to parse the path might be cleaner, but this works for the expected format.
-            var pathParts = path.Split('.');
-            if (pathParts.Length >= 3 && pathParts[1] == "inputs")
-            {
-                var nodeId = pathParts[0];
-                var inputName = pathParts[2];
-
-                if (prompt[nodeId] is JObject node)
-                {
-                    // Ensure _meta object exists
-                    if (node["_meta"] is not JObject meta)
-                    {
-                        meta = new JObject();
-                        node["_meta"] = meta;
-                    }
-
-                    // Ensure original_advanced_prompts object exists within _meta
-                    if (meta["original_advanced_prompts"] is not JObject originalPrompts)
-                    {
-                        originalPrompts = new JObject();
-                        meta["original_advanced_prompts"] = originalPrompts;
-                    }
-
-                    // Save the full, unfiltered prompt text.
-                    // This will be stored in the generated image's metadata.
-                    originalPrompts[inputName] = originalText;
-                }
-            }
-            // --- END OF NEW LOGIC ---
-
             // Tokenize, filter out disabled tokens, and join the remaining ones back into a string.
             var allTokens = PromptUtils.Tokenize(originalText);
             var enabledTokens = allTokens.Where(t => !t.StartsWith(PromptUtils.DISABLED_TOKEN_PREFIX));
