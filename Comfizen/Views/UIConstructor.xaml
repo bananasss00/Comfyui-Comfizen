@@ -9,6 +9,8 @@
         mc:Ignorable="d"
         Title="{local:Translate UIConstructor_Title}" Height="700" Width="1000"
         WindowStartupLocation="CenterOwner"
+        AllowDrop="True"
+        Drop="Window_Drop"
         Background="{StaticResource PrimaryBackground}"
         Style="{StaticResource CustomWindowStyle}">
 

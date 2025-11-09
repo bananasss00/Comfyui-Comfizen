@@ -19,6 +19,7 @@ using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
 using ICSharpCode.AvalonEdit.Rendering;
 using Microsoft.Win32;
+using Newtonsoft.Json.Linq;
 using PropertyChanged;
 using Formatting = Newtonsoft.Json.Formatting;
 
@@ -346,6 +347,23 @@ namespace Comfizen
                     field.PropertyChanged += OnFieldPropertyChanged;
                 }
             }
+        }
+        
+        // Constructor for importing a raw ComfyUI API JSON object.
+        public UIConstructorView(JObject apiJson) : this()
+        {
+            // english: Load the provided API and set a default name.
+            Workflow.LoadApiWorkflow(apiJson);
+            NewWorkflowName = "imported_workflow";
+            _apiWasReplaced = true;
+    
+            // english: Update the UI with the new API data.
+            UpdateAvailableFields();
+            UpdateWorkflowNodesList();
+            ValidateFieldPaths();
+            RefreshActionNames();
+            UpdateGroupAssignments();
+            SelectedTab = Workflow.Tabs.FirstOrDefault();
         }
         
         // The Workflow property is now set in the constructor.
@@ -680,6 +698,21 @@ namespace Comfizen
             }
             RefreshActionNames();
         }
+        /// <summary>
+        /// Replaces the API definition of the current workflow with a new one.
+        /// </summary>
+        /// <param name="apiJson">The JObject of the new API definition.</param>
+        public void ReplaceApiWorkflow(JObject apiJson)
+        {
+            Workflow.LoadApiWorkflow(apiJson);
+            _apiWasReplaced = true;
+    
+            // Refresh all UI elements that depend on the API.
+            UpdateAvailableFields();
+            UpdateWorkflowNodesList();
+            ValidateFieldPaths();
+        }
+        
         
         private void ValidateFieldPaths()
         {
@@ -2139,6 +2172,41 @@ namespace Comfizen
                 {
                     textBox.SelectAll();
                 }), System.Windows.Threading.DispatcherPriority.Input);
+            }
+        }
+
+        private void Window_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+            {
+                var filePath = files[0];
+                if (Path.GetExtension(filePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        var jsonContent = File.ReadAllText(filePath);
+                        var apiJson = JObject.Parse(jsonContent);
+
+                        // Heuristic check to ensure it's not a full Comfizen workflow.
+                        if (apiJson["prompt"] == null || apiJson["promptTemplate"] == null)
+                        {
+                            // english: Get the ViewModel and replace the API of the current workflow.
+                            if (DataContext is UIConstructorView vm)
+                            {
+                                vm.ReplaceApiWorkflow(apiJson);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(ex, $"Failed to process dropped JSON file in UIConstructor: {filePath}");
+                        MessageBox.Show($"Error reading dropped JSON file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    finally
+                    {
+                        e.Handled = true;
+                    }
+                }
             }
         }
     }

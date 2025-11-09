@@ -274,7 +274,37 @@ namespace Comfizen
             // Case 2: Drop from the file system
             else if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
             {
-                viewModel.ImportStateFromFile(files[0]);
+                var filePath = files[0];
+                // Check if the dropped file is a JSON file
+                if (Path.GetExtension(filePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        var jsonContent = File.ReadAllText(filePath);
+                        var tempJObject = JObject.Parse(jsonContent);
+                        // Heuristic to differentiate: Comfizen workflows have a 'prompt' and 'promptTemplate' structure.
+                        if (tempJObject["prompt"] != null && tempJObject["promptTemplate"] != null)
+                        {
+                            // It's a Comfizen workflow, use the standard import.
+                            viewModel.ImportStateFromFile(filePath);
+                        }
+                        else
+                        {
+                            // It's a raw ComfyUI API file, open it in the constructor.
+                            viewModel.ImportApiWorkflow(jsonContent);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(ex, "Failed to process dropped JSON file.");
+                        MessageBox.Show($"Error reading dropped JSON file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                else
+                {
+                    // It's an image or other file, use the standard state import.
+                    viewModel.ImportStateFromFile(filePath);
+                }
             }
         }
 

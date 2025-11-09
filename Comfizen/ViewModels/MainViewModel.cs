@@ -2169,6 +2169,49 @@ namespace Comfizen
         }
         // --- END OF CHANGE ---
         
+        /// <summary>
+        /// Handles the import of a raw ComfyUI API JSON file by opening the UI Constructor.
+        /// </summary>
+        /// <param name="jsonContent">The string content of the API JSON file.</param>
+        public void ImportApiWorkflow(string jsonContent)
+        {
+            try
+            {
+                var apiJson = JObject.Parse(jsonContent);
+
+                // Create a new UIConstructorView and pass the raw API object to it
+                var constructorViewModel = new UIConstructorView(apiJson);
+        
+                // Create and show the constructor window
+                var constructorWindow = new UIConstructor
+                {
+                    DataContext = constructorViewModel,
+                    Owner = Application.Current.MainWindow
+                };
+                constructorWindow.ShowDialog();
+        
+                // Refresh the main list of workflows in case the user saved the new one
+                UpdateWorkflows();
+            }
+            catch (JsonReaderException)
+            {
+                MessageBox.Show(
+                    LocalizationService.Instance["MainVM_ImportInvalidJsonError"],
+                    LocalizationService.Instance["MainVM_ImportErrorTitle"],
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed during raw API workflow import.");
+                MessageBox.Show(
+                    string.Format(LocalizationService.Instance["MainVM_ImportGenericError"], ex.Message),
+                    LocalizationService.Instance["MainVM_ImportErrorTitle"],
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+        
         private void FullScreen_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(FullScreenViewModel.IsFullScreenOpen))

@@ -159,6 +159,16 @@ namespace Comfizen
             OriginalApi = parsedJson;
             LoadedApi = parsedJson.DeepClone() as JObject; // The live version is a clone
         }
+        
+        /// <summary>
+        /// Loads a workflow API structure directly from a JObject.
+        /// </summary>
+        /// <param name="apiJson">The JObject representing the workflow API.</param>
+        public void LoadApiWorkflow(JObject apiJson)
+        {
+            OriginalApi = apiJson;
+            LoadedApi = apiJson.DeepClone() as JObject;
+        }
 
         public JProperty? GetPropertyByPath(string path)
         {
