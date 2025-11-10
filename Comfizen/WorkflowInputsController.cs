@@ -568,6 +568,16 @@ public class WorkflowInputsController : INotifyPropertyChanged
                             fieldVm = new MarkdownFieldViewModel(field);
                             processedFields.Add(field);
                         }
+                        else if (field.Type == FieldType.Label)
+                        {
+                            fieldVm = new LabelFieldViewModel(field);
+                            processedFields.Add(field);
+                        }
+                        else if (field.Type == FieldType.Separator)
+                        {
+                            fieldVm = new SeparatorFieldViewModel(field);
+                            processedFields.Add(field);
+                        }
                         else if (field.Type == FieldType.ScriptButton)
                         {
                             fieldVm = new ScriptButtonFieldViewModel(field, this.ExecuteActionCommand);

@@ -6,6 +6,7 @@
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         xmlns:local="clr-namespace:Comfizen"
         xmlns:avalonedit="http://icsharpcode.net/sharpdevelop/avalonedit"
+        xmlns:global="clr-namespace:"
         mc:Ignorable="d"
         Title="{local:Translate UIConstructor_Title}" Height="700" Width="1000"
         WindowStartupLocation="CenterOwner"
@@ -361,6 +362,16 @@
                                                                             ToolTip="{local:Translate UIConstructor_AddMarkdownField}"
                                                                             Command="{Binding DataContext.AddMarkdownFieldCommand, ElementName=RootGrid}"
                                                                             CommandParameter="{Binding}"/>
+                                                                    <Button Content="&#xE75A;" FontFamily="Segoe MDL2 Assets" 
+                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                            ToolTip="{local:Translate UIConstructor_AddSeparatorField}"
+                                                                            Command="{Binding DataContext.AddSeparatorFieldCommand, ElementName=RootGrid}"
+                                                                            CommandParameter="{Binding}"/>
+                                                                    <Button Content="&#xE71F;" FontFamily="Segoe MDL2 Assets" 
+                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                            ToolTip="{local:Translate UIConstructor_AddLabelField}"
+                                                                            Command="{Binding DataContext.AddLabelFieldCommand, ElementName=RootGrid}"
+                                                                            CommandParameter="{Binding}"/>
                                                                     <Button Content="&#xE945;" FontFamily="Segoe MDL2 Assets" 
                                                                             Style="{StaticResource IconButton}" Width="24" Height="24"
                                                                             ToolTip="{local:Translate UIConstructor_AddScriptButtonField}"
@@ -533,6 +544,8 @@
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Markdown"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="ScriptButton"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="NodeBypass"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="Label"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="Separator"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                 </Style.Triggers>
                                                                                                             </Style>
                                                                                                         </TextBlock.Style>
@@ -547,6 +560,8 @@
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Markdown"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="ScriptButton"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="NodeBypass"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="Label"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="Separator"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                 </Style.Triggers>
                                                                                                             </Style>
                                                                                                         </ComboBox.Style>
@@ -717,6 +732,22 @@
                                                                                             </StackPanel.Style>
                                                                                             <CheckBox Content="{local:Translate UIConstructor_Field_AdvancedPrompt}"
                                                                                                 IsChecked="{Binding AdvancedPrompt, Mode=TwoWay}"/>
+                                                                                        </StackPanel>
+                                                                                        <StackPanel Grid.Row="3" Margin="0,5,0,0">
+                                                                                            <StackPanel.Style>
+                                                                                                <Style TargetType="StackPanel">
+                                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                    <Style.Triggers>
+                                                                                                        <DataTrigger Binding="{Binding Type}" Value="Separator">
+                                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                                        </DataTrigger>
+                                                                                                    </Style.Triggers>
+                                                                                                </Style>
+                                                                                            </StackPanel.Style>
+                                                                                            <TextBlock Text="{local:Translate UIConstructor_Field_SeparatorStyle}"/>
+                                                                                            <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type global:SeparatorStyle}}}"
+                                                                                                      SelectedItem="{Binding SeparatorStyle, Mode=TwoWay}"
+                                                                                                      Margin="0,2,0,0"/>
                                                                                         </StackPanel>
                                                                                     </Grid>
                                                                                 </Grid>

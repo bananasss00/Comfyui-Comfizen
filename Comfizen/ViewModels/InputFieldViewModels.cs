@@ -1280,4 +1280,21 @@ namespace Comfizen
             OnPropertyChanged(nameof(IsEnabled));
         }
     }
+    
+    public class LabelFieldViewModel : InputFieldViewModel
+    {
+        // The label text is just the Name property from the base class.
+        public LabelFieldViewModel(WorkflowField field) : base(field, null)
+        {
+            Type = FieldType.Label;
+        }
+    }
+    
+    public class SeparatorFieldViewModel : InputFieldViewModel
+    {
+        public SeparatorFieldViewModel(WorkflowField field) : base(field, null)
+        {
+            Type = FieldType.Separator;
+        }
+    }
 }

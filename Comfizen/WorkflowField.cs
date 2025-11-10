@@ -118,6 +118,10 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         [DefaultValue(false)]
         public bool AdvancedPrompt { get; set; } = false;
+        
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(SeparatorStyle.Solid)]
+        public SeparatorStyle SeparatorStyle { get; set; } = SeparatorStyle.Solid;
 
         [JsonIgnore]
         public bool IsRenaming { get; set; } = false;

@@ -13,5 +13,14 @@
     Model,
     Markdown,
     ScriptButton,
-    NodeBypass
+    NodeBypass,
+    Label,
+    Separator
+}
+
+public enum SeparatorStyle
+{
+    Solid,
+    Dashed,
+    Dotted
 }

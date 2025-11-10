@@ -16,11 +16,15 @@ namespace Comfizen
         public DataTemplate MarkdownTemplate { get; set; }
         public DataTemplate ScriptButtonTemplate { get; set; }
         public DataTemplate NodeBypassTemplate { get; set; }
+        public DataTemplate LabelTemplate { get; set; }
+        public DataTemplate SeparatorTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
             return item switch
             {
+                SeparatorFieldViewModel => SeparatorTemplate,
+                LabelFieldViewModel => LabelTemplate,
                 MarkdownFieldViewModel => MarkdownTemplate,
                 InpaintFieldViewModel => InpaintTemplate,
                 SeedFieldViewModel => SeedTemplate,

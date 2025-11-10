@@ -142,6 +142,8 @@ namespace Comfizen
         public ICommand AddMarkdownFieldCommand { get; }
         public ICommand AddScriptButtonFieldCommand { get; }
         public ICommand AddNodeBypassFieldCommand { get; }
+        public ICommand AddLabelFieldCommand { get; }
+        public ICommand AddSeparatorFieldCommand { get; }
         
         // Constructor for a NEW workflow.
         public UIConstructorView() : this(new Workflow(), null) { }
@@ -243,6 +245,8 @@ namespace Comfizen
             AddMarkdownFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Markdown));
             AddScriptButtonFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.ScriptButton));
             AddNodeBypassFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.NodeBypass));
+            AddLabelFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Label));
+            AddSeparatorFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Separator));
             ColorPalette = new ObservableCollection<ColorInfo>
             {
                 // --- Warm Tones (Reds, Oranges, Browns) ---
@@ -406,7 +410,8 @@ namespace Comfizen
 
         public ObservableCollection<FieldType> FieldTypes { get; } =
             new(Enum.GetValues(typeof(FieldType)).Cast<FieldType>()
-                .Where(t => t != FieldType.Markdown && t != FieldType.ScriptButton && t != FieldType.NodeBypass));
+                .Where(t => t != FieldType.Markdown && t != FieldType.ScriptButton && t != FieldType.NodeBypass
+                            && t != FieldType.Label && t != FieldType.Separator));
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -485,6 +490,8 @@ namespace Comfizen
                 case FieldType.Markdown: baseName = "Markdown Block"; break;
                 case FieldType.ScriptButton: baseName = "New Action Button"; break;
                 case FieldType.NodeBypass: baseName = "New Bypass Switch"; break;
+                case FieldType.Label: baseName = "New Label"; break;
+                case FieldType.Separator: baseName = "Separator"; break;
             }
             string newName = baseName;
             int counter = 1;

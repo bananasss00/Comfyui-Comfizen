@@ -1092,8 +1092,76 @@
                     HorizontalAlignment="Left" />
         </DataTemplate>
         
+        <DataTemplate x:Key="LabelTemplate" DataType="{x:Type local:LabelFieldViewModel}">
+            <!-- A grid to create a separator with text in the middle -->
+            <Grid Margin="0,15,0,5" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left line (now a Grid for layering) -->
+                <Grid Grid.Column="0" VerticalAlignment="Center">
+                    <Rectangle Height="1" Fill="{StaticResource TertiaryBackground}"/>
+                    <Rectangle Height="1">
+                        <Rectangle.Fill>
+                            <Binding Path="HighlightColor" Converter="{StaticResource HexToBrushConverter}"/>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                </Grid>
+                
+                <!-- Label Text -->
+                <TextBlock Grid.Column="1" Text="{Binding Name}" 
+                           FontWeight="Bold" 
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Margin="10,0"/>
+                
+                <!-- Right line (now a Grid for layering) -->
+                <Grid Grid.Column="2" VerticalAlignment="Center">
+                    <Rectangle Height="1" Fill="{StaticResource TertiaryBackground}"/>
+                    <Rectangle Height="1">
+                        <Rectangle.Fill>
+                            <Binding Path="HighlightColor" Converter="{StaticResource HexToBrushConverter}"/>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+        
         <DataTemplate x:Key="NodeBypassTemplate" DataType="{x:Type local:NodeBypassFieldViewModel}">
             <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center" />
+        </DataTemplate>
+        
+        <DataTemplate x:Key="SeparatorTemplate" DataType="{x:Type local:SeparatorFieldViewModel}">
+            <!-- Use a Grid to allow the Line to bind to its width -->
+            <Grid x:Name="LineContainer" Margin="0,8,0,8" VerticalAlignment="Center" Height="1">
+                
+                <!-- Base Line -->
+                <Line x:Name="BaseLine" 
+                      X1="0" Y1="0" X2="{Binding ActualWidth, ElementName=LineContainer}" Y2="0"
+                      Stroke="{StaticResource TertiaryBackground}"
+                      StrokeThickness="1" />
+                
+                <!-- Highlight Line on top -->
+                <Line x:Name="HighlightLine" 
+                      X1="0" Y1="0" X2="{Binding ActualWidth, ElementName=LineContainer}" Y2="0"
+                      StrokeThickness="1">
+                    <Line.Stroke>
+                        <Binding Path="HighlightColor" Converter="{StaticResource HexToBrushConverter}"/>
+                    </Line.Stroke>
+                </Line>
+            </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding FieldModel.SeparatorStyle}" Value="Dashed">
+                    <Setter TargetName="BaseLine" Property="StrokeDashArray" Value="4 2"/>
+                    <Setter TargetName="HighlightLine" Property="StrokeDashArray" Value="4 2"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding FieldModel.SeparatorStyle}" Value="Dotted">
+                    <Setter TargetName="BaseLine" Property="StrokeDashArray" Value="1 2"/>
+                    <Setter TargetName="HighlightLine" Property="StrokeDashArray" Value="1 2"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
         
         <Style x:Key="LockToggleButtonStyle" TargetType="ToggleButton">
@@ -1189,6 +1257,8 @@
                                      MarkdownTemplate="{StaticResource MarkdownTemplate}"
                                      ScriptButtonTemplate="{StaticResource ScriptButtonTemplate}"
                                      NodeBypassTemplate="{StaticResource NodeBypassTemplate}"
+                                     LabelTemplate="{StaticResource LabelTemplate}"
+                                     SeparatorTemplate="{StaticResource SeparatorTemplate}"
         />
         
         <!-- Style for HORIZONTAL splitters (between rows) -->
@@ -1380,6 +1450,12 @@
                                   <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
                               </DataTrigger>
                               <DataTrigger Binding="{Binding Type}" Value="ScriptButton">
+                                  <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                              </DataTrigger>
+                              <DataTrigger Binding="{Binding Type}" Value="Label">
+                                  <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                              </DataTrigger>
+                              <DataTrigger Binding="{Binding Type}" Value="Separator">
                                   <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
                               </DataTrigger>
                           </Style.Triggers>
