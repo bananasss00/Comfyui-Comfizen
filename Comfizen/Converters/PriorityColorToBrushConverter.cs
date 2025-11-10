@@ -6,41 +6,36 @@ using System.Windows.Media;
 namespace Comfizen;
 
 /// <summary>
-/// A converter to determine the field color with priority: field color first, then group color.
+/// A converter that takes a potential color hex string and a fallback brush.
+/// If the hex string is a valid color, it returns a brush for that color.
+/// Otherwise, it returns the fallback brush.
 /// </summary>
 public class PriorityColorToBrushConverter : IMultiValueConverter
 {
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
     {
-        // values[0] - field color, values[1] - group color
-        string colorHex = null;
-
-        if (values.Length > 0 && values[0] is string fieldColor && !string.IsNullOrEmpty(fieldColor))
-        {
-            colorHex = fieldColor;
-        }
-        else if (values.Length > 1 && values[1] is string groupColor && !string.IsNullOrEmpty(groupColor))
-        {
-            colorHex = groupColor;
-        }
-
-        if (colorHex != null)
+        // Expected: values[0] is the HEX string (e.g., from HighlightColor)
+        //           values[1] is the fallback Brush (e.g., {StaticResource SecondaryBackground})
+        if (values.Length > 0 && values[0] is string hexColor && !string.IsNullOrEmpty(hexColor))
         {
             try
             {
-                // --- START OF FIX: Return a solid, non-transparent brush ---
-                // The opacity was a workaround for the full background fill.
-                // For a clean accent line, we need a solid color.
-                var color = (Color)ColorConverter.ConvertFromString(colorHex);
-                return new SolidColorBrush(color);
-                // --- END OF FIX ---
+                // If the first value is a valid hex string, use it.
+                return (SolidColorBrush)new BrushConverter().ConvertFrom(hexColor);
             }
             catch
             {
-                return Brushes.Transparent;
+                // If conversion fails, proceed to the fallback.
             }
         }
+
+        // If the first value was invalid or not present, use the second value as the fallback.
+        if (values.Length > 1 && values[1] is Brush fallbackBrush)
+        {
+            return fallbackBrush;
+        }
             
+        // Default fallback if nothing works.
         return Brushes.Transparent;
     }
 

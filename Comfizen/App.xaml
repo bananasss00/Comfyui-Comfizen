@@ -304,20 +304,22 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="{DynamicResource TertiaryBackground}" CornerRadius="3,3,0,0">
-                                <Grid>
-                                    <Border Opacity="0.3" CornerRadius="3,3,0,0">
-                                        <Border.Background>
-                                            <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
-                                                <Binding Path="DataContext.HighlightColor" RelativeSource="{RelativeSource TemplatedParent}"/>
-                                                <Binding Source="{StaticResource TertiaryBackground}"/>
-                                            </MultiBinding>
-                                        </Border.Background>
-                                    </Border>
-                                    <TabPanel IsItemsHost="True" Background="Transparent"/>
-                                </Grid>
+                            
+                            <!-- 1. The Tab Bar is now a neutral container -->
+                            <Border Grid.Row="0" Background="{DynamicResource TertiaryBackground}" CornerRadius="3,3,0,0" Padding="5,5,5,0">
+                                <TabPanel IsItemsHost="True" Background="Transparent"/>
                             </Border>
-                            <Border Grid.Row="1" Background="Transparent" BorderThickness="0">
+
+                            <!-- 2. The Content Area's background is now directly bound to the SELECTED TAB's color -->
+                            <Border Grid.Row="1" BorderThickness="0">
+                                <Border.Background>
+                                    <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
+                                        <!-- This is the key change: we bind to the selected item's color -->
+                                        <Binding Path="SelectedItem.HighlightColor" RelativeSource="{RelativeSource TemplatedParent}"/>
+                                        <!-- Fallback to the default content color if the tab has no color -->
+                                        <Binding Source="{StaticResource SecondaryBackground}"/>
+                                    </MultiBinding>
+                                </Border.Background>
                                 <ContentPresenter ContentSource="SelectedContent"/>
                             </Border>
                         </Grid>
@@ -326,38 +328,78 @@
             </Setter>
         </Style>
 
-        <Style x:Key="GroupInternalTabItemStyle" TargetType="TabItem">
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-            <Setter Property="Background" Value="Transparent"/>
+            
+<Style x:Key="GroupInternalTabItemStyle" TargetType="TabItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="0,0,2,0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="Border" 
-                                Background="{TemplateBinding Background}" 
-                                BorderThickness="0" 
-                                CornerRadius="3,3,0,0" 
-                                Margin="0,0,2,0">
-                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="BackgroundBorder" CornerRadius="3,3,0,0">
+                            <Border.Background>
+                                <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
+                                    <Binding Path="HighlightColor"/>
+                                    <Binding Source="{StaticResource TertiaryBackground}"/>
+                                </MultiBinding>
+                            </Border.Background>
+
+                            <Grid>
+                                <!-- NEW: A thin line that will only be visible for the active tab -->
+                                <Border x:Name="ActiveTabIndicator" 
+                                        Height="2" 
+                                        Background="{StaticResource PrimaryAccentBrush}"
+                                        VerticalAlignment="Top"
+                                        CornerRadius="2,2,0,0"
+                                        Visibility="Collapsed"/>
+
+                            <Border x:Name="StateOverlay">
+                                    <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                                </Border>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <!-- Style for the INACTIVE tab: apply a darkening overlay -->
+                            <Trigger Property="IsSelected" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                <Setter TargetName="StateOverlay" Property="Background" Value="#40000000"/>
+                            </Trigger>
+                            
+                            <!-- Style for the SELECTED tab -->
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource SecondaryBackground}"/>
+                                <Setter TargetName="StateOverlay" Property="Background" Value="Transparent"/>
+                                <!-- Show the top indicator line -->
+                                <Setter TargetName="ActiveTabIndicator" Property="Visibility" Value="Visible"/>
+                                <!-- This is the key to the "folder" effect -->
+                                <Setter TargetName="BackgroundBorder" Property="Background">
+                                    <Setter.Value>
+                                        <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
+                                            <Binding Path="HighlightColor"/>
+                                            <Binding Source="{StaticResource SecondaryBackground}"/>
+                                        </MultiBinding>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
+
+                            <!-- Style for hovering over an UNSELECTED tab -->
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
                                     <Condition Property="IsSelected" Value="False"/>
                                     <Condition Property="IsMouseOver" Value="True"/>
                                 </MultiTrigger.Conditions>
                                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource PrimaryBackground}"/>
+                                <Setter TargetName="StateOverlay" Property="Background" Value="#20FFFFFF"/>
                             </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+    
+
+    
     
     <!-- Custom Window Style -->
         <Style x:Key="CustomWindowStyle" TargetType="Window">
@@ -1466,38 +1508,29 @@
           
        <DataTemplate x:Key="UndockedGroupTemplate" DataType="{x:Type local:WorkflowGroupViewModel}">
            <Grid>
-               <Border Background="{DynamicResource SecondaryBackground}">
-                   <Grid>
-                       <Border Opacity="0.2" Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}"/>
-               <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                   <ContentControl Content="{Binding}">
-                    <ContentControl.Resources>
-                        <DataTemplate x:Key="SingleTabViewTemplate">
-                            <ItemsControl ItemsSource="{Binding Tabs[0].Fields}" Padding="8" ItemTemplate="{StaticResource FieldDataTemplate}"/>
-                        </DataTemplate>
-                        
-                        <DataTemplate x:Key="MultiTabViewTemplate">
-                            <TabControl ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
-                                        Style="{StaticResource GroupInternalTabControlStyle}"
-                                        ItemContainerStyle="{StaticResource GroupInternalTabItemStyle}">
-                                <TabControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type local:WorkflowGroupTabViewModel}">
-                                        <DockPanel>
-                                            <Border DockPanel.Dock="Bottom" Height="2" Margin="2,0,2,-2" Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding HighlightColor, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}" Value="True">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                            </Border>
+                <Border>
+                    <Border.Background>
+                       <PriorityBinding>
+                           <Binding Path="SelectedTab.HighlightColor" Converter="{StaticResource HexToBrushConverter}"/>
+                            <Binding Source="{StaticResource SecondaryBackground}"/>
+                       </PriorityBinding>
+                    </Border.Background>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ContentControl Content="{Binding}">
+                                <ContentControl.Resources>
+                            <DataTemplate x:Key="SingleTabViewTemplate">
+                                <ItemsControl ItemsSource="{Binding Tabs[0].Fields}" Padding="8" ItemTemplate="{StaticResource FieldDataTemplate}"/>
+                            </DataTemplate>
+                            
+                            <DataTemplate x:Key="MultiTabViewTemplate">
+                                <TabControl ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
+                                            Style="{StaticResource GroupInternalTabControlStyle}"
+                                            ItemContainerStyle="{StaticResource GroupInternalTabItemStyle}">
+                                    <TabControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type local:WorkflowGroupTabViewModel}">
+                                            <!-- The Tab Header is now just the text, clean and simple -->
                                             <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" Margin="0,0,0,2" />
-                                        </DockPanel>
-                                    </DataTemplate>
+                                        </DataTemplate>
                                 </TabControl.ItemTemplate>
                                 <TabControl.ContentTemplate>
                                     <DataTemplate DataType="{x:Type local:WorkflowGroupTabViewModel}">
@@ -1519,7 +1552,6 @@
                     </ContentControl.Style>
                 </ContentControl>
                </ScrollViewer>
-                   </Grid>
                </Border>
            </Grid>
        </DataTemplate>
