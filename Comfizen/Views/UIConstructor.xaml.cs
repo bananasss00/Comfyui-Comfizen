@@ -1290,22 +1290,61 @@ namespace Comfizen
         public void MoveSubTab(WorkflowGroupTab tabToMove, WorkflowGroup ownerGroup, int newIndex)
         {
             if (tabToMove == null || ownerGroup == null) return;
-            var oldIndex = ownerGroup.Tabs.IndexOf(tabToMove);
-            if (oldIndex < 0) return;
-
+    
+            // Find the corresponding ViewModel for the owner group.
+            var ownerVm = AllGroupViewModels.FirstOrDefault(vm => vm.Model == ownerGroup);
+            if (ownerVm == null) return;
+    
+            // Find the corresponding ViewModel for the tab being moved.
+            var tabVmToMove = ownerVm.Tabs.FirstOrDefault(tvm => tvm.Model == tabToMove);
+            if (tabVmToMove == null) return;
+    
+            // 1. Manipulate the ViewModel's collection, which is bound to the UI.
+            ownerVm.Tabs.Remove(tabVmToMove);
             if (newIndex < 0) newIndex = 0;
-            if (newIndex > ownerGroup.Tabs.Count) newIndex = ownerGroup.Tabs.Count;
-
-            if (oldIndex < newIndex)
-            {
-                newIndex--;
-            }
-
-            if (oldIndex == newIndex) return;
-
-            ownerGroup.Tabs.Move(oldIndex, newIndex);
+            if (newIndex > ownerVm.Tabs.Count) newIndex = ownerVm.Tabs.Count;
+            ownerVm.Tabs.Insert(newIndex, tabVmToMove);
+    
+            // 2. Manipulate the underlying Model's collection to ensure the change is saved.
+            ownerGroup.Tabs.Remove(tabToMove);
+            ownerGroup.Tabs.Insert(newIndex, tabToMove);
         }
         
+        public void MoveSubTabToGroup(WorkflowGroupTab tabToMove, WorkflowGroup sourceGroup, WorkflowGroup targetGroup, int newIndex = -1)
+        {
+            if (tabToMove == null || sourceGroup == null || targetGroup == null || sourceGroup == targetGroup) return;
+    
+            // Find the ViewModels for both source and target groups.
+            var sourceVm = AllGroupViewModels.FirstOrDefault(vm => vm.Model == sourceGroup);
+            var targetVm = AllGroupViewModels.FirstOrDefault(vm => vm.Model == targetGroup);
+            if (sourceVm == null || targetVm == null) return;
+    
+            // Find the ViewModel for the tab being moved.
+            var tabVmToMove = sourceVm.Tabs.FirstOrDefault(tvm => tvm.Model == tabToMove);
+            if (tabVmToMove == null) return;
+    
+            // 1. Update the ViewModels' collections for the UI.
+            sourceVm.Tabs.Remove(tabVmToMove);
+            if (newIndex < 0 || newIndex > targetVm.Tabs.Count)
+            {
+                targetVm.Tabs.Add(tabVmToMove);
+            }
+            else
+            {
+                targetVm.Tabs.Insert(newIndex, tabVmToMove);
+            }
+    
+            // 2. Update the Models' collections for persistence.
+            sourceGroup.Tabs.Remove(tabToMove);
+            if (newIndex < 0 || newIndex > targetGroup.Tabs.Count)
+            {
+                targetGroup.Tabs.Add(tabToMove);
+            }
+            else
+            {
+                targetGroup.Tabs.Insert(newIndex, tabToMove);
+            }
+        }
 
         public void MoveGroup(int oldIndex, int newIndex)
         {
@@ -1324,6 +1363,9 @@ namespace Comfizen
     public partial class UIConstructor : Window
     {
         private UIConstructorView _viewModel;
+        
+        private Point _startPoint;
+        private object _dragData;
         
         private Border? _currentGroupHighlight;
         private Border? _lastFieldIndicator;
@@ -2001,10 +2043,10 @@ namespace Comfizen
         {
             HandleAutoScroll(e);
             
-            // If a group is being dragged, do not show a drop indicator between fields.
-            // This prevents the user from thinking a group can be dropped inside another group.
-            if (e.Data.GetDataPresent(typeof(WorkflowGroup)) || 
-                e.Data.GetDataPresent(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)))
+            // If a group or sub-tab is being dragged, do not show a drop indicator between fields.
+            // This prevents the user from thinking these items can be dropped inside another group's field list.
+            if (e.Data.GetDataPresent(typeof(Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>)) || // This is the key fix: check for a dragged group.
+                e.Data.GetDataPresent(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)))
             {
                 e.Effects = DragDropEffects.None;
                 e.Handled = true;
@@ -2049,12 +2091,42 @@ namespace Comfizen
 
         private void GroupSubTabItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // On mouse down, we only record the starting point and the data to be dragged.
+            // We do NOT start the drag-and-drop yet.
+            _startPoint = e.GetPosition(null);
+            
             if (sender is FrameworkElement element &&
                 element.DataContext is WorkflowGroupTabViewModel tabVm &&
                 FindVisualParent<Expander>(element)?.DataContext is WorkflowGroupViewModel groupVm)
             {
-                var dragData = new Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>(tabVm, groupVm);
-                DragDrop.DoDragDrop(element, dragData, DragDropEffects.Move);
+                _dragData = new Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>(tabVm, groupVm);
+            }
+            else
+            {
+                _dragData = null;
+            }
+        }
+        
+        private void GroupSubTabItem_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            // This is where the drag-and-drop is actually initiated.
+            if (e.LeftButton == MouseButtonState.Pressed && _dragData != null)
+            {
+                Point position = e.GetPosition(null);
+                Vector diff = _startPoint - position;
+
+                // Check if the mouse has moved far enough to be considered a drag.
+                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    // Start the drag operation.
+                    if (sender is FrameworkElement element)
+                    {
+                        DragDrop.DoDragDrop(element, _dragData, DragDropEffects.Move);
+                    }
+                    // Reset the drag data to prevent this from firing again.
+                    _dragData = null;
+                }
             }
         }
         
@@ -2067,10 +2139,11 @@ namespace Comfizen
 
             var targetGroupVm = FindVisualParent<Expander>(dropTarget)?.DataContext as WorkflowGroupViewModel;
             if (targetGroupVm == null) return;
-            
+        
             var position = e.GetPosition(dropTarget);
 
-            if (e.Data.GetData(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)) is Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel> draggedTabData && draggedTabData.Item2 == targetGroupVm)
+            // Allow reordering sub-tabs AND moving them between groups.
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)) is Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel> draggedTabData)
             {
                 var indicator = position.X < dropTarget.ActualWidth / 2
                     ? FindVisualChild<Border>(dropTarget, "SubTabDropIndicatorBefore")
@@ -2083,11 +2156,12 @@ namespace Comfizen
                 }
                 e.Effects = DragDropEffects.Move;
             }
+            // Allow dropping a field onto a sub-tab.
             else if (e.Data.GetDataPresent(typeof(WorkflowField)) || e.Data.GetDataPresent(typeof(Tuple<WorkflowField, WorkflowGroup>)))
             {
                 e.Effects = DragDropEffects.Move;
             }
-            
+        
             e.Handled = true;
         }
 
@@ -2104,7 +2178,7 @@ namespace Comfizen
             var targetGroupVm = FindVisualParent<Expander>(dropTarget)?.DataContext as WorkflowGroupViewModel;
             if (targetGroupVm == null) return;
 
-            if (e.Data.GetData(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)) is Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel> draggedTabData && draggedTabData.Item2 == targetGroupVm)
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)) is Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel> draggedTabData)
             {
                 var targetIndex = targetGroupVm.Tabs.IndexOf(targetTabVm);
                 var indicatorAfter = FindVisualChild<Border>(dropTarget, "SubTabDropIndicatorAfter");
@@ -2112,7 +2186,17 @@ namespace Comfizen
                 {
                     targetIndex++;
                 }
-                _viewModel.MoveSubTab(draggedTabData.Item1.Model, targetGroupVm.Model, targetIndex);
+
+                // If the source and target groups are the same, it's a reorder.
+                if (draggedTabData.Item2 == targetGroupVm)
+                {
+                    _viewModel.MoveSubTab(draggedTabData.Item1.Model, targetGroupVm.Model, targetIndex);
+                }
+                // Otherwise, it's a move between groups.
+                else
+                {
+                    _viewModel.MoveSubTabToGroup(draggedTabData.Item1.Model, draggedTabData.Item2.Model, targetGroupVm.Model, targetIndex);
+                }
             }
             else if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> fieldData)
             {
@@ -2134,6 +2218,18 @@ namespace Comfizen
         {
             HideAllIndicators();
             if (sender is not FrameworkElement dropTarget || dropTarget.DataContext is not WorkflowGroupTabViewModel targetTabVm) return;
+
+            // --- ADDED: Allow dropping a sub-tab onto the content area to move it to this group ---
+            var targetGroupVm = FindVisualParent<Expander>(dropTarget)?.DataContext as WorkflowGroupViewModel;
+            if (targetGroupVm == null) return;
+
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)) is Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel> draggedTabData)
+            {
+                _viewModel.MoveSubTabToGroup(draggedTabData.Item1.Model, draggedTabData.Item2.Model, targetGroupVm.Model);
+                e.Handled = true;
+                return;
+            }
+            // --- END ADDITION ---
 
             if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> fieldData)
             {
