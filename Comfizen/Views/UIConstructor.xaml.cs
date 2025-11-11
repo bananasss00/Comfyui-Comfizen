@@ -2968,5 +2968,26 @@ namespace Comfizen
                 }
             }
         }
+        
+        /// <summary>
+        /// Handles the PreviewMouseWheel event for the inner field lists.
+        /// This method intercepts the scroll event and forwards it to the main GroupsScrollViewer,
+        /// allowing the user to scroll through the entire list of groups even when the mouse
+        /// is over a specific group's field list. This creates a seamless "smart scroll" experience.
+        /// </summary>
+        private void FieldList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (!e.Handled)
+            {
+                e.Handled = true;
+                var eventArg = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+                {
+                    RoutedEvent = UIElement.MouseWheelEvent,
+                    Source = sender
+                };
+                // Manually raise the event on the main scroll viewer
+                GroupsScrollViewer.RaiseEvent(eventArg);
+            }
+        }
     }
 }

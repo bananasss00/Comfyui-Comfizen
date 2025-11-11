@@ -458,7 +458,8 @@
                                                                             <ListBox ItemsSource="{Binding Model.Fields}" Padding="8"
                                                                                      SelectionMode="Extended"
                                                                                      Background="Transparent"
-                                                                                     BorderThickness="0">
+                                                                                     BorderThickness="0"
+                                                                                     PreviewMouseWheel="FieldList_PreviewMouseWheel">
                                                                                 <ListBox.ItemContainerStyle>
                                                                                     <Style TargetType="ListBoxItem">
                                                                                         <Setter Property="Template">
