@@ -1925,8 +1925,10 @@
                     <TextBlock DockPanel.Dock="Top" Text="{local:Translate GroupNavigation_Title}" FontWeight="Bold" Margin="5" />
                     
                     <TextBox DockPanel.Dock="Top" 
+                             x:Name="GroupNavigationSearchBox"
                              Text="{Binding GroupNavigationSearchText, UpdateSourceTrigger=PropertyChanged}" 
-                             Margin="5,0,5,8">
+                             Margin="5,0,5,8"
+                             PreviewKeyDown="GroupNavigationSearchBox_PreviewKeyDown">
                         <TextBox.Style>
                             <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
                                 <Setter Property="local:TextBoxExtensions.PlaceholderText" Value="{local:Translate GroupNavigation_SearchPlaceholder}"/>
@@ -1934,10 +1936,13 @@
                         </TextBox.Style>
                     </TextBox>
 
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ListBox ItemsSource="{Binding FilteredNavigableGroupsView}"
+                    <ScrollViewer x:Name="GroupNavigationScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <ListBox x:Name="GroupNavigationListBox"
+                                 ItemsSource="{Binding FilteredNavigableGroupsView}"
                              Background="Transparent"
-                                 BorderThickness="0">
+                                 BorderThickness="0"
+                                 PreviewMouseWheel="GroupNavigationListBox_PreviewMouseWheel"
+                                 PreviewKeyDown="GroupNavigationListBox_PreviewKeyDown">
                             <ListBox.GroupStyle>
                                 <GroupStyle>
                                     <GroupStyle.HeaderTemplate>
@@ -1962,6 +1967,9 @@
                                                 <ControlTemplate.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
                                                         <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
                                                     </Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>

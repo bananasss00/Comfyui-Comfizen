@@ -904,6 +904,69 @@ namespace Comfizen
             }), DispatcherPriority.Input);
         }
         
+        private void GroupNavigationSearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Down || e.Key == Key.Up)
+            {
+                // Directly access the ListBox by its name, which is reliable.
+                if (GroupNavigationListBox != null && GroupNavigationListBox.Items.Count > 0)
+                {
+                    // Move focus to the ListBox first
+                    GroupNavigationListBox.Focus();
+                    
+                    // Then focus and select the first (or last) item in the list
+                    int index = (e.Key == Key.Down) ? 0 : GroupNavigationListBox.Items.Count - 1;
+                    var container = GroupNavigationListBox.ItemContainerGenerator.ContainerFromIndex(index) as ListBoxItem;
+                    if (container != null)
+                    {
+                        container.IsSelected = true;
+                        container.Focus();
+                    }
+                    
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void GroupNavigationListBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (!e.Handled)
+            {
+                // Find the PARENT ScrollViewer that contains the ListBox
+                var scrollViewer = FindVisualParent<ScrollViewer>(sender as DependencyObject);
+                if (scrollViewer != null)
+                {
+                    // Manually scroll the parent
+                    scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta);
+                    // Mark as handled to prevent the ListBox from trying to scroll itself (and failing)
+                    e.Handled = true;
+                }
+            }
+        }
+        
+        private static T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            DependencyObject parentObject = VisualTreeHelper.GetParent(child);
+            if (parentObject == null) return null;
+            T parent = parentObject as T;
+            return parent ?? FindVisualParent<T>(parentObject);
+        }
+
+        private void GroupNavigationListBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (DataContext is MainViewModel viewModel && sender is ListBox listBox && listBox.SelectedItem is WorkflowGroupViewModel groupVm)
+                {
+                    if (viewModel.GoToGroupCommand.CanExecute(groupVm))
+                    {
+                        viewModel.GoToGroupCommand.Execute(groupVm);
+                    }
+                    e.Handled = true;
+                }
+            }
+        }
+        
         /// <summary>
         /// Handles smart scrolling for the main controls area.
         /// It allows the parent ScrollViewer to scroll when a child control (like a TextBox or InpaintEditor)
