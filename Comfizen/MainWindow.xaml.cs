@@ -210,19 +210,29 @@ namespace Comfizen
                 return;
             }
 
+            // --- START OF CHANGE: Find the ScrollViewer dynamically ---
+            var scrollViewer = FindVisualChild<ScrollViewer>(WorkflowTabsControl);
+            if (scrollViewer == null)
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+            // --- END OF CHANGE ---
+
             // Autoscroll logic
             const double scrollThreshold = 40.0;
             const double scrollSpeed = 8.0;
-    
-            Point position = e.GetPosition(ControlsScrollViewer);
+
+            Point position = e.GetPosition(scrollViewer);
 
             if (position.Y < scrollThreshold)
             {
-                ControlsScrollViewer.ScrollToVerticalOffset(ControlsScrollViewer.VerticalOffset - scrollSpeed);
+                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - scrollSpeed);
             }
-            else if (position.Y > ControlsScrollViewer.ActualHeight - scrollThreshold)
+            else if (position.Y > scrollViewer.ActualHeight - scrollThreshold)
             {
-                ControlsScrollViewer.ScrollToVerticalOffset(ControlsScrollViewer.VerticalOffset + scrollSpeed);
+                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + scrollSpeed);
             }
 
             // Allow drop for files OR for ImageOutput from the gallery
