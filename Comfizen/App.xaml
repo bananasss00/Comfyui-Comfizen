@@ -1175,19 +1175,20 @@
             <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center" />
         </DataTemplate>
         
+            
         <DataTemplate x:Key="SeparatorTemplate" DataType="{x:Type local:SeparatorFieldViewModel}">
             <!-- Use a Grid to allow the Line to bind to its width -->
-            <Grid x:Name="LineContainer" Margin="0,8,0,8" VerticalAlignment="Center" Height="1">
+            <Grid x:Name="LineContainer" Margin="0,8,0,8" VerticalAlignment="Center" Height="2">
                 
                 <!-- Base Line -->
                 <Line x:Name="BaseLine" 
-                      X1="0" Y1="0" X2="{Binding ActualWidth, ElementName=LineContainer}" Y2="0"
+                      X1="0" Y1="1" X2="{Binding ActualWidth, ElementName=LineContainer}" Y2="1"
                       Stroke="{StaticResource TertiaryBackground}"
                       StrokeThickness="1" />
                 
                 <!-- Highlight Line on top -->
                 <Line x:Name="HighlightLine" 
-                      X1="0" Y1="0" X2="{Binding ActualWidth, ElementName=LineContainer}" Y2="0"
+                      X1="0" Y1="1" X2="{Binding ActualWidth, ElementName=LineContainer}" Y2="1"
                       StrokeThickness="1">
                     <Line.Stroke>
                         <Binding Path="HighlightColor" Converter="{StaticResource HexToBrushConverter}"/>
@@ -1200,11 +1201,17 @@
                     <Setter TargetName="HighlightLine" Property="StrokeDashArray" Value="4 2"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding FieldModel.SeparatorStyle}" Value="Dotted">
-                    <Setter TargetName="BaseLine" Property="StrokeDashArray" Value="1 2"/>
-                    <Setter TargetName="HighlightLine" Property="StrokeDashArray" Value="1 2"/>
+                    <Setter TargetName="BaseLine" Property="StrokeThickness" Value="2"/>
+                    <Setter TargetName="HighlightLine" Property="StrokeThickness" Value="2"/>
+                    <Setter TargetName="BaseLine" Property="StrokeDashArray" Value="0 3"/>
+                    <Setter TargetName="HighlightLine" Property="StrokeDashArray" Value="0 3"/>
+                    <Setter TargetName="BaseLine" Property="StrokeDashCap" Value="Round"/>
+                    <Setter TargetName="HighlightLine" Property="StrokeDashCap" Value="Round"/>
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
+
+  
         
         <Style x:Key="LockToggleButtonStyle" TargetType="ToggleButton">
             <Setter Property="Width" Value="24"/>
