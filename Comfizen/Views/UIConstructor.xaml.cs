@@ -1816,12 +1816,24 @@ namespace Comfizen
         
         private void Field_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (e.ClickCount == 2)
+            {
+                if (sender is FrameworkElement element && DataContext is UIConstructorView viewModel)
+                {
+                    // Execute the rename command directly.
+                    viewModel.ToggleRenameCommand.Execute(element.DataContext);
+                    // Mark the event as handled to prevent initiating a drag.
+                    e.Handled = true; 
+                    return; // Stop further processing.
+                }
+            }
+
             _dragStartPoint = e.GetPosition(null);
             _isDragging = false; 
 
-            if (sender is Border element && element.DataContext is WorkflowField)
+            if (sender is Border element2 && element2.DataContext is WorkflowField)
             {
-                var listBoxItem = FindVisualParent<ListBoxItem>(element);
+                var listBoxItem = FindVisualParent<ListBoxItem>(element2);
                 if (listBoxItem != null && listBoxItem.IsSelected && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == ModifierKeys.None)
                 {
                     // This is the key: if we are clicking on an already selected item
@@ -2793,7 +2805,7 @@ namespace Comfizen
                     textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
                     subTabVm.IsRenaming = false;
                 }
-                else if (dataContext is WorkflowGroup || dataContext is WorkflowField || dataContext is WorkflowTabDefinition)
+                else if (dataContext is WorkflowGroupViewModel || dataContext is WorkflowGroup || dataContext is WorkflowField || dataContext is WorkflowTabDefinition)
                 {
                     textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
                     StopEditing(dataContext);
@@ -2815,7 +2827,6 @@ namespace Comfizen
                 }
                 e.Handled = true;
             }
-            // --- END OF CHANGE ---
         }
         
         private void ActionItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
