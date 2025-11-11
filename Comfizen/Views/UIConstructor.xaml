@@ -16,10 +16,13 @@
         Style="{StaticResource CustomWindowStyle}">
 
     <Window.Resources>
+        <!-- DataContext Proxy -->
+        <local:BindingProxy x:Key="Proxy" Data="{Binding}"/>
+
         <local:NodeIdsToInfoConverter x:Key="NodeIdsToInfoConverter"/>
         <local:AvailableNodesConverter  x:Key="AvailableNodesConverter"/>
-        
-        <Popup x:Key="ColorPickerPopup"
+
+        <Popup x:Key="UniversalContextMenuPopup"
                StaysOpen="False"
                Placement="MousePoint"
                AllowsTransparency="True">
@@ -29,7 +32,7 @@
                     CornerRadius="3"
                     Padding="5">
                 <StackPanel>
-                    <ItemsControl ItemsSource="{Binding Path=DataContext.ColorPalette, Source={x:Reference RootGrid}}">
+                    <ItemsControl ItemsSource="{Binding Data.ColorPalette, Source={StaticResource Proxy}}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel MaxWidth="128"/>
@@ -45,7 +48,7 @@
                                         </MultiBinding>
                                     </Button.CommandParameter>
                                     <Button.Command>
-                                        <Binding Path="DataContext.SetHighlightColorCommand" Source="{x:Reference RootGrid}"/>
+                                        <Binding Path="Data.SetHighlightColorCommand, Source={StaticResource Proxy}"/>
                                     </Button.Command>
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -67,16 +70,24 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     
-                    <Separator Margin="0,5"/>
-                    
                     <Button Content="{local:Translate UIConstructor_ClearColor}" Padding="5,3">
                          <Button.CommandParameter>
                               <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=Popup}"/>
                          </Button.CommandParameter>
                          <Button.Command>
-                             <Binding Path="DataContext.ClearHighlightColorCommand" Source="{x:Reference RootGrid}"/>
+                             <Binding Path="Data.ClearHighlightColorCommand, Source={StaticResource Proxy}"/>
                          </Button.Command>
                     </Button>
+                    
+                    <Separator Margin="0,5"/>
+
+                    <Button Content="{local:Translate UIConstructor_Cut}" 
+                            Command="{Binding Data.CutFieldsCommand, Source={StaticResource Proxy}}"
+                            CommandParameter="{Binding Data.PopupTarget, Source={StaticResource Proxy}}"/>
+                    <Button Content="{local:Translate UIConstructor_Paste}"
+                            Command="{Binding Data.PasteFieldsCommand, Source={StaticResource Proxy}}"
+                            CommandParameter="{Binding Data.PopupTarget, Source={StaticResource Proxy}}" Margin="0,5,0,0"/>
+
                 </StackPanel>
             </Border>
         </Popup>
@@ -138,7 +149,6 @@
                         <ColumnDefinition Width="5*" MinWidth="450"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- START OF CHANGES: Left Panel for Tabs and Unassigned Groups -->
                     <DockPanel Grid.Column="0">
                         <Button DockPanel.Dock="Top" Content="{local:Translate UIConstructor_LoadApiFile}" Command="{Binding LoadCommand}" Margin="0,0,0,10"/>
                         
@@ -146,14 +156,12 @@
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>
-                                    <!-- ADDED: Row for the new GridSplitter -->
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- Tabs Management -->
                                 <DockPanel Grid.Row="0">
                                     <Button DockPanel.Dock="Right" Content="+" Command="{Binding AddTabCommand}" ToolTip="{local:Translate UIConstructor_AddTab}" Margin="5" Width="30" Height="30"/>
                                     <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_TabsHeader}" FontWeight="Bold" Margin="10,10,10,5"/>
@@ -163,7 +171,6 @@
                                                       AllowDrop="True" Drop="TabList_Drop" DragOver="TabList_DragOver">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:WorkflowTabDefinition}">
-                                                    <!-- START OF CHANGES: Added StackPanel and drop indicators for reordering -->
                                                     <StackPanel AllowDrop="True" 
                                                                 Drop="Tab_Drop" 
                                                                 DragOver="Tab_DragOver" 
@@ -174,17 +181,16 @@
 
                                                         <Border x:Name="TabBorder" CornerRadius="3" Margin="0,2" Padding="8"
                                                                 PreviewMouseLeftButtonDown="TabDefinition_PreviewMouseLeftButtonDown"
+                                                                MouseRightButtonUp="ShowUniversalPopup"
                                                                 AllowDrop="True" Drop="TabDefinition_Drop" DragEnter="TabDefinition_DragEnter" DragLeave="TabDefinition_DragLeave">
                                                             <Border.Style>
                                                                 <Style TargetType="Border">
-                                                                    <!-- Default background color -->
                                                                     <Setter Property="Background" Value="{StaticResource TertiaryBackground}" />
                                                                     <Style.Triggers>
-                                                                        <!-- Trigger to highlight the selected tab -->
                                                                         <DataTrigger Value="True">
                                                                             <DataTrigger.Binding>
                                                                                 <MultiBinding Converter="{StaticResource EqualityConverter}">
-                                                                                    <Binding /> <!-- The current WorkflowTabDefinition -->
+                                                                                    <Binding />
                                                                                     <Binding Path="DataContext.SelectedTab" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
                                                                                 </MultiBinding>
                                                                             </DataTrigger.Binding>
@@ -213,7 +219,6 @@
                                                         
                                                         <Border x:Name="TabDropIndicatorAfter" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
                                                     </StackPanel>
-                                                    <!-- END OF CHANGES -->
                                                     <DataTemplate.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="True">
                                                             <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
@@ -227,15 +232,14 @@
                                 
                                 <GridSplitter Grid.Row="1" ResizeDirection="Rows" Style="{StaticResource HorizontalGridSplitterStyle}" />
 
-                                <!-- Unassigned Groups -->
                                 <DockPanel Grid.Row="2" Margin="0,10,0,0">
                                     <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_UnassignedGroupsHeader}" FontWeight="Bold" Margin="10,5,10,5"/>
-                                    <!-- (ListBox для нераспределенных групп остается без изменений) -->
                                     <ListBox ItemsSource="{Binding UnassignedGroups}" Background="Transparent" BorderThickness="0" Margin="5"
                                              AllowDrop="True" Drop="UnassignedGroups_Drop" DragEnter="UnassignedGroups_DragEnter">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
-                                                <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown">
+                                                <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown"
+                                                        MouseRightButtonUp="ShowUniversalPopup">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*"/>
@@ -259,7 +263,6 @@
                                     </ListBox>
                                 </DockPanel>
                                 
-                                <!-- ADDED: GridSplitter and Available Fields section -->
                                 <GridSplitter Grid.Row="3" ResizeDirection="Rows" Style="{StaticResource HorizontalGridSplitterStyle}" />
                                 
                                 <DockPanel Grid.Row="4" Margin="0,10,0,0">
@@ -275,10 +278,11 @@
                                     </Grid>
                                     <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_AvailableFields}" FontWeight="Bold" Margin="10,5,10,5"/>
                                     <ListBox ItemsSource="{Binding AvailableFields}" Background="Transparent" BorderThickness="0" Margin="5"
-                                             AllowDrop="True" Drop="DeleteField_Drop" DragEnter="DeleteField_DragEnter">
+                                             AllowDrop="True" Drop="DeleteField_Drop" DragEnter="DeleteField_DragEnter"
+                                             SelectionMode="Extended" PreviewMouseLeftButtonDown="AvailableField_PreviewMouseLeftButtonDown" MouseMove="AvailableField_MouseMove">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="AvailableField_PreviewMouseLeftButtonDown">
+                                                <Border x:Name="backgroundBorder" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8">
                                                     <TextBlock Text="{Binding Name}">
                                                         <TextBlock.ToolTip>
                                                             <ToolTip>
@@ -293,15 +297,23 @@
                                                         </TextBlock.ToolTip>
                                                     </TextBlock>
                                                 </Border>
+                                                <DataTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                        <Setter TargetName="backgroundBorder" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
-                                        <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
                                     </ListBox>
                                 </DockPanel>
                             </Grid>
                         </Border>
                     </DockPanel>
-                    <!-- END OF CHANGES: Left Panel -->
 
                     <GridSplitter Grid.Column="1" 
                                   Style="{StaticResource VerticalGridSplitterStyle}"
@@ -309,9 +321,7 @@
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Stretch"/>
 
-                    <!-- START OF CHANGES: Right Panel for Selected Tab's Content -->
                     <Border Grid.Column="2" Background="{StaticResource SecondaryBackground}" CornerRadius="5">
-                        <!-- ADDED: AllowDrop and Drop handler -->
                         <DockPanel Margin="10" AllowDrop="True" Drop="TabContent_Drop" DragEnter="TabContent_DragEnter">
                             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
                                 <Button Content="{local:Translate UIConstructor_AddGroup}" Command="{Binding AddGroupCommand}" HorizontalAlignment="Left"/>
@@ -329,7 +339,7 @@
                                                     <Expander.Header>
                                                         <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1"
                                                                 CornerRadius="3,3,0,0" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown"
-                                                                MouseRightButtonUp="ShowColorPickerPopup">
+                                                                MouseRightButtonUp="ShowUniversalPopup">
                                                             <Border.Style>
                                                                 <Style TargetType="Border">
                                                                     <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
@@ -406,14 +416,12 @@
                                                                         <EventSetter Event="DragOver" Handler="GroupSubTabItem_DragOver"/>
                                                                         <EventSetter Event="DragLeave" Handler="GroupSubTabItem_DragLeave"/>
                                                                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="GroupSubTabItem_PreviewMouseLeftButtonDown"/>
-                                                                        <!-- ADDED: New event handler for mouse move -->
                                                                         <EventSetter Event="PreviewMouseMove" Handler="GroupSubTabItem_PreviewMouseMove"/>
                                                                     </Style>
                                                                 </TabControl.Resources>
                                                                 <TabControl.ItemTemplate>
                                                                     <DataTemplate DataType="{x:Type local:WorkflowGroupTabViewModel}">
-                                                                        <Grid MouseRightButtonUp="ShowColorPickerPopup">
-                                                                            <!-- Vertical indicator on the left -->
+                                                                        <Grid MouseRightButtonUp="ShowUniversalPopup">
                                                                             <Border x:Name="SubTabDropIndicatorBefore" Width="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="-2,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Stretch" Visibility="Collapsed" IsHitTestVisible="False"/>
                                                                             
                                                                             <StackPanel Orientation="Horizontal">
@@ -437,7 +445,6 @@
                                                                             <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}"
                                                                                      Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                                             
-                                                                            <!-- Vertical indicator on the right -->
                                                                             <Border x:Name="SubTabDropIndicatorAfter" Width="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,0,-2,0" HorizontalAlignment="Right" VerticalAlignment="Stretch" Visibility="Collapsed" IsHitTestVisible="False"/>
                                                                         </Grid>
                                                                     </DataTemplate>
@@ -448,23 +455,50 @@
                                                                             <Border Opacity="0.2"
                                                                                     Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}"/>
                                                                             
-                                                                            <ItemsControl ItemsSource="{Binding Model.Fields}" Padding="8">
-                                                                                <ItemsControl.ItemTemplate>
+                                                                            <ListBox ItemsSource="{Binding Model.Fields}" Padding="8"
+                                                                                     SelectionMode="Extended"
+                                                                                     Background="Transparent"
+                                                                                     BorderThickness="0">
+                                                                                <ListBox.ItemContainerStyle>
+                                                                                    <Style TargetType="ListBoxItem">
+                                                                                        <Setter Property="Template">
+                                                                                            <Setter.Value>
+                                                                                                <ControlTemplate TargetType="ListBoxItem">
+                                                                                                    <Border x:Name="ItemBorder" Background="Transparent" Padding="0">
+                                                                                                        <ContentPresenter/>
+                                                                                                    </Border>
+                                                                                                    <ControlTemplate.Triggers>
+                                                                                                        <Trigger Property="IsSelected" Value="True">
+                                                                                                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                                                                        </Trigger>
+                                                                                                        <MultiTrigger>
+                                                                                                            <MultiTrigger.Conditions>
+                                                                                                                <Condition Property="IsSelected" Value="False"/>
+                                                                                                                <Condition Property="IsMouseOver" Value="True"/>
+                                                                                                            </MultiTrigger.Conditions>
+                                                                                                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                                                                                        </MultiTrigger>
+                                                                                                    </ControlTemplate.Triggers>
+                                                                                                </ControlTemplate>
+                                                                                            </Setter.Value>
+                                                                                        </Setter>
+                                                                                    </Style>
+                                                                                </ListBox.ItemContainerStyle>
+                                                                                <ListBox.ItemTemplate>
                                                                     <DataTemplate>
                                                                         <StackPanel AllowDrop="True" DragEnter="Field_DragOver" DragLeave="Field_DragLeave" DragOver="Field_DragOver" Drop="Field_Drop" Background="Transparent">
                                                                             <Border x:Name="DropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                                                            <Border MouseLeftButtonDown="GroupedField_MouseLeftButtonDown"
-                                                                                MouseRightButtonUp="ShowColorPickerPopup">
+                                                                                            <Border PreviewMouseLeftButtonDown="Field_PreviewMouseLeftButtonDown"
+                                                                                                    MouseMove="Field_MouseMove"
+                                                                                                    MouseRightButtonUp="ShowUniversalPopup">
                                                                                 <Border.Style>
                                                                                     <Style TargetType="Border">
-                                                                                        <!-- Move default values here -->
                                                                                         <Setter Property="BorderBrush" Value="#44FFFFFF"/>
                                                                                         <Setter Property="BorderThickness" Value="0,0,0,1"/>
                                                                                         <Setter Property="Margin" Value="0,2"/>
                                                                                         <Setter Property="Padding" Value="5"/>
                                                                                         <Style.Triggers>
                                                                                             <DataTrigger Binding="{Binding IsInvalid}" Value="True">
-                                                                                                <!-- This trigger can now override the setters above -->
                                                                                                 <Setter Property="BorderBrush" Value="{StaticResource ErrorBrush}"/>
                                                                                                 <Setter Property="BorderThickness" Value="1"/>
                                                                                                 <Setter Property="CornerRadius" Value="3"/>
@@ -474,16 +508,14 @@
                                                                                 </Border.Style>
                                                                                 <Grid>
                                                                                     <Grid.ColumnDefinitions>
-                                                                                        <ColumnDefinition Width="Auto"/> <!-- For the accent line -->
-                                                                                        <ColumnDefinition Width="*"/>    <!-- For the content -->
+                                                                                                        <ColumnDefinition Width="Auto"/>
+                                                                                                        <ColumnDefinition Width="*"/>
                                                                                     </Grid.ColumnDefinitions>
 
-                                                                                    <!-- 1. The new accent line Border -->
                                                                                     <Border Grid.Column="0" Width="3" CornerRadius="1.5" Margin="0,0,8,0">
                                                                                         <Border.Background>
                                                                                             <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
                                                                                                 <Binding Path="HighlightColor"/>
-                                                                                                <!-- This finds the parent ItemsControl (which holds the fields) and gets its DataContext (the WorkflowGroup) -->
                                                                                                 <Binding Path="DataContext.HighlightColor" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
                                                                                             </MultiBinding>
                                                                                         </Border.Background>
@@ -641,12 +673,11 @@
                                                                                             <TextBlock Text="{local:Translate UIConstructor_NodeBypass_Header}"/>
                                                                                             <CheckBox Content="{local:Translate UIConstructor_NodeBypass_EnabledByDefault}" IsChecked="{Binding DefaultValue, Converter={StaticResource StringToBoolConverter}}" Margin="0,5,0,5"/>
 
-                                                                                            <!-- Поиск и добавление нод -->
                                                                                             <local:FilterableComboBox 
                                                                                                 PlaceholderText="{local:Translate UIConstructor_NodeBypass_SearchPlaceholder}"
                                                                                                 Margin="0,0,0,5"
                                                                                                 ItemSelectedCommand="{Binding DataContext.AddBypassNodeIdCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                                                ItemSelectedCommandParameter="{Binding}"> <!-- The DataContext here is the WorkflowField -->
+                                                                                                                ItemSelectedCommandParameter="{Binding}">
     
                                                                                                 <local:FilterableComboBox.ItemsSource>
                                                                                                     <MultiBinding Converter="{StaticResource AvailableNodesConverter}">
@@ -665,7 +696,6 @@
                                                                                                 </local:FilterableComboBox.ItemTemplate>
                                                                                             </local:FilterableComboBox>
 
-                                                                                            <!-- Список уже добавленных нод -->
                                                                                             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="100">
                                                                                                     <ItemsControl>
                                                                                                         <ItemsControl.ItemsSource>
@@ -676,7 +706,6 @@
                                                                                                         </ItemsControl.ItemsSource>
                                                                                                         <ItemsControl.ItemTemplate>
                                                                                                             <DataTemplate DataType="{x:Type local:NodeInfo}">
-                                                                                                                <!-- Made the border more compact by reducing padding and margin -->
                                                                                                                 <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,1" Padding="8,2">
                                                                                                                     <Grid>
                                                                                                                         <Grid.ColumnDefinitions>
@@ -761,8 +790,8 @@
                                                                              <Border x:Name="DropIndicatorAfter" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
                                                                         </StackPanel>
                                                                     </DataTemplate>
-                                                                                </ItemsControl.ItemTemplate>
-                                                                            </ItemsControl>
+                                                                                </ListBox.ItemTemplate>
+                                                                            </ListBox>
                                                                         </Grid>
                                                                     </DataTemplate>
                                                                 </TabControl.ContentTemplate>
@@ -773,7 +802,6 @@
 
                                                 <Border x:Name="GroupDropIndicatorAfter" Height="3" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1.5" Margin="0,2" Visibility="Collapsed" IsHitTestVisible="False"/>
                                             </StackPanel>
-                                            <!-- END OF CHANGES -->
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -793,7 +821,6 @@
     
                     <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent" />
 
-                    <!-- Hooks Panel -->
                     <DockPanel Grid.Column="0" Margin="0,0,5,0">
                         <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_HooksHeader}" FontWeight="Bold" Margin="5"/>
                         <ComboBox DockPanel.Dock="Top" Margin="5"
@@ -809,7 +836,6 @@
                         </Border>
                     </DockPanel>
 
-                    <!-- Actions Panel -->
                     <DockPanel Grid.Column="2" Margin="5,0,0,0">
                         <TextBlock DockPanel.Dock="Top" Text="{local:Translate UIConstructor_ActionsHeader}" FontWeight="Bold" Margin="5"/>
                         <Border DockPanel.Dock="Top" Margin="5,0,5,5" Padding="5" Background="{StaticResource SecondaryBackground}" CornerRadius="3" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1">
@@ -833,9 +859,6 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             
-                            <!-- ========================================================== -->
-                            <!--     НАЧАЛО ИЗМЕНЕНИЙ: ListBox с поддержкой переименования -->
-                            <!-- ========================================================== -->
                             <ListBox Grid.Column="0" Margin="0,0,5,0"
                                      ItemsSource="{Binding ActionNames}"
                                      SelectedItem="{Binding SelectedActionName, Mode=TwoWay}"
@@ -856,24 +879,15 @@
                                 <ListBox.ItemTemplate>
                                     <DataTemplate DataType="{x:Type local:ActionNameViewModel}">
                                         <Grid>
-                                            <!-- ========================================================== -->
-                                            <!--     НАЧАЛО ИСПРАВЛЕНИЙ: Правильные привязки              -->
-                                            <!-- ========================================================== -->
                                             <TextBlock Text="{Binding Name}" 
                                                        Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}"/>
                                             <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" 
                                                      Style="{StaticResource InlineEditTextBox}"
                                                      Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                            <!-- ========================================================== -->
-                                            <!--     КОНЕЦ ИСПРАВЛЕНИЙ                                        -->
-                                            <!-- ========================================================== -->
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <!-- ========================================================== -->
-                            <!--     КОНЕЦ ИЗМЕНЕНИЙ                                        -->
-                            <!-- ========================================================== -->
 
                             <avalonedit:TextEditor x:Name="ActionScriptEditor" Grid.Column="1"
                                                    Document="{Binding SelectedActionScript, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"

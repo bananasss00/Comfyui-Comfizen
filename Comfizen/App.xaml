@@ -35,7 +35,9 @@
         <local:SelectionCountToBooleanConverter x:Key="SelectionCountToBooleanConverter"/>
         <local:AddOneConverter x:Key="AddOneConverter"/>
         <local:IsGreaterThanConverter x:Key="IsGreaterThanConverter"/>
-
+        
+        
+        
         <!-- ScrollBar Thumb Style -->
         <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
             <Setter Property="OverridesDefaultStyle" Value="true"/>
@@ -159,6 +161,55 @@
         <SolidColorBrush x:Key="ErrorBrush" Color="#FFE74C3C"/>
         <SolidColorBrush x:Key="TextBrush" Color="#FFE0E0E0"/>
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="#FFA0A0A0"/>
+        
+        <ControlTemplate x:Key="CustomContextMenuTemplate" TargetType="ContextMenu">
+            <Border x:Name="Border" 
+                    Background="{StaticResource SecondaryBackground}"
+                    BorderBrush="{StaticResource TertiaryBackground}"
+                    BorderThickness="1">
+                <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter TargetName="Border" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                    <Setter TargetName="Border" Property="BorderBrush" Value="#454545"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style x:Key="AppContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Template" Value="{StaticResource CustomContextMenuTemplate}"/>
+        </Style>
+
+        <Style TargetType="MenuItem">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Border" 
+                                Background="Transparent"
+                                Padding="{TemplateBinding Padding}">
+                            <TextBlock x:Name="HeaderText"
+                                       Text="{TemplateBinding Header}"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                <Setter TargetName="HeaderText" Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="HeaderText" Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         
         <Style x:Key="SystemButton" TargetType="Button">
             <Setter Property="Width" Value="46"/>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -8,6 +9,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -25,6 +27,23 @@ using Formatting = Newtonsoft.Json.Formatting;
 
 namespace Comfizen
 {
+    public class BindingProxy : Freezable
+    {
+        protected override Freezable CreateInstanceCore()
+        {
+            return new BindingProxy();
+        }
+
+        public object Data
+        {
+            get { return GetValue(DataProperty); }
+            set { SetValue(DataProperty, value); }
+        }
+
+        public static readonly DependencyProperty DataProperty =
+            DependencyProperty.Register("Data", typeof(object), typeof(BindingProxy), new UIPropertyMetadata(null));
+    }
+    
     /// <summary>
     /// Helper class to represent a color in the palette.
     /// </summary>
@@ -177,6 +196,14 @@ namespace Comfizen
         public ICommand AddTabCommand { get; }
         public ICommand RemoveTabCommand { get; }
         
+        private List<WorkflowField> _fieldClipboard = new List<WorkflowField>();
+        private bool _isCutOperation = false;
+
+        public ICommand CutFieldsCommand { get; }
+        public ICommand PasteFieldsCommand { get; }
+        
+        public object PopupTarget { get; set; }
+        
         public UIConstructorView(Workflow liveWorkflow, string? workflowRelativePath)
         {
             // Assign the live workflow object directly.
@@ -323,10 +350,11 @@ namespace Comfizen
             SelectedHookScript.TextChanged += (s, e) => SaveHookScript();
             SelectedActionScript.TextChanged += (s, e) => SaveActionScript();
             
-            // --- START OF NEW COMMANDS ---
             AddTabCommand = new RelayCommand(_ => AddNewTab());
             RemoveTabCommand = new RelayCommand(param => RemoveTab(param as WorkflowTabDefinition));
-            // --- END OF NEW COMMANDS ---
+            
+            CutFieldsCommand = new RelayCommand(param => HandleCut(param), param => CanCut(param));
+            PasteFieldsCommand = new RelayCommand(HandlePaste, _ => _fieldClipboard.Any());
 
             // Attach event handlers
             this.PropertyChanged += (s, e) => {
@@ -361,6 +389,7 @@ namespace Comfizen
             
             foreach (var group in Workflow.Groups)
             {
+                group.Tabs.CollectionChanged += OnGroupSubTabsChanged;
                 foreach (var field in group.Fields)
                 {
                     field.PropertyChanged += OnFieldPropertyChanged;
@@ -425,6 +454,141 @@ namespace Comfizen
             }
             UpdateGroupAssignments();
         }
+        
+        private bool CanCut(object parameter)
+        {
+            if (parameter is ListBox listBox)
+            {
+                return listBox.SelectedItems.Count > 0;
+            }
+            return false;
+        }
+
+        private void HandleCut(object parameter)
+        {
+            if (parameter is not ListBox listBox || listBox.SelectedItems.Count == 0) return;
+
+            _fieldClipboard.Clear();
+            _fieldClipboard.AddRange(listBox.SelectedItems.OfType<WorkflowField>());
+            _isCutOperation = true;
+        }
+
+        private void HandlePaste(object target)
+        {
+            if (!_fieldClipboard.Any()) return;
+
+            WorkflowGroupViewModel targetGroupVm = null;
+            WorkflowGroupTab targetSubTab = null;
+            int insertIndex = -1; // В конец по умолчанию
+
+            if (target is ListBox listBox && listBox.SelectedItem is WorkflowField targetField)
+            {
+                targetGroupVm = AllGroupViewModels.FirstOrDefault(g => g.Model.Tabs.Any(t => t.Fields.Contains(targetField)));
+                if (targetGroupVm != null)
+                {
+                    targetSubTab = targetGroupVm.Model.Tabs.FirstOrDefault(t => t.Fields.Contains(targetField));
+                    if (targetSubTab != null)
+                    {
+                        insertIndex = targetSubTab.Fields.IndexOf(targetField) + 1;
+                    }
+                }
+            }
+            else if (target is WorkflowGroupViewModel groupVm)
+            {
+                targetGroupVm = groupVm;
+                targetSubTab = groupVm.SelectedTab?.Model ?? groupVm.Model.Tabs.FirstOrDefault();
+            }
+            else if (target is WorkflowGroupTabViewModel subTabVm)
+            {
+                targetSubTab = subTabVm.Model;
+                targetGroupVm = AllGroupViewModels.FirstOrDefault(g => g.Tabs.Any(t => t.Model == targetSubTab));
+            }
+            else if (target is WorkflowTabDefinition tabDef)
+            {
+                targetGroupVm = SelectedTabGroups.FirstOrDefault();
+                if (targetGroupVm == null)
+                {
+                    AddGroup();
+                    targetGroupVm = SelectedTabGroups.FirstOrDefault();
+                }
+
+                if (targetGroupVm != null)
+                {
+                    targetSubTab = targetGroupVm.SelectedTab?.Model ?? targetGroupVm.Model.Tabs.FirstOrDefault();
+                }
+            }
+
+
+            if (targetSubTab == null)
+            {
+                if (targetGroupVm != null)
+                {
+                    targetSubTab = new WorkflowGroupTab { Name = "Controls" };
+                    targetGroupVm.Model.Tabs.Add(targetSubTab);
+                    targetGroupVm.Tabs.Add(new WorkflowGroupTabViewModel(targetSubTab));
+                    targetGroupVm.SelectedTab = targetGroupVm.Tabs.Last();
+                }
+                else return;
+            }
+            
+            foreach (var field in _fieldClipboard)
+            {
+                if (_isCutOperation)
+                {
+                    RemoveField(field);
+                }
+                
+                var fieldClone = new WorkflowField
+                {
+                    Name = field.Name, Path = field.Path, Type = field.Type,
+                    NodeTitle = field.NodeTitle, NodeType = field.NodeType,
+                    MinValue = field.MinValue, MaxValue = field.MaxValue, StepValue = field.StepValue,
+                    Precision = field.Precision, ModelType = field.ModelType, ComboBoxItems = new List<string>(field.ComboBoxItems),
+                    ActionName = field.ActionName, DefaultValue = field.DefaultValue,
+                    HighlightColor = field.HighlightColor,
+                    BypassNodeIds = new ObservableCollection<string>(field.BypassNodeIds)
+                };
+
+                fieldClone.PropertyChanged += OnFieldPropertyChanged;
+                
+                if (insertIndex == -1 || insertIndex > targetSubTab.Fields.Count)
+                {
+                targetSubTab.Fields.Add(fieldClone);
+            }
+                else
+                {
+                    targetSubTab.Fields.Insert(insertIndex, fieldClone);
+                    insertIndex++; // Смещаем индекс для следующего элемента
+                }
+            }
+            
+            if (_isCutOperation)
+            {
+                _fieldClipboard.Clear();
+            }
+            _isCutOperation = false;
+            UpdateAvailableFields();
+        }
+        
+        public void AddFieldToGroupAtIndex(IList<WorkflowField> fields, WorkflowGroupViewModel groupVm, int targetIndex = -1)
+        {
+            if (groupVm == null) return;
+
+            var targetTabVm = groupVm.SelectedTab ?? groupVm.Tabs.FirstOrDefault();
+            if (targetTabVm == null)
+            {
+                var newTabModel = new WorkflowGroupTab { Name = "Controls" };
+                groupVm.Model.Tabs.Add(newTabModel);
+                targetTabVm = new WorkflowGroupTabViewModel(newTabModel);
+                groupVm.Tabs.Add(targetTabVm);
+            }
+            
+            foreach (var field in fields)
+            {
+                AddFieldToSubTabAtIndex(field, targetTabVm.Model, targetIndex);
+                if (targetIndex != -1) targetIndex++;
+            }
+        }
 
         private void OnWorkflowGroupsModelChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
@@ -434,12 +598,17 @@ namespace Comfizen
                 foreach (WorkflowGroup newGroup in e.NewItems)
                 {
                     AllGroupViewModels.Add(new WorkflowGroupViewModel(newGroup, Workflow));
+                    // Subscribe to sub-tab changes for the new group
+                    newGroup.Tabs.CollectionChanged += OnGroupSubTabsChanged;
                 }
             }
             else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
             {
                 foreach (WorkflowGroup oldGroup in e.OldItems)
                 {
+                    // Unsubscribe from sub-tab changes to prevent memory leaks
+                    oldGroup.Tabs.CollectionChanged -= OnGroupSubTabsChanged;
+                    
                     var vmToRemove = AllGroupViewModels.FirstOrDefault(vm => vm.Model == oldGroup);
                     if (vmToRemove != null)
                     {
@@ -454,6 +623,30 @@ namespace Comfizen
 
             // Always refresh the UI assignments
             UpdateGroupAssignments();
+        }
+        
+        /// <summary>
+        /// Handles changes to a group's sub-tab collection.
+        /// This is the key fix for updating available fields when a sub-tab is removed.
+        /// </summary>
+        private void OnGroupSubTabsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            // When a sub-tab is removed from a group...
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
+            {
+                // ...we need to find its fields and unsubscribe from their events to prevent memory leaks.
+                foreach (WorkflowGroupTab removedTab in e.OldItems)
+                {
+                    foreach (var field in removedTab.Fields)
+                    {
+                        field.PropertyChanged -= OnFieldPropertyChanged;
+                    }
+                }
+            }
+    
+            // Any change to the sub-tab collection could affect which fields are "used".
+            // Refresh the list of available fields.
+            UpdateAvailableFields();
         }
 
         // Helper method to load a workflow from a file path.
@@ -998,10 +1191,23 @@ namespace Comfizen
                 LocalizationService.Instance["UIConstructor_ConfirmDeleteTabTitle"],
                 MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             
+            // Find all ViewModels for groups on the tab being deleted.
+            var groupVMsToRemove = AllGroupViewModels
+                .Where(vm => tab.GroupIds.Contains(vm.Id))
+                .ToList(); // Use ToList() to avoid modifying the collection while iterating.
+
+            // Remove each group using the centralized internal method.
+            // This will now trigger an update for each group removed.
+            foreach (var groupVM in groupVMsToRemove)
+            {
+                RemoveGroupInternal(groupVM);
+            }
+            
+            // Now, remove the tab definition itself.
             int index = Workflow.Tabs.IndexOf(tab);
             Workflow.Tabs.Remove(tab);
             
-            // Select the next available tab or null
+            // Select the next available tab or null.
             if (Workflow.Tabs.Any())
             {
                 SelectedTab = Workflow.Tabs.ElementAtOrDefault(index) ?? Workflow.Tabs.Last();
@@ -1010,8 +1216,6 @@ namespace Comfizen
             {
                 SelectedTab = null;
             }
-            
-            UpdateGroupAssignments();
         }
 
         public void MoveGroupToTab(WorkflowGroupViewModel groupVM, WorkflowTabDefinition targetTab, int insertIndex = -1)
@@ -1075,8 +1279,36 @@ namespace Comfizen
                     LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupTitle"],
                     MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
-                MoveGroupToTab(groupVm, null);
-                Workflow.Groups.Remove(groupVm.Model); // Удаляем модель, ViewModel обновится через событие
+                RemoveGroupInternal(groupVm);
+            }
+        }
+
+        /// <summary>
+        /// Centralized internal logic for removing a group and its fields.
+        /// </summary>
+        /// <param name="groupVm">The ViewModel of the group to remove.</param>
+        /// <param name="performUpdate">Whether to immediately update the available fields list.</param>
+        private void RemoveGroupInternal(WorkflowGroupViewModel groupVm, bool performUpdate = true)
+        {
+            if (groupVm == null) return;
+            
+            // Unsubscribe from property changed events for all fields in the group being removed
+            // to prevent memory leaks and potential update issues.
+            foreach (var subTab in groupVm.Model.Tabs)
+            {
+                foreach (var field in subTab.Fields)
+                {
+                    field.PropertyChanged -= OnFieldPropertyChanged;
+                }
+            }
+    
+            // Ensure the group is no longer associated with any tab.
+            MoveGroupToTab(groupVm, null);
+            // Remove the group's model from the master list. The ViewModel will update via the CollectionChanged event.
+            Workflow.Groups.Remove(groupVm.Model); 
+            
+            if (performUpdate)
+            {
                 UpdateAvailableFields();
             }
         }
@@ -1268,22 +1500,25 @@ namespace Comfizen
             var oldIndex = sourceTab.Fields.IndexOf(field);
             if (oldIndex == -1) return;
 
+            // Если поле уже в целевой вкладке, просто меняем его позицию
+            if (sourceTab == targetTab)
+            {
+                if (targetIndex < 0 || targetIndex > sourceTab.Fields.Count) targetIndex = sourceTab.Fields.Count - 1;
+                if (oldIndex == targetIndex) return;
+                // Корректируем индекс, если перемещаем вниз
+                if (oldIndex < targetIndex) targetIndex--;
+                sourceTab.Fields.Move(oldIndex, targetIndex);
+                return;
+            }
+
             sourceTab.Fields.RemoveAt(oldIndex);
 
             var finalInsertIndex = targetIndex;
-            if (finalInsertIndex == -1)
+            if (finalInsertIndex < 0 || finalInsertIndex > targetTab.Fields.Count)
             {
                 finalInsertIndex = targetTab.Fields.Count;
             }
-            else if (sourceTab == targetTab && oldIndex < targetIndex)
-            {
-                finalInsertIndex--;
-            }
-
-            if (finalInsertIndex > targetTab.Fields.Count)
-            {
-                finalInsertIndex = targetTab.Fields.Count;
-            }
+            
             targetTab.Fields.Insert(finalInsertIndex, field);
         }
         
@@ -1365,7 +1600,11 @@ namespace Comfizen
         private UIConstructorView _viewModel;
         
         private Point _startPoint;
+        private Point _dragStartPoint;
+        private bool _isDragging = false;
         private object _dragData;
+        private List<WorkflowField> _fieldClipboard = new List<WorkflowField>();
+        private bool _isCutOperation = false;
         
         private Border? _currentGroupHighlight;
         private Border? _lastFieldIndicator;
@@ -1434,6 +1673,60 @@ namespace Comfizen
             this.Closing += UIConstructor_Closing;
             AttachCompletionEvents();
             ApplyHyperlinksColor();
+        }
+        
+        private void AvailableField_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && !_isDragging)
+            {
+                Point position = e.GetPosition(null);
+                if (Math.Abs(position.X - _dragStartPoint.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(position.Y - _dragStartPoint.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    _isDragging = true;
+                    if (sender is ListBox listBox)
+                    {
+                        var fieldsToDrag = listBox.SelectedItems.OfType<WorkflowField>().ToList();
+                        if (fieldsToDrag.Any())
+                        {
+                            var finalDragData = new DataObject();
+                            finalDragData.SetData(typeof(List<WorkflowField>), fieldsToDrag);
+                            DragDrop.DoDragDrop(listBox, finalDragData, DragDropEffects.Move);
+                        }
+                    }
+                }
+            }
+        }
+        
+        private void ShowUniversalPopup(object sender, MouseButtonEventArgs e)
+        {
+            var popup = FindResource("UniversalContextMenuPopup") as Popup;
+            if (popup == null) return;
+
+            var clickedElement = sender as FrameworkElement;
+            if (clickedElement == null) return;
+
+            object targetForCommands = clickedElement.DataContext;
+
+            if (clickedElement.DataContext is WorkflowField field)
+            {
+                var listBox = FindVisualParent<ListBox>(clickedElement);
+                if (listBox != null)
+                {
+                    if (!listBox.SelectedItems.Contains(field))
+                    {
+                    listBox.SelectedItems.Clear();
+                    listBox.SelectedItem = field;
+                }
+                    targetForCommands = listBox;
+            }
+            }
+            
+            _viewModel.PopupTarget = targetForCommands;
+            popup.DataContext = clickedElement.DataContext;
+            popup.IsOpen = true;
+
+            e.Handled = true;
         }
         
         private void UIConstructor_Loaded(object sender, RoutedEventArgs e)
@@ -1519,6 +1812,51 @@ namespace Comfizen
         {
             HookScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
             ActionScriptEditor.TextArea.TextEntered += TextArea_TextEntered;
+        }
+        
+        private void Field_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _dragStartPoint = e.GetPosition(null);
+            _isDragging = false; 
+
+            if (sender is Border element && element.DataContext is WorkflowField)
+            {
+                var listBoxItem = FindVisualParent<ListBoxItem>(element);
+                if (listBoxItem != null && listBoxItem.IsSelected && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == ModifierKeys.None)
+                {
+                    // This is the key: if we are clicking on an already selected item
+                    // without modifiers, we are likely initiating a drag of the selection.
+                    // We handle the event to prevent the ListBox from clearing the selection.
+                    e.Handled = true;
+                    }
+                }
+            }
+        
+        private void Field_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && !_isDragging)
+            {
+                Point position = e.GetPosition(null);
+                if (Math.Abs(position.X - _dragStartPoint.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(position.Y - _dragStartPoint.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    _isDragging = true;
+                    if (sender is FrameworkElement element && element.DataContext is WorkflowField field)
+                    {
+                        var listBox = FindVisualParent<ListBox>(element);
+                        if (listBox == null || listBox.SelectedItems.Count == 0) return;
+
+                        var fieldsToDrag = listBox.SelectedItems.OfType<WorkflowField>().ToList();
+                        
+                        var expander = FindVisualParent<Expander>(element);
+                        if (expander?.DataContext is WorkflowGroupViewModel groupVm)
+                        {
+                            var finalDragData = new Tuple<List<WorkflowField>, WorkflowGroup>(fieldsToDrag, groupVm.Model);
+                            DragDrop.DoDragDrop(element, finalDragData, DragDropEffects.Move);
+                        }
+                    }
+                }
+            }
         }
         
         // --- START OF NEW METHODS ---
@@ -1740,8 +2078,33 @@ namespace Comfizen
 
         private void AvailableField_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is FrameworkElement element && element.DataContext is WorkflowField field)
-                DragDrop.DoDragDrop(element, field, DragDropEffects.Move);
+            _dragStartPoint = e.GetPosition(null);
+            _isDragging = false;
+            
+            if (sender is ListBox listBox && e.OriginalSource is DependencyObject source)
+            {
+                var listBoxItem = FindVisualParent<ListBoxItem>(source);
+                if (listBoxItem == null) return;
+
+                // This logic handles selection before a potential drag operation.
+                if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == ModifierKeys.None)
+                {
+                    // If the item is already selected, we are likely initiating a drag
+                    // of the entire selection. We handle the event to prevent the
+                    // ListBox from clearing the other selected items.
+                    if (listBoxItem.IsSelected)
+                    {
+                        e.Handled = true;
+                    }
+                    // If the item is not selected, this is a new single selection.
+                    // Clear the previous selection and select the current item.
+                    else
+                    {
+                        listBox.SelectedItems.Clear();
+                        listBoxItem.IsSelected = true;
+        }
+                }
+            }
         }
         
         private static T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
@@ -1970,11 +2333,11 @@ namespace Comfizen
                 }
                 e.Effects = DragDropEffects.Move;
             }
-            else if (e.Data.GetDataPresent(typeof(WorkflowField)) ||
-                     e.Data.GetDataPresent(typeof(Tuple<WorkflowField, WorkflowGroup>)))
+            else if (e.Data.GetDataPresent(typeof(List<WorkflowField>)) ||
+                     e.Data.GetDataPresent(typeof(Tuple<List<WorkflowField>, WorkflowGroup>)))
             {
                 var targetGroupVM = dropTarget.DataContext as WorkflowGroupViewModel;
-                if (targetGroupVM != null && !targetGroupVM.Tabs.SelectMany(t => t.Fields).Any())
+                if (targetGroupVM != null && !targetGroupVM.Tabs.SelectMany(t => t.Model.Fields).Any())
                 {
                     var expander = FindVisualChild<Expander>(dropTarget);
                     if (expander?.Content is Border contentBorder)
@@ -2022,17 +2385,13 @@ namespace Comfizen
                     viewModel.MoveGroupToTab(sourceGroupVM, viewModel.SelectedTab, targetIndex);
                 }
             }
-            else if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> draggedData)
+            else if (e.Data.GetData(typeof(Tuple<List<WorkflowField>, WorkflowGroup>)) is Tuple<List<WorkflowField>, WorkflowGroup> draggedData)
             {
-                var sourceGroupVM = _viewModel.AllGroupViewModels.FirstOrDefault(vm => vm.Model == draggedData.Item2);
-                if (sourceGroupVM != null)
-                {
-                    viewModel.MoveField(draggedData.Item1, sourceGroupVM, targetGroupVM);
+                viewModel.AddFieldToGroupAtIndex(draggedData.Item1, targetGroupVM);
                 }
-            }
-            else if (e.Data.GetData(typeof(WorkflowField)) is WorkflowField newField)
+            else if (e.Data.GetData(typeof(List<WorkflowField>)) is List<WorkflowField> newFields)
             {
-                viewModel.AddFieldToGroup(newField, targetGroupVM);
+                viewModel.AddFieldToGroupAtIndex(newFields, targetGroupVM);
             }
 
             HideAllIndicators();
@@ -2157,7 +2516,8 @@ namespace Comfizen
                 e.Effects = DragDropEffects.Move;
             }
             // Allow dropping a field onto a sub-tab.
-            else if (e.Data.GetDataPresent(typeof(WorkflowField)) || e.Data.GetDataPresent(typeof(Tuple<WorkflowField, WorkflowGroup>)))
+            else if (e.Data.GetDataPresent(typeof(List<WorkflowField>)) || 
+                     e.Data.GetDataPresent(typeof(Tuple<List<WorkflowField>, WorkflowGroup>)))
             {
                 e.Effects = DragDropEffects.Move;
             }
@@ -2198,17 +2558,23 @@ namespace Comfizen
                     _viewModel.MoveSubTabToGroup(draggedTabData.Item1.Model, draggedTabData.Item2.Model, targetGroupVm.Model, targetIndex);
                 }
             }
-            else if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> fieldData)
+            else if (e.Data.GetData(typeof(Tuple<List<WorkflowField>, WorkflowGroup>)) is Tuple<List<WorkflowField>, WorkflowGroup> fieldData)
             {
-                var sourceTab = fieldData.Item2.Tabs.FirstOrDefault(t => t.Fields.Contains(fieldData.Item1));
+                var sourceTab = fieldData.Item2.Tabs.FirstOrDefault(t => t.Fields.Contains(fieldData.Item1.First()));
                 if (sourceTab != null)
                 {
-                    _viewModel.MoveFieldToSubTab(fieldData.Item1, sourceTab, targetTabVm.Model);
+                    foreach (var field in fieldData.Item1)
+                    {
+                        _viewModel.MoveFieldToSubTab(field, sourceTab, targetTabVm.Model, -1);
                 }
             }
-            else if (e.Data.GetData(typeof(WorkflowField)) is WorkflowField newField)
+            }
+            else if (e.Data.GetData(typeof(List<WorkflowField>)) is List<WorkflowField> newFields)
             {
-                _viewModel.AddFieldToSubTabAtIndex(newField, targetTabVm.Model);
+                foreach (var newField in newFields)
+                {
+                    _viewModel.AddFieldToSubTabAtIndex(newField, targetTabVm.Model, -1);
+            }
             }
 
             e.Handled = true;
@@ -2219,7 +2585,6 @@ namespace Comfizen
             HideAllIndicators();
             if (sender is not FrameworkElement dropTarget || dropTarget.DataContext is not WorkflowGroupTabViewModel targetTabVm) return;
 
-            // --- ADDED: Allow dropping a sub-tab onto the content area to move it to this group ---
             var targetGroupVm = FindVisualParent<Expander>(dropTarget)?.DataContext as WorkflowGroupViewModel;
             if (targetGroupVm == null) return;
 
@@ -2229,19 +2594,24 @@ namespace Comfizen
                 e.Handled = true;
                 return;
             }
-            // --- END ADDITION ---
 
-            if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> fieldData)
+            if (e.Data.GetData(typeof(Tuple<List<WorkflowField>, WorkflowGroup>)) is Tuple<List<WorkflowField>, WorkflowGroup> draggedData)
             {
-                var sourceTab = fieldData.Item2.Tabs.FirstOrDefault(t => t.Fields.Contains(fieldData.Item1));
+                var sourceTab = draggedData.Item2.Tabs.FirstOrDefault(t => t.Fields.Contains(draggedData.Item1.First()));
                 if (sourceTab != null)
                 {
-                    _viewModel.MoveFieldToSubTab(fieldData.Item1, sourceTab, targetTabVm.Model);
+                    foreach (var field in draggedData.Item1)
+                    {
+                        _viewModel.MoveFieldToSubTab(field, sourceTab, targetTabVm.Model, -1);
                 }
             }
-            else if (e.Data.GetData(typeof(WorkflowField)) is WorkflowField newField)
+            }
+            else if (e.Data.GetData(typeof(List<WorkflowField>)) is List<WorkflowField> newFields)
             {
+                foreach (var newField in newFields)
+                {
                 _viewModel.AddFieldToSubTabAtIndex(newField, targetTabVm.Model);
+            }
             }
 
             e.Handled = true;
@@ -2266,17 +2636,25 @@ namespace Comfizen
 
             if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible) targetIndex++;
 
-            if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> draggedData)
+            if (e.Data.GetData(typeof(Tuple<List<WorkflowField>, WorkflowGroup>)) is Tuple<List<WorkflowField>, WorkflowGroup> draggedData)
             {
-                var sourceTab = draggedData.Item2.Tabs.FirstOrDefault(t => t.Fields.Contains(draggedData.Item1));
+                var sourceTab = draggedData.Item2.Tabs.FirstOrDefault(t => t.Fields.Contains(draggedData.Item1.First()));
                 if (sourceTab != null)
                 {
-                    viewModel.MoveFieldToSubTab(draggedData.Item1, sourceTab, targetTab, targetIndex);
+                    foreach (var fieldToMove in draggedData.Item1)
+                    {
+                        viewModel.MoveFieldToSubTab(fieldToMove, sourceTab, targetTab, targetIndex);
+                        if (targetIndex != -1) targetIndex++;
                 }
             }
-            else if (e.Data.GetData(typeof(WorkflowField)) is WorkflowField newField)
+            }
+            else if (e.Data.GetData(typeof(List<WorkflowField>)) is List<WorkflowField> newFields)
             {
+                foreach (var newField in newFields)
+                {
                 viewModel.AddFieldToSubTabAtIndex(newField, targetTab, targetIndex);
+                    if (targetIndex != -1) targetIndex++;
+            }
             }
 
             HideAllIndicators();
@@ -2298,10 +2676,13 @@ namespace Comfizen
 
         private void DeleteField_Drop(object sender, DragEventArgs e)
         {
-            if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> draggedData &&
+            if (e.Data.GetData(typeof(Tuple<List<WorkflowField>, WorkflowGroup>)) is Tuple<List<WorkflowField>, WorkflowGroup> draggedData &&
                 DataContext is UIConstructorView viewModel)
             {
-                viewModel.RemoveFieldFromGroupCommand.Execute(draggedData.Item1);
+                foreach (var field in draggedData.Item1)
+                {
+                    viewModel.RemoveFieldFromGroupCommand.Execute(field);
+                }
                 e.Handled = true;
             }
         }
@@ -2473,20 +2854,31 @@ namespace Comfizen
 
         private void GroupedField_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is FrameworkElement element && element.DataContext is WorkflowField field)
+            if (sender is not FrameworkElement element || element.DataContext is not WorkflowField field) return;
+
+            var listBox = FindVisualParent<ListBox>(element);
+            if (listBox == null) return;
+            
+            object dragData;
+            if (listBox.SelectedItems.Count > 1 && listBox.SelectedItems.Contains(field))
             {
-                var parentItemsControl = FindVisualParent<ItemsControl>(element);
-                if (parentItemsControl?.DataContext is WorkflowGroupTabViewModel)
+                dragData = listBox.SelectedItems.Cast<object>().ToList();
+            }
+            else
                 {
-                    var expander = FindVisualParent<Expander>(parentItemsControl);
+                dragData = field;
+            }
+            
+            var expander = FindVisualParent<Expander>(element);
                     if (expander?.DataContext is WorkflowGroupViewModel groupVm)
                     {
-                        var dragData = new Tuple<WorkflowField, WorkflowGroup>(field, groupVm.Model);
-                        DragDrop.DoDragDrop(element, dragData, DragDropEffects.Move);
+                var finalDragData = new DataObject();
+                finalDragData.SetData(typeof(List<object>), dragData);
+                finalDragData.SetData(typeof(WorkflowGroup), groupVm.Model);
+                
+                DragDrop.DoDragDrop(element, finalDragData, DragDropEffects.Move);
                     }
                 }
-            }
-        }
         
         private void ShowColorPickerPopup(object sender, MouseButtonEventArgs e)
         {
