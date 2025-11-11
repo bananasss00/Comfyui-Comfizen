@@ -32,7 +32,7 @@
                     CornerRadius="3"
                     Padding="5">
                 <StackPanel>
-                    <ItemsControl ItemsSource="{Binding Data.ColorPalette, Source={StaticResource Proxy}}">
+                    <ItemsControl ItemsSource="{Binding ColorPalette}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel MaxWidth="128"/>
@@ -43,12 +43,12 @@
                                 <Button ToolTip="{Binding Name}" Margin="2">
                                     <Button.CommandParameter>
                                         <MultiBinding Converter="{StaticResource MultiValueToArrayConverter}">
-                                            <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=Popup}"/>
+                                            <Binding Path="DataContext.PopupTarget" RelativeSource="{RelativeSource AncestorType=Popup}"/>
                                             <Binding Path="Hex"/>
                                         </MultiBinding>
                                     </Button.CommandParameter>
                                     <Button.Command>
-                                        <Binding Path="Data.SetHighlightColorCommand, Source={StaticResource Proxy}"/>
+                                        <Binding Path="DataContext.SetHighlightColorCommand" RelativeSource="{RelativeSource AncestorType=Popup}"/>
                                     </Button.Command>
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -70,38 +70,33 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     
-                    <Button Content="{local:Translate UIConstructor_ClearColor}" Padding="5,3">
-                         <Button.CommandParameter>
-                              <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=Popup}"/>
-                         </Button.CommandParameter>
-                         <Button.Command>
-                             <Binding Path="Data.ClearHighlightColorCommand, Source={StaticResource Proxy}"/>
-                         </Button.Command>
-                    </Button>
+                    <Button Content="{local:Translate UIConstructor_ClearColor}" Padding="5,3"
+                            Command="{Binding ClearHighlightColorCommand}"
+                            CommandParameter="{Binding PopupTarget}"/>
                     
                     <Separator Margin="0,5"/>
 
                     <Button Content="{local:Translate UIConstructor_Cut}" 
-                            Command="{Binding Data.CutFieldsCommand, Source={StaticResource Proxy}}"
-                            CommandParameter="{Binding Data.PopupTarget, Source={StaticResource Proxy}}"
+                            Command="{Binding CutFieldsCommand}"
+                            CommandParameter="{Binding PopupTarget}"
                             Click="ClosePopupOnClick"/>
                     <Button Content="{local:Translate UIConstructor_Paste}"
-                            Command="{Binding Data.PasteFieldsCommand, Source={StaticResource Proxy}}"
-                            CommandParameter="{Binding Data.PopupTarget, Source={StaticResource Proxy}}" Margin="0,5,0,0"
+                            Command="{Binding PasteFieldsCommand}"
+                            CommandParameter="{Binding PopupTarget}" Margin="0,5,0,0"
                             Click="ClosePopupOnClick"/>
                     
                     <Separator Margin="0,5"/>
                     <Button Content="{local:Translate UIConstructor_CopyPresets}"
-                            Command="{Binding Data.CopyPresetsCommand, Source={StaticResource Proxy}}"
-                            CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Popup}}"
+                            Command="{Binding CopyPresetsCommand}"
+                            CommandParameter="{Binding PopupTarget}"
                             Click="ClosePopupOnClick"/>
                     <Button Content="{local:Translate UIConstructor_PastePresets}"
-                            Command="{Binding Data.PastePresetsCommand, Source={StaticResource Proxy}}"
-                            CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Popup}}" Margin="0,5,0,0"
+                            Command="{Binding PastePresetsCommand}"
+                            CommandParameter="{Binding PopupTarget}" Margin="0,5,0,0"
                             Click="ClosePopupOnClick"/>
                     <Button Content="{local:Translate UIConstructor_PasteMergePresets}"
-                            Command="{Binding Data.PastePresetsMergeCommand, Source={StaticResource Proxy}}"
-                            CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Popup}}" Margin="0,5,0,0"
+                            Command="{Binding PastePresetsMergeCommand}"
+                            CommandParameter="{Binding PopupTarget}" Margin="0,5,0,0"
                             Click="ClosePopupOnClick"/>
 
                 </StackPanel>

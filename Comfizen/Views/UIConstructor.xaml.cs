@@ -306,14 +306,29 @@ namespace Comfizen
                 {
                     var target = args[0];
                     var colorHex = args[1] as string;
-                    if (target is WorkflowGroupViewModel groupVm) groupVm.HighlightColor = colorHex;
+                    
+                    if (target is ListBox listBox)
+                    {
+                        foreach (var item in listBox.SelectedItems.OfType<WorkflowField>())
+                        {
+                            item.HighlightColor = colorHex;
+                        }
+                    }
+                    else if (target is WorkflowGroupViewModel groupVm) groupVm.HighlightColor = colorHex;
                     else if (target is WorkflowGroupTabViewModel tabVm) tabVm.HighlightColor = colorHex;
                     else if (target is WorkflowField field) field.HighlightColor = colorHex;
                 }
             });
             ClearHighlightColorCommand = new RelayCommand(param =>
             {
-                if (param is WorkflowGroupViewModel groupVm) groupVm.HighlightColor = null;
+                if (param is ListBox listBox)
+                {
+                    foreach (var item in listBox.SelectedItems.OfType<WorkflowField>())
+                    {
+                        item.HighlightColor = null;
+                    }
+                }
+                else if (param is WorkflowGroupViewModel groupVm) groupVm.HighlightColor = null;
                 else if (param is WorkflowGroupTabViewModel tabVm) tabVm.HighlightColor = null;
                 else if (param is WorkflowField field) field.HighlightColor = null;
             });
@@ -1786,7 +1801,7 @@ namespace Comfizen
             }
             
             _viewModel.PopupTarget = targetForCommands;
-            popup.DataContext = clickedElement.DataContext;
+            popup.DataContext = _viewModel;
             popup.IsOpen = true;
 
             e.Handled = true;
