@@ -197,10 +197,14 @@ namespace Comfizen
         public ICommand RemoveTabCommand { get; }
         
         private List<WorkflowField> _fieldClipboard = new List<WorkflowField>();
+        private List<GroupPreset> _presetClipboard = new List<GroupPreset>();
         private bool _isCutOperation = false;
 
         public ICommand CutFieldsCommand { get; }
         public ICommand PasteFieldsCommand { get; }
+        public ICommand CopyPresetsCommand { get; }
+        public ICommand PastePresetsCommand { get; }
+        public ICommand PastePresetsMergeCommand { get; }
         
         public object PopupTarget { get; set; }
         
@@ -355,7 +359,11 @@ namespace Comfizen
             
             CutFieldsCommand = new RelayCommand(param => HandleCut(param), param => CanCut(param));
             PasteFieldsCommand = new RelayCommand(HandlePaste, _ => _fieldClipboard.Any());
-
+            
+            CopyPresetsCommand = new RelayCommand(CopyPresets, param => param is WorkflowGroupViewModel groupVm && groupVm.Presets.Any());
+            PastePresetsCommand = new RelayCommand(param => PastePresets(param, merge: false), param => param is WorkflowGroupViewModel && _presetClipboard.Any());
+            PastePresetsMergeCommand = new RelayCommand(param => PastePresets(param, merge: true), param => param is WorkflowGroupViewModel && _presetClipboard.Any());
+            
             // Attach event handlers
             this.PropertyChanged += (s, e) => {
                 if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
@@ -453,6 +461,61 @@ namespace Comfizen
                 AllGroupViewModels.Add(new WorkflowGroupViewModel(groupModel, Workflow));
             }
             UpdateGroupAssignments();
+        }
+        
+        private void CopyPresets(object parameter)
+        {
+            if (parameter is not WorkflowGroupViewModel groupVm) return;
+
+            _presetClipboard.Clear();
+            if (Workflow.Presets.TryGetValue(groupVm.Id, out var presetsToCopy))
+            {
+                // We clone the presets to ensure they are independent copies.
+                _presetClipboard.AddRange(presetsToCopy.Select(p => p.Clone()));
+            }
+        }
+        
+        private void PastePresets(object parameter, bool merge)
+        {
+            if (parameter is not WorkflowGroupViewModel targetGroupVm || !_presetClipboard.Any()) return;
+
+            if (!Workflow.Presets.ContainsKey(targetGroupVm.Id))
+            {
+                Workflow.Presets[targetGroupVm.Id] = new List<GroupPreset>();
+            }
+
+            var targetPresets = Workflow.Presets[targetGroupVm.Id];
+
+            foreach (var presetToPaste in _presetClipboard)
+            {
+                var existingPreset = targetPresets.FirstOrDefault(p => p.Name.Equals(presetToPaste.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (existingPreset != null && merge)
+                {
+                    // Merge logic: update existing preset with new values
+                    foreach (var valuePair in presetToPaste.Values)
+                    {
+                        existingPreset.Values[valuePair.Key] = valuePair.Value.DeepClone();
+                    }
+                }
+                else
+                {
+                    // Overwrite logic (or add if it doesn't exist)
+                    if (existingPreset != null)
+                    {
+                        targetPresets.Remove(existingPreset);
+                    }
+                    targetPresets.Add(presetToPaste.Clone());
+                }
+            }
+
+            // Find the corresponding group view model and reload its presets to update the UI.
+            var groupVmToUpdate = AllGroupViewModels.FirstOrDefault(vm => vm.Model == targetGroupVm.Model);
+            if (groupVmToUpdate != null)
+            {
+                // This will trigger a save notification.
+                groupVmToUpdate.ReloadPresetsAndNotify();
+            }
         }
         
         private bool CanCut(object parameter)
@@ -2904,6 +2967,20 @@ namespace Comfizen
             popup.IsOpen = true;
 
             e.Handled = true;
+        }
+        
+        private void ClosePopupOnClick(object sender, RoutedEventArgs e)
+        {
+            var element = sender as DependencyObject;
+            while (element != null)
+            {
+                if (element is Popup popup)
+                {
+                    popup.IsOpen = false;
+                    return;
+                }
+                element = LogicalTreeHelper.GetParent(element);
+            }
         }
 
         // --- START OF FIX: Helper to reliably find named elements in a DataTemplate ---

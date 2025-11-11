@@ -317,5 +317,22 @@
   "UIConstructor_ApiReplacedTitle": "API Replaced",
   "UIConstructor_ApiReplacedSuccess": "The API workflow has been successfully replaced.",
   "UIConstructor_Cut": "Cut",
-  "UIConstructor_Paste": "Paste"
+  "UIConstructor_Paste": "Paste",
+  "UIConstructor_CopyPresets": "Copy Presets",
+  "UIConstructor_PastePresets": "Paste Presets",
+  "UIConstructor_PasteMergePresets": "Paste & Merge Presets",
+  "GroupNavigation_SearchPlaceholder": "Search by group name...",
+  "ContextMenu_ExportPresets": "Export Presets",
+  "ContextMenu_ImportPresets": "Import Presets",
+  "ContextMenu_MoreOptions": "More options",
+  "Presets_ExportError_NoPresets": "This group has no presets to export.",
+  "Presets_ExportSuccessTitle": "Export Complete",
+  "Presets_ExportSuccessMessage": "Presets for group '{0}' have been successfully exported.",
+  "Presets_ImportConfirmTitle": "Confirm Import",
+  "Presets_ImportConfirmMessage": "This action will REPLACE ALL existing presets for group '{0}' with the presets from the file. Are you sure you want to continue?",
+  "Presets_ImportSuccessTitle": "Import Complete",
+  "Presets_ImportSuccessMessage": "Presets for group '{0}' have been successfully imported.",
+  "Presets_ImportErrorTitle": "Import Error",
+  "Presets_ImportErrorMessage": "Failed to import presets. The file may be corrupt or in an invalid format.",
+  "Presets_GroupHasPresetsTooltip": "This group has saved presets"
 }

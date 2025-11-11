@@ -8,6 +8,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.VisualBasic.Logging;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
@@ -356,6 +358,7 @@ namespace Comfizen
         public bool HasInpaintEditor => InpaintEditorControl != null;
         
         public Guid Id => _model.Id;
+        public bool HasPresets => Presets.Any();
         public ObservableCollection<GroupPresetViewModel> Presets { get; } = new();
         public ObservableCollection<PresetFieldSelectionViewModel> FieldsForPresetSelection { get; } = new();
 
@@ -404,12 +407,29 @@ namespace Comfizen
         public ICommand DeselectAllFieldsForPresetCommand { get; }
         public ICommand AddTabCommand { get; }
         public ICommand RemoveSelectedTabCommand { get; }
+        public ICommand ExportPresetsCommand { get; }
+        public ICommand ImportPresetsCommand { get; }
+
         
         /// <summary>
         /// This event is raised whenever presets are added or removed, signaling a need to save the workflow.
         /// </summary>
         public event Action PresetsModified;
         
+        public void ReloadPresetsAndNotify()
+        {
+            LoadPresets();
+            OnPropertyChanged(nameof(HasPresets)); // Notify the UI that the preset status might have changed
+            PresetsModified?.Invoke();
+        }
+        
+        
+        /// <summary>
+        /// A transient property to store the name of the parent UI tab for display purposes.
+        /// This is not saved to the workflow file.
+        /// </summary>
+        [JsonIgnore]
+        public string ParentTabName { get; set; }
         
         public event PropertyChangedEventHandler PropertyChanged;
         
@@ -572,6 +592,137 @@ namespace Comfizen
                     SelectedTab = Tabs.FirstOrDefault();
                 }
             }, _ => SelectedTab != null && Tabs.Count > 1);
+            ExportPresetsCommand = new RelayCommand(ExportPresets);
+            ImportPresetsCommand = new RelayCommand(ImportPresets);
+        }
+        
+        private void ExportPresets(object obj)
+        {
+            if (!_workflow.Presets.TryGetValue(Id, out var presets) || !presets.Any())
+            {
+                MessageBox.Show(LocalizationService.Instance["Presets_ExportError_NoPresets"], "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // --- START OF CHANGE: Create a more detailed, human-readable export structure ---
+            var exportablePresets = new List<object>();
+            var allFieldsInGroup = this.Tabs.SelectMany(t => t.Fields).ToList();
+
+            foreach (var preset in presets)
+            {
+                var exportableFields = new List<object>();
+                foreach (var valuePair in preset.Values)
+                {
+                    var fieldVm = allFieldsInGroup.FirstOrDefault(f => f.Path == valuePair.Key);
+                    exportableFields.Add(new
+                    {
+                        name = fieldVm?.Name ?? "Unknown Field", // Include the field name
+                        path = valuePair.Key,
+                        value = valuePair.Value
+                    });
+                }
+                
+                exportablePresets.Add(new
+                {
+                    name = preset.Name,
+                    fields = exportableFields
+                });
+            }
+            // --- END OF CHANGE ---
+
+            var dialog = new SaveFileDialog
+            {
+                Filter = "JSON Files (*.json)|*.json",
+                FileName = $"{Name}_presets.json"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    // Serialize the new structure
+                    var json = JsonConvert.SerializeObject(exportablePresets, Formatting.Indented);
+                    File.WriteAllText(dialog.FileName, json);
+                    MessageBox.Show(
+                        string.Format(LocalizationService.Instance["Presets_ExportSuccessMessage"], Name),
+                        LocalizationService.Instance["Presets_ExportSuccessTitle"],
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, $"Failed to export presets for group '{Name}'.");
+                }
+            }
+        }
+
+        private void ImportPresets(object obj)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "JSON Files (*.json)|*.json"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    var json = File.ReadAllText(dialog.FileName);
+                    
+                    var tempJArray = JArray.Parse(json);
+                    var importedPresets = new List<GroupPreset>();
+
+                    foreach (var token in tempJArray)
+                    {
+                        var presetName = token["name"]?.ToString();
+                        var fields = token["fields"] as JArray;
+
+                        if (string.IsNullOrEmpty(presetName) || fields == null) continue;
+
+                        var newPreset = new GroupPreset { Name = presetName };
+                        foreach (var fieldToken in fields)
+                        {
+                            var path = fieldToken["path"]?.ToString();
+                            var value = fieldToken["value"];
+
+                            if (!string.IsNullOrEmpty(path) && value != null)
+                            {
+                                newPreset.Values[path] = value;
+                            }
+                        }
+                        importedPresets.Add(newPreset);
+                    }
+
+
+                    if (importedPresets == null || !importedPresets.Any())
+                    {
+                        throw new Exception("File is empty or has an invalid format.");
+                    }
+
+                    var confirmResult = MessageBox.Show(
+                        string.Format(LocalizationService.Instance["Presets_ImportConfirmMessage"], Name),
+                        LocalizationService.Instance["Presets_ImportConfirmTitle"],
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (confirmResult != MessageBoxResult.Yes) return;
+                    
+                    _workflow.Presets[Id] = importedPresets;
+                    
+                    ReloadPresetsAndNotify();
+
+                    Logger.LogToConsole(string.Format(LocalizationService.Instance["Presets_ImportSuccessMessage"], Name));
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, $"Failed to import presets for group '{Name}'.");
+                    MessageBox.Show(
+                        LocalizationService.Instance["Presets_ImportErrorMessage"],
+                        LocalizationService.Instance["Presets_ImportErrorTitle"],
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
         }
         
         private void ToggleAllFieldsForPreset(bool isSelected)

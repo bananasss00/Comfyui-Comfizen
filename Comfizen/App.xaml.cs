@@ -59,6 +59,14 @@ namespace Comfizen
             // For Visual elements, use VisualTreeHelper
             return VisualTreeHelper.GetParent(child);
         }
+        
+        public static T GetVisualParent<T>(this DependencyObject child) where T : DependencyObject
+        {
+            var parentObject = VisualTreeHelper.GetParent(child);
+            if (parentObject == null) return null;
+            if (parentObject is T parent) return parent;
+            return GetVisualParent<T>(parentObject);
+        }
     }
     
     /// <summary>

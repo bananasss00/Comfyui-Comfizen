@@ -182,6 +182,7 @@
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
             <Setter Property="Template" Value="{StaticResource CustomContextMenuTemplate}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
         <Style TargetType="MenuItem">

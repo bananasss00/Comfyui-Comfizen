@@ -38,6 +38,19 @@ namespace Comfizen
         /// Value: The JToken representing the value of the field.
         /// </summary>
         public Dictionary<string, JToken> Values { get; set; } = new Dictionary<string, JToken>();
+        
+        /// <summary>
+        /// Creates a deep copy of this preset.
+        /// </summary>
+        public GroupPreset Clone()
+        {
+            return new GroupPreset
+            {
+                Name = this.Name,
+                // Deep clone the dictionary values to prevent shared references.
+                Values = this.Values.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.DeepClone())
+            };
+        }
     }
     
     public class ScriptCollection

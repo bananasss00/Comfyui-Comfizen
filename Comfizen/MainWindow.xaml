@@ -428,7 +428,37 @@
                                                                                                             Content="{Binding}"
                                                                                             ContentTemplate="{StaticResource GroupHeaderPresetControls}"
                                                                                                             VerticalAlignment="Center" />
-
+                                                                                                        
+                                                                                                        <Grid>
+                                                                                                            <ToggleButton x:Name="MoreOptionsButton"
+                                                                                                                Style="{StaticResource IconToggleButton}"
+                                                                                                                Content="&#xE712;"
+                                                                                                                Width="24" Height="24" Margin="5,0,0,0"
+                                                                                                                ToolTip="{local:Translate ContextMenu_MoreOptions}"/>
+                                                                                                            
+                                                                                                            <Popup IsOpen="{Binding IsChecked, ElementName=MoreOptionsButton, Mode=TwoWay}"
+                                                                                                                PlacementTarget="{Binding ElementName=MoreOptionsButton}"
+                                                                                                                Placement="Bottom"
+                                                                                                                StaysOpen="False"
+                                                                                                                AllowsTransparency="True">
+                                                                                                                
+                                                                                                                <Border DataContext="{Binding DataContext, ElementName=MoreOptionsButton}"
+                                                                                                                    Background="{StaticResource SecondaryBackground}"
+                                                                                                                    BorderBrush="{StaticResource TertiaryBackground}"
+                                                                                                                    BorderThickness="1"
+                                                                                                                    CornerRadius="3"
+                                                                                                                    Margin="0,2,0,0">
+                                                                                                                    
+                                                                                                                    <StackPanel>
+                                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ExportPresets}"
+                                                                                                                            Command="{Binding ExportPresetsCommand}" />
+                                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ImportPresets}"
+                                                                                                                            Command="{Binding ImportPresetsCommand}" />
+                                                                                                                    </StackPanel>
+                                                                                                                </Border>
+                                                                                                            </Popup>
+                                                                                                        </Grid>
+                                                                                                        
                                                                                                         <Button
                                                                                                             Content="&#xE8A7;"
                                                                                                             Style="{StaticResource IconButton}"
@@ -1882,50 +1912,71 @@
                IsOpen="{Binding IsGroupNavigationPopupOpen}"
                StaysOpen="False"
                Placement="Center"
-               AllowsTransparency="True">
+               AllowsTransparency="True"
+               Opened="GroupNavigationPopup_Opened">
             <Border Background="{StaticResource SecondaryBackground}"
                     BorderBrush="{StaticResource PrimaryAccentBrush}"
                     BorderThickness="1"
                     CornerRadius="5"
-                    MinWidth="250"
-                    MaxHeight="400">
+                    MinWidth="300"
+                    MinHeight="300"
+                    MaxHeight="500">
                 <DockPanel Margin="5">
-                    <TextBlock DockPanel.Dock="Top" Text="{local:Translate GroupNavigation_Title}" FontWeight="Bold"
-                               Margin="5" />
-                    <ListBox ItemsSource="{Binding AllGroupsInSelectedTab}"
+                    <TextBlock DockPanel.Dock="Top" Text="{local:Translate GroupNavigation_Title}" FontWeight="Bold" Margin="5" />
+                    
+                    <TextBox DockPanel.Dock="Top" 
+                             Text="{Binding GroupNavigationSearchText, UpdateSourceTrigger=PropertyChanged}" 
+                             Margin="5,0,5,8">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                <Setter Property="local:TextBoxExtensions.PlaceholderText" Value="{local:Translate GroupNavigation_SearchPlaceholder}"/>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ListBox ItemsSource="{Binding FilteredNavigableGroupsView}"
                              Background="Transparent"
-                             BorderThickness="0"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                                <Setter Property="Padding" Value="8,5" />
-                                <Setter Property="Cursor" Value="Hand" />
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="ItemBorder" Background="Transparent"
-                                                    Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="ItemBorder" Property="Background"
-                                                            Value="{StaticResource TertiaryBackground}" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                                <EventSetter Event="PreviewMouseLeftButtonUp"
-                                             Handler="GroupNavigationListBoxItem_Click" />
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                                <TextBlock Text="{Binding Name}" />
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                                 BorderThickness="0">
+                            <ListBox.GroupStyle>
+                                <GroupStyle>
+                                    <GroupStyle.HeaderTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Padding="8,4" Margin="0,5,0,2">
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </GroupStyle.HeaderTemplate>
+                                </GroupStyle>
+                            </ListBox.GroupStyle>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="8,5"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="ItemBorder" Background="Transparent" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <EventSetter Event="PreviewMouseLeftButtonUp" Handler="GroupNavigationListBoxItem_Click"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" Margin="10,0,0,0"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
             </DockPanel>
         </Border>
     </Popup>

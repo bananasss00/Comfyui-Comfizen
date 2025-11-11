@@ -152,6 +152,11 @@ namespace Comfizen
         public ICommand GoToGroupCommand { get; }
         public ICommand CompareSelectedImagesCommand { get; }
         public ICommand DeleteSelectedQueueItemCommand { get; }
+        
+        public ObservableCollection<WorkflowGroupViewModel> AllNavigableGroups { get; } = new ObservableCollection<WorkflowGroupViewModel>();
+        public ICollectionView FilteredNavigableGroupsView { get; private set; }
+        public string GroupNavigationSearchText { get; set; }
+        
         public ObservableCollection<QueueItemViewModel> PendingQueueItems { get; } = new ObservableCollection<QueueItemViewModel>();
         public QueueItemViewModel CurrentTaskVm { get; private set; }
         
@@ -229,6 +234,11 @@ namespace Comfizen
         public ICommand OpenWildcardBrowserCommand { get; }
         
         public event PropertyChangedEventHandler? PropertyChanged;
+        
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
         
         public bool IsInfiniteQueueEnabled { get; set; } = false;
         public bool IsQueuePaused { get; set; } = false;
@@ -414,10 +424,9 @@ namespace Comfizen
             
             OpenGroupNavigationCommand = new RelayCommand(_ =>
             {
-                // --- START OF CHANGE: Check groups within all tabs ---
                 if (SelectedTab?.WorkflowInputsController.TabLayoouts.SelectMany(t => t.Groups).Any() == true)
-                    // --- END OF CHANGE ---
                 {
+                    GroupNavigationSearchText = ""; // Clear search on open
                     IsGroupNavigationPopupOpen = true;
                 }
             }, _ => SelectedTab != null);
@@ -478,8 +487,22 @@ namespace Comfizen
             
             UpdateWorkflows(true);
             UpdateWorkflowDisplayList();
+            UpdateAllNavigableGroups();
             
             LoadPersistedQueue();
+            
+            OpenTabs.CollectionChanged += (s, e) => UpdateAllNavigableGroups();
+            this.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(SelectedTab))
+                {
+                    UpdateAllNavigableGroups();
+                }
+                else if (e.PropertyName == nameof(GroupNavigationSearchText))
+                {
+                    FilteredNavigableGroupsView?.Refresh();
+                }
+            };
             
             GlobalEventManager.WorkflowSaved += OnWorkflowSaved;
             
@@ -817,7 +840,7 @@ namespace Comfizen
             SelectedTab = newTab;
         }
         
-        private async void OnWorkflowSaved(object sender, WorkflowSaveEventArgs e)
+        private void OnWorkflowSaved(object sender, WorkflowSaveEventArgs e)
         {
             var savedFilePathNormalized = Path.GetFullPath(e.FilePath);
 
@@ -830,9 +853,10 @@ namespace Comfizen
             
             if (tabToUpdate != null)
             {
-                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     await tabToUpdate.Reload(e.SaveType);
+                    UpdateAllNavigableGroups(); // Refresh navigable groups after reload
                 });
             }
             else
@@ -911,6 +935,52 @@ namespace Comfizen
             }
             
             OpenTabs.Remove(tabToClose);
+            UpdateAllNavigableGroups(); // Refresh the list after a tab is closed
+        }
+        
+        private void UpdateAllNavigableGroups()
+        {
+            AllNavigableGroups.Clear();
+            if (SelectedTab?.WorkflowInputsController == null) return;
+
+            // This now iterates through ALL groups in the currently active main tab.
+            foreach (var layout in SelectedTab.WorkflowInputsController.TabLayoouts)
+            {
+                foreach (var groupVm in layout.Groups)
+                {
+                    // Assign a parent name for grouping in the UI
+                    groupVm.ParentTabName = layout.Header;
+                    AllNavigableGroups.Add(groupVm);
+                }
+            }
+            
+            if (FilteredNavigableGroupsView == null)
+            {
+                FilteredNavigableGroupsView = CollectionViewSource.GetDefaultView(AllNavigableGroups);
+                FilteredNavigableGroupsView.GroupDescriptions.Add(new PropertyGroupDescription("ParentTabName"));
+                FilteredNavigableGroupsView.Filter = GroupFilterPredicate;
+            }
+            
+            FilteredNavigableGroupsView.Refresh();
+            OnPropertyChanged(nameof(AllGroupsInSelectedTab)); // Keep this for now if anything else uses it
+        }
+        
+        private bool GroupFilterPredicate(object item)
+        {
+            if (string.IsNullOrWhiteSpace(GroupNavigationSearchText))
+            {
+                return true; // No filter, show all
+            }
+
+            if (item is not WorkflowGroupViewModel groupVm)
+            {
+                return false;
+            }
+
+            // Multi-word search logic
+            var searchTerms = GroupNavigationSearchText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            return searchTerms.All(term => 
+                groupVm.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private void RefreshModels(object obj)

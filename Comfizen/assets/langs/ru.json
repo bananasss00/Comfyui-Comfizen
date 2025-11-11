@@ -316,5 +316,22 @@
   "UIConstructor_ApiReplacedTitle": "API Заменен",
   "UIConstructor_ApiReplacedSuccess": "API воркфлоу был успешно заменен.",
   "UIConstructor_Cut": "Вырезать",
-  "UIConstructor_Paste": "Вставить"
+  "UIConstructor_Paste": "Вставить",
+  "UIConstructor_CopyPresets": "Копировать пресеты",
+  "UIConstructor_PastePresets": "Вставить пресеты",
+  "UIConstructor_PasteMergePresets": "Вставить и объединить пресеты",
+  "GroupNavigation_SearchPlaceholder": "Поиск по названию группы...",
+  "ContextMenu_ExportPresets": "Экспорт пресетов",
+  "ContextMenu_ImportPresets": "Импорт пресетов",
+  "ContextMenu_MoreOptions": "Дополнительные опции",
+  "Presets_ExportError_NoPresets": "У этой группы нет пресетов для экспорта.",
+  "Presets_ExportSuccessTitle": "Экспорт завершен",
+  "Presets_ExportSuccessMessage": "Пресеты для группы '{0}' успешно экспортированы.",
+  "Presets_ImportConfirmTitle": "Подтвердите импорт",
+  "Presets_ImportConfirmMessage": "Это действие заменит ВСЕ существующие пресеты для группы '{0}' пресетами из файла. Вы уверены, что хотите продолжить?",
+  "Presets_ImportSuccessTitle": "Импорт завершен",
+  "Presets_ImportSuccessMessage": "Пресеты для группы '{0}' успешно импортированы.",
+  "Presets_ImportErrorTitle": "Ошибка импорта",
+  "Presets_ImportErrorMessage": "Не удалось импортировать пресеты. Файл может быть поврежден или иметь неверный формат.",
+  "Presets_GroupHasPresetsTooltip": "Эта группа имеет сохраненные пресеты"
 }

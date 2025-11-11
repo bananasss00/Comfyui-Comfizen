@@ -888,6 +888,22 @@ namespace Comfizen
             }
         }
         
+        private void GroupNavigationPopup_Opened(object sender, EventArgs e)
+        {
+            if (sender is not Popup popup) return;
+
+            // Use a dispatcher to ensure the UI is ready for focus.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var searchBox = FindVisualChild<TextBox>(popup.Child);
+                if (searchBox != null)
+                {
+                    searchBox.Focus();
+                    searchBox.SelectAll();
+                }
+            }), DispatcherPriority.Input);
+        }
+        
         /// <summary>
         /// Handles smart scrolling for the main controls area.
         /// It allows the parent ScrollViewer to scroll when a child control (like a TextBox or InpaintEditor)
