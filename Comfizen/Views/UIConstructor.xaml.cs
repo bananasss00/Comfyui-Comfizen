@@ -403,6 +403,7 @@ namespace Comfizen
                 UpdateAvailableFields();
                 UpdateWorkflowNodesList();
                 ValidateFieldPaths();
+                UpdateExistingFieldMetadata();
                 RefreshActionNames();
                 // --- ADDED: Initialize tabs and groups ---
                 UpdateGroupAssignments();
@@ -1135,6 +1136,7 @@ namespace Comfizen
             UpdateAvailableFields();
             UpdateWorkflowNodesList();
             ValidateFieldPaths();
+            UpdateExistingFieldMetadata();
             RefreshActionNames();
             RefreshBypassNodeFields();
         }
@@ -1203,6 +1205,42 @@ namespace Comfizen
                     string.Join("\n", invalidFields)
                 );
                 MessageBox.Show(message, LocalizationService.Instance["UIConstructor_InvalidFieldsFoundTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        
+        /// <summary>
+        /// Iterates through all existing fields in all groups and sub-tabs,
+        /// and updates their metadata (NodeTitle, NodeType) based on the currently loaded API.
+        /// </summary>
+        private void UpdateExistingFieldMetadata()
+        {
+            if (!Workflow.IsLoaded || Workflow.LoadedApi == null) return;
+
+            foreach (var group in Workflow.Groups)
+            {
+                foreach (var tab in group.Tabs)
+                {
+                    foreach (var field in tab.Fields)
+                    {
+                        // Virtual fields do not have a real path and are skipped.
+                        if (field.Path.StartsWith("virtual_")) continue;
+
+                        var pathParts = field.Path.Split('.');
+                        if (pathParts.Length == 0) continue;
+
+                        string nodeId = pathParts[0];
+                        var nodeToken = Workflow.LoadedApi[nodeId];
+                    
+                        // If the node exists in the current API, update the field's metadata.
+                        if (nodeToken != null)
+                        {
+                            field.NodeTitle = nodeToken["_meta"]?["title"]?.ToString() ?? "Untitled";
+                            field.NodeType = nodeToken["class_type"]?.ToString() ?? "Unknown";
+                        }
+                        // If the node doesn't exist, the ValidateFieldPaths method will mark it as invalid.
+                        // We don't need to clear the old title here, it's better to see what it was.
+                    }
+                }
             }
         }
         
