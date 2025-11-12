@@ -1240,50 +1240,48 @@ namespace Comfizen
 
     public class SliderFieldViewModel : InputFieldViewModel
     {
-        // ========================================================== //
-        //     НАЧАЛО ИЗМЕНЕНИЯ: Логика "привязки к шагу" в сеттере    //
-        // ========================================================== //
         public double Value
         {
             get => Property.Value.ToObject<double>();
             set
             {
-                // 1. Вычисляем "привязанное" к шагу значение
+                // 1. Calculate the value snapped to the step
                 var step = StepValue;
-                if (step <= 0) step = 1e-9; // Защита от деления на ноль
+                if (step <= 0) step = 1e-9; // Protect against division by zero
                 var snappedValue = System.Math.Round((value - MinValue) / step) * step + MinValue;
 
-                // 2. Применяем округление в зависимости от типа (целое или с плавающей точкой)
+                // 2. Create a JToken of the correct type (Integer or Float)
+                JToken newValueToken;
                 if (Type == FieldType.SliderInt)
                 {
-                    snappedValue = (long)System.Math.Round(snappedValue);
+                    // For integer sliders, round to the nearest whole number and clamp.
+                    // This ensures the value is stored as an integer (e.g., 4) instead of a float (4.0).
+                    var intValue = Convert.ToInt64(System.Math.Round(snappedValue));
+                    intValue = Math.Max((long)MinValue, Math.Min((long)MaxValue, intValue));
+                    newValueToken = new JValue(intValue);
                 }
                 else // SliderFloat
                 {
+                    // For float sliders, round to the specified precision and clamp.
                     var precision = _field.Precision ?? 2;
-                    snappedValue = System.Math.Round(snappedValue, precision);
+                    var roundedFloatValue = System.Math.Round(snappedValue, precision);
+                    roundedFloatValue = Math.Max(MinValue, Math.Min(MaxValue, roundedFloatValue));
+                    newValueToken = new JValue(roundedFloatValue);
                 }
                 
-                // 3. Убедимся, что значение не вышло за пределы
-                if (snappedValue < MinValue) snappedValue = MinValue;
-                if (snappedValue > MaxValue) snappedValue = MaxValue;
-
-                // 4. Обновляем JObject и уведомляем UI, только если значение действительно изменилось.
-                // Это предотвращает бесконечные циклы обновлений.
-                if (!JToken.DeepEquals(Property.Value, new JValue(snappedValue)))
+                // 3. Update the underlying JObject and notify the UI only if the value has actually changed.
+                // This prevents infinite update loops.
+                if (!JToken.DeepEquals(Property.Value, newValueToken))
                 {
-                    Property.Value = new JValue(snappedValue);
+                    Property.Value = newValueToken;
                     
-                    // Уведомляем UI, что и сырое значение, и отформатированный текст изменились.
-                    // WPF автоматически обновит положение слайдера до "привязанного" значения.
+                    // Notify the UI that both the raw value and the formatted text have changed.
+                    // WPF will automatically update the slider's position to the final value.
                     OnPropertyChanged(nameof(Value));
                     OnPropertyChanged(nameof(FormattedValue));
                 }
             }
         }
-        // ========================================================== //
-        //     КОНЕЦ ИЗМЕНЕНИЯ                                        //
-        // ========================================================== //
 
         /// <summary>
         /// Новое свойство, которое возвращает уже отформатированную строку для отображения.

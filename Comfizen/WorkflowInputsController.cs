@@ -951,7 +951,13 @@ public class WorkflowInputsController : INotifyPropertyChanged
                  
             case FieldType.SliderInt:
             case FieldType.SliderFloat:
-                return new SliderFieldViewModel(field, prop, nodeTitle, nodeType);
+                var sliderVm = new SliderFieldViewModel(field, prop, nodeTitle, nodeType);
+                if (field.Type == FieldType.SliderInt && sliderVm.Property.Value.Type == JTokenType.Float)
+                {
+                    var longValue = sliderVm.Property.Value.ToObject<long>();
+                    sliderVm.Property.Value = new JValue(longValue);
+                }
+                return sliderVm;
 
             case FieldType.WildcardSupportPrompt:
                  _wildcardPropertyPaths.Add(prop.Path);
