@@ -313,7 +313,23 @@ namespace Comfizen
         /// <summary>
         /// The currently selected tab in the group's UI.
         /// </summary>
-        public WorkflowGroupTabViewModel SelectedTab { get; set; }
+        private WorkflowGroupTabViewModel _selectedTab;
+        public WorkflowGroupTabViewModel SelectedTab
+        {
+            get => _selectedTab;
+            set
+            {
+                if (_selectedTab != value)
+                {
+                    _selectedTab = value;
+                    OnPropertyChanged(nameof(SelectedTab));
+                    if (value != null)
+                    {
+                        TriggerPendingHighlightsForTab(value);
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Controls whether the group is expanded in the UI Constructor.
@@ -432,6 +448,7 @@ namespace Comfizen
         public string ParentTabName { get; set; }
         
         public event PropertyChangedEventHandler PropertyChanged;
+        private readonly List<InputFieldViewModel> _fieldsPendingHighlight = new List<InputFieldViewModel>();
         
         private bool _isApplyingPreset = false; // Flag to prevent re-entrancy issues
         
@@ -803,12 +820,33 @@ namespace Comfizen
                 // which is acceptable here for a purely visual effect that doesn't need to be awaited.
                 if (changedFields.Any())
                 {
-                    TriggerHighlightEffect(changedFields);
+                    _fieldsPendingHighlight.AddRange(changedFields);
+                    // Trigger for the currently active tab immediately
+                    if (SelectedTab != null)
+                    {
+                        TriggerPendingHighlightsForTab(SelectedTab);
+                    }
                 }
             }
             finally
             {
                 _isApplyingPreset = false; // Unset flag at the end
+            }
+        }
+        
+        private void TriggerPendingHighlightsForTab(WorkflowGroupTabViewModel tabVm)
+        {
+            if (tabVm == null || !_fieldsPendingHighlight.Any()) return;
+
+            // Find fields that are pending highlight AND are on the newly activated tab
+            var fieldsOnThisTab = _fieldsPendingHighlight.Intersect(tabVm.Fields).ToList();
+
+            if (fieldsOnThisTab.Any())
+            {
+                TriggerHighlightEffect(fieldsOnThisTab);
+                
+                // Remove the now-highlighted fields from the pending list
+                _fieldsPendingHighlight.RemoveAll(f => fieldsOnThisTab.Contains(f));
             }
         }
         
