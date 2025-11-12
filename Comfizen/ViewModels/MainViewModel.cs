@@ -153,6 +153,9 @@ namespace Comfizen
         public ICommand CompareSelectedImagesCommand { get; }
         public ICommand DeleteSelectedQueueItemCommand { get; }
         
+        public ICollectionView FilteredPendingQueueItemsView { get; }
+        public string QueueSearchText { get; set; }
+        
         public ObservableCollection<WorkflowGroupViewModel> AllNavigableGroups { get; } = new ObservableCollection<WorkflowGroupViewModel>();
         public ICollectionView FilteredNavigableGroupsView { get; private set; }
         public string GroupNavigationSearchText { get; set; }
@@ -453,6 +456,9 @@ namespace Comfizen
                 }
             }, param => param is QueueItemViewModel);
             
+            FilteredPendingQueueItemsView = CollectionViewSource.GetDefaultView(PendingQueueItems);
+            FilteredPendingQueueItemsView.Filter = FilterQueueItems;
+  
             PendingQueueItems.CollectionChanged += (sender, args) => UpdateQueueItemIndexes();;
             
             OpenWildcardBrowserCommand = new RelayCommand(param =>
@@ -501,6 +507,10 @@ namespace Comfizen
                 else if (e.PropertyName == nameof(GroupNavigationSearchText))
                 {
                     FilteredNavigableGroupsView?.Refresh();
+                }
+                else if (e.PropertyName == nameof(QueueSearchText))
+                {
+                    FilteredPendingQueueItemsView?.Refresh();
                 }
             };
             
@@ -981,6 +991,41 @@ namespace Comfizen
             var searchTerms = GroupNavigationSearchText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             return searchTerms.All(term => 
                 groupVm.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+        
+        private bool FilterQueueItems(object item)
+        {
+            if (string.IsNullOrWhiteSpace(QueueSearchText))
+            {
+                return true;
+            }
+
+            if (item is not QueueItemViewModel vm)
+            {
+                return false;
+            }
+            
+            var searchTerms = QueueSearchText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // Check if all search terms are found in the item's data
+            return searchTerms.All(term =>
+            {
+                // Check against workflow name
+                if (vm.WorkflowName.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+                
+                // Check against details (field names and new values)
+                if (vm.Details.Any(detail => 
+                        (detail.DisplayName?.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (detail.NewValue?.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)))
+                {
+                    return true;
+                }
+
+                return false;
+            });
         }
 
         private void RefreshModels(object obj)

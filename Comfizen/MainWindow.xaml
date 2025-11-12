@@ -1385,6 +1385,10 @@
                                         HorizontalAlignment="Right" VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+                        
+                        <TextBox DockPanel.Dock="Top" Text="{Binding QueueSearchText, UpdateSourceTrigger=PropertyChanged}" 
+                                 Margin="5"
+                                 local:TextBoxExtensions.PlaceholderText="Search queue..."/>
 
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                       Margin="5">
@@ -1438,7 +1442,7 @@
                                 </Border>
 
                                 <!-- ListBox for Pending Tasks -->
-                                <ListBox ItemsSource="{Binding PendingQueueItems}"
+                                <ListBox ItemsSource="{Binding FilteredPendingQueueItemsView}"
                                          SelectedItem="{Binding SelectedQueueItem}"
                                          Background="{StaticResource TertiaryBackground}" BorderThickness="0"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
