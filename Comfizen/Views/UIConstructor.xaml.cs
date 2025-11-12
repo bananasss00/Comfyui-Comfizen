@@ -2632,20 +2632,36 @@ namespace Comfizen
 
         private void GroupSubTabItem_Drop(object sender, DragEventArgs e)
         {
-            HideAllIndicators();
-            if (sender is not FrameworkElement dropTarget || dropTarget.DataContext is not WorkflowGroupTabViewModel targetTabVm) return;
+            if (sender is not FrameworkElement dropTarget || dropTarget.DataContext is not WorkflowGroupTabViewModel targetTabVm)
+            {
+                HideAllIndicators();
+                return;
+            }
             
             var targetGroupVm = FindVisualParent<Expander>(dropTarget)?.DataContext as WorkflowGroupViewModel;
-            if (targetGroupVm == null) return;
+            if (targetGroupVm == null)
+            {
+                HideAllIndicators();
+                return;
+            }
+
+            // --- START OF CHANGE: Determine drop position BEFORE hiding indicators ---
+            Point position = e.GetPosition(dropTarget);
+            bool dropAfter = position.X >= dropTarget.ActualWidth / 2;
+            
+            HideAllIndicators(); // Now it's safe to hide them.
+            // --- END OF CHANGE ---
 
             if (e.Data.GetData(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)) is Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel> draggedTabData)
             {
                 var targetIndex = targetGroupVm.Tabs.IndexOf(targetTabVm);
-                var indicatorAfter = FindVisualChild<Border>(dropTarget, "SubTabDropIndicatorAfter");
-                if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible)
+                
+                // --- START OF CHANGE: Use the calculated drop position ---
+                if (dropAfter)
                 {
                     targetIndex++;
                 }
+                // --- END OF CHANGE ---
 
                 // If the source and target groups are the same, it's a reorder.
                 if (draggedTabData.Item2 == targetGroupVm)
