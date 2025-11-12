@@ -196,12 +196,12 @@ namespace Comfizen
         public ICommand AddTabCommand { get; }
         public ICommand RemoveTabCommand { get; }
         
-        private List<WorkflowField> _fieldClipboard = new List<WorkflowField>();
+        private List<object> _clipboard = new List<object>();
         private List<GroupPreset> _presetClipboard = new List<GroupPreset>();
         private bool _isCutOperation = false;
 
-        public ICommand CutFieldsCommand { get; }
-        public ICommand PasteFieldsCommand { get; }
+        public ICommand CutCommand { get; }
+        public ICommand PasteCommand { get; }
         public ICommand CopyPresetsCommand { get; }
         public ICommand PastePresetsCommand { get; }
         public ICommand PastePresetsMergeCommand { get; }
@@ -372,8 +372,8 @@ namespace Comfizen
             AddTabCommand = new RelayCommand(_ => AddNewTab());
             RemoveTabCommand = new RelayCommand(param => RemoveTab(param as WorkflowTabDefinition));
             
-            CutFieldsCommand = new RelayCommand(param => HandleCut(param), param => CanCut(param));
-            PasteFieldsCommand = new RelayCommand(HandlePaste, _ => _fieldClipboard.Any());
+            CutCommand = new RelayCommand(param => HandleCut(param), param => CanCut(param));
+            PasteCommand = new RelayCommand(HandlePaste, _ => _clipboard.Any());
             
             CopyPresetsCommand = new RelayCommand(CopyPresets, param => param is WorkflowGroupViewModel groupVm && groupVm.Presets.Any());
             PastePresetsCommand = new RelayCommand(param => PastePresets(param, merge: false), param => param is WorkflowGroupViewModel && _presetClipboard.Any());
@@ -539,25 +539,53 @@ namespace Comfizen
             {
                 return listBox.SelectedItems.Count > 0;
             }
+            if (parameter is WorkflowGroupTabViewModel)
+            {
+                return true;
+            }
             return false;
         }
 
         private void HandleCut(object parameter)
         {
-            if (parameter is not ListBox listBox || listBox.SelectedItems.Count == 0) return;
+            _clipboard.Clear();
+            _isCutOperation = false; // Reset
 
-            _fieldClipboard.Clear();
-            _fieldClipboard.AddRange(listBox.SelectedItems.OfType<WorkflowField>());
+            if (parameter is ListBox listBox && listBox.SelectedItems.Count > 0)
+            {
+                _clipboard.AddRange(listBox.SelectedItems.OfType<WorkflowField>().Cast<object>());
             _isCutOperation = true;
+        }
+            else if (parameter is WorkflowGroupTabViewModel subTabVm)
+            {
+                _clipboard.Add(subTabVm);
+                _isCutOperation = true;
+
+                // Remove from the source group to complete the "cut" operation
+                var sourceGroupVm = AllGroupViewModels.FirstOrDefault(g => g.Tabs.Contains(subTabVm));
+                if (sourceGroupVm != null)
+                {
+                    // Remove from both the ViewModel and the Model to ensure UI and data are in sync
+                    sourceGroupVm.Tabs.Remove(subTabVm);
+                    sourceGroupVm.Model.Tabs.Remove(subTabVm.Model);
+                }
+            }
         }
 
         private void HandlePaste(object target)
         {
-            if (!_fieldClipboard.Any()) return;
+            if (!_clipboard.Any()) return;
+
+            var firstItem = _clipboard.First();
+            
+            if (firstItem is WorkflowField)
+            {
+                var fieldsToPaste = _clipboard.OfType<WorkflowField>().ToList();
+                if (!fieldsToPaste.Any()) return;
 
             WorkflowGroupViewModel targetGroupVm = null;
             WorkflowGroupTab targetSubTab = null;
-            int insertIndex = -1; // В конец по умолчанию
+                int insertIndex = -1; // Default to the end
 
             if (target is ListBox listBox && listBox.SelectedItem is WorkflowField targetField)
             {
@@ -608,44 +636,83 @@ namespace Comfizen
                 }
                 else return;
             }
-            
-            foreach (var field in _fieldClipboard)
+
+                foreach (var field in fieldsToPaste)
             {
                 if (_isCutOperation)
                 {
-                    RemoveField(field);
+                        RemoveField(field); // Remove from the original location
                 }
-                
-                var fieldClone = new WorkflowField
-                {
-                    Name = field.Name, Path = field.Path, Type = field.Type,
-                    NodeTitle = field.NodeTitle, NodeType = field.NodeType,
-                    MinValue = field.MinValue, MaxValue = field.MaxValue, StepValue = field.StepValue,
-                    Precision = field.Precision, ModelType = field.ModelType, ComboBoxItems = new List<string>(field.ComboBoxItems),
-                    ActionName = field.ActionName, DefaultValue = field.DefaultValue,
-                    HighlightColor = field.HighlightColor,
-                    BypassNodeIds = new ObservableCollection<string>(field.BypassNodeIds)
-                };
 
+                    var fieldClone = field.Clone();
                 fieldClone.PropertyChanged += OnFieldPropertyChanged;
-                
+
                 if (insertIndex == -1 || insertIndex > targetSubTab.Fields.Count)
                 {
-                targetSubTab.Fields.Add(fieldClone);
-            }
+                        targetSubTab.Fields.Add(fieldClone);
+                    }
                 else
                 {
                     targetSubTab.Fields.Insert(insertIndex, fieldClone);
-                    insertIndex++; // Смещаем индекс для следующего элемента
+                        insertIndex++; // Increment index for the next item
                 }
             }
-            
+
             if (_isCutOperation)
             {
-                _fieldClipboard.Clear();
+                    _clipboard.Clear();
             }
             _isCutOperation = false;
             UpdateAvailableFields();
+        }
+            else if (firstItem is WorkflowGroupTabViewModel draggedTabVm)
+            {
+                WorkflowGroupViewModel targetGroupVm = null;
+                int insertIndex = -1; // Default to the end
+
+                if (target is WorkflowGroupViewModel groupVm)
+                {
+                    targetGroupVm = groupVm;
+                }
+                else if (target is WorkflowGroupTabViewModel targetTabVm)
+                {
+                    // Find the owner group of the target tab
+                    targetGroupVm = AllGroupViewModels.FirstOrDefault(g => g.Tabs.Contains(targetTabVm));
+                    if (targetGroupVm != null)
+                    {
+                        insertIndex = targetGroupVm.Tabs.IndexOf(targetTabVm) + 1;
+                    }
+                }
+        
+                if (targetGroupVm != null)
+                {
+                    // Insert into the ViewModel collection (for UI)
+                    if (insertIndex < 0 || insertIndex > targetGroupVm.Tabs.Count)
+                    {
+                        targetGroupVm.Tabs.Add(draggedTabVm);
+                    }
+                    else
+                    {
+                        targetGroupVm.Tabs.Insert(insertIndex, draggedTabVm);
+                    }
+
+                    // Insert into the Model collection (for saving)
+                    if (insertIndex < 0 || insertIndex > targetGroupVm.Model.Tabs.Count)
+                    {
+                        targetGroupVm.Model.Tabs.Add(draggedTabVm.Model);
+                    }
+                    else
+                    {
+                        targetGroupVm.Model.Tabs.Insert(insertIndex, draggedTabVm.Model);
+                    }
+
+                    if (_isCutOperation)
+                    {
+                        _clipboard.Clear();
+                    }
+                    _isCutOperation = false;
+                }
+            }
         }
         
         public void AddFieldToGroupAtIndex(IList<WorkflowField> fields, WorkflowGroupViewModel groupVm, int targetIndex = -1)
@@ -1690,7 +1757,6 @@ namespace Comfizen
         private Point _dragStartPoint;
         private bool _isDragging = false;
         private object _dragData;
-        private List<WorkflowField> _fieldClipboard = new List<WorkflowField>();
         private bool _isCutOperation = false;
         
         private Border? _currentGroupHighlight;

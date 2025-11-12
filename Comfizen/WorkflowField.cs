@@ -141,5 +141,37 @@ namespace Comfizen
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BypassNodeIds)));
         }
+        
+        /// <summary>
+        /// Creates a deep copy of the WorkflowField object.
+        /// </summary>
+        /// <returns>A new WorkflowField instance with the same values.</returns>
+        public WorkflowField Clone()
+        {
+            return new WorkflowField
+            {
+                Name = this.Name,
+                Path = this.Path,
+                Type = this.Type,
+                IsSeedLocked = this.IsSeedLocked,
+                HighlightColor = this.HighlightColor,
+                MinValue = this.MinValue,
+                MaxValue = this.MaxValue,
+                StepValue = this.StepValue,
+                Precision = this.Precision,
+                ModelType = this.ModelType,
+                ComboBoxItems = new List<string>(this.ComboBoxItems), // Create a new list
+                Separator = this.Separator,
+                ActionName = this.ActionName,
+                DefaultValue = this.DefaultValue,
+                MaxDisplayLines = this.MaxDisplayLines,
+                BypassNodeIds = new ObservableCollection<string>(this.BypassNodeIds), // Create a new collection
+                AdvancedPrompt = this.AdvancedPrompt,
+                SeparatorStyle = this.SeparatorStyle,
+                NodeTitle = this.NodeTitle,
+                NodeType = this.NodeType
+                // IsRenaming and IsInvalid are runtime states and are not cloned.
+            };
+        }
     }
 }

@@ -77,11 +77,11 @@
                     <Separator Margin="0,5"/>
 
                     <Button Content="{local:Translate UIConstructor_Cut}" 
-                            Command="{Binding CutFieldsCommand}"
+                            Command="{Binding CutCommand}"
                             CommandParameter="{Binding PopupTarget}"
                             Click="ClosePopupOnClick"/>
                     <Button Content="{local:Translate UIConstructor_Paste}"
-                            Command="{Binding PasteFieldsCommand}"
+                            Command="{Binding PasteCommand}"
                             CommandParameter="{Binding PopupTarget}" Margin="0,5,0,0"
                             Click="ClosePopupOnClick"/>
                     
@@ -192,7 +192,6 @@
 
                                                         <Border x:Name="TabBorder" CornerRadius="3" Margin="0,2" Padding="8"
                                                                 PreviewMouseLeftButtonDown="TabDefinition_PreviewMouseLeftButtonDown"
-                                                                MouseRightButtonUp="ShowUniversalPopup"
                                                                 AllowDrop="True" Drop="TabDefinition_Drop" DragEnter="TabDefinition_DragEnter" DragLeave="TabDefinition_DragLeave">
                                                             <Border.Style>
                                                                 <Style TargetType="Border">
