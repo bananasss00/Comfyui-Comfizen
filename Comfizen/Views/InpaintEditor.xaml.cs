@@ -1014,5 +1014,94 @@ namespace Comfizen
             // Mark the event as handled to stop it from bubbling up to the ScrollViewer
             e.Handled = true;
         }
+        
+        /// <summary>
+        /// Asynchronously converts a mask image (white on black) into InkCanvas strokes.
+        /// This runs on a background thread to avoid freezing the UI.
+        /// </summary>
+        public async void LoadStrokesFromMaskImageAsync(byte[] maskBytes)
+        {
+            if (maskBytes == null || maskBytes.Length == 0) return;
+
+            // --- START OF CHANGE: Capture current drawing attributes for the new strokes ---
+            // We capture the color and opacity on the UI thread before moving to the background.
+            var strokeAttributes = new DrawingAttributes
+            {
+                Color = Color.FromArgb((byte)(_maskOpacity * 255), _maskDisplayColor.R, _maskDisplayColor.G, _maskDisplayColor.B),
+                // Width = 1,  // The generated strokes are pixel-based, so thickness should be 1 to accurately represent the mask area.
+                // Height = 1,
+                IsHighlighter = false
+            };
+            // strokeAttributes.Freeze(); // Important: Make the object thread-safe before passing it to the background task.
+            // --- END OF CHANGE ---
+
+            // Generate strokes on a background thread
+            var generatedStrokes = await Task.Run(() =>
+            {
+                try
+                {
+                    var strokes = new StrokeCollection();
+                    var bitmap = (BitmapSource)new ImageSourceConverter().ConvertFrom(maskBytes);
+                    var wb = new WriteableBitmap(bitmap);
+                    int width = wb.PixelWidth;
+                    int height = wb.PixelHeight;
+                    byte[] pixels = new byte[width * height * 4];
+                    wb.CopyPixels(pixels, width * 4, 0);
+
+                    // A simple threshold to detect "white" pixels, accounting for JPEG artifacts
+                    const int threshold = 128;
+
+                    for (int y = 0; y < height; y++)
+                    {
+                        StylusPointCollection currentLinePoints = null;
+                        for (int x = 0; x < width; x++)
+                        {
+                            int index = (y * width + x) * 4;
+                            // Check the Blue channel (for grayscale, B=G=R)
+                            if (pixels[index] > threshold)
+                            {
+                                if (currentLinePoints == null)
+                                {
+                                    currentLinePoints = new StylusPointCollection();
+                                }
+                                currentLinePoints.Add(new StylusPoint(x, y));
+                            }
+                            else
+                            {
+                                if (currentLinePoints != null)
+                                {
+                                    // --- CHANGE: Apply the captured attributes to the new stroke ---
+                                    strokes.Add(new Stroke(currentLinePoints, strokeAttributes));
+                                    currentLinePoints = null;
+                                }
+                            }
+                        }
+                        if (currentLinePoints != null)
+                        {
+                            // --- CHANGE: Apply the captured attributes to the new stroke ---
+                            strokes.Add(new Stroke(currentLinePoints, strokeAttributes));
+                        }
+                    }
+                    return strokes;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, "Failed to convert mask image to strokes.");
+                    return null;
+                }
+            });
+
+            // Update the UI on the main thread
+            if (generatedStrokes != null)
+            {
+                MaskCanvas.Strokes.Clear();
+                MaskCanvas.Strokes.Add(generatedStrokes);
+                
+                // Reset the undo stack after loading
+                _maskUndoStack.Clear();
+                _maskRedoStack.Clear();
+                UpdateUndoRedoButtons();
+            }
+        }
     }
 }

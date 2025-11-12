@@ -495,6 +495,38 @@ public class WorkflowInputsController : INotifyPropertyChanged
             GlobalControls.WildcardSeed = newSeed;
         }
     }
+    
+    /// <summary>
+    /// Updates the underlying workflow's JObject with the current state from complex controls
+    /// like the InpaintEditor before the session is saved.
+    /// </summary>
+    public async Task PrepareForSessionSaveAsync()
+    {
+        foreach (var vm in _inpaintViewModels)
+        {
+            // Save the source image Base64 string
+            if (vm.ImageField != null)
+            {
+                var prop = _workflow.GetPropertyByPath(vm.ImageField.Path);
+                if (prop != null)
+                {
+                    var base64Image = await vm.Editor.GetImageAsBase64Async();
+                    prop.Value = new JValue(base64Image ?? string.Empty);
+                }
+            }
+
+            // Save the mask Base64 string
+            if (vm.MaskField != null)
+            {
+                var prop = _workflow.GetPropertyByPath(vm.MaskField.Path);
+                if (prop != null)
+                {
+                    var base64Mask = await vm.Editor.GetMaskAsBase64Async();
+                    prop.Value = new JValue(base64Mask ?? string.Empty);
+                }
+            }
+        }
+    }
 
     public async Task LoadInputs(string lastActiveTabName = null)
     {
@@ -640,7 +672,37 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     if (fieldVm != null)
                     {
                         tabVm.Fields.Add(fieldVm);
+                        
+                        if (fieldVm is InpaintFieldViewModel inpaintVm)
+                        {
+                            string imageBase64 = null;
+                            if (inpaintVm.ImageField != null)
+                            {
+                                var imageProp = _workflow.GetPropertyByPath(inpaintVm.ImageField.Path);
+                                // Check if it's a non-empty string, which is likely our base64 data
+                                if (imageProp?.Value.Type == JTokenType.String && !string.IsNullOrEmpty(imageProp.Value.ToString()))
+                                {
+                                    imageBase64 = imageProp.Value.ToString();
+                                }
+                            }
 
+                            string maskBase64 = null;
+                            if (inpaintVm.MaskField != null)
+                            {
+                                var maskProp = _workflow.GetPropertyByPath(inpaintVm.MaskField.Path);
+                                if (maskProp?.Value.Type == JTokenType.String && !string.IsNullOrEmpty(maskProp.Value.ToString()))
+                                {
+                                    maskBase64 = maskProp.Value.ToString();
+                                }
+                            }
+                            
+                            // Load the data into the editor if anything was found
+                            if (!string.IsNullOrEmpty(imageBase64) || !string.IsNullOrEmpty(maskBase64))
+                            {
+                                inpaintVm.LoadSessionData(imageBase64, maskBase64);
+                            }
+                        }
+                        
                         fieldVm.PropertyChanged += OnFieldViewModelPropertyChanged;
 
                         if (fieldVm is ComboBoxFieldViewModel comboBoxVm)

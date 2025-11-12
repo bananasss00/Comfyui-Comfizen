@@ -82,11 +82,17 @@ namespace Comfizen
             {
                 if (_selectedTab == value) return;
 
-                if (_selectedTab != null && _selectedTab.Workflow.IsLoaded && !_selectedTab.IsVirtual)
+                // Asynchronously save the state of the tab we are leaving
+                var oldTab = _selectedTab;
+                if (oldTab != null && oldTab.Workflow.IsLoaded && !oldTab.IsVirtual)
                 {
-                    string activeInnerTabName = _selectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
-                    var hookStates = _selectedTab.WorkflowInputsController.GlobalControls.GetHookStates();
-                    _sessionManager.SaveSession(_selectedTab.Workflow, _selectedTab.FilePath, activeInnerTabName, hookStates);
+                    Task.Run(async () =>
+                    {
+                        await oldTab.WorkflowInputsController.PrepareForSessionSaveAsync();
+                        string activeInnerTabName = oldTab.WorkflowInputsController.SelectedTabLayout?.Header;
+                        var hookStates = oldTab.WorkflowInputsController.GlobalControls.GetHookStates();
+                        _sessionManager.SaveSession(oldTab.Workflow, oldTab.FilePath, activeInnerTabName, hookStates);
+                    });
                 }
 
                 _selectedTab = value;
@@ -2192,6 +2198,7 @@ namespace Comfizen
 
             if (SelectedTab != null && !SelectedTab.IsVirtual && SelectedTab.Workflow.IsLoaded)
             {
+                await SelectedTab.WorkflowInputsController.PrepareForSessionSaveAsync();
                 string activeInnerTabName = SelectedTab.WorkflowInputsController.SelectedTabLayout?.Header;
                 var hookStates = SelectedTab.WorkflowInputsController.GlobalControls.GetHookStates();
                 _sessionManager.SaveSession(SelectedTab.Workflow, SelectedTab.FilePath, activeInnerTabName, hookStates);

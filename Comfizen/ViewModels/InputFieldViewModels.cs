@@ -195,6 +195,45 @@ namespace Comfizen
                 maskEditingEnabled: MaskField != null
             );
         }
+        
+        /// <summary>
+        /// Loads image and mask data from Base64 strings (typically from a session file)
+        /// into the InpaintEditor control.
+        /// </summary>
+        public void LoadSessionData(string imageBase64, string maskBase64)
+        {
+            // Load the source image if available
+            if (!string.IsNullOrEmpty(imageBase64))
+            {
+                try
+                {
+                    var imageBytes = Convert.FromBase64String(imageBase64);
+                    Editor.SetSourceImage(imageBytes);
+                }
+                catch (FormatException)
+                {
+                    // Ignore invalid base64 data, the field will just remain empty.
+                    Logger.Log($"Could not load session image for '{Name}' due to invalid Base64 format.", LogLevel.Warning);
+                }
+            }
+
+            // --- START OF CHANGE: Call the new method to convert mask image to strokes ---
+            if (!string.IsNullOrEmpty(maskBase64))
+            {
+                try
+                {
+                    var maskBytes = Convert.FromBase64String(maskBase64);
+                    // This is an async void method that will update the UI when done.
+                    Editor.LoadStrokesFromMaskImageAsync(maskBytes);
+                }
+                catch (FormatException)
+                {
+                    // Ignore invalid base64 data for the mask.
+                    Logger.Log($"Could not load session mask for '{Name}' due to invalid Base64 format.", LogLevel.Warning);
+                }
+            }
+            // --- END OF CHANGE ---
+        }
     }
     
     [AddINotifyPropertyChangedInterface]
