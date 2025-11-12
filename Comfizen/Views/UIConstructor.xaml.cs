@@ -2477,6 +2477,13 @@ namespace Comfizen
 
         private void Group_DragOver(object sender, DragEventArgs e)
         {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                // Do not handle the event, allowing it to bubble up to the parent window,
+                // which is responsible for processing dropped files.
+                return;
+            }
+            
             HandleAutoScroll(e);
             HideFieldDropIndicator();
             HideGroupDropIndicator();
@@ -2567,15 +2574,17 @@ namespace Comfizen
         {
             HandleAutoScroll(e);
             
-            // If a group or sub-tab is being dragged, do not show a drop indicator between fields.
-            // This prevents the user from thinking these items can be dropped inside another group's field list.
-            if (e.Data.GetDataPresent(typeof(Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>)) || // This is the key fix: check for a dragged group.
+            // --- START OF CHANGE: Also ignore file drag operations ---
+            // If a file, group, or sub-tab is being dragged, do not show a drop indicator.
+            if (e.Data.GetDataPresent(DataFormats.FileDrop) ||
+                e.Data.GetDataPresent(typeof(Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>)) ||
                 e.Data.GetDataPresent(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)))
             {
                 e.Effects = DragDropEffects.None;
                 e.Handled = true;
                 return; // Stop processing here
             }
+            // --- END OF CHANGE ---
 
             HideFieldDropIndicator();
 
@@ -2800,6 +2809,15 @@ namespace Comfizen
 
         private void Field_Drop(object sender, DragEventArgs e)
         {
+            // --- START OF CHANGE: Immediately exit if this is a file drop operation ---
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                // Let the main window's drop handler process the file.
+                HideAllIndicators();
+                return;
+            }
+            // --- END OF CHANGE ---
+            
             if (sender is not StackPanel dropTargetElement || dropTargetElement.DataContext is not WorkflowField targetField || DataContext is not UIConstructorView viewModel)
             {
                 HideAllIndicators();
