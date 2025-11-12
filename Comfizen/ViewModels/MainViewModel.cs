@@ -312,6 +312,12 @@ namespace Comfizen
         
         public ICommand OpenHelpCommand { get; }
         
+        /// <summary>
+        /// A transient flag to prevent re-entrant calls during the async shutdown process.
+        /// </summary>
+        [JsonIgnore] 
+        public bool IsShuttingDown { get; set; } = false;
+        
         public MainViewModel()
         {
             _settingsService = SettingsService.Instance;
@@ -888,6 +894,13 @@ namespace Comfizen
         public void OpenOrSwitchToWorkflow(string relativePath)
         {
             if (string.IsNullOrEmpty(relativePath)) return;
+            
+            // If the incoming path doesn't have an extension, assume .json.
+            // This makes the system resilient to issues like the one in FileNameTrimmerConverter.
+            if (!Path.HasExtension(relativePath))
+            {
+                relativePath += ".json";
+            }
             
             var normalizedPath = relativePath.Replace('\\', '/');
             
@@ -2212,8 +2225,9 @@ namespace Comfizen
             _settings.IsConsoleVisible = this.IsConsoleVisible;
             _settings.GalleryThumbnailSize = this.ImageProcessing.GalleryThumbnailSize;
             
+            // Restore the logic for saving tab order and the active tab here.
+            // This is the only safe place to do it.
             _settings.LastOpenWorkflows = OpenTabs
-                // Filter out virtual tabs from being saved into the last open list.
                 .Where(t => !t.IsVirtual)
                 .Select(t => Path.GetRelativePath(Workflow.WorkflowsDir, t.FilePath).Replace(Path.DirectorySeparatorChar, '/'))
                 .ToList();

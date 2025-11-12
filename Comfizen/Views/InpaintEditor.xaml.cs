@@ -102,6 +102,8 @@ namespace Comfizen
             
             ImageGrid.PreviewMouseDown += ImageGrid_PreviewMouseDown;
             ImageGrid.PreviewMouseUp += ImageGrid_PreviewMouseUp;
+            
+            this.RequestBringIntoView += (sender, e) => e.Handled = true;
         }
 
         private InkCanvas ActiveCanvas => _currentMode == EditingMode.Mask ? MaskCanvas : SketchCanvas;

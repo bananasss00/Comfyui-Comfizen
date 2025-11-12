@@ -542,13 +542,13 @@ public class WorkflowInputsController : INotifyPropertyChanged
         // First pass: Create all GroupViewModels and populate their TabViewModels
         foreach (var group in _workflow.Groups)
         {
-            var groupVm = new WorkflowGroupViewModel(group, _workflow);
+            var groupVm = new WorkflowGroupViewModel(group, _workflow, _settings);
             groupVm.PresetsModified += () =>
             {
                 PresetsModifiedInGroup?.Invoke();
                 DiscoverGlobalPresets();
             };
-            groupVm.PropertyChanged += OnGroupPresetChanged;
+            // REMOVED: groupVm.PropertyChanged += OnGroupPresetChanged;
             groupVmLookup[group.Id] = groupVm;
 
             foreach (var tabVm in groupVm.Tabs)
@@ -755,12 +755,13 @@ public class WorkflowInputsController : INotifyPropertyChanged
         
         DiscoverGlobalPresets(); 
         
+        SyncGlobalPresetFromGroups();
+        
+        // This is necessary because the initial call in the constructor happens before session values are applied.
         foreach (var groupVm in groupVmLookup.Values)
         {
-            TryAutoSelectPreset(groupVm);
+            groupVm.RebuildActiveLayersFromState();
         }
-            
-        SyncGlobalPresetFromGroups();
 
         // --- START OF NEW LOGIC ---
         // After all tab layouts are created, select the active one.
@@ -806,27 +807,22 @@ public class WorkflowInputsController : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// When any field's value changes, find its parent group and check if the group's
-    /// state now matches any of its saved presets.
+    /// When any field's value changes, find its parent group and notify it.
+    /// The group VM will then handle the logic of updating its active layer states.
     /// </summary>
     private void OnFieldViewModelPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        // We only care about properties that represent the field's actual value.
         if (e.PropertyName != "Value" && e.PropertyName != "IsChecked" && e.PropertyName != "IsEnabled")
             return;
     
-        // If a preset is currently being applied, do nothing to avoid loops.
-        if (_isApplyingPreset || _isUpdatingFromGlobalPreset)
-            return;
+        if (_isUpdatingFromGlobalPreset) return;
 
         if (sender is InputFieldViewModel fieldVm)
         {
             var groupVm = FindGroupForField(fieldVm);
             if (groupVm != null)
             {
-                // The state has changed, so we try to match it against existing presets.
-                // This will either select a matching preset or clear the selection if no match is found.
-                TryAutoSelectPreset(groupVm);
+                groupVm.NotifyFieldValueChanged(fieldVm);
             }
         }
     }
@@ -847,10 +843,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
     {
         // Check if the 'SelectedPreset' property of a group has changed
         // and ensure we're not in the middle of a global update to prevent recursion.
-        if (e.PropertyName == nameof(WorkflowGroupViewModel.SelectedPreset) && !_isUpdatingFromGlobalPreset)
-        {
-            SyncGlobalPresetFromGroups();
-        }
+        // if (e.PropertyName == nameof(WorkflowGroupViewModel.SelectedPreset) && !_isUpdatingFromGlobalPreset)
+        // {
+        //     SyncGlobalPresetFromGroups();
+        // }
     }
     
     /// <summary>
@@ -877,15 +873,13 @@ public class WorkflowInputsController : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Checks all groups to see if they share a common selected preset. If so, updates the global preset ComboBox.
+    /// This logic needs to be adapted to the new "Active Layers" system.
+    /// For now, we'll clear the global selection if group states diverge.
     /// </summary>
     private void SyncGlobalPresetFromGroups()
     {
-        var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
-
-        // Get all groups that can participate in global presets.
         var participatingGroups = TabLayoouts.SelectMany(t => t.Groups)
-            .Where(g => g.Presets.Any(p => GlobalControls.GlobalPresetNames.Contains(p.Name)))
+            .Where(g => g.AllPresets.Any(p => GlobalControls.GlobalPresetNames.Contains(p.Name)))
             .ToList();
 
         if (!participatingGroups.Any())
@@ -894,21 +888,20 @@ public class WorkflowInputsController : INotifyPropertyChanged
             return;
         }
 
-        // Check the selected preset of the first participating group.
-        var firstPresetName = participatingGroups.First().SelectedPreset?.Name;
+        // Check the first active layer of the first group.
+        var firstPresetName = participatingGroups.First().ActiveLayers.FirstOrDefault()?.Name;
 
-        // If the first group has no preset selected, there's no common selection.
         if (firstPresetName == null || !GlobalControls.GlobalPresetNames.Contains(firstPresetName))
         {
             GlobalControls.SetSelectedPresetSilently(null);
             return;
         }
 
-        // Check if all other participating groups have the same preset selected.
+        // Check if all other groups ALSO have this layer as their first active layer.
+        // This is a simplified check for the new system.
         bool allMatch = participatingGroups.Skip(1)
-            .All(g => g.SelectedPreset?.Name == firstPresetName);
+            .All(g => g.ActiveLayers.FirstOrDefault()?.Name == firstPresetName);
 
-        // If all match, update the global selection. Otherwise, clear it.
         GlobalControls.SetSelectedPresetSilently(allMatch ? firstPresetName : null);
     }
     
@@ -919,15 +912,13 @@ public class WorkflowInputsController : INotifyPropertyChanged
     {
         if (string.IsNullOrEmpty(presetName)) return;
         
-        _isUpdatingFromGlobalPreset = true; // Set flag to prevent feedback loop
-        _isApplyingPreset = true; // Also set this flag to stop auto-selection during application
+        _isUpdatingFromGlobalPreset = true;
 
         try
         {
-            // Iterate through groups in all tabs
             foreach (var groupVm in TabLayoouts.SelectMany(t => t.Groups))
             {
-                var presetToApply = groupVm.Presets.FirstOrDefault(p => p.Name == presetName);
+                var presetToApply = groupVm.AllPresets.FirstOrDefault(p => p.Name == presetName);
                 if (presetToApply != null)
                 {
                     groupVm.ApplyPreset(presetToApply); 
@@ -936,42 +927,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
         }
         finally
         {
-            _isUpdatingFromGlobalPreset = false; // Unset the flag
-            _isApplyingPreset = false;
+            _isUpdatingFromGlobalPreset = false;
         }
     }
     
-    /// <summary>
-    /// Checks if the current state of a group's savable fields exactly matches one of its saved presets.
-    /// If a match is found, updates the SelectedPreset property to reflect it in the UI.
-    /// If no match is found, it clears the SelectedPreset.
-    /// </summary>
-    /// <summary>
-    /// Checks if the current state of a group's savable fields exactly matches one of its saved presets.
-    /// If a match is found, updates the SelectedPreset property to reflect it in the UI.
-    /// If no match is found, it clears the SelectedPreset.
-    /// </summary>
-    private void TryAutoSelectPreset(WorkflowGroupViewModel groupVm)
-    {
-        if (!groupVm.Presets.Any())
-        {
-            groupVm.SelectedPreset = null; // Ensure selection is cleared if no presets exist
-            return;
-        }
-        
-        var matchingPresetVm = groupVm.Presets.FirstOrDefault(presetVm => groupVm.IsStateMatchingPreset(presetVm));
-
-        // Only update the property if the found preset is different from the currently selected one.
-        // This avoids triggering the PropertyChanged event unnecessarily, which could lead to loops.
-        if (groupVm.SelectedPreset != matchingPresetVm)
-        {
-            // This is a "silent" update. We set the flag to prevent the preset from being re-applied.
-            _isApplyingPreset = true;
-            groupVm.SelectedPreset = matchingPresetVm;
-            _isApplyingPreset = false;
-        }
-    }
-
     private InputFieldViewModel CreateDefaultFieldViewModel(WorkflowField field, JProperty? prop)
     {
         string nodeTitle = null;

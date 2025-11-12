@@ -52,6 +52,7 @@ namespace Comfizen
         public int MaxRecentWorkflows { get; set; }
         public int MaxQueueSize { get; set; }
         public bool ShowDeleteConfirmation { get; set; }
+        public bool ShowPresetDeleteConfirmation { get; set; }
         public List<string> ModelExtensions { get; set; }
         public List<string> SpecialModelValues { get; set; }
         public ICommand SaveCommand { get; }
@@ -108,6 +109,7 @@ namespace Comfizen
             MaxQueueSize = _settings.MaxQueueSize;
             MaxRecentWorkflows = _settings.MaxRecentWorkflows;
             ShowDeleteConfirmation = _settings.ShowDeleteConfirmation;
+            ShowPresetDeleteConfirmation = _settings.ShowPresetDeleteConfirmation;
             ModelExtensions = new List<string>(_settings.ModelExtensions);
             SpecialModelValues = new List<string>(_settings.SpecialModelValues);
             SliderDefaults = string.Join("\n", _settings.SliderDefaults);
@@ -210,6 +212,7 @@ namespace Comfizen
                     _settings.MaxQueueSize = MaxQueueSize;
                     _settings.MaxRecentWorkflows = MaxRecentWorkflows;
                     _settings.ShowDeleteConfirmation = ShowDeleteConfirmation;
+                    _settings.ShowPresetDeleteConfirmation = ShowPresetDeleteConfirmation;
                     _settings.ModelExtensions = ModelExtensions;
                     _settings.SpecialModelValues = SpecialModelValues;
                     _settings.Language = Language;

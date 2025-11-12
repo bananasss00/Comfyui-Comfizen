@@ -376,7 +376,7 @@ namespace Comfizen
             CutCommand = new RelayCommand(param => HandleCut(param), param => CanCut(param));
             PasteCommand = new RelayCommand(HandlePaste, _ => _clipboard.Any());
             
-            CopyPresetsCommand = new RelayCommand(CopyPresets, param => param is WorkflowGroupViewModel groupVm && groupVm.Presets.Any());
+            CopyPresetsCommand = new RelayCommand(CopyPresets, param => param is WorkflowGroupViewModel groupVm && groupVm.AllPresets.Any()); // CHANGED: Presets -> AllPresets
             PastePresetsCommand = new RelayCommand(param => PastePresets(param, merge: false), param => param is WorkflowGroupViewModel && _presetClipboard.Any());
             PastePresetsMergeCommand = new RelayCommand(param => PastePresets(param, merge: true), param => param is WorkflowGroupViewModel && _presetClipboard.Any());
             
@@ -479,7 +479,7 @@ namespace Comfizen
             AllGroupViewModels.Clear();
             foreach (var groupModel in Workflow.Groups)
             {
-                AllGroupViewModels.Add(new WorkflowGroupViewModel(groupModel, Workflow));
+                AllGroupViewModels.Add(new WorkflowGroupViewModel(groupModel, Workflow, _settings));
             }
             UpdateGroupAssignments();
         }
@@ -814,7 +814,7 @@ namespace Comfizen
             {
                 foreach (WorkflowGroup newGroup in e.NewItems)
                 {
-                    AllGroupViewModels.Add(new WorkflowGroupViewModel(newGroup, Workflow));
+                    AllGroupViewModels.Add(new WorkflowGroupViewModel(newGroup, Workflow, _settings));
                     // Subscribe to sub-tab changes for the new group
                     newGroup.Tabs.CollectionChanged += OnGroupSubTabsChanged;
                 }

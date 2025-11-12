@@ -36,9 +36,25 @@ namespace Comfizen
         /// A dictionary storing the state of the widgets.
         /// Key: The unique 'Path' of the WorkflowField.
         /// Value: The JToken representing the value of the field.
+        /// This is used for Snippets. For Layouts, this will be empty.
         /// </summary>
         public Dictionary<string, JToken> Values { get; set; } = new Dictionary<string, JToken>();
         
+        /// <summary>
+        /// If true, this preset is a "Layout" that groups other presets (Snippets).
+        /// If false (default), it's a "Snippet" that holds actual values.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(false)]
+        public bool IsLayout { get; set; }
+        
+        /// <summary>
+        /// A list of Snippet names that this Layout consists of.
+        /// Only used when IsLayout is true.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public List<string> SnippetNames { get; set; }
+
         /// <summary>
         /// Creates a deep copy of this preset.
         /// </summary>
@@ -47,6 +63,8 @@ namespace Comfizen
             return new GroupPreset
             {
                 Name = this.Name,
+                IsLayout = this.IsLayout,
+                SnippetNames = this.SnippetNames != null ? new List<string>(this.SnippetNames) : null,
                 // Deep clone the dictionary values to prevent shared references.
                 Values = this.Values.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.DeepClone())
             };

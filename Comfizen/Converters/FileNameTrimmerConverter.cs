@@ -11,8 +11,6 @@ public class FileNameTrimmerConverter : IValueConverter
     {
         if (value is string fullPath)
         {
-            // Используем Path.GetFileNameWithoutExtension для надежности,
-            // он корректно обработает и "file.json", и "folder/file.json"
             return Path.ChangeExtension(fullPath, null);
         }
         return value;
@@ -20,7 +18,15 @@ public class FileNameTrimmerConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        // Обратное преобразование не требуется
+        // When a value is selected from the dropdown, add the .json extension back.
+        if (value is string str && !string.IsNullOrEmpty(str))
+        {
+            // Ensure we don't add .json if it's already there.
+            if (!str.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                return str + ".json";
+            }
+        }
         return value;
     }
 }

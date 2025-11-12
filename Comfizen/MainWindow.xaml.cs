@@ -112,7 +112,7 @@ namespace Comfizen
         {
             if (sender is not Popup popup) return;
             
-            var textBox = FindVisualChild<TextBox>(popup.Child);
+            var textBox = FindVisualChild<TextBox>(popup.Child, "PresetSearchBox");
             if (textBox != null)
             {
                 Dispatcher.BeginInvoke(new Action(() =>
@@ -122,6 +122,7 @@ namespace Comfizen
                 }), DispatcherPriority.Input);
             }
         }
+        
         
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
@@ -459,7 +460,22 @@ namespace Comfizen
         
         private async void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (DataContext is MainViewModel viewModel)
+            if (DataContext is not MainViewModel viewModel) return;
+            
+            // If we are already in the process of shutting down, just let it close.
+            if (viewModel.IsShuttingDown)
+            {
+                return;
+            }
+
+            // 1. Cancel the current closing event to perform async operations.
+            e.Cancel = true;
+
+            // 2. Set the flag to prevent this logic from running again.
+            viewModel.IsShuttingDown = true;
+            
+            // 3. Perform all necessary saving operations and WAIT for them to complete.
+            try
             {
                 foreach (var window in viewModel.UndockedWindows.Values.ToList())
                 {
@@ -469,7 +485,6 @@ namespace Comfizen
                 if (WindowState == WindowState.Maximized)
                 {
                     viewModel.Settings.MainWindowState = WindowState.Maximized;
-                    // For maximized, save RestoreBounds for consistent size restoration
                     viewModel.Settings.MainWindowWidth = this.RestoreBounds.Width;
                     viewModel.Settings.MainWindowHeight = this.RestoreBounds.Height;
                     viewModel.Settings.MainWindowLeft = this.RestoreBounds.Left;
@@ -477,7 +492,7 @@ namespace Comfizen
                 }
                 else // Normal or Minimized
                 {
-                    viewModel.Settings.MainWindowState = WindowState.Normal; // Always save as Normal if not Maximized
+                    viewModel.Settings.MainWindowState = WindowState.Normal;
                     viewModel.Settings.MainWindowWidth = this.Width;
                     viewModel.Settings.MainWindowHeight = this.Height;
                     viewModel.Settings.MainWindowLeft = this.Left;
@@ -486,9 +501,16 @@ namespace Comfizen
 
                 await viewModel.SaveStateOnCloseAsync();
             }
-            InMemoryHttpServer.Instance.Stop();
-
-            Log.CloseAndFlush();
+            finally
+            {
+                // This block will run even if saving fails.
+                InMemoryHttpServer.Instance.Stop();
+                Log.CloseAndFlush();
+                
+                // 4. Now that everything is saved, re-trigger the close operation.
+                // The IsShuttingDown flag will be true, so it will close immediately.
+                this.Close();
+            }
         }
         
         private void MediaElement_Loaded(object sender, RoutedEventArgs e)

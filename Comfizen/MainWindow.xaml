@@ -514,6 +514,8 @@
                                                                                                     Height="Auto" />
                                                                                                 <RowDefinition
                                                                                                     Height="Auto" />
+                                                                                                <RowDefinition
+                                                                                                    Height="Auto" />
                                                                             </Grid.RowDefinitions>
 
                                                                             <!-- Preset Name Input -->
@@ -521,14 +523,33 @@
                                                                                                 x:Name="PresetNameTextBox"
                                                                                                 MinWidth="250"
                                                                                      Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" />
+                                                                                            
+                                                                                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
+                                                                                                <RadioButton Content="{local:Translate Presets_SaveAsSnippet}" GroupName="PresetType"
+                                                                                                    IsChecked="{Binding IsSavingAsSnippet, Mode=TwoWay}"/>
+                                                                                                <RadioButton Content="{local:Translate Presets_SaveAsLayout}" GroupName="PresetType" Margin="15,0,0,0"
+                                                                                                    IsChecked="{Binding IsSavingAsLayout, Mode=TwoWay}"/>
+                                                                                            </StackPanel>
 
                                                                             <!-- Field Selection List -->
-                                                                                            <Border Grid.Row="1"
+                                                                                            <Border Grid.Row="2"
                                                                                                 BorderBrush="{StaticResource TertiaryBackground}"
                                                                                                 BorderThickness="0,1"
                                                                                                 Margin="0,8"
                                                                                                 Padding="0,8,0,5">
                                                                                 <StackPanel>
+                                                                                                    <!-- START OF CHANGE: Disable field list for layouts -->
+                                                                                                    <StackPanel.Style>
+                                                                                                        <Style TargetType="StackPanel">
+                                                                                                            <Setter Property="IsEnabled" Value="True"/>
+                                                                                                            <Style.Triggers>
+                                                                                                                <DataTrigger Binding="{Binding IsSavingAsLayout}" Value="True">
+                                                                                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                                                                                </DataTrigger>
+                                                                                                            </Style.Triggers>
+                                                                                                        </Style>
+                                                                                                    </StackPanel.Style>
+                                                                                                    <!-- END OF CHANGE -->
                                                                                                     <TextBlock
                                                                                                         Text="{local:Translate Presets_FieldsToInclude}"
                                                                                                         Margin="0,0,0,5"
@@ -570,7 +591,7 @@
                                                                             </Border>
 
                                                                             <!-- Save Button -->
-                                                                                            <Button Grid.Row="2"
+                                                                                            <Button Grid.Row="3"
                                                                                                 Content="{local:Translate Presets_SaveButton}"
                                                                                     Command="{Binding SavePresetCommand}"
                                                                                     HorizontalAlignment="Right"

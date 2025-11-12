@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -40,6 +41,9 @@ namespace Comfizen
         
         public int MaxQueueSize { get; set; } = 100;
         public bool ShowDeleteConfirmation { get; set; } = true;
+        [DefaultValue(true)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool ShowPresetDeleteConfirmation { get; set; } = true;
         public SeedControl LastSeedControlState { get; set; } = SeedControl.Fixed;
         public List<string> ModelExtensions { get; set; }
         
@@ -160,6 +164,7 @@ namespace Comfizen
                     RecentWorkflows = new List<string>(),
                     MaxQueueSize = 100,
                     ShowDeleteConfirmation = true,
+                    ShowPresetDeleteConfirmation = true,
                     LastSeedControlState = SeedControl.Fixed,
                     ModelExtensions = new List<string> { ".safetensors", ".ckpt", ".pt", ".gguf" },
                     IsConsoleVisible = false,

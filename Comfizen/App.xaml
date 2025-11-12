@@ -35,6 +35,8 @@
         <local:SelectionCountToBooleanConverter x:Key="SelectionCountToBooleanConverter"/>
         <local:AddOneConverter x:Key="AddOneConverter"/>
         <local:IsGreaterThanConverter x:Key="IsGreaterThanConverter"/>
+        <local:InvertBooleanConverter x:Key="InvertBooleanConverter"/>
+        <local:BooleanAndConverter x:Key="BooleanAndConverter"/>
         
         
         
@@ -985,56 +987,297 @@
         <!-- ADD: Reusable template for group preset controls -->
         <DataTemplate x:Key="GroupHeaderPresetControls">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <local:FilterableComboBox Margin="10,0,5,0" VerticalAlignment="Center"
-                                          ItemsSource="{Binding PresetNames}"
-                                          SelectedItem="{Binding SelectedPresetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          MinWidth="120"
-                                          MaxWidth="250"
-                                          Visibility="{Binding Presets.Count, Converter={StaticResource CountToVisibilityConverter}}"
-                                          PlaceholderText="{local:Translate Presets_LoadPlaceholder}">
-                    <local:FilterableComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                
+                <!-- Status Text -->
+                <TextBlock Text="{Binding CurrentStateStatus}" 
+                           VerticalAlignment="Center" 
+                           Foreground="{StaticResource TextSecondaryBrush}" 
+                           Margin="0,0,10,0"
+                           Visibility="{Binding HasPresets, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                                    <TextBlock Grid.Column="0" Text="{Binding}" 
-                                               VerticalAlignment="Center" 
-                                               TextTrimming="CharacterEllipsis" 
-                                               Padding="5,3"/>
-                                    
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5,0">
-                                        <StackPanel.Style>
-                                            <Style TargetType="StackPanel">
-                                                <!-- Reserve space but hide the buttons by default -->
-                                                <Setter Property="Visibility" Value="Hidden"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                        <!-- Show buttons on hover -->
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </StackPanel.Style>
+                <!-- "Layers" Button and Popup -->
+                <Grid>
+                    <ToggleButton x:Name="PresetPanelToggle" 
+                                  Content="&#xE8B4;" 
+                                  FontFamily="Segoe MDL2 Assets" 
+                                  Style="{StaticResource IconToggleButton}" 
+                                  Width="24" Height="24"
+                                  IsChecked="{Binding IsPresetPanelOpen, Mode=TwoWay}"
+                                  ToolTip="{local:Translate Presets_LayersButtonTooltip}"/>
+            
+                    <Popup StaysOpen="False"
+                           PlacementTarget="{Binding ElementName=PresetPanelToggle}"
+                           Placement="Bottom"
+                           AllowsTransparency="True">
+                        <Popup.IsOpen>
+                            <MultiBinding Converter="{StaticResource BooleanAndConverter}">
+                                <Binding Path="IsChecked" ElementName="PresetPanelToggle" Mode="TwoWay"/>
+                                <Binding Path="IsVisible" ElementName="PresetPanelToggle" Mode="OneWay"/>
+                            </MultiBinding>
+                        </Popup.IsOpen>
+                
+                        <Border DataContext="{Binding DataContext, ElementName=PresetPanelToggle}"
+                                Background="{StaticResource SecondaryBackground}"
+                                BorderBrush="{StaticResource TertiaryBackground}"
+                                BorderThickness="1" CornerRadius="3" 
+                                Padding="10" Margin="0,2,0,0"
+                                MinWidth="250" MaxHeight="400"
+                                MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Expander}}">
+                    
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <!-- START OF CHANGES: Search Box and Layout Improvements -->
+                                    <TextBox x:Name="PresetSearchBox"
+                                             Text="{Binding PresetSearchFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             local:TextBoxExtensions.PlaceholderText="{local:Translate Presets_SearchPlaceholder}"
+                                             Margin="0,0,0,10"
+                                             local:FocusBehavior.FocusOnOpen="True"
+                                             /> <!--  -->
+                                    <!-- END OF CHANGES -->
 
-                                        <Button Content="&#xE70F;"
-                                                Command="{Binding DataContext.StartUpdatePresetCommand, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}"
-                                                CommandParameter="{Binding}"
-                                                ToolTip="{local:Translate Presets_UpdateTooltip}"
-                                                Style="{StaticResource IconButton}"/>
-                                        
-                                        <Button Content="&#xE74D;" 
-                                                Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=local:FilterableComboBox}}"
-                                                CommandParameter="{Binding}"
-                                                ToolTip="{local:Translate Presets_DeleteTooltip}"
-                                                Style="{StaticResource IconButton}"/>
-                                    </StackPanel>
-                                </Grid>
-                            </DataTemplate>
-                        </local:FilterableComboBox.ItemTemplate>
-                </local:FilterableComboBox>
+                                    <!-- Active Layers Section -->
+                                    <TextBlock Text="{local:Translate Presets_ActiveLayers}" FontWeight="Bold"/>
+                                    <ItemsControl ItemsSource="{Binding ActiveLayers}" Margin="0,5,0,10">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:ActiveLayerViewModel}">
+                                                <Border CornerRadius="3" Padding="5,3" Margin="0,2">
+                                                    <Border.ToolTip>
+                                                        <ToolTip MaxWidth="400">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding SourcePreset.Name}" FontWeight="Bold" Margin="0,0,0,5"/>
+                                                                <Separator Margin="0,0,0,5"/>
+                                                                <ItemsControl ItemsSource="{Binding SourcePreset.FieldDetails}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate DataType="{x:Type local:PresetFieldInfo}">
+                                                                            <TextBlock TextWrapping="Wrap">
+                                                                                <Run Text="{Binding FieldName}" FontWeight="SemiBold"/>
+                                                                                <TextBlock Text="{Binding TabName, StringFormat=' ({0})'}" Foreground="{StaticResource TextSecondaryBrush}">
+                                                                                    <TextBlock.Style>
+                                                                                        <Style TargetType="TextBlock">
+                                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding ShowTabName}" Value="True">
+                                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </TextBlock.Style>
+                                                                                </TextBlock>
+                                                                                <Run Text=": "/>
+                                                                                <Run Text="{Binding FieldValue}" Foreground="#E6DB74"/>
+                                                                            </TextBlock>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                                <StackPanel>
+                                                                    <StackPanel.Style>
+                                                                        <Style TargetType="StackPanel">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding State}" Value="Modified">
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </StackPanel.Style>
+                                                                    <Separator Margin="0,5,0,5"/>
+                                                                    <TextBlock Text="{local:Translate Presets_State_Modified_Tooltip}" FontStyle="Italic" Foreground="Orange"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </ToolTip>
+                                                    </Border.ToolTip>
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding State}" Value="Modified">
+                                                                    <Setter Property="Background" Value="Orange"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="*" FontWeight="Bold" Margin="2,0,0,0" VerticalAlignment="Center">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding State}" Value="Modified">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                        <!-- END OF XAML FIX -->
+
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                            <Button Content="&#xE74E;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_UpdateTooltip}"
+                                                                    Command="{Binding DataContext.UpdateLayerCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                                                    CommandParameter="{Binding}"/>
+                                                            <Button Content="&#xE72C;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_ReapplyTooltip}"
+                                                                    Command="{Binding DataContext.ReapplyLayerCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                                                    CommandParameter="{Binding}"/>
+                                                            <Button Content="&#xE711;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_DetachTooltip}"
+                                                                    Command="{Binding DataContext.DetachLayerCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                                                    CommandParameter="{Binding}"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- Layouts Section -->
+                                    <TextBlock Text="{local:Translate Presets_Layouts}" FontWeight="Bold" Visibility="{Binding FilteredLayouts.Count, Converter={StaticResource CountToVisibilityConverter}}"/>
+                                    <ItemsControl ItemsSource="{Binding FilteredLayouts}" Margin="0,5,0,10">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:GroupPresetViewModel}">
+                                                <Button Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}" CommandParameter="{Binding}" 
+                                                        HorizontalContentAlignment="Stretch"
+                                                        ToolTipService.InitialShowDelay="0">
+                                                    <Button.ToolTip>
+                                                        <ToolTip MaxWidth="400">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="0,0,0,5"/>
+                                                                <Separator Margin="0,0,0,5"/>
+                                                                <ItemsControl ItemsSource="{Binding FieldDetails}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate DataType="{x:Type local:PresetFieldInfo}">
+                                                                            <TextBlock TextWrapping="Wrap">
+                                                                                <Run Text="{Binding FieldName}" FontWeight="SemiBold"/>
+                                                                                <TextBlock Text="{Binding TabName, StringFormat=' ({0})'}" Foreground="{StaticResource TextSecondaryBrush}">
+                                                                                    <TextBlock.Style>
+                                                                                        <Style TargetType="TextBlock">
+                                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding ShowTabName}" Value="True">
+                                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </TextBlock.Style>
+                                                                                </TextBlock>
+                                                                                <Run Text=": "/>
+                                                                                <Run Text="{Binding FieldValue}" Foreground="#E6DB74"/>
+                                                                            </TextBlock>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </StackPanel>
+                                                        </ToolTip>
+                                                    </Button.ToolTip>
+                                                    <Grid Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Button}}">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" Margin="5,0,0,0" TextWrapping="Wrap"/>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Button Content="&#xE70F;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_UpdateTooltip}"
+                                                                    Command="{Binding DataContext.StartUpdatePresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                                                    CommandParameter="{Binding Name}"/>
+                                                            <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_DeleteTooltip}"
+                                                                    Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                                                    CommandParameter="{Binding Name}"/>
+                                                            <StackPanel.Style>
+                                                                <Style TargetType="StackPanel">
+                                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </StackPanel.Style>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- Snippets Section -->
+                                    <TextBlock Text="{local:Translate Presets_Snippets}" FontWeight="Bold" Visibility="{Binding FilteredSnippets.Count, Converter={StaticResource CountToVisibilityConverter}}"/>
+                                    <ItemsControl ItemsSource="{Binding FilteredSnippets}" Margin="0,5,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:GroupPresetViewModel}">
+                                                <Button Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}" CommandParameter="{Binding}" 
+                                                        HorizontalContentAlignment="Stretch"
+                                                        ToolTipService.InitialShowDelay="0">
+                                                    <Button.ToolTip>
+                                                        <ToolTip MaxWidth="400">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="0,0,0,5"/>
+                                                                <Separator Margin="0,0,0,5"/>
+                                                                <ItemsControl ItemsSource="{Binding FieldDetails}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate DataType="{x:Type local:PresetFieldInfo}">
+                                                                            <TextBlock TextWrapping="Wrap">
+                                                                                <Run Text="{Binding FieldName}" FontWeight="SemiBold"/>
+                                                                                <TextBlock Text="{Binding TabName, StringFormat=' ({0})'}" Foreground="{StaticResource TextSecondaryBrush}">
+                                                                                    <TextBlock.Style>
+                                                                                        <Style TargetType="TextBlock">
+                                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding ShowTabName}" Value="True">
+                                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </TextBlock.Style>
+                                                                                </TextBlock>
+                                                                                <Run Text=": "/>
+                                                                                <Run Text="{Binding FieldValue}" Foreground="#E6DB74"/>
+                                                                            </TextBlock>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </StackPanel>
+                                                        </ToolTip>
+                                                    </Button.ToolTip>
+                                                    <Grid Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Button}}">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" Margin="5,0,0,0" TextWrapping="Wrap"/>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Button Content="&#xE70F;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_UpdateTooltip}"
+                                                                    Command="{Binding DataContext.StartUpdatePresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                                                    CommandParameter="{Binding Name}"/>
+                                                            <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_DeleteTooltip}"
+                                                                    Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                                                    CommandParameter="{Binding Name}"/>
+                                                            <StackPanel.Style>
+                                                                <Style TargetType="StackPanel">
+                                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </StackPanel.Style>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Popup>
+                </Grid>
 
                 <Button Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 
                         Style="{StaticResource IconButton}" Width="24" Height="24"

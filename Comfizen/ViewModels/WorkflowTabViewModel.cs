@@ -124,6 +124,10 @@ namespace Comfizen
             // For virtual tabs, just populate the hooks. There's no session state to apply.
             WorkflowInputsController.PopulateHooks(Workflow.Scripts);
             await WorkflowInputsController.LoadInputs();
+            foreach (var group in WorkflowInputsController.TabLayoouts.SelectMany(t => t.Groups))
+            {
+                group.LoadPresets();
+            }
             ExecuteHook("on_workflow_load", Workflow.LoadedApi);
         }
         // END OF CHANGE
@@ -215,6 +219,10 @@ namespace Comfizen
 
                 // 4. Загружаем контролы в UI
                 await WorkflowInputsController.LoadInputs(sessionData?.LastActiveTabName);
+                foreach (var group in WorkflowInputsController.TabLayoouts.SelectMany(t => t.Groups))
+                {
+                    group.LoadPresets();
+                }
                 ExecuteHook("on_workflow_load", Workflow.LoadedApi);
             }
             catch (Exception ex)

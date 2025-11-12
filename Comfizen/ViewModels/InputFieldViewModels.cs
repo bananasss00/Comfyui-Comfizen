@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -24,6 +25,17 @@ namespace Comfizen
         public string Name { get; set; }
         public string Path { get; set; }
         public bool IsSelected { get; set; }
+    }
+    
+    /// <summary>
+    /// A helper class to store structured information for a preset's tooltip.
+    /// </summary>
+    public class PresetFieldInfo
+    {
+        public string FieldName { get; set; }
+        public string FieldValue { get; set; }
+        public string TabName { get; set; }
+        public bool ShowTabName { get; set; }
     }
     
     /// <summary>
@@ -154,10 +166,113 @@ namespace Comfizen
     {
         public GroupPreset Model { get; }
         public string Name => Model.Name;
+        public bool IsLayout => Model.IsLayout;
+        
+        public List<PresetFieldInfo> FieldDetails { get; private set; } = new List<PresetFieldInfo>();
 
+        public void GenerateToolTip(WorkflowGroupViewModel parentGroup)
+        {
+            var details = new List<PresetFieldInfo>();
+            var allUiFields = parentGroup.Tabs.SelectMany(t => t.Fields).ToList();
+            var showTabNames = parentGroup.Tabs.Count > 1;
+
+            if (IsLayout)
+            {
+                var combinedFields = new Dictionary<string, JToken>();
+                var allSnippetsInGroup = parentGroup.AllPresets.Where(p => !p.IsLayout).ToList();
+
+                if (Model.SnippetNames != null)
+                {
+                    foreach (var snippetName in Model.SnippetNames)
+                    {
+                        var snippet = allSnippetsInGroup.FirstOrDefault(s => s.Name == snippetName);
+                        if (snippet != null)
+                        {
+                            foreach (var valuePair in snippet.Model.Values)
+                            {
+                                combinedFields[valuePair.Key] = valuePair.Value;
+                            }
+                        }
+                    }
+                }
+                
+                    foreach (var combinedPair in combinedFields.OrderBy(kv => kv.Key))
+                    {
+                        var field = allUiFields.FirstOrDefault(f => f.Path == combinedPair.Key);
+                        if (field != null)
+                        {
+                            var tab = parentGroup.Tabs.FirstOrDefault(t => t.Fields.Contains(field));
+                        details.Add(new PresetFieldInfo
+                            {
+                            FieldName = field.Name,
+                            FieldValue = FormatJTokenForDisplay(combinedPair.Value),
+                            TabName = tab?.Name,
+                            ShowTabName = showTabNames
+                        });
+                            }
+                            }
+                        }
+            else // Is Snippet
+            {
+                foreach (var valuePair in Model.Values)
+                {
+                    var field = allUiFields.FirstOrDefault(f => f.Path == valuePair.Key);
+                    if (field != null)
+                    {
+                            var tab = parentGroup.Tabs.FirstOrDefault(t => t.Fields.Contains(field));
+                        details.Add(new PresetFieldInfo
+                        {
+                            FieldName = field.Name,
+                            FieldValue = FormatJTokenForDisplay(valuePair.Value),
+                            TabName = tab?.Name,
+                            ShowTabName = showTabNames
+                        });
+                        }
+                    }
+                }
+            FieldDetails = details;
+            }
+        
+        private string FormatJTokenForDisplay(JToken token)
+        {
+            if (token == null || token.Type == JTokenType.Null) return "null";
+
+            switch (token.Type)
+            {
+                case JTokenType.String:
+                    var str = token.ToString();
+                    if (str.Length > 1000 && (str.StartsWith("iVBOR") || str.StartsWith("/9j/") || str.StartsWith("UklG")))
+                    {
+                        return LocalizationService.Instance["Presets_Base64Placeholder"];
+                    }
+                    return $"\"{str}\"";
+                case JTokenType.Boolean:
+                    return token.ToString().ToLower();
+                default:
+                    return token.ToString();
+            }
+        }
+        
         public GroupPresetViewModel(GroupPreset model)
         {
             Model = model;
+        }
+    }
+    
+    [AddINotifyPropertyChangedInterface]
+    public class ActiveLayerViewModel
+    {
+        public enum LayerState { Normal, Modified }
+        
+        public string Name { get; }
+        public GroupPresetViewModel SourcePreset { get; }
+        public LayerState State { get; set; } = LayerState.Normal;
+
+        public ActiveLayerViewModel(GroupPresetViewModel source)
+        {
+            Name = source.Name;
+            SourcePreset = source;
+            State = LayerState.Normal;
         }
     }
     
@@ -297,6 +412,8 @@ namespace Comfizen
         private readonly WorkflowGroup _model;
         private readonly Workflow _workflow; 
         
+        private readonly AppSettings _settings;
+        
         public WorkflowGroup Model => _model;
        public string Name
        {
@@ -407,57 +524,107 @@ namespace Comfizen
                 }
             }
         }
+        
+        public Guid Id => _model.Id;
+        public bool HasPresets => AllPresets.Any();
+        
+        /// <summary>
+        /// Contains all presets (both Snippets and Layouts) available for this group.
+        /// </summary>
+        public ObservableCollection<GroupPresetViewModel> AllPresets { get; } = new();
+        
+        /// <summary>
+        /// Contains the layers currently applied to this group.
+        /// </summary>
+        public ObservableCollection<ActiveLayerViewModel> ActiveLayers { get; } = new();
+        
+        public string PresetSearchFilter { get; set; }
+        public IEnumerable<GroupPresetViewModel> FilteredSnippets => string.IsNullOrWhiteSpace(PresetSearchFilter)
+            ? Snippets
+            : Snippets.Where(p => PresetSearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .All(term => p.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
+
+        public IEnumerable<GroupPresetViewModel> FilteredLayouts => string.IsNullOrWhiteSpace(PresetSearchFilter)
+            ? Layouts
+            : Layouts.Where(p => PresetSearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .All(term => p.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
+        
+        public IEnumerable<GroupPresetViewModel> Snippets => AllPresets.Where(p => !p.IsLayout);
+        public IEnumerable<GroupPresetViewModel> Layouts => AllPresets.Where(p => p.IsLayout);
+
+        /// <summary>
+        /// A textual representation of the current state based on active layers.
+        /// </summary>
+        public string CurrentStateStatus
+        {
+            get
+            {
+                if (!ActiveLayers.Any()) return LocalizationService.Instance["Presets_State_Unsaved"];
+                
+                var modifiedLayer = ActiveLayers.FirstOrDefault(l => l.State == ActiveLayerViewModel.LayerState.Modified);
+                if (modifiedLayer != null)
+                {
+                    return string.Format(LocalizationService.Instance["Presets_State_Modified"], modifiedLayer.Name);
+                }
+
+                if (ActiveLayers.Count == 1)
+        {
+                    return string.Format(LocalizationService.Instance["Presets_State_Single"], ActiveLayers[0].Name);
+                }
+
+                return string.Format(LocalizationService.Instance["Presets_State_Multiple"], ActiveLayers.Count);
+            }
+        }
+
+        public bool IsPresetPanelOpen { get; set; }
 
         // Свойство для InpaintEditor
         public InpaintEditor InpaintEditorControl { get; set; }
         public bool HasInpaintEditor => InpaintEditorControl != null;
         
-        public Guid Id => _model.Id;
-        public bool HasPresets => Presets.Any();
-        public ObservableCollection<GroupPresetViewModel> Presets { get; } = new();
         public ObservableCollection<PresetFieldSelectionViewModel> FieldsForPresetSelection { get; } = new();
 
-        private GroupPresetViewModel _selectedPreset;
-        public GroupPresetViewModel SelectedPreset
-        {
-            get => _selectedPreset;
-            set
-            {
-                if (_selectedPreset != value)
-                {
-                    _selectedPreset = value;
-                    OnPropertyChanged(nameof(SelectedPreset));
-                    // Notify that the name has also changed for the FilterableComboBox
-                    OnPropertyChanged(nameof(SelectedPresetName));
-                }
-            }
-        }
-        
-        public IEnumerable<string> PresetNames => Presets.Select(p => p.Name).ToList();
-
-        // NEW: Property to bind to the FilterableComboBox's string-based SelectedItem
-        public string SelectedPresetName
-        {
-            get => SelectedPreset?.Name;
-            set
-            {
-                if (SelectedPreset?.Name != value)
-                {
-                    // Find the full preset object by name and update the main property
-                    SelectedPreset = Presets.FirstOrDefault(p => p.Name == value);
-                }
-            }
-        }
-        
         public bool IsSavePresetPopupOpen { get; set; }
         public string NewPresetName { get; set; }
+        
+        private bool _isSavingAsLayout;
+        /// <summary>
+        /// Determines the type of preset to be saved. True for Layout, False for Snippet.
+        /// </summary>
+        public bool IsSavingAsLayout 
+        {
+            get => _isSavingAsLayout;
+            set
+            {
+                if (_isSavingAsLayout != value)
+                {
+                    _isSavingAsLayout = value;
+                    OnPropertyChanged(nameof(IsSavingAsLayout));
+                    OnPropertyChanged(nameof(IsSavingAsSnippet)); // Notify that the other property also changed
+                }
+            }
+        }
+        
+        public bool IsSavingAsSnippet
+        {
+            get => !_isSavingAsLayout;
+            set => IsSavingAsLayout = !value;
+        }
+        
+        public bool NewPresetIsLayout { get; set; }
         public ICommand OpenSavePresetPopupCommand { get; }
         public ICommand StartUpdatePresetCommand { get; }
         private string _presetToUpdateName;
         public ICommand SavePresetCommand { get; }
         public ICommand DeletePresetCommand { get; }
+        
+        
         public ICommand ApplyPresetCommand { get; }
-        public ICommand ApplySelectedPresetCommand { get; }
+        public ICommand DetachLayerCommand { get; }
+        public ICommand ReapplyLayerCommand { get; }
+        public ICommand UpdateLayerCommand { get; }
+        
+
         public ICommand SelectAllFieldsForPresetCommand { get; }
         public ICommand DeselectAllFieldsForPresetCommand { get; }
         public ICommand AddTabCommand { get; }
@@ -491,10 +658,11 @@ namespace Comfizen
         
         private bool _isApplyingPreset = false; // Flag to prevent re-entrancy issues
         
-        public WorkflowGroupViewModel(WorkflowGroup model, Workflow workflow)
+        public WorkflowGroupViewModel(WorkflowGroup model, Workflow workflow, AppSettings settings)
         {
             _model = model;
             _workflow = workflow; // Store the reference
+            _settings = settings;
             
             foreach (var tabModel in _model.Tabs)
             {
@@ -503,24 +671,39 @@ namespace Comfizen
             }
             SelectedTab = Tabs.FirstOrDefault();
             
-            this.PropertyChanged += (sender, args) =>
+            // --- NEW: Refresh status text when layers change ---
+            ActiveLayers.CollectionChanged += (s, e) => OnPropertyChanged(nameof(CurrentStateStatus));
+            
+            // --- NEW: Refresh filtered lists when search text changes ---
+            this.PropertyChanged += (s, e) =>
             {
-                if (args.PropertyName == nameof(SelectedPreset) && SelectedPreset != null && !_isApplyingPreset)
+                if (e.PropertyName == nameof(PresetSearchFilter))
                 {
-                    ApplyPreset(SelectedPreset);
+                    OnPropertyChanged(nameof(FilteredSnippets));
+                    OnPropertyChanged(nameof(FilteredLayouts));
                 }
             };
+            
             LoadPresets();
             
-            ApplySelectedPresetCommand = new RelayCommand(
-                _ => ApplyPreset(SelectedPreset), 
-                _ => SelectedPreset != null 
-            );
+            ApplyPresetCommand = new RelayCommand(p => ApplyPreset(p as GroupPresetViewModel));
+            DetachLayerCommand = new RelayCommand(p => DetachLayer(p as ActiveLayerViewModel));
+            ReapplyLayerCommand = new RelayCommand(p => ReapplyLayer(p as ActiveLayerViewModel));
+            UpdateLayerCommand = new RelayCommand(p =>
+            {
+                if (p is ActiveLayerViewModel layer)
+                {
+                    // The "Update" command on a layer is just a shortcut for starting the update process.
+                    StartUpdatePresetCommand.Execute(layer.Name);
+                }
+            });
             
             OpenSavePresetPopupCommand = new RelayCommand(_ => 
             {
-                NewPresetName = SelectedPresetName;
-                
+                NewPresetName = "";
+                IsSavingAsLayout = ActiveLayers.Any();
+                NewPresetIsLayout = ActiveLayers.Any(); // Default to layout if layers are active
+
                 FieldsForPresetSelection.Clear();
                 var savableFields = Tabs.SelectMany(t => t.Fields)
                     .Where(f => f.Type != FieldType.ScriptButton)
@@ -545,9 +728,28 @@ namespace Comfizen
                     _presetToUpdateName = presetName;
                     NewPresetName = presetName;
                     
+                    var existingPresetVm = AllPresets.FirstOrDefault(p => p.Name == presetName);
+                    if (existingPresetVm == null) return;
+
+                    IsSavingAsLayout = existingPresetVm.IsLayout;
+
                     FieldsForPresetSelection.Clear();
-                    var existingPreset = Presets.FirstOrDefault(p => p.Name == presetName)?.Model;
-                    var existingPresetPaths = new HashSet<string>(existingPreset?.Values.Keys ?? Enumerable.Empty<string>());
+                    
+                    HashSet<string> selectedPaths;
+                    if (existingPresetVm.IsLayout)
+                    {
+                        // For layouts, select fields from all contained snippets
+                        selectedPaths = new HashSet<string>();
+                        var snippetsInLayout = AllPresets.Where(p => !p.IsLayout && existingPresetVm.Model.SnippetNames.Contains(p.Name));
+                        foreach (var path in snippetsInLayout.SelectMany(s => s.Model.Values.Keys))
+                        {
+                            selectedPaths.Add(path);
+                        }
+                    }
+                    else
+                    {
+                        selectedPaths = new HashSet<string>(existingPresetVm.Model.Values.Keys);
+                    }
 
                     var savableFields = Tabs.SelectMany(t => t.Fields)
                         .Where(f => f.Type != FieldType.ScriptButton)
@@ -559,9 +761,10 @@ namespace Comfizen
                         {
                             Name = field.Name,
                             Path = field.Path,
-                            IsSelected = existingPreset == null || existingPresetPaths.Contains(field.Path)
+                            IsSelected = selectedPaths.Contains(field.Path)
                         });
                     }
+                    
                     IsSavePresetPopupOpen = true;
                 }
             });
@@ -578,43 +781,37 @@ namespace Comfizen
                     }
                 }
                 
-                SaveCurrentStateAsPreset(NewPresetName, FieldsForPresetSelection.Where(f => f.IsSelected));
-
+                SaveCurrentStateAsPreset(NewPresetName, FieldsForPresetSelection.Where(f => f.IsSelected), IsSavingAsLayout);
+                
                 _presetToUpdateName = null;
                 IsSavePresetPopupOpen = false;
                 NewPresetName = string.Empty;
 
-                LoadPresets();
+                LoadPresets(); // This will also rebuild active layers
                 PresetsModified?.Invoke();
 
+                // REMOVED: The block that tried to set the old SelectedPreset property
             }, _ => !string.IsNullOrWhiteSpace(NewPresetName));
 
             DeletePresetCommand = new RelayCommand(param =>
             {
                 if (param is string presetName)
                 {
-                    var message = string.Format(LocalizationService.Instance["Presets_DeleteConfirmMessage"], presetName);
-                    var caption = LocalizationService.Instance["Presets_DeleteConfirmTitle"];
-                    
-                    if (MessageBox.Show(message, caption, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                    // --- START OF CHANGE ---
+                    bool proceed = !_settings.ShowPresetDeleteConfirmation ||
+                                   (MessageBox.Show(
+                                       string.Format(LocalizationService.Instance["Presets_DeleteConfirmMessage"], presetName),
+                                       LocalizationService.Instance["Presets_DeleteConfirmTitle"],
+                                       MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
+
+                    if (proceed)
                     {
-                        var presetVM = Presets.FirstOrDefault(p => p.Name == presetName);
-                        if (presetVM != null)
-                        {
-                            DeletePreset(presetVM);
+                        DeletePreset(presetName);
                         }
+                    // --- END OF CHANGE ---
                     }
-                }
             });
-            
-            ApplyPresetCommand = new RelayCommand(param =>
-            {
-                if (param is GroupPresetViewModel presetVM)
-                {
-                    ApplyPreset(presetVM);
-                }
-            });
-            
+
             SelectAllFieldsForPresetCommand = new RelayCommand(_ => ToggleAllFieldsForPreset(true));
             DeselectAllFieldsForPresetCommand = new RelayCommand(_ => ToggleAllFieldsForPreset(false));
 
@@ -660,31 +857,28 @@ namespace Comfizen
                 return;
             }
 
-            // --- START OF CHANGE: Create a more detailed, human-readable export structure ---
-            var exportablePresets = new List<object>();
+            // --- START OF REWORK: Create a more detailed, human-readable export structure ---
             var allFieldsInGroup = this.Tabs.SelectMany(t => t.Fields).ToList();
-
-            foreach (var preset in presets)
+            
+            var exportableSnippets = presets.Where(p => !p.IsLayout).Select(snippet => new
             {
-                var exportableFields = new List<object>();
-                foreach (var valuePair in preset.Values)
+                name = snippet.Name,
+                fields = snippet.Values.Select(valuePair => new
                 {
-                    var fieldVm = allFieldsInGroup.FirstOrDefault(f => f.Path == valuePair.Key);
-                    exportableFields.Add(new
-                    {
-                        name = fieldVm?.Name ?? "Unknown Field", // Include the field name
-                        path = valuePair.Key,
-                        value = valuePair.Value
-                    });
-                }
-                
-                exportablePresets.Add(new
-                {
-                    name = preset.Name,
-                    fields = exportableFields
-                });
-            }
-            // --- END OF CHANGE ---
+                    name = allFieldsInGroup.FirstOrDefault(f => f.Path == valuePair.Key)?.Name ?? "Unknown Field",
+                    path = valuePair.Key,
+                    value = valuePair.Value
+                }).ToList()
+            }).ToList();
+            
+            var exportableLayouts = presets.Where(p => p.IsLayout).ToList();
+
+            var exportData = new
+            {
+                snippets = exportableSnippets,
+                layouts = exportableLayouts
+            };
+            // --- END OF REWORK ---
 
             var dialog = new SaveFileDialog
             {
@@ -696,14 +890,10 @@ namespace Comfizen
             {
                 try
                 {
-                    // Serialize the new structure
-                    var json = JsonConvert.SerializeObject(exportablePresets, Formatting.Indented);
+                    var json = JsonConvert.SerializeObject(exportData, Formatting.Indented);
                     File.WriteAllText(dialog.FileName, json);
-                    MessageBox.Show(
-                        string.Format(LocalizationService.Instance["Presets_ExportSuccessMessage"], Name),
-                        LocalizationService.Instance["Presets_ExportSuccessTitle"],
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    Logger.LogToConsole(
+                        string.Format(LocalizationService.Instance["Presets_ExportSuccessMessage"], Name));
                 }
                 catch (Exception ex)
                 {
@@ -725,45 +915,85 @@ namespace Comfizen
                 {
                     var json = File.ReadAllText(dialog.FileName);
                     
-                    var tempJArray = JArray.Parse(json);
-                    var importedPresets = new List<GroupPreset>();
+                    // --- START OF REWORK: Deserialize new detailed structure and handle legacy format ---
+                    var importedSnippets = new List<GroupPreset>();
+                    var importedLayouts = new List<GroupPreset>();
 
-                    foreach (var token in tempJArray)
+                    var tempJson = JObject.Parse(json);
+
+                    if (tempJson["snippets"] != null || tempJson["layouts"] != null)
                     {
-                        var presetName = token["name"]?.ToString();
-                        var fields = token["fields"] as JArray;
-
-                        if (string.IsNullOrEmpty(presetName) || fields == null) continue;
-
-                        var newPreset = new GroupPreset { Name = presetName };
-                        foreach (var fieldToken in fields)
+                        // New detailed format
+                        if (tempJson["snippets"] is JArray snippetsArray)
                         {
-                            var path = fieldToken["path"]?.ToString();
-                            var value = fieldToken["value"];
-
-                            if (!string.IsNullOrEmpty(path) && value != null)
+                            foreach (var token in snippetsArray)
                             {
-                                newPreset.Values[path] = value;
+                                var snippetName = token["name"]?.ToString();
+                                var fields = token["fields"] as JArray;
+
+                                if (string.IsNullOrEmpty(snippetName) || fields == null) continue;
+
+                                var newSnippet = new GroupPreset { Name = snippetName };
+                                foreach (var fieldToken in fields)
+                                {
+                                    var path = fieldToken["path"]?.ToString();
+                                    var value = fieldToken["value"];
+                                    // The 'name' field is ignored on import, only 'path' is used.
+                                    if (!string.IsNullOrEmpty(path) && value != null)
+                                    {
+                                        newSnippet.Values[path] = value;
+                                    }
+                                }
+                                importedSnippets.Add(newSnippet);
                             }
                         }
-                        importedPresets.Add(newPreset);
+                        importedLayouts = tempJson["layouts"]?.ToObject<List<GroupPreset>>() ?? new List<GroupPreset>();
                     }
+                    else // Legacy format (simple array)
+                    {
+                        var legacyPresets = JArray.Parse(json).ToObject<List<GroupPreset>>();
+                        if (legacyPresets != null)
+                        {
+                            importedSnippets.AddRange(legacyPresets.Where(p => !p.IsLayout));
+                        }
+                    }
+                    
+                    var allImportedPresets = importedSnippets.Concat(importedLayouts).ToList();
 
-
-                    if (importedPresets == null || !importedPresets.Any())
+                    if (!allImportedPresets.Any())
                     {
                         throw new Exception("File is empty or has an invalid format.");
                     }
+                    // --- END OF REWORK ---
 
-                    var confirmResult = MessageBox.Show(
-                        string.Format(LocalizationService.Instance["Presets_ImportConfirmMessage"], Name),
-                        LocalizationService.Instance["Presets_ImportConfirmTitle"],
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Warning);
-
-                    if (confirmResult != MessageBoxResult.Yes) return;
+                    var message = string.Format(LocalizationService.Instance["Presets_ImportConfirmMessage"], allImportedPresets.Count, Name);
+                    var caption = LocalizationService.Instance["Presets_ImportConfirmTitle"];
                     
-                    _workflow.Presets[Id] = importedPresets;
+                    var messageBoxResult = MessageBox.Show(message, caption, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+                    
+                    if (messageBoxResult == MessageBoxResult.Cancel) return;
+
+                    var existingPresets = _workflow.Presets.ContainsKey(Id) ? _workflow.Presets[Id] : new List<GroupPreset>();
+
+                    if (messageBoxResult == MessageBoxResult.Yes) // Yes = Replace
+                    {
+                        _workflow.Presets[Id] = allImportedPresets;
+                    }
+                    else // No = Merge
+                    {
+                        foreach (var importedPreset in allImportedPresets)
+                        {
+                            var existing = existingPresets.FirstOrDefault(p => p.Name.Equals(importedPreset.Name, StringComparison.OrdinalIgnoreCase));
+                            if (existing != null)
+                            {
+                                // Overwrite existing preset with imported one
+                                existingPresets.Remove(existing);
+                            }
+                            existingPresets.Add(importedPreset);
+                        }
+                        _workflow.Presets[Id] = existingPresets;
+                    }
+                    // --- END OF REWORK ---
                     
                     ReloadPresetsAndNotify();
 
@@ -795,81 +1025,366 @@ namespace Comfizen
         }
         
         // --- START OF CHANGES: New methods for preset logic ---
-        private void LoadPresets()
+        public void LoadPresets()
         {
-            Presets.Clear();
+            AllPresets.Clear();
             if (_workflow.Presets.TryGetValue(Id, out var presets))
             {
                 foreach (var preset in presets.OrderBy(p => p.Name))
                 {
-                    Presets.Add(new GroupPresetViewModel(preset));
+                    var presetVM = new GroupPresetViewModel(preset);
+                    AllPresets.Add(presetVM);
                 }
             }
-            // CHANGE: Notify that the names list has been updated
-            OnPropertyChanged(nameof(PresetNames));
+            
+            // Generate tooltips for all presets after they have been loaded.
+            foreach (var presetVM in AllPresets)
+            {
+                presetVM.GenerateToolTip(this);
+            }
+            
+            OnPropertyChanged(nameof(Snippets));
+            OnPropertyChanged(nameof(Layouts));
+            
+            OnPropertyChanged(nameof(FilteredSnippets));
+            OnPropertyChanged(nameof(FilteredLayouts));
+            
+            RebuildActiveLayersFromState();
         }
 
         public void ApplyPreset(GroupPresetViewModel presetVM)
         {
-            _isApplyingPreset = true; // Set flag at the beginning
-            try
+            if (presetVM == null) return;
+
+            // If it's a Layout, apply its snippets recursively
+            if (presetVM.IsLayout && presetVM.Model.SnippetNames != null)
             {
-                var changedFields = new List<InputFieldViewModel>();
-                
-                if (SelectedPreset != presetVM)
+                foreach (var snippetName in presetVM.Model.SnippetNames)
                 {
-                    SelectedPreset = presetVM;
+                    var snippetVM = AllPresets.FirstOrDefault(p => !p.IsLayout && p.Name == snippetName);
+                    if (snippetVM != null)
+                    {
+                        ApplySnippet(snippetVM, isPartOfLayout: true);
                 }
+                }
+            }
+            // If it's a Snippet, apply it directly
+            else if (!presetVM.IsLayout)
+            {
+                ApplySnippet(presetVM);
+            }
+        }
                 
-                foreach (var valuePair in presetVM.Model.Values)
+        private void ApplySnippet(GroupPresetViewModel snippetVM, bool isPartOfLayout = false)
                 {
-                    var fieldPath = valuePair.Key;
-                    var presetValue = valuePair.Value;
+            if (snippetVM == null || snippetVM.IsLayout) return;
 
-                    var fieldVM = Tabs.SelectMany(t => t.Fields).FirstOrDefault(f => f.Path == fieldPath);
-                    if (fieldVM == null) continue;
+            var changedFields = new List<InputFieldViewModel>();
+            var conflictingLayers = new List<ActiveLayerViewModel>();
 
-                    bool valueChanged = false;
-                    if (fieldVM is MarkdownFieldViewModel markdownVm)
+            // Check for conflicts: find any active layers that modify the same fields
+            var fieldsInNewSnippet = snippetVM.Model.Values.Keys.ToHashSet();
+            foreach (var activeLayer in ActiveLayers)
                     {
-                        if (markdownVm.Value != presetValue.ToString())
+                var fieldsInActiveLayer = activeLayer.SourcePreset.Model.Values.Keys;
+                if (fieldsInActiveLayer.Any(fieldsInNewSnippet.Contains))
                         {
-                            markdownVm.Value = presetValue.ToString();
-                            valueChanged = true;
-                        }
-                    }
-                    else
-                    {
-                        var prop = _workflow.GetPropertyByPath(fieldPath);
-                        if (prop != null && !Utils.AreJTokensEquivalent(prop.Value, presetValue))
-                        {
-                            prop.Value = presetValue.DeepClone();
-                            (fieldVM as dynamic)?.RefreshValue();
-                            valueChanged = true;
+                    conflictingLayers.Add(activeLayer);
                         }
                     }
 
-                    if (valueChanged)
+            // Detach conflicting layers
+            foreach (var layerToRemove in conflictingLayers)
+                    {
+                ActiveLayers.Remove(layerToRemove);
+                Logger.LogToConsole($"Layer '{layerToRemove.Name}' was detached because '{snippetVM.Name}' modifies the same fields.");
+            }
+            
+            // Apply the new values
+            foreach (var valuePair in snippetVM.Model.Values)
+                        {
+                var fieldVM = Tabs.SelectMany(t => t.Fields).FirstOrDefault(f => f.Path == valuePair.Key);
+                if (fieldVM == null) continue;
+
+                if (ApplyFieldValue(fieldVM, valuePair.Value))
                     {
                         changedFields.Add(fieldVM);
                     }
                 }
 
-                // english: Trigger highlight effect if any fields were changed. This is a fire-and-forget async void method,
-                // which is acceptable here for a purely visual effect that doesn't need to be awaited.
+            // Add the new layer to the active list
+            var existingLayer = ActiveLayers.FirstOrDefault(l => l.Name == snippetVM.Name);
+            if (existingLayer == null)
+            {
+                ActiveLayers.Add(new ActiveLayerViewModel(snippetVM));
+            }
+
+            OnPropertyChanged(nameof(CurrentStateStatus));
+            
                 if (changedFields.Any())
                 {
-                    _fieldsPendingHighlight.AddRange(changedFields);
-                    // Trigger for the currently active tab immediately
-                    if (SelectedTab != null)
+                // 1. Add ALL changed fields (from all tabs) to the pending list.
+                _fieldsPendingHighlight.AddRange(changedFields);
+
+                // 2. Immediately trigger highlighting ONLY for pending fields
+                //    that are on the currently visible tab.
+                if (SelectedTab != null)
+                {
+                    TriggerPendingHighlightsForTab(SelectedTab);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// A new method to handle field value changes from presets.
+        /// Returns true if the value was changed.
+        /// </summary>
+        private bool ApplyFieldValue(InputFieldViewModel fieldVM, JToken presetValue)
+            {
+            bool valueChanged = false;
+            if (fieldVM is MarkdownFieldViewModel markdownVm)
+            {
+                if (markdownVm.Value != presetValue.ToString())
+                {
+                    markdownVm.Value = presetValue.ToString();
+                    valueChanged = true;
+            }
+        }
+            else if (fieldVM is NodeBypassFieldViewModel bypassVm)
+            {
+                var presetBool = presetValue.ToObject<bool>();
+                if (bypassVm.IsEnabled != presetBool)
+                {
+                    bypassVm.IsEnabled = presetBool;
+                    valueChanged = true;
+                }
+            }
+            else
+        {
+                var prop = _workflow.GetPropertyByPath(fieldVM.Path);
+                if (prop != null && !Utils.AreJTokensEquivalent(prop.Value, presetValue))
+            {
+                    prop.Value = presetValue.DeepClone();
+                    (fieldVM as dynamic)?.RefreshValue();
+                    valueChanged = true;
+            }
+        }
+            return valueChanged;
+        }
+        
+        /// <summary>
+        /// Detaches a layer, effectively marking its fields as manually set.
+        /// </summary>
+        private void DetachLayer(ActiveLayerViewModel layerVM)
+        {
+            if (layerVM != null)
+            {
+                ActiveLayers.Remove(layerVM);
+            }
+        }
+
+        /// <summary>
+        /// Re-applies the original values from a layer, reverting any manual changes.
+        /// </summary>
+        private void ReapplyLayer(ActiveLayerViewModel layerVM)
+            {
+            if (layerVM == null) return;
+            
+            ApplyPreset(layerVM.SourcePreset);
+            layerVM.State = ActiveLayerViewModel.LayerState.Normal;
+            OnPropertyChanged(nameof(CurrentStateStatus));
+            }
+
+        
+        private void SaveCurrentStateAsPreset(string name, IEnumerable<PresetFieldSelectionViewModel> selectedFields, bool isLayout)
+        {
+            var newPreset = new GroupPreset { Name = name, IsLayout = isLayout };
+
+            if (isLayout)
+            {
+                newPreset.SnippetNames = ActiveLayers.Select(l => l.Name).ToList();
+            }
+            else
+            {
+            var selectedFieldPaths = new HashSet<string>(selectedFields.Select(f => f.Path));
+            foreach (var field in Tabs.SelectMany(t => t.Fields))
+            {
+                    if (!selectedFieldPaths.Contains(field.Path)) continue;
+                
+                if (field is MarkdownFieldViewModel markdownVm)
+                {
+                    newPreset.Values[field.Path] = new JValue(markdownVm.Value);
+                }
+                    else if (field is NodeBypassFieldViewModel bypassVm)
                     {
-                        TriggerPendingHighlightsForTab(SelectedTab);
+                        newPreset.Values[field.Path] = new JValue(bypassVm.IsEnabled);
+                    }
+                else if (field.Property != null)
+                {
+                    var prop = _workflow.GetPropertyByPath(field.Path);
+                    if (prop != null)
+                    {
+                        newPreset.Values[field.Path] = prop.Value.DeepClone();
                     }
                 }
             }
-            finally
+            }
+
+            if (!_workflow.Presets.ContainsKey(Id))
             {
-                _isApplyingPreset = false; // Unset flag at the end
+                _workflow.Presets[Id] = new List<GroupPreset>();
+            }
+            
+            _workflow.Presets[Id].RemoveAll(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            _workflow.Presets[Id].Add(newPreset);
+            
+            LoadPresets();
+            PresetsModified?.Invoke();
+        }
+
+        private void DeletePreset(string presetName)
+        {
+            if (_workflow.Presets.TryGetValue(Id, out var presets))
+            {
+                presets.RemoveAll(p => p.Name == presetName);
+            
+                // Also remove this preset if it's part of any Layouts
+                foreach (var layout in presets.Where(p => p.IsLayout && p.SnippetNames != null))
+                {
+                    layout.SnippetNames.RemoveAll(sn => sn == presetName);
+                }
+
+                LoadPresets(); // This reloads AllPresets and rebuilds ActiveLayers
+            PresetsModified?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Analyzes the current state of fields and reconstructs the ActiveLayers collection.
+        /// This is crucial for session loading and backward compatibility.
+        /// It's public so the WorkflowInputsController can call it after session data is loaded.
+        /// </summary>
+        public void RebuildActiveLayersFromState()
+            {
+            ActiveLayers.Clear();
+            if (!AllPresets.Any())
+            {
+                OnPropertyChanged(nameof(CurrentStateStatus));
+                return;
+            }
+
+            var currentState = Tabs.SelectMany(t => t.Fields)
+                .Where(f => f.Property != null || f is MarkdownFieldViewModel || f is NodeBypassFieldViewModel)
+                .ToDictionary(f => f.Path, f => GetFieldValueAsJToken(f));
+
+            // --- START OF REWORKED LOGIC ---
+            // 1. Find all snippets where every single one of its fields perfectly matches the current UI state.
+            var perfectlyMatchedSnippets = Snippets
+                .Where(s => s.Model.Values.Any() && s.Model.Values.All(p => 
+                    currentState.TryGetValue(p.Key, out var val) && Utils.AreJTokensEquivalent(val, p.Value)))
+                .ToList();
+
+            // 2. Filter out snippets that are subsets of other perfectly matched snippets.
+            //    This ensures only the most "complete" or "maximal" presets are shown as active.
+            var finalActiveSnippets = new List<GroupPresetViewModel>();
+            foreach (var candidate in perfectlyMatchedSnippets)
+            {
+                bool isSubsetOfAnother = perfectlyMatchedSnippets.Any(other => 
+                    candidate != other && 
+                    candidate.Model.Values.Keys.All(key => other.Model.Values.ContainsKey(key)));
+
+                if (!isSubsetOfAnother)
+                {
+                    finalActiveSnippets.Add(candidate);
+                        }
+            }
+
+            // 3. Add the final list to the active layers.
+            //    On session load, layers are always considered "Normal", not "Modified".
+            foreach (var snippet in finalActiveSnippets)
+            {
+                ActiveLayers.Add(new ActiveLayerViewModel(snippet));
+            }
+            // --- END OF REWORKED LOGIC ---
+            
+            OnPropertyChanged(nameof(CurrentStateStatus));
+        }
+
+        /// <summary>
+        /// Checks if the current state of the UI matches a specific snippet.
+        /// </summary>
+        private bool IsStateMatchingSnippet(GroupPresetViewModel snippetVM, Dictionary<string, JToken> currentState)
+        {
+            if (snippetVM.IsLayout || !snippetVM.Model.Values.Any())
+            {
+                return false;
+            }
+            
+            foreach (var presetPair in snippetVM.Model.Values)
+            {
+                if (!currentState.TryGetValue(presetPair.Key, out var currentValue) || !Utils.AreJTokensEquivalent(currentValue, presetPair.Value))
+                {
+                    return false; // A field doesn't match
+        }
+            }
+            return true; // All fields in the snippet match
+        }
+
+        private JToken GetFieldValueAsJToken(InputFieldViewModel fieldVM)
+        {
+            if (fieldVM is MarkdownFieldViewModel markdownVM)
+            {
+                return new JValue(markdownVM.Value ?? "");
+            }
+            if (fieldVM is NodeBypassFieldViewModel bypassVM)
+            {
+                return new JValue(bypassVM.IsEnabled);
+            }
+            return _workflow.GetPropertyByPath(fieldVM.Path)?.Value;
+        }
+
+        /// <summary>
+        /// Called when a field's value is changed by the user.
+        /// Updates the state of any Active Layer that controls this field and checks for new matching snippets.
+        /// </summary>
+        public void NotifyFieldValueChanged(InputFieldViewModel fieldVM)
+        {
+            bool stateChanged = false;
+            var currentState = Tabs.SelectMany(t => t.Fields)
+                .Where(f => f.Property != null || f is MarkdownFieldViewModel || f is NodeBypassFieldViewModel)
+                .ToDictionary(f => f.Path, f => GetFieldValueAsJToken(f));
+
+            // Check for newly matching snippets
+            var activeLayerNames = ActiveLayers.Select(l => l.Name).ToHashSet();
+            var nonActiveSnippets = Snippets.Where(s => !activeLayerNames.Contains(s.Name));
+
+            foreach (var snippetToCheck in nonActiveSnippets)
+            {
+                if (IsStateMatchingSnippet(snippetToCheck, currentState))
+                {
+                    ApplySnippet(snippetToCheck);
+                    stateChanged = true;
+                }
+            }
+            
+            // --- START OF REWORKED LOGIC ---
+            // Re-evaluate the state of all currently active layers.
+            foreach (var layer in ActiveLayers)
+            {
+                var isNowMatching = IsStateMatchingSnippet(layer.SourcePreset, currentState);
+                var newState = isNowMatching ? ActiveLayerViewModel.LayerState.Normal : ActiveLayerViewModel.LayerState.Modified;
+
+                if (layer.State != newState)
+                    {
+                    layer.State = newState;
+                            stateChanged = true;
+                        }
+                    }
+            // --- END OF REWORKED LOGIC ---
+
+            if (stateChanged)
+            {
+                OnPropertyChanged(nameof(CurrentStateStatus));
             }
         }
         
@@ -911,62 +1426,6 @@ namespace Comfizen
             }
         }
 
-        private void SaveCurrentStateAsPreset(string name, IEnumerable<PresetFieldSelectionViewModel> selectedFields)
-        {
-            var newPreset = new GroupPreset { Name = name };
-            var selectedFieldPaths = new HashSet<string>(selectedFields.Select(f => f.Path));
-            
-            foreach (var field in Tabs.SelectMany(t => t.Fields))
-            {
-                if (!selectedFieldPaths.Contains(field.Path))
-                {
-                    continue;
-                }
-                
-                if (field is MarkdownFieldViewModel markdownVm)
-                {
-                    newPreset.Values[field.Path] = new JValue(markdownVm.Value);
-                }
-                else if (field.Property != null)
-                {
-                    var prop = _workflow.GetPropertyByPath(field.Path);
-                    if (prop != null)
-                    {
-                        newPreset.Values[field.Path] = prop.Value.DeepClone();
-                    }
-                }
-            }
-
-            if (!_workflow.Presets.ContainsKey(Id))
-            {
-                _workflow.Presets[Id] = new List<GroupPreset>();
-            }
-            
-            _workflow.Presets[Id].RemoveAll(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            _workflow.Presets[Id].Add(newPreset);
-            
-            LoadPresets();
-            
-            PresetsModified?.Invoke();
-
-            var newlySavedPreset = Presets.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            if (newlySavedPreset != null)
-            {
-                SelectedPreset = newlySavedPreset;
-            }
-        }
-
-        private void DeletePreset(GroupPresetViewModel presetVM)
-        {
-            if (_workflow.Presets.TryGetValue(Id, out var presets))
-            {
-                presets.Remove(presetVM.Model);
-                Presets.Remove(presetVM);
-                PresetsModified?.Invoke();
-                // CHANGE: Notify that the names list has been updated
-                OnPropertyChanged(nameof(PresetNames));
-            }
-        }
         
         /// <summary>
         /// Compares the current state of the group's fields against a preset to check for a match.

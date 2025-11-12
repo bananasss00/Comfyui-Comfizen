@@ -25,6 +25,7 @@ class AppSettings:
     JpgQuality: int
     MaxQueueSize: int
     ShowDeleteConfirmation: bool
+    ShowPresetDeleteConfirmation: bool
     LastSeedControlState: str  # "Fixed", "Increment", "Decrement", "Randomize"
     MaxRecentWorkflows: int
     RecentWorkflows: List[str]
