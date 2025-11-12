@@ -413,9 +413,12 @@ namespace Comfizen
             foreach (var group in Workflow.Groups)
             {
                 group.Tabs.CollectionChanged += OnGroupSubTabsChanged;
-                foreach (var field in group.Fields)
+                foreach (var tab in group.Tabs)
                 {
-                    field.PropertyChanged += OnFieldPropertyChanged;
+                    foreach (var field in tab.Fields)
+                    {
+                        field.PropertyChanged += OnFieldPropertyChanged;
+                    }
                 }
             }
         }
@@ -1010,11 +1013,14 @@ namespace Comfizen
         {
             foreach (var group in Workflow.Groups)
             {
-                foreach (var field in group.Fields)
+                foreach (var tab in group.Tabs)
                 {
-                    if (field.Type == FieldType.ScriptButton && field.ActionName == oldName)
+                    foreach (var field in tab.Fields)
                     {
-                        field.ActionName = newName;
+                        if (field.Type == FieldType.ScriptButton && field.ActionName == oldName)
+                        {
+                            field.ActionName = newName;
+                        }
                     }
                 }
             }
@@ -1164,24 +1170,28 @@ namespace Comfizen
 
             foreach (var group in Workflow.Groups)
             {
-                foreach (var field in group.Fields)
+                // --- START OF CHANGE: Iterate through sub-tabs to find fields ---
+                foreach (var tab in group.Tabs)
                 {
-                    // Virtual fields don't have a real path, so they can't be invalid in this context.
-                    if (field.Path.StartsWith("virtual_"))
+                    foreach (var field in tab.Fields)
                     {
-                        field.IsInvalid = false;
-                        continue;
-                    }
-                    
-                    var property = Workflow.GetPropertyByPath(field.Path);
-                    if (property == null)
-                    {
-                        field.IsInvalid = true;
-                        invalidFields.Add($"{group.Name} -> {field.Name}");
-                    }
-                    else
-                    {
-                        field.IsInvalid = false;
+                        // Virtual fields don't have a real path, so they can't be invalid in this context.
+                        if (field.Path.StartsWith("virtual_"))
+                        {
+                            field.IsInvalid = false;
+                            continue;
+                        }
+                
+                        var property = Workflow.GetPropertyByPath(field.Path);
+                        if (property == null)
+                        {
+                            field.IsInvalid = true;
+                            invalidFields.Add($"{group.Name} -> {field.Name}");
+                        }
+                        else
+                        {
+                            field.IsInvalid = false;
+                        }
                     }
                 }
             }
