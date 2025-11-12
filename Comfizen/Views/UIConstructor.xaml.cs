@@ -746,13 +746,22 @@ namespace Comfizen
         {
             if (groupVm == null) return;
 
-            var group = groupVm.Model; // Получаем модель из ViewModel
+            var group = groupVm.Model;
 
             var targetTab = group.Tabs.FirstOrDefault();
+            // Get the model of the active sub-tab from the ViewModel.
+            var targetTab = groupVm.SelectedTab?.Model;
+
+            // Fallback logic: if no sub-tab is selected or exists,
+            // use the first one or create a new one.
             if (targetTab == null)
             {
+                targetTab = group.Tabs.FirstOrDefault();
+                if (targetTab == null)
+                {
                 targetTab = new WorkflowGroupTab { Name = "Controls" };
                 group.Tabs.Add(targetTab);
+            }
             }
 
             string baseName = "New Field";
@@ -767,6 +776,7 @@ namespace Comfizen
             string newName = baseName;
             int counter = 1;
     
+            // Ensure a unique name within the tab
             while (targetTab.Fields.Any(f => f.Name == newName))
             {
                 newName = $"{baseName} {++counter}";
