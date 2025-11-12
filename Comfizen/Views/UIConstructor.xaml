@@ -86,6 +86,12 @@
                             Click="ClosePopupOnClick"/>
                     
                     <Separator Margin="0,5"/>
+                    <Button Content="{local:Translate UIConstructor_Delete}"
+                            Command="{Binding DeleteCommand}"
+                            CommandParameter="{Binding PopupTarget}"
+                            Click="ClosePopupOnClick"/>
+                    
+                    <Separator Margin="0,5"/>
                     <Button Content="{local:Translate UIConstructor_CopyPresets}"
                             Command="{Binding CopyPresetsCommand}"
                             CommandParameter="{Binding PopupTarget}"

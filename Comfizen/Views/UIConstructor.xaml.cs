@@ -253,6 +253,7 @@ namespace Comfizen
             ExportApiWorkflowCommand = new RelayCommand(_ => ExportApiWorkflow(), _ => Workflow.IsLoaded);
             AddGroupCommand = new RelayCommand(_ => AddGroup());
             RemoveGroupCommand = new RelayCommand(param => RemoveGroup(param as WorkflowGroupViewModel));
+            DeleteCommand = new RelayCommand(HandleDelete, CanDelete);
             RemoveFieldFromGroupCommand = new RelayCommand(param => RemoveField(param as WorkflowField));
             ToggleRenameCommand = new RelayCommand(ToggleRename);
 
@@ -450,6 +451,7 @@ namespace Comfizen
         public ICommand ExportApiWorkflowCommand { get; }
         public ICommand AddGroupCommand { get; }
         public ICommand RemoveGroupCommand { get; }
+        public ICommand DeleteCommand { get; }
         public ICommand RemoveFieldFromGroupCommand { get; }
         public ICommand ToggleRenameCommand { get; }
         public ICommand SetHighlightColorCommand { get; }
@@ -480,6 +482,72 @@ namespace Comfizen
                 AllGroupViewModels.Add(new WorkflowGroupViewModel(groupModel, Workflow));
             }
             UpdateGroupAssignments();
+        }
+        
+        private bool CanDelete(object parameter)
+        {
+            return parameter is ListBox lb && lb.SelectedItems.Count > 0 ||
+                   parameter is WorkflowField ||
+                   parameter is WorkflowGroupViewModel ||
+                   parameter is WorkflowGroupTabViewModel;
+        }
+
+        private void HandleDelete(object parameter)
+        {
+            if (parameter is ListBox listBox) // Handles single and multi-selection of fields
+            {
+                // ToList() is crucial to avoid modifying the collection while iterating
+                var fieldsToDelete = listBox.SelectedItems.OfType<WorkflowField>().ToList();
+                if (fieldsToDelete.Any() && MessageBox.Show(
+                        string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteFieldsMessage"], fieldsToDelete.Count),
+                        LocalizationService.Instance["UIConstructor_ConfirmDeleteTitle"],
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                {
+                    foreach (var field in fieldsToDelete)
+                    {
+                        RemoveField(field);
+                    }
+                }
+            }
+            else if (parameter is WorkflowField field) // Fallback for a single field
+            {
+                if (MessageBox.Show(
+                        string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteFieldMessage"], field.Name),
+                        LocalizationService.Instance["UIConstructor_ConfirmDeleteTitle"],
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                {
+                    RemoveField(field);
+                }
+            }
+            else if (parameter is WorkflowGroupViewModel groupVm)
+            {
+                // The RemoveGroup method already contains its own confirmation dialog.
+                RemoveGroup(groupVm);
+            }
+            else if (parameter is WorkflowGroupTabViewModel subTabVm)
+            {
+                RemoveSubTab(subTabVm);
+            }
+        }
+
+        private void RemoveSubTab(WorkflowGroupTabViewModel subTabVm)
+        {
+            if (subTabVm == null) return;
+
+            // Find the owner group of this sub-tab
+            var ownerVm = AllGroupViewModels.FirstOrDefault(g => g.Tabs.Contains(subTabVm));
+            if (ownerVm == null) return;
+
+            if (MessageBox.Show(
+                    string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteSubTabMessage"], subTabVm.Name, ownerVm.Name),
+                    LocalizationService.Instance["UIConstructor_ConfirmDeleteTitle"],
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            {
+                // Remove from the ViewModel collection (updates UI)
+                ownerVm.Tabs.Remove(subTabVm);
+                // Remove from the Model collection (persists the change)
+                ownerVm.Model.Tabs.Remove(subTabVm.Model);
+            }
         }
         
         private void CopyPresets(object parameter)
