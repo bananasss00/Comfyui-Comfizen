@@ -48,6 +48,7 @@ namespace Comfizen
         public ICommand MoveNextCommand { get; set; }
         public ICommand MovePreviousCommand { get; set; }
         public ICommand SaveCurrentImageCommand { get; set; }
+        public ICommand CopyImageCommand { get; }
         public bool ShowSaveConfirmation { get; set; }
         public string SaveConfirmationText { get; set; }
         
@@ -167,7 +168,36 @@ namespace Comfizen
             }, x => CurrentFullScreenImage != null && _currentGalleryItems.IndexOf(CurrentFullScreenImage) > 0);
             
             PlayPauseCommand = new RelayCommand(TogglePlayPause, x => CurrentFullScreenImage?.Type == FileType.Video);
+            CopyImageCommand = new RelayCommand(CopyCurrentImageToClipboard, _ => CurrentFullScreenImage?.Type == FileType.Image);
         }
+        private void CopyCurrentImageToClipboard(object obj)
+        {
+            if (CurrentFullScreenImage?.ImageBytes == null) return;
+
+            try
+            {
+                using (var ms = new System.IO.MemoryStream(CurrentFullScreenImage.ImageBytes))
+                {
+                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.StreamSource = ms;
+                    bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+
+                    System.Windows.Clipboard.SetImage(bitmap);
+                    
+                    SaveConfirmationText = LocalizationService.Instance["Fullscreen_Copied"];
+                    ShowSaveConfirmation = true;
+                    Task.Delay(1500).ContinueWith(_ => ShowSaveConfirmation = false, TaskScheduler.FromCurrentSynchronizationContext());
+                }
+            }
+            catch(Exception ex)
+            {
+                Logger.Log(ex, "Failed to copy image to clipboard.");
+            }
+        }
+        
         
         private void TogglePlayPause(object o)
         {

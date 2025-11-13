@@ -104,11 +104,11 @@ namespace Comfizen
         
         private void WildcardButton_Click(object sender, RoutedEventArgs e)
         {
+            int savedCaretIndex = PromptTextBox.CaretIndex;
             Action<string> insertAction = (textToInsert) =>
             {
-                int caretIndex = PromptTextBox.CaretIndex;
-                PromptTextBox.Text = PromptTextBox.Text.Insert(caretIndex, textToInsert);
-                PromptTextBox.CaretIndex = caretIndex + textToInsert.Length;
+                PromptTextBox.Text = PromptTextBox.Text.Insert(savedCaretIndex, textToInsert);
+                PromptTextBox.CaretIndex = savedCaretIndex + textToInsert.Length;
                 PromptTextBox.Focus();
             };
     

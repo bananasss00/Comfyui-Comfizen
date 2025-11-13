@@ -496,6 +496,42 @@ namespace Comfizen
         }
         
         /// <summary>
+        /// Global handler for the wildcard browser button click.
+        /// Works for both main and undocked windows.
+        /// </summary>
+        public void WorkflowField_ButtonClick(object sender, RoutedEventArgs e)
+        {
+            if (e.OriginalSource is not Button clickedButton || clickedButton.Tag as string != "OpenWildcardBrowser")
+            {
+                return;
+            }
+
+            if (clickedButton.DataContext is not TextFieldViewModel fieldVm) return;
+            
+            var parentGrid = (clickedButton.Parent as FrameworkElement)?.Parent as Grid;
+            var wildcardTextBox = parentGrid?.FindName("WildcardTextBox") as TextBox;
+
+            if (wildcardTextBox == null) return;
+
+            int savedCaretIndex = wildcardTextBox.CaretIndex;
+
+            Action<string> insertAction = (textToInsert) =>
+            {
+                wildcardTextBox.Text = wildcardTextBox.Text.Insert(savedCaretIndex, textToInsert);
+                wildcardTextBox.CaretIndex = savedCaretIndex + textToInsert.Length;
+                wildcardTextBox.Focus();
+            };
+
+            var ownerWindow = Window.GetWindow(clickedButton);
+            var hostWindow = new Views.WildcardBrowser { Owner = ownerWindow };
+            var viewModel = new WildcardBrowserViewModel(hostWindow, insertAction);
+            hostWindow.DataContext = viewModel;
+            hostWindow.ShowDialog();
+            
+            e.Handled = true;
+        }
+        
+        /// <summary>
         /// Handles the DragDelta event from a Thumb to resize a text field,
         /// supporting both simple TextBox and the AdvancedPromptEditor.
         /// </summary>

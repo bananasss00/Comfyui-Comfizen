@@ -331,8 +331,7 @@
                                 <DataTemplate>
                                     <ScrollViewer x:Name="ControlsScrollViewer" VerticalScrollBarVisibility="Auto"
                                                   HorizontalScrollBarVisibility="Disabled"
-                                                  PreviewMouseWheel="ControlsScrollViewer_PreviewMouseWheel"
-                                                  Button.Click="WorkflowField_ButtonClick">
+                                                  PreviewMouseWheel="ControlsScrollViewer_PreviewMouseWheel">
                                         <ItemsControl ItemsSource="{Binding Groups}" Margin="0,5,0,0">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
@@ -1411,7 +1410,7 @@
                                  Margin="5"
                                  local:TextBoxExtensions.PlaceholderText="Search queue..."/>
 
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                        <ScrollViewer x:Name="QueueScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                       Margin="5">
                             <StackPanel>
                                 <!-- Display Area for the Current Task -->
@@ -1467,6 +1466,7 @@
                                          SelectedItem="{Binding SelectedQueueItem}"
                                          Background="{StaticResource TertiaryBackground}" BorderThickness="0"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         PreviewMouseWheel="QueueListBox_PreviewMouseWheel"
                                          ItemTemplate="{StaticResource QueueItemTemplate}">
                                     <ListBox.ItemContainerStyle>
                                         <Style TargetType="ListBoxItem">
@@ -1919,12 +1919,17 @@
                             <TextBlock x:Name="DurationTextBlock" Grid.Column="3" Text="00:00" Margin="10,0,0,0"
                                        Foreground="White" VerticalAlignment="Center" />
                         </Grid>
-                        <Button Content="💾"
-                                ToolTip="{x:Static local:Hotkeys.SaveImageTooltip}"
-                                Style="{StaticResource FullScreenSaveButton}"
-                                Command="{Binding FullScreen.SaveCurrentImageCommand}"
-                                HorizontalAlignment="Center"
-                                Margin="5" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
+                            <Button Content="💾"
+                                    ToolTip="{x:Static local:Hotkeys.SaveImageTooltip}"
+                                    Style="{StaticResource FullScreenSaveButton}"
+                                    Command="{Binding FullScreen.SaveCurrentImageCommand}"/>
+                            <Button Content="&#xE8C8;" FontFamily="Segoe MDL2 Assets"
+                                    ToolTip="{local:Translate Fullscreen_Copy}"
+                                    Style="{StaticResource FullScreenSaveButton}"
+                                    Command="{Binding FullScreen.CopyImageCommand}"
+                                    Margin="10,0,0,0"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </Grid>

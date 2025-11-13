@@ -98,7 +98,7 @@ public sealed class InMemoryHttpServer
     {
         var requestUrl = context.Request.Url.AbsolutePath;
         var segments = requestUrl.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-            
+        
         if (segments.Length > 0)
         {
             var mediaId = segments[0];
@@ -106,10 +106,42 @@ public sealed class InMemoryHttpServer
             {
                 try
                 {
-                    // A simple way to guess content type. Could be improved.
                     context.Response.ContentType = segments.Length > 1 && segments[1].EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ? "image/gif" : "video/mp4";
-                    context.Response.ContentLength64 = mediaBytes.Length;
-                    await context.Response.OutputStream.WriteAsync(mediaBytes, 0, mediaBytes.Length, token);
+                    context.Response.AddHeader("Accept-Ranges", "bytes");
+
+                    var rangeHeader = context.Request.Headers["Range"];
+                    long start = 0;
+                    long end = mediaBytes.Length - 1;
+
+                    if (!string.IsNullOrEmpty(rangeHeader))
+                    {
+                        var range = rangeHeader.Replace("bytes=", "").Split('-');
+                        start = long.Parse(range[0]);
+                        if (range.Length > 1 && !string.IsNullOrEmpty(range[1]))
+                        {
+                            end = long.Parse(range[1]);
+                        }
+                        
+                        end = Math.Min(end, mediaBytes.Length - 1);
+                        if (start >= mediaBytes.Length)
+                        {
+                            context.Response.StatusCode = (int)HttpStatusCode.RequestedRangeNotSatisfiable;
+                            context.Response.OutputStream.Close();
+                            return;
+                        }
+                        
+                        context.Response.StatusCode = (int)HttpStatusCode.PartialContent;
+                        context.Response.AddHeader("Content-Range", $"bytes {start}-{end}/{mediaBytes.Length}");
+                    }
+                    else
+                    {
+                        context.Response.StatusCode = (int)HttpStatusCode.OK;
+                    }
+                    
+                    long length = end - start + 1;
+                    context.Response.ContentLength64 = length;
+                    
+                    await context.Response.OutputStream.WriteAsync(mediaBytes, (int)start, (int)length, token);
                 }
                 catch (HttpListenerException) { /* Client disconnected, common scenario. */ }
                 catch (OperationCanceledException) { /* Server is shutting down. */ }

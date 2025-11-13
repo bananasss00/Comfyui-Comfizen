@@ -363,4 +363,6 @@
   "MainVM_ExportBypassMessage": "This workflow contains bypass nodes. How should it be exported?\n\n• Yes: Restore all connections before exporting. (Recommended for editing in ComfyUI)\n• No: Export with bypasses applied (as is). (For debugging)\n• Cancel: Cancel the export.",
   "UIConstructor_ConfirmApiReplaceTitle": "Confirm API Replacement",
   "UIConstructor_ConfirmApiReplaceMessage": "The current workflow contains bypass nodes. Replacing the API will clear connection snapshots, which is necessary for the changes to apply correctly.\n\nIt is recommended to first export the current state with all connections restored for editing.\n\nDo you want to continue with the replacement?",
+  "Fullscreen_Copy": "Copy image to clipboard",
+  "Fullscreen_Copied": "Copied!"
 }

@@ -1389,6 +1389,20 @@ namespace Comfizen
             if (DataContext is MainViewModel mainViewModel)
                 mainViewModel.UpdateQueueItemIndexes(); 
         }
+        
+        private void QueueListBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (!e.Handled)
+            {
+                e.Handled = true;
+                var eventArg = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+                {
+                    RoutedEvent = UIElement.MouseWheelEvent,
+                    Source = sender
+                };
+                QueueScrollViewer.RaiseEvent(eventArg);
+            }
+        }
 
         /// <summary>
         /// Commits or cancels the renaming of a workflow tab when the textbox loses focus.

@@ -461,6 +461,7 @@
             <Setter Property="AllowsTransparency" Value="True"/>
             <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
             <EventSetter Event="Loaded" Handler="Window_Loaded"/>
+            <EventSetter Event="Button.Click" Handler="WorkflowField_ButtonClick"/>
             
             <Setter Property="Template">
                 <Setter.Value>
@@ -516,6 +517,7 @@
             <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
             <EventSetter Event="Loaded" Handler="Window_Loaded"/>
             <EventSetter Event="Thumb.DragDelta" Handler="OnResizeThumbDragDelta"/>
+            <EventSetter Event="Button.Click" Handler="WorkflowField_ButtonClick"/>
             
             <Setter Property="local:InputBindingBehavior.InputBindings">
                 <Setter.Value>
