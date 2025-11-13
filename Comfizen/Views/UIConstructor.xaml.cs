@@ -1433,9 +1433,20 @@ namespace Comfizen
                     Logger.Log(ex, string.Format(LocalizationService.Instance["UIConstructor_SaveErrorMessage"], ex.Message));
                 }
         }
-        
+
         private JObject GetPromptForDesignerExport()
         {
+            // Use OriginalApi if available (clean export), otherwise fall back to LoadedApi.
+            // CanExecute on the command ensures at least LoadedApi is not null.
+            JObject baseApi = Workflow.OriginalApi ?? Workflow.LoadedApi;
+            
+            // This check is a safeguard, but CanExecute should prevent this from being null.
+            if (baseApi == null)
+            {
+                Logger.Log(LocalizationService.Instance["UIConstructor_ExportErrorMessage"], LogLevel.Error);
+                return null;
+            }
+
             bool hasBypassFields = Workflow.Groups
                 .SelectMany(g => g.Tabs)
                 .SelectMany(t => t.Fields)
@@ -1443,8 +1454,7 @@ namespace Comfizen
 
             if (!hasBypassFields)
             {
-                // If no bypass, just return the original API state for a clean export
-                return Workflow.OriginalApi.DeepClone() as JObject;
+                return baseApi.DeepClone() as JObject;
             }
             
             var result = MessageBox.Show(
@@ -1452,12 +1462,11 @@ namespace Comfizen
                 LocalizationService.Instance["MainVM_ExportBypassTitle"],
                 MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
             
-            var clonedPrompt = Workflow.OriginalApi.DeepClone() as JObject;
+            var clonedPrompt = baseApi.DeepClone() as JObject;
 
             switch (result)
             {
                 case MessageBoxResult.Yes: // Restore connections
-                    // In the designer, we don't have a controller, so we restore manually
                     if (Workflow.NodeConnectionSnapshots != null)
                     {
                         foreach (var snapshot in Workflow.NodeConnectionSnapshots)
@@ -1473,7 +1482,7 @@ namespace Comfizen
                     }
                     return clonedPrompt;
 
-                case MessageBoxResult.No: // Export as is (which is the original API file)
+                case MessageBoxResult.No: // Export as is
                     return clonedPrompt;
 
                 case MessageBoxResult.Cancel:
