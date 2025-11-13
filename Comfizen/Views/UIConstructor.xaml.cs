@@ -442,6 +442,7 @@ namespace Comfizen
             RefreshActionNames();
             UpdateGroupAssignments();
             SelectedTab = Workflow.Tabs.FirstOrDefault();
+            RefreshBypassNodeFields();
         }
         
         // The Workflow property is now set in the constructor.
@@ -1179,9 +1180,25 @@ namespace Comfizen
 
         private void LoadApiWorkflow()
         {
+            // Check if we need to warn the user before clearing snapshots
+            if (Workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields).Any(f => f.Type == FieldType.NodeBypass))
+            {
+                var confirmation = MessageBox.Show(
+                    LocalizationService.Instance["UIConstructor_ConfirmApiReplaceMessage"],
+                    LocalizationService.Instance["UIConstructor_ConfirmApiReplaceTitle"],
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                
+                if (confirmation != MessageBoxResult.Yes)
+                {
+                    return; // User cancelled the operation
+                }
+            }
+            
             var dialog = new OpenFileDialog { Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*" };
             if (dialog.ShowDialog() == true)
             {
+                Workflow.NodeConnectionSnapshots.Clear(); // This is now safe
                 Workflow.LoadApiWorkflow(dialog.FileName);
                 UpdateAvailableFields();
                 UpdateWorkflowNodesList();
@@ -1191,12 +1208,29 @@ namespace Comfizen
             }
             RefreshActionNames();
         }
+        
         /// <summary>
         /// Replaces the API definition of the current workflow with a new one.
         /// </summary>
         /// <param name="apiJson">The JObject of the new API definition.</param>
         public void ReplaceApiWorkflow(JObject apiJson)
         {
+            // Check if we need to warn the user before clearing snapshots
+            if (Workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields).Any(f => f.Type == FieldType.NodeBypass))
+            {
+                var confirmation = MessageBox.Show(
+                    LocalizationService.Instance["UIConstructor_ConfirmApiReplaceMessage"],
+                    LocalizationService.Instance["UIConstructor_ConfirmApiReplaceTitle"],
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (confirmation != MessageBoxResult.Yes)
+                {
+                    return; // User cancelled the operation
+                }
+            }
+
+            Workflow.NodeConnectionSnapshots.Clear(); // This is now safe
             Workflow.LoadApiWorkflow(apiJson);
             _apiWasReplaced = true;
     
@@ -1210,8 +1244,8 @@ namespace Comfizen
         }
         
         /// <summary>
-        /// Iterates through all fields in all groups and forces a UI update for NodeBypass fields.
-        /// This is necessary after the API is replaced to refresh the list of available nodes in their ComboBoxes.
+        /// Iterates through all existing fields in all groups and sub-tabs,
+        /// and forces a UI update for NodeBypass fields.
         /// </summary>
         private void RefreshBypassNodeFields()
         {
@@ -1219,13 +1253,16 @@ namespace Comfizen
 
             foreach (var group in Workflow.Groups)
             {
-                foreach (var field in group.Fields)
+                foreach (var tab in group.Tabs) // Iterate through new tab structure
                 {
-                    if (field.Type == FieldType.NodeBypass)
+                    foreach (var field in tab.Fields)
                     {
-                        // This notification triggers the MultiBinding that uses AvailableNodesConverter,
-                        // causing the list of available nodes for this field to be requeried.
-                        field.NotifyBypassNodeIdsChanged();
+                        if (field.Type == FieldType.NodeBypass)
+                        {
+                            // This notification triggers the MultiBinding that uses AvailableNodesConverter,
+                            // causing the list of available nodes for this field to be requeried.
+                            field.NotifyBypassNodeIdsChanged();
+                        }
                     }
                 }
             }
@@ -1384,7 +1421,10 @@ namespace Comfizen
             if (dialog.ShowDialog() == true)
                 try
                 {
-                    var jsonContent = Workflow.LoadedApi.ToString(Formatting.Indented);
+                    JObject promptToExport = GetPromptForDesignerExport();
+                    if (promptToExport == null) return; // User cancelled
+
+                    var jsonContent = promptToExport.ToString(Formatting.Indented);
                     File.WriteAllText(dialog.FileName, jsonContent);
                     Logger.Log(string.Format(LocalizationService.Instance["UIConstructor_ExportSuccessMessage"], dialog.FileName));
                 }
@@ -1392,6 +1432,54 @@ namespace Comfizen
                 {
                     Logger.Log(ex, string.Format(LocalizationService.Instance["UIConstructor_SaveErrorMessage"], ex.Message));
                 }
+        }
+        
+        private JObject GetPromptForDesignerExport()
+        {
+            bool hasBypassFields = Workflow.Groups
+                .SelectMany(g => g.Tabs)
+                .SelectMany(t => t.Fields)
+                .Any(f => f.Type == FieldType.NodeBypass);
+
+            if (!hasBypassFields)
+            {
+                // If no bypass, just return the original API state for a clean export
+                return Workflow.OriginalApi.DeepClone() as JObject;
+            }
+            
+            var result = MessageBox.Show(
+                LocalizationService.Instance["MainVM_ExportBypassMessage"],
+                LocalizationService.Instance["MainVM_ExportBypassTitle"],
+                MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            
+            var clonedPrompt = Workflow.OriginalApi.DeepClone() as JObject;
+
+            switch (result)
+            {
+                case MessageBoxResult.Yes: // Restore connections
+                    // In the designer, we don't have a controller, so we restore manually
+                    if (Workflow.NodeConnectionSnapshots != null)
+                    {
+                        foreach (var snapshot in Workflow.NodeConnectionSnapshots)
+                        {
+                            if (clonedPrompt[snapshot.Key]?["inputs"] is JObject inputs)
+                            {
+                                inputs.Merge(snapshot.Value.DeepClone(), new JsonMergeSettings
+                                {
+                                    MergeArrayHandling = MergeArrayHandling.Replace
+                                });
+                            }
+                        }
+                    }
+                    return clonedPrompt;
+
+                case MessageBoxResult.No: // Export as is (which is the original API file)
+                    return clonedPrompt;
+
+                case MessageBoxResult.Cancel:
+                default:
+                    return null;
+            }
         }
 
         // --- START OF NEW/MODIFIED METHODS FOR TABS ---

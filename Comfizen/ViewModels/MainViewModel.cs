@@ -1123,8 +1123,10 @@ namespace Comfizen
             {
                 try
                 {
-                    var promptToExport = tab.Workflow.LoadedApi.DeepClone() as JObject;
-                    tab.WorkflowInputsController.ApplyNodeBypass(promptToExport);
+                    JObject promptToExport = GetPromptForExport(tab);
+
+                    if (promptToExport == null) return; // User cancelled
+
                     if (stripMeta)
                         Utils.StripAllMetaProperties(promptToExport);
                     string jsonContent = promptToExport.ToString(Formatting.Indented);
@@ -1135,6 +1137,45 @@ namespace Comfizen
                 {
                     Logger.Log(ex, "Failed to save exported state file.");
                 }
+            }
+        }
+        
+        private JObject GetPromptForExport(WorkflowTabViewModel tab)
+        {
+            var controller = tab.WorkflowInputsController;
+            var workflow = tab.Workflow;
+            
+            bool hasBypassFields = workflow.Groups
+                .SelectMany(g => g.Tabs)
+                .SelectMany(t => t.Fields)
+                .Any(f => f.Type == FieldType.NodeBypass);
+
+            if (!hasBypassFields)
+            {
+                var prompt = workflow.LoadedApi.DeepClone() as JObject;
+                controller.ApplyNodeBypass(prompt); // Apply "as is"
+                return prompt;
+            }
+
+            var result = MessageBox.Show(
+                LocalizationService.Instance["MainVM_ExportBypassMessage"],
+                LocalizationService.Instance["MainVM_ExportBypassTitle"],
+                MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+
+            var clonedPrompt = workflow.LoadedApi.DeepClone() as JObject;
+            var bypassService = new NodeBypassService(controller.ObjectInfo, workflow.NodeConnectionSnapshots, controller.TabLayoouts);
+
+            switch (result)
+            {
+                case MessageBoxResult.Yes: // Restore connections
+                    bypassService.RestoreOriginalNodeConnections(clonedPrompt);
+                    return clonedPrompt;
+                case MessageBoxResult.No: // Export as is
+                    bypassService.ApplyBypass(clonedPrompt);
+                    return clonedPrompt;
+                case MessageBoxResult.Cancel: // Cancel
+                default:
+                    return null;
             }
         }
 

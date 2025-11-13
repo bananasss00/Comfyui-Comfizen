@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Comfizen;
 // --- START: Cache Structure Classes ---
@@ -41,6 +42,11 @@ public class ServerModelCache
     ///     Value: The cached data for that type.
     /// </summary>
     public Dictionary<string, ModelCacheData> ModelTypes { get; set; } = new();
+    
+    /// <summary>
+    /// Caches the object_info response for the server.
+    /// </summary>
+    public JObject ObjectInfo { get; set; }
 }
 
 /// <summary>
@@ -72,6 +78,7 @@ public class ModelService
     // In-memory cache for the current session (fastest access)
     private static readonly ConcurrentDictionary<string, List<ModelTypeInfo>> _modelTypesCache = new();
     private static readonly ConcurrentDictionary<string, List<string>> _modelFilesCache = new();
+    private static readonly ConcurrentDictionary<string, JObject> _objectInfoCache = new();
 
     // --- START: Persistent Cache Logic ---
 
@@ -161,6 +168,7 @@ public class ModelService
     {
         _modelTypesCache.Clear();
         _modelFilesCache.Clear();
+        _objectInfoCache.Clear();
         lock (_cacheLock)
         {
             _persistentCache = new ModelCache();
@@ -191,6 +199,72 @@ public class ModelService
                 return types;
             }
             return new List<ModelTypeInfo>();
+        }
+        catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException)
+        {
+            lock (_cacheLock)
+            {
+                if (!_isConnectionErrorVisible)
+                {
+                    _isConnectionErrorVisible = true;
+                    // ADD: Log the full error to the file
+                    // Logger.Log(ex, "Failed to fetch model types from ComfyUI API");
+                    
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        // MODIFIED: Replaced MessageBox with a non-blocking console log message
+                        var message = string.Format(LocalizationService.Instance["ModelService_ErrorFetchModelTypes"], ex.Message);
+                        Logger.Log(message, LogLevel.Error);
+                    });
+                }
+            }
+            // Re-throw the exception so the calling code knows the operation failed.
+            throw;
+        }
+    }
+    
+    public async Task<JObject> GetObjectInfoAsync()
+    {
+        // 1. Check in-memory cache (fastest)
+        if (_objectInfoCache.TryGetValue(_apiBaseUrl, out var cachedInfo)) return cachedInfo;
+
+        var serverKey = _settings.ServerAddress;
+
+        // 2. Check persistent file cache
+        lock (_cacheLock)
+        {
+            if (_persistentCache.Servers.TryGetValue(serverKey, out var serverCache) && serverCache.ObjectInfo != null)
+            {
+                var persistentInfo = serverCache.ObjectInfo;
+                _objectInfoCache.TryAdd(_apiBaseUrl, persistentInfo); // Add to in-memory cache for next time
+                return persistentInfo;
+            }
+        }
+        
+        // 3. If no cache exists, fetch from API
+        try
+        {
+            var response = await _httpClient.GetStringAsync($"{_apiBaseUrl}/object_info");
+            var objectInfo = JObject.Parse(response);
+            if (objectInfo != null)
+            {
+                // Update in-memory cache
+                _objectInfoCache.TryAdd(_apiBaseUrl, objectInfo);
+
+                // Update and save persistent cache
+                lock (_cacheLock)
+                {
+                    if (!_persistentCache.Servers.ContainsKey(serverKey))
+                    {
+                        _persistentCache.Servers[serverKey] = new ServerModelCache();
+                    }
+                    _persistentCache.Servers[serverKey].ObjectInfo = objectInfo;
+                }
+                SavePersistentCache();
+
+                return objectInfo;
+            }
+            return new JObject();
         }
         catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException)
         {
