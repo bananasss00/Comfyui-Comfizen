@@ -321,6 +321,46 @@ namespace Comfizen
                 }
             }
         }
+        
+        private void PresetPopup_Opened(object sender, EventArgs e)
+        {
+            if (sender is Popup popup && popup.Child is DependencyObject child)
+            {
+                var textBox = FindVisualChild<TextBox>(child, "PresetNameTextBox");
+                if (textBox != null)
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        textBox.Focus();
+                        textBox.SelectAll();
+                    }), System.Windows.Threading.DispatcherPriority.Input);
+                }
+            }
+        }
+
+        public static T FindVisualChild<T>(DependencyObject parent, string childName = null) where T : DependencyObject
+        {
+            if (parent == null) return null;
+
+            int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                
+                if (child is T typedChild)
+                {
+                    if (string.IsNullOrEmpty(childName) || (child is FrameworkElement fe && fe.Name == childName))
+                    {
+                        return typedChild;
+                    }
+                }
+
+                var result = FindVisualChild<T>(child, childName);
+                if (result != null)
+                    return result;
+            }
+            return null;
+        }
 
         private byte[] GetImageBytesFromClipboard()
         {

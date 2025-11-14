@@ -323,6 +323,35 @@
             </Style.Triggers>
         </Style>
         
+        <Style x:Key="SegmentedToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource TertiaryBackground}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource CornerRadiusConverter}}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
         <!-- Style for ComboBox ToggleButtons -->
         <Style x:Key="ComboBoxToggleButton" TargetType="ToggleButton">
             <Setter Property="Focusable" Value="False"/> 
@@ -1053,10 +1082,41 @@
                                         </StackPanel>
                                     </Grid>
                                     
-                                    <ToggleButton x:Name="FilterByFieldsToggle" Margin="0,0,0,5"
-                                                  IsChecked="{Binding IsFilterByFieldsActive, Mode=TwoWay}"
-                                                  Content="{local:Translate Presets_FilterByFields}"/>
+                                    <Grid Margin="0,0,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
 
+                                        <ToggleButton Grid.Column="0" x:Name="FilterByFieldsToggle"
+                                                      IsChecked="{Binding IsFilterByFieldsActive, Mode=TwoWay}"
+                                                      Content="{local:Translate Presets_FilterByFields}"
+                                                      Style="{StaticResource SegmentedToggleButtonStyle}"
+                                                      Tag="FirstLast"
+                                                      VerticalAlignment="Center"/>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsChecked, ElementName=FilterByFieldsToggle}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+                                            <RadioButton Tag="First" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="PresetFilterLogic"
+                                                         IsChecked="{Binding CurrentPresetFilterLogic, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:PresetFilterLogic.OR}}">
+                                                <TextBlock Text="{local:Translate Presets_FilterLogicOR}"/>
+                                            </RadioButton>
+                                            <RadioButton Tag="Last" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="PresetFilterLogic"
+                                                         IsChecked="{Binding CurrentPresetFilterLogic, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:PresetFilterLogic.AND}}">
+                                                <TextBlock Text="{local:Translate Presets_FilterLogicAND}"/>
+                                            </RadioButton>
+                                        </StackPanel>
+                                    </Grid>
+                                    
                                     <Border MaxHeight="150" Margin="0,0,0,5"
                                             Visibility="{Binding IsChecked, ElementName=FilterByFieldsToggle, Converter={StaticResource BooleanToVisibilityConverter}}">
                                         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -1319,10 +1379,133 @@
                     </Popup>
                 </Grid>
 
-                <Button Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 
-                        Style="{StaticResource IconButton}" Width="24" Height="24"
-                        Command="{Binding OpenSavePresetPopupCommand}"
-                        ToolTip="{local:Translate Presets_SaveButton}"/>
+                <Grid>
+                    <ToggleButton x:Name="SavePresetToggle" 
+                                  Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 
+                                  Style="{StaticResource IconToggleButton}" Width="24" Height="24"
+                                  IsChecked="{Binding IsSavePresetPopupOpen, Mode=TwoWay}"
+                                  ToolTip="{local:Translate Presets_SaveButton}"/>
+                    
+                    <Popup StaysOpen="False"
+                           Placement="Bottom"
+                           PlacementTarget="{Binding ElementName=SavePresetToggle}"
+                           AllowsTransparency="True"
+                           Opened="PresetPopup_Opened">
+                        <Popup.IsOpen>
+                            <MultiBinding Converter="{StaticResource BooleanAndConverter}">
+                                <Binding Path="IsChecked" ElementName="SavePresetToggle" Mode="TwoWay"/>
+                                <Binding Path="IsVisible" ElementName="SavePresetToggle" Mode="OneWay"/>
+                            </MultiBinding>
+                        </Popup.IsOpen>
+                        <Border
+                            Background="{StaticResource SecondaryBackground}"
+                            BorderBrush="{StaticResource TertiaryBackground}"
+                            BorderThickness="1"
+                            CornerRadius="3" Padding="10"
+                            Margin="0,2,0,0">
+                            <StackPanel>
+                                <TextBlock
+                                    Text="{local:Translate Presets_SaveCurrentState}"
+                                    FontWeight="Bold"
+                                    Margin="0,0,0,5" />
+
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition
+                                            Height="Auto" />
+                                        <RowDefinition
+                                            Height="Auto" />
+                                        <RowDefinition
+                                            Height="Auto" />
+                                        <RowDefinition
+                                            Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Preset Name Input -->
+                                    <TextBox Grid.Row="0"
+                                        x:Name="PresetNameTextBox"
+                                        MinWidth="250"
+                                        Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" />
+                                    
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
+                                        <RadioButton Content="{local:Translate Presets_SaveAsSnippet}" GroupName="PresetType"
+                                            IsChecked="{Binding NewPresetType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:WorkflowGroupViewModel+SavePresetType.Snippet}}"/>
+                                        <RadioButton Content="{local:Translate Presets_SaveAsLayout}" GroupName="PresetType" Margin="15,0,0,0"
+                                            IsChecked="{Binding NewPresetType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:WorkflowGroupViewModel+SavePresetType.Layout}}"/>
+                                    </StackPanel>
+
+                                    <!-- Field Selection List -->
+                                    <Border Grid.Row="2"
+                                        BorderBrush="{StaticResource TertiaryBackground}"
+                                        BorderThickness="0,1"
+                                        Margin="0,8"
+                                        Padding="0,8,0,5">
+                                        <StackPanel>
+                                            <!-- START OF CHANGE: Disable field list for layouts -->
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="IsEnabled" Value="True"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding NewPresetType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:WorkflowGroupViewModel+SavePresetType.Layout}}" Value="True">
+                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+                                            <!-- END OF CHANGE -->
+                                            <TextBlock
+                                                Text="{local:Translate Presets_FieldsToInclude}"
+                                                Margin="0,0,0,5"
+                                                Foreground="{StaticResource TextSecondaryBrush}" />
+                                            <ScrollViewer
+                                                MaxHeight="200"
+                                                VerticalScrollBarVisibility="Auto">
+                                                <ItemsControl
+                                                    ItemsSource="{Binding FieldsForPresetSelection}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="{x:Type local:PresetFieldSelectionViewModel}">
+                                                            <CheckBox
+                                                                IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                Margin="2"
+                                                                VerticalContentAlignment="Center">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding TabName, StringFormat='[{0}]'}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,5,0"/>
+                                                                    <TextBlock Text="{Binding Name}" />
+                                                                </StackPanel>
+                                                            </CheckBox>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+
+                                            <StackPanel
+                                                Orientation="Horizontal"
+                                                Margin="2,5,0,0">
+                                                <Button
+                                                    Content="{local:Translate Presets_SelectAll}"
+                                                    Command="{Binding SelectAllFieldsForPresetCommand}"
+                                                    Style="{StaticResource TextButtonStyle}" />
+                                                <Button
+                                                    Content="{local:Translate Presets_DeselectAll}"
+                                                    Command="{Binding DeselectAllFieldsForPresetCommand}"
+                                                    Style="{StaticResource TextButtonStyle}"
+                                                    Margin="10,0,0,0" />
+                                            </StackPanel>
+
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Save Button -->
+                                    <Button Grid.Row="3"
+                                        Content="{local:Translate Presets_SaveButton}"
+                                        Command="{Binding SavePresetCommand}"
+                                        HorizontalAlignment="Right"
+                                        IsDefault="True" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </Grid>
             </StackPanel>
         </DataTemplate>
         
