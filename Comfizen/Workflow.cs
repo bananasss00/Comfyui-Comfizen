@@ -59,6 +59,36 @@ namespace Comfizen
         /// The UTC date and time when the preset was last saved or modified.
         /// </summary>
         public DateTime LastModified { get; set; } = DateTime.UtcNow;
+        
+        // --- START OF NEW PROPERTIES ---
+
+        /// <summary>
+        /// A detailed description of what the preset does. Used for tooltips and search.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string Description { get; set; }
+
+        /// <summary>
+        /// A user-defined category for grouping presets in the UI.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string Category { get; set; }
+
+        /// <summary>
+        /// A list of tags for filtering and searching.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public List<string> Tags { get; set; } = new List<string>();
+
+        /// <summary>
+        /// If true, this preset will be pinned to the top of its list.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(false)]
+        public bool IsFavorite { get; set; }
+        
+        // --- END OF NEW PROPERTIES ---
+
 
         /// <summary>
         /// Creates a deep copy of this preset.
@@ -71,6 +101,11 @@ namespace Comfizen
                 IsLayout = this.IsLayout,
                 SnippetNames = this.SnippetNames != null ? new List<string>(this.SnippetNames) : null,
                 LastModified = this.LastModified,
+                // --- ADDED: Clone new properties ---
+                Description = this.Description,
+                Category = this.Category,
+                Tags = this.Tags != null ? new List<string>(this.Tags) : new List<string>(),
+                IsFavorite = this.IsFavorite,
                 // Deep clone the dictionary values to prevent shared references.
                 Values = this.Values.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.DeepClone())
             };

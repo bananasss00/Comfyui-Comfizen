@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Input;
 using Microsoft.VisualBasic.Logging;
 using Microsoft.Win32;
@@ -181,6 +182,20 @@ namespace Comfizen
         public GroupPreset Model { get; }
         public string Name => Model.Name;
         public bool IsLayout => Model.IsLayout;
+        
+        // --- START OF FIX 1: Expose IsFavorite via the ViewModel ---
+        public bool IsFavorite
+        {
+            get => Model.IsFavorite;
+            set
+            {
+                if (Model.IsFavorite == value) return;
+                Model.IsFavorite = value;
+                // This will notify the UI that the star icon needs to update
+                // OnPropertyChanged(nameof(IsFavorite)); // This is handled by Fody
+            }
+        }
+        // --- END OF FIX 1 ---
         
         public List<PresetFieldInfo> FieldDetails { get; private set; } = new List<PresetFieldInfo>();
 
@@ -553,30 +568,40 @@ namespace Comfizen
         public ObservableCollection<ActiveLayerViewModel> ActiveLayers { get; } = new();
         
         public string PresetSearchFilter { get; set; }
-        public IEnumerable<GroupPresetViewModel> FilteredSnippets
+
+        private bool PresetFilter(object item)
         {
-            get
-            {
-                IEnumerable<GroupPresetViewModel> snippets = Snippets;
-        
-                // Apply Sorting
-                if (CurrentPresetSortOption == PresetSortOption.DateModified)
+            if (item is not GroupPresetViewModel presetVm) return false;
+
+            // 1. Filter by Category
+            var allCategories = "[ All ]";
+            if (SelectedCategoryFilter != allCategories && presetVm.Model.Category != SelectedCategoryFilter)
                 {
-                    snippets = snippets.OrderByDescending(p => p.Model.LastModified);
+                return false;
                 }
-                else // Alphabetical
+
+            // 2. Filter by Tag
+            var allTags = "[ All ]";
+            if (SelectedTagFilter != allTags && (presetVm.Model.Tags == null || !presetVm.Model.Tags.Contains(SelectedTagFilter)))
                 {
-                    snippets = snippets.OrderBy(p => p.Name);
+                return false;
                 }
         
-                // Apply search text filter first
+            // 3. Apply search text filter
                 if (!string.IsNullOrWhiteSpace(PresetSearchFilter))
                 {
                     var searchTerms = PresetSearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    snippets = snippets.Where(p => searchTerms.All(term => p.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
+                bool nameMatch = searchTerms.All(term => presetVm.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+                bool descriptionMatch = !string.IsNullOrEmpty(presetVm.Model.Description) && 
+                                        searchTerms.All(term => presetVm.Model.Description.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (!nameMatch && !descriptionMatch)
+                {
+                    return false;
                 }
+            }
         
-                // Apply "filter by fields" if active
+            // 4. Apply "filter by fields" if active
                 if (IsFilterByFieldsActive)
                 {
                     var selectedFieldPaths = FieldsForPresetFilter
@@ -588,88 +613,23 @@ namespace Comfizen
                     {
                         if (CurrentPresetFilterLogic == PresetFilterLogic.AND)
                         {
-                            // AND logic: preset must contain ALL selected fields
-                            snippets = snippets.Where(p => selectedFieldPaths.All(fieldPath => p.Model.Values.ContainsKey(fieldPath)));
+                        if (!selectedFieldPaths.All(fieldPath => presetVm.Model.Values.ContainsKey(fieldPath)))
+                            return false;
                         }
                         else // OR logic
                         {
-                            // OR logic: preset must contain ANY of the selected fields
-                            snippets = snippets.Where(p => p.Model.Values.Keys.Any(selectedFieldPaths.Contains));
+                        if (!presetVm.Model.Values.Keys.Any(selectedFieldPaths.Contains))
+                            return false;
                         }
                     }
                 }
-        
-                return snippets;
-            }
-        }
-        
-        public IEnumerable<GroupPresetViewModel> FilteredLayouts
-        {
-            get
-            {
-                IEnumerable<GroupPresetViewModel> layouts = Layouts;
-        
-                // Apply Sorting
-                if (CurrentPresetSortOption == PresetSortOption.DateModified)
-                {
-                    layouts = layouts.OrderByDescending(p => p.Model.LastModified);
-                }
-                else // Alphabetical
-                {
-                    layouts = layouts.OrderBy(p => p.Name);
+
+            return true;
                 }
         
-                // Apply search text filter
-                if (!string.IsNullOrWhiteSpace(PresetSearchFilter))
-                {
-                    var searchTerms = PresetSearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    layouts = layouts.Where(p => searchTerms.All(term => p.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
-                }
-        
-                // Apply "filter by fields" for layouts
-                if (IsFilterByFieldsActive)
-                {
-                    var selectedFieldPaths = FieldsForPresetFilter
-                        .Where(f => f.IsSelected)
-                        .Select(f => f.Path)
-                        .ToHashSet();
-        
-                    if (selectedFieldPaths.Any())
-                    {
-                        var allSnippetsInGroup = AllPresets.Where(p => !p.IsLayout).ToList();
-                        
-                        if (CurrentPresetFilterLogic == PresetFilterLogic.AND)
-                        {
-                            // AND Logic for Layouts: The combined fields of a layout's snippets must contain ALL selected fields.
-                            layouts = layouts.Where(layout =>
-                            {
-                                if (layout.Model.SnippetNames == null) return false;
-                                var layoutFieldPaths = layout.Model.SnippetNames
-                                    .Select(sn => allSnippetsInGroup.FirstOrDefault(s => s.Name == sn))
-                                    .Where(s => s != null)
-                                    .SelectMany(s => s.Model.Values.Keys)
-                                    .ToHashSet();
-                                return selectedFieldPaths.All(layoutFieldPaths.Contains);
-                            });
-                        }
-                        else // OR Logic for Layouts
-                        {
-                            // OR Logic for Layouts: The combined fields of a layout's snippets must contain ANY of the selected fields.
-                            layouts = layouts.Where(layout =>
-                                layout.Model.SnippetNames != null &&
-                                layout.Model.SnippetNames.Any(snippetName =>
-                                {
-                                    var snippet = allSnippetsInGroup.FirstOrDefault(s => s.Name == snippetName);
-                                    return snippet != null && snippet.Model.Values.Keys.Any(selectedFieldPaths.Contains);
-                                })
-                            );
-                        }
-                    }
-                }
-        
-                return layouts;
-            }
-        }
+        public ICollectionView FilteredSnippetsView { get; private set; }
+        public ICollectionView FilteredLayoutsView { get; private set; }
+
         
         public IEnumerable<GroupPresetViewModel> Snippets => AllPresets.Where(p => !p.IsLayout);
         public IEnumerable<GroupPresetViewModel> Layouts => AllPresets.Where(p => p.IsLayout);
@@ -732,31 +692,45 @@ namespace Comfizen
             {
                 if (_isSavePresetPopupOpen == value) return;
                 
-                // If we are opening the popup, prepare its content first.
+                // If we are opening the popup...
                 if (value)
                 {
-                    NewPresetName = "";
-                    NewPresetType = ActiveLayers.Any() ? SavePresetType.Layout : SavePresetType.Snippet;
-
-                    FieldsForPresetSelection.Clear();
-                    foreach (var tabVm in Tabs)
+                    // ...and we are NOT in update mode (i.e., we are creating a NEW preset)
+                    if (string.IsNullOrEmpty(_presetToUpdateName))
                     {
-                        var savableFieldsInTab = tabVm.Model.Fields
-                            .Where(f => f.Type != FieldType.ScriptButton &&
-                                        f.Type != FieldType.Label &&
-                                        f.Type != FieldType.Separator);
-                
-                        foreach (var field in savableFieldsInTab)
+                        // Then prepare a blank form.
+                        NewPresetName = "";
+                        NewPresetDescription = "";
+                        NewPresetCategory = "";
+                        NewPresetTags = "";
+                        NewPresetType = ActiveLayers.Any() ? SavePresetType.Layout : SavePresetType.Snippet;
+
+                        FieldsForPresetSelection.Clear();
+                        foreach (var tabVm in Tabs)
                         {
-                            FieldsForPresetSelection.Add(new PresetFieldSelectionViewModel
+                            var savableFieldsInTab = tabVm.Model.Fields
+                                .Where(f => f.Type != FieldType.ScriptButton &&
+                                            f.Type != FieldType.Label &&
+                                            f.Type != FieldType.Separator);
+                    
+                            foreach (var field in savableFieldsInTab)
                             {
-                                Name = field.Name,
-                                Path = field.Path,
-                                IsSelected = true, 
-                                TabName = tabVm.Name
-                            });
+                                FieldsForPresetSelection.Add(new PresetFieldSelectionViewModel
+                                {
+                                    Name = field.Name,
+                                    Path = field.Path,
+                                    IsSelected = true, 
+                                    TabName = tabVm.Name
+                                });
+                            }
                         }
                     }
+                }
+                // If we are closing the popup (for any reason)
+                else
+                {
+                    // Reset the update mode flag.
+                    _presetToUpdateName = null;
                 }
 
                 _isSavePresetPopupOpen = value;
@@ -764,6 +738,10 @@ namespace Comfizen
             }
         }
         public string NewPresetName { get; set; }
+        public string NewPresetDescription { get; set; }
+        public string NewPresetCategory { get; set; }
+        public string NewPresetTags { get; set; }
+
         
         public enum SavePresetType { Snippet, Layout }
         public SavePresetType NewPresetType { get; set; }
@@ -778,11 +756,20 @@ namespace Comfizen
         public ICommand DetachLayerCommand { get; }
         public ICommand ReapplyLayerCommand { get; }
         public ICommand UpdateLayerCommand { get; }
+        public ICommand ToggleFavoriteCommand { get; }
+        public ICommand ClearPresetFiltersCommand { get; }
         
         public PresetSortOption CurrentPresetSortOption { get; set; } = PresetSortOption.Alphabetical;
         public PresetFilterLogic CurrentPresetFilterLogic { get; set; } = PresetFilterLogic.OR;
         public bool IsFilterByFieldsActive { get; set; }
         public ObservableCollection<PresetFieldSelectionViewModel> FieldsForPresetFilter { get; } = new();
+        
+        public ObservableCollection<string> AllCategories { get; } = new();
+        public string SelectedCategoryFilter { get; set; }
+        
+        public ObservableCollection<string> AllTags { get; } = new();
+        public string SelectedTagFilter { get; set; }
+
 
         public ICommand SelectAllFieldsForPresetCommand { get; }
         public ICommand DeselectAllFieldsForPresetCommand { get; }
@@ -836,11 +823,22 @@ namespace Comfizen
             // --- NEW: Refresh filtered lists when search text changes ---
             this.PropertyChanged += (s, e) =>
             {
-                if (e.PropertyName == nameof(PresetSearchFilter) || e.PropertyName == nameof(CurrentPresetSortOption) || e.PropertyName == nameof(IsFilterByFieldsActive) || e.PropertyName == nameof(CurrentPresetFilterLogic))
+                if (e.PropertyName == nameof(PresetSearchFilter) || 
+                    e.PropertyName == nameof(IsFilterByFieldsActive) || 
+                    e.PropertyName == nameof(CurrentPresetFilterLogic) ||
+                    e.PropertyName == nameof(SelectedCategoryFilter) ||
+                    e.PropertyName == nameof(SelectedTagFilter))
                 {
-                    OnPropertyChanged(nameof(FilteredSnippets));
-                    OnPropertyChanged(nameof(FilteredLayouts));
+                    FilteredSnippetsView?.Refresh();
+                    FilteredLayoutsView?.Refresh();
                 }
+                
+                // --- START OF FIX 2: Rebuild SortDescriptions when sort option changes ---
+                if (e.PropertyName == nameof(CurrentPresetSortOption))
+                {
+                    RebuildPresetViews(); // Rebuilds views with new sorting rules
+                }
+                // --- END OF FIX 2 ---
             };
             
             LoadPresets();
@@ -854,19 +852,38 @@ namespace Comfizen
                 if (p is ActiveLayerViewModel layer)
                 {
                     // The "Update" command on a layer is just a shortcut for starting the update process.
-                    StartUpdatePresetCommand.Execute(layer.Name);
+                    StartUpdatePresetCommand.Execute(layer.SourcePreset);
                 }
+            });
+
+            ToggleFavoriteCommand = new RelayCommand(p =>
+            {
+                if (p is GroupPresetViewModel presetVm)
+                {
+                    presetVm.IsFavorite = !presetVm.IsFavorite; // Use the ViewModel's property
+                    // Trigger a resort of the list and notify that a save is needed
+                    FilteredSnippetsView?.Refresh();
+                    FilteredLayoutsView?.Refresh();
+                    PresetsModified?.Invoke();
+                }
+            });
+
+            ClearPresetFiltersCommand = new RelayCommand(_ =>
+            {
+                SelectedCategoryFilter = AllCategories.FirstOrDefault();
+                SelectedTagFilter = AllTags.FirstOrDefault();
+                // PropertyChanged events will trigger the refresh automatically
             });
             
             StartUpdatePresetCommand = new RelayCommand(param =>
             {
-                if (param is string presetName)
+                if (param is GroupPresetViewModel existingPresetVm)
                 {
-                    _presetToUpdateName = presetName;
-                    NewPresetName = presetName;
-                    
-                    var existingPresetVm = AllPresets.FirstOrDefault(p => p.Name == presetName);
-                    if (existingPresetVm == null) return;
+                    _presetToUpdateName = existingPresetVm.Name;
+                    NewPresetName = existingPresetVm.Name;
+                    NewPresetDescription = existingPresetVm.Model.Description;
+                    NewPresetCategory = existingPresetVm.Model.Category;
+                    NewPresetTags = existingPresetVm.Model.Tags != null ? string.Join(", ", existingPresetVm.Model.Tags) : "";
 
                     NewPresetType = existingPresetVm.IsLayout ? SavePresetType.Layout : SavePresetType.Snippet;
 
@@ -888,19 +905,27 @@ namespace Comfizen
                         selectedPaths = new HashSet<string>(existingPresetVm.Model.Values.Keys);
                     }
 
-                    var savableFields = Tabs.SelectMany(t => t.Fields)
-                        .Where(f => f.Type != FieldType.ScriptButton)
-                        .OrderBy(f => f.Name);
-
-                    foreach (var field in savableFields)
+                    // START OF CHANGE: Correctly iterate through tabs and their fields to populate the selection list
+                    foreach (var tabVm in Tabs)
                     {
-                        FieldsForPresetSelection.Add(new PresetFieldSelectionViewModel
+                        var savableFieldsInTab = tabVm.Model.Fields
+                            .Where(f => f.Type != FieldType.ScriptButton &&
+                                        f.Type != FieldType.Label &&
+                                        f.Type != FieldType.Separator)
+                            .OrderBy(f => f.Name);
+
+                        foreach (var fieldModel in savableFieldsInTab)
                         {
-                            Name = field.Name,
-                            Path = field.Path,
-                            IsSelected = selectedPaths.Contains(field.Path)
-                        });
+                            FieldsForPresetSelection.Add(new PresetFieldSelectionViewModel
+                            {
+                                Name = fieldModel.Name,
+                                Path = fieldModel.Path,
+                                IsSelected = selectedPaths.Contains(fieldModel.Path),
+                                TabName = tabVm.Name // Add tab name for UI context
+                            });
+                        }
                     }
+                    // END OF CHANGE
                     
                     IsSavePresetPopupOpen = true;
                 }
@@ -1011,8 +1036,8 @@ namespace Comfizen
                     fieldVm.PropertyChanged += (s, e) => {
                         if (e.PropertyName == nameof(PresetFieldSelectionViewModel.IsSelected) && IsFilterByFieldsActive)
                         {
-                            OnPropertyChanged(nameof(FilteredSnippets));
-                            OnPropertyChanged(nameof(FilteredLayouts));
+                           FilteredSnippetsView?.Refresh();
+                           FilteredLayoutsView?.Refresh();
                         }
                     };
                     FieldsForPresetFilter.Add(fieldVm);
@@ -1196,6 +1221,66 @@ namespace Comfizen
         }
         
         // --- START OF CHANGES: New methods for preset logic ---
+        private void PopulateCategoriesAndTags()
+        {
+            var allCategories = "[ All ]";
+            var allTags = "[ All ]";
+            
+            var categories = AllPresets.Select(p => p.Model.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
+            var tags = AllPresets.SelectMany(p => p.Model.Tags ?? new List<string>()).Distinct().OrderBy(t => t).ToList();
+            
+            AllCategories.Clear();
+            AllCategories.Add(allCategories);
+            categories.ForEach(c => AllCategories.Add(c));
+            
+            AllTags.Clear();
+            AllTags.Add(allTags);
+            tags.ForEach(t => AllTags.Add(t));
+
+            SelectedCategoryFilter = allCategories;
+            SelectedTagFilter = allTags;
+        }
+
+        private void RebuildPresetViews()
+        {
+            // For Snippets
+            FilteredSnippetsView = CollectionViewSource.GetDefaultView(Snippets);
+            FilteredSnippetsView.Filter = PresetFilter;
+            if (FilteredSnippetsView.CanGroup)
+            {
+                FilteredSnippetsView.GroupDescriptions.Clear();
+                FilteredSnippetsView.GroupDescriptions.Add(new PropertyGroupDescription("Model.Category"));
+            }
+            
+            // For Layouts
+            FilteredLayoutsView = CollectionViewSource.GetDefaultView(Layouts);
+            FilteredLayoutsView.Filter = PresetFilter;
+            if (FilteredLayoutsView.CanGroup)
+            {
+                FilteredLayoutsView.GroupDescriptions.Clear();
+                FilteredLayoutsView.GroupDescriptions.Add(new PropertyGroupDescription("Model.Category"));
+            }
+
+            // Manually refresh sorting
+             ICollectionView[] views = { FilteredSnippetsView, FilteredLayoutsView };
+             foreach (var view in views)
+             {
+                 view.SortDescriptions.Clear();
+                view.SortDescriptions.Add(new SortDescription("IsFavorite", ListSortDirection.Descending));
+                 if (CurrentPresetSortOption == PresetSortOption.DateModified)
+                 {
+                     view.SortDescriptions.Add(new SortDescription("Model.LastModified", ListSortDirection.Descending));
+                 }
+                 else
+                 {
+                     view.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+                 }
+             }
+            
+            OnPropertyChanged(nameof(FilteredSnippetsView));
+            OnPropertyChanged(nameof(FilteredLayoutsView));
+        }
+        
         public void LoadPresets()
         {
             AllPresets.Clear();
@@ -1214,11 +1299,8 @@ namespace Comfizen
                 presetVM.GenerateToolTip(this);
             }
             
-            OnPropertyChanged(nameof(Snippets));
-            OnPropertyChanged(nameof(Layouts));
-            
-            OnPropertyChanged(nameof(FilteredSnippets));
-            OnPropertyChanged(nameof(FilteredLayouts));
+            PopulateCategoriesAndTags();
+            RebuildPresetViews();
             
             RebuildActiveLayersFromState();
         }
@@ -1369,14 +1451,28 @@ namespace Comfizen
         
         private void SaveCurrentStateAsPreset(string name, IEnumerable<PresetFieldSelectionViewModel> selectedFields, bool isLayout)
         {
-            var newPreset = new GroupPreset { Name = name, IsLayout = isLayout, LastModified = DateTime.UtcNow };
+            var existingPreset = _workflow.Presets.GetValueOrDefault(Id)?.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            
+            var newPreset = existingPreset?.Clone() ?? new GroupPreset();
+            newPreset.Name = name;
+            newPreset.IsLayout = isLayout;
+            newPreset.LastModified = DateTime.UtcNow;
+            
+            newPreset.Description = NewPresetDescription;
+            newPreset.Category = NewPresetCategory;
+            newPreset.Tags = NewPresetTags?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                     .Select(t => t.Trim())
+                                     .Where(t => !string.IsNullOrWhiteSpace(t))
+                                     .ToList() ?? new List<string>();
 
             if (isLayout)
             {
                 newPreset.SnippetNames = ActiveLayers.Select(l => l.Name).ToList();
+                newPreset.Values.Clear();
             }
             else
             {
+                newPreset.Values.Clear();
             var selectedFieldPaths = new HashSet<string>(selectedFields.Select(f => f.Path));
             foreach (var field in Tabs.SelectMany(t => t.Fields))
             {
