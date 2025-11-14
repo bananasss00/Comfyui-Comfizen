@@ -56,6 +56,11 @@ namespace Comfizen
         public List<string> SnippetNames { get; set; }
 
         /// <summary>
+        /// The UTC date and time when the preset was last saved or modified.
+        /// </summary>
+        public DateTime LastModified { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
         /// Creates a deep copy of this preset.
         /// </summary>
         public GroupPreset Clone()
@@ -65,6 +70,7 @@ namespace Comfizen
                 Name = this.Name,
                 IsLayout = this.IsLayout,
                 SnippetNames = this.SnippetNames != null ? new List<string>(this.SnippetNames) : null,
+                LastModified = this.LastModified,
                 // Deep clone the dictionary values to prevent shared references.
                 Values = this.Values.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.DeepClone())
             };

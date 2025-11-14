@@ -1023,19 +1023,57 @@
                                 BorderBrush="{StaticResource TertiaryBackground}"
                                 BorderThickness="1" CornerRadius="3" 
                                 Padding="10" Margin="0,2,0,0"
-                                MinWidth="250" MaxHeight="400"
+                                MinWidth="300" MaxHeight="500"
                                 MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Expander}}">
                     
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel>
-                                    <!-- START OF CHANGES: Search Box and Layout Improvements -->
-                                    <TextBox x:Name="PresetSearchBox"
-                                             Text="{Binding PresetSearchFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             local:TextBoxExtensions.PlaceholderText="{local:Translate Presets_SearchPlaceholder}"
-                                             Margin="0,0,0,10"
-                                             local:FocusBehavior.FocusOnOpen="True"
-                                             /> <!--  -->
-                                    <!-- END OF CHANGES -->
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                
+                                        <TextBox Grid.Column="0" x:Name="PresetSearchBox"
+                                                 Text="{Binding PresetSearchFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 local:TextBoxExtensions.PlaceholderText="{local:Translate Presets_SearchPlaceholder}"
+                                                 local:FocusBehavior.FocusOnOpen="True"/>
+                                
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,0,0,0" VerticalAlignment="Center">
+                                            <RadioButton Tag="First" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="PresetSort"
+                                                         IsChecked="{Binding CurrentPresetSortOption, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:PresetSortOption.Alphabetical}}"
+                                                         ToolTip="{local:Translate Presets_SortAlphabetical}">
+                                                <TextBlock Text="A-Z" FontFamily="Segoe UI Symbol"/>
+                                            </RadioButton>
+                                            <RadioButton Tag="Last" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="PresetSort"
+                                                         IsChecked="{Binding CurrentPresetSortOption, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:PresetSortOption.DateModified}}"
+                                                         ToolTip="{local:Translate Presets_SortByDate}">
+                                                <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets"/>
+                                            </RadioButton>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <ToggleButton x:Name="FilterByFieldsToggle" Margin="0,0,0,5"
+                                                  IsChecked="{Binding IsFilterByFieldsActive, Mode=TwoWay}"
+                                                  Content="{local:Translate Presets_FilterByFields}"/>
+
+                                    <Border MaxHeight="150" Margin="0,0,0,5"
+                                            Visibility="{Binding IsChecked, ElementName=FilterByFieldsToggle, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl ItemsSource="{Binding FieldsForPresetFilter}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type local:PresetFieldSelectionViewModel}">
+                                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="2" VerticalContentAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding TabName, StringFormat='[{0}]'}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,5,0"/>
+                                                                <TextBlock Text="{Binding Name}" />
+                                                            </StackPanel>
+                                                        </CheckBox>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Border>
 
                                     <!-- Active Layers Section -->
                                     <TextBlock Text="{local:Translate Presets_ActiveLayers}" FontWeight="Bold"/>
