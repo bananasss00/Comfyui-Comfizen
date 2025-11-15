@@ -1581,9 +1581,19 @@
                             Margin="0,2,0,0">
                             <StackPanel MinWidth="300">
                                 <TextBlock
-                                    Text="{local:Translate Presets_SaveCurrentState}"
                                     FontWeight="Bold"
-                                    Margin="0,0,0,10" />
+                                    Margin="0,0,0,10">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="{local:Translate Presets_SaveCurrentState}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsUpdateMode}" Value="True">
+                                                    <Setter Property="Text" Value="{local:Translate Presets_UpdatePreset}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
 
                                 <!-- Preset Name Input -->
                                 <TextBlock Text="Name" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
@@ -1683,10 +1693,20 @@
 
                                     <!-- Save Button -->
                                     <Button Grid.Row="2"
-                                        Content="{local:Translate Presets_SaveButton}"
-                                        Command="{Binding SavePresetCommand}"
-                                        HorizontalAlignment="Right"
-                                        IsDefault="True" />
+                                            Command="{Binding SavePresetCommand}"
+                                            HorizontalAlignment="Right"
+                                            IsDefault="True">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                <Setter Property="Content" Value="{local:Translate Presets_SaveButton}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsUpdateMode}" Value="True">
+                                                        <Setter Property="Content" Value="{local:Translate Presets_UpdateButton}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                 </Grid>
                             </StackPanel>
                         </Border>

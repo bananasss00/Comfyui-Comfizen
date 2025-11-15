@@ -368,5 +368,8 @@
   "Presets_SortByDate": "Сортировать по дате",
   "Presets_FilterByFields": "Фильтр по полям",
   "Presets_FilterLogicOR": "ИЛИ",
-  "Presets_FilterLogicAND": "И"
+  "Presets_FilterLogicAND": "И",
+  "Presets_UpdatePreset": "Обновить пресет",
+  "Presets_UpdateButton": "Обновить",
+  "Presets_State_Modified_Short": "изменен"
 }

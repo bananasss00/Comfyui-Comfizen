@@ -443,6 +443,11 @@ namespace Comfizen
         
         private readonly AppSettings _settings;
         
+        private string _lastUsedCategory = "";
+        private string _lastUsedTags = "";
+        private HashSet<string> _lastSelectedFieldPaths = null;
+        public bool IsUpdateMode => !string.IsNullOrEmpty(_presetToUpdateName);
+        
         public WorkflowGroup Model => _model;
        public string Name
        {
@@ -701,8 +706,8 @@ namespace Comfizen
                         // Then prepare a blank form.
                         NewPresetName = "";
                         NewPresetDescription = "";
-                        NewPresetCategory = "";
-                        NewPresetTags = "";
+                        NewPresetCategory = _lastUsedCategory; // Pre-fill category
+                        NewPresetTags = _lastUsedTags;         // Pre-fill tags
                         NewPresetType = ActiveLayers.Any() ? SavePresetType.Layout : SavePresetType.Snippet;
 
                         FieldsForPresetSelection.Clear();
@@ -724,6 +729,15 @@ namespace Comfizen
                                 });
                             }
                         }
+                        
+                        if (_lastSelectedFieldPaths != null)
+                        {
+                            // If we have a saved selection, apply it
+                            foreach (var fieldVM in FieldsForPresetSelection)
+                            {
+                                fieldVM.IsSelected = _lastSelectedFieldPaths.Contains(fieldVM.Path);
+                            }
+                        }
                     }
                 }
                 // If we are closing the popup (for any reason)
@@ -731,6 +745,7 @@ namespace Comfizen
                 {
                     // Reset the update mode flag.
                     _presetToUpdateName = null;
+                    OnPropertyChanged(nameof(IsUpdateMode)); // Notify UI
                 }
 
                 _isSavePresetPopupOpen = value;
@@ -880,6 +895,7 @@ namespace Comfizen
                 if (param is GroupPresetViewModel existingPresetVm)
                 {
                     _presetToUpdateName = existingPresetVm.Name;
+                    OnPropertyChanged(nameof(IsUpdateMode)); // Notify UI that we are in update mode
                     NewPresetName = existingPresetVm.Name;
                     NewPresetDescription = existingPresetVm.Model.Description;
                     NewPresetCategory = existingPresetVm.Model.Category;
@@ -935,7 +951,10 @@ namespace Comfizen
             {
                 if (string.IsNullOrWhiteSpace(NewPresetName)) return;
 
-                if (!string.IsNullOrEmpty(_presetToUpdateName) && !_presetToUpdateName.Equals(NewPresetName, StringComparison.OrdinalIgnoreCase))
+                // If we were in update mode AND the name has changed, it's a "Save As" operation.
+                // We should NOT remove the old preset.
+                // If the name is the same, or we weren't in update mode, we remove the old one to perform a replace.
+                if (!string.IsNullOrEmpty(_presetToUpdateName) && _presetToUpdateName.Equals(NewPresetName, StringComparison.OrdinalIgnoreCase))
                 {
                     if (_workflow.Presets.TryGetValue(Id, out var presets))
                     {
@@ -943,16 +962,21 @@ namespace Comfizen
                     }
                 }
                 
-                SaveCurrentStateAsPreset(NewPresetName, FieldsForPresetSelection.Where(f => f.IsSelected), NewPresetType == SavePresetType.Layout);
+                var selectedFields = FieldsForPresetSelection.Where(f => f.IsSelected).ToList();
+                SaveCurrentStateAsPreset(NewPresetName, selectedFields, NewPresetType == SavePresetType.Layout);
                 
+                _lastUsedCategory = NewPresetCategory;
+                _lastUsedTags = NewPresetTags;
+                _lastSelectedFieldPaths = new HashSet<string>(selectedFields.Select(f => f.Path));
+
                 _presetToUpdateName = null;
+                OnPropertyChanged(nameof(IsUpdateMode)); // Notify UI that we are leaving update mode
                 IsSavePresetPopupOpen = false;
                 NewPresetName = string.Empty;
 
                 LoadPresets(); // This will also rebuild active layers
                 PresetsModified?.Invoke();
 
-                // REMOVED: The block that tried to set the old SelectedPreset property
             }, _ => !string.IsNullOrWhiteSpace(NewPresetName));
 
             DeletePresetCommand = new RelayCommand(param =>

@@ -369,5 +369,8 @@
   "Presets_SortByDate": "Sort by Date",
   "Presets_FilterByFields": "Filter by fields",
   "Presets_FilterLogicOR": "OR",
-  "Presets_FilterLogicAND": "AND"
+  "Presets_FilterLogicAND": "AND",
+  "Presets_UpdatePreset": "Update Preset",
+  "Presets_UpdateButton": "Update",
+  "Presets_State_Modified_Short": "modified"
 }
