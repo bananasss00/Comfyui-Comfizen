@@ -1834,7 +1834,49 @@
             <Button Content="{Binding Name}"
                     Command="{Binding ExecuteScriptCommand}"
                     CommandParameter="{Binding ActionName}"
-                    HorizontalAlignment="Left" />
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Padding="8"
+                    FontWeight="SemiBold">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <!-- Default properties -->
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <MultiBinding Converter="{StaticResource PriorityColorToBrushConverter}">
+                                    <Binding Path="HighlightColor"/>
+                                    <Binding Source="{StaticResource PrimaryAccentBrush}"/>
+                                </MultiBinding>
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" 
+                                            BorderBrush="{TemplateBinding BorderBrush}" 
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            CornerRadius="3">
+                                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <!-- Triggers for interactivity -->
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
         </DataTemplate>
         
         <DataTemplate x:Key="LabelTemplate" DataType="{x:Type local:LabelFieldViewModel}">
