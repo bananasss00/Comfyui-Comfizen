@@ -1045,7 +1045,65 @@
                            VerticalAlignment="Center" 
                            Foreground="{StaticResource TextSecondaryBrush}" 
                            Margin="0,0,10,0"
-                           Visibility="{Binding HasPresets, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                           Visibility="{Binding HasPresets, Converter={StaticResource BooleanToVisibilityConverter}}"
+                           ToolTipService.InitialShowDelay="0">
+                    <!-- START OF NEW TOOLTIP -->
+                    <TextBlock.ToolTip>
+                        <ToolTip>
+                            <StackPanel MinWidth="200" MaxWidth="400">
+                                <!-- Tooltip Header -->
+                                <TextBlock Text="{local:Translate Presets_ActiveLayers}" FontWeight="Bold" Margin="0,0,0,5"
+                                           Visibility="{Binding ActiveLayers.Count, Converter={StaticResource CountToVisibilityConverter}}"/>
+                                
+                                <!-- List of Active Layers -->
+                                <ItemsControl ItemsSource="{Binding ActiveLayers}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type local:ActiveLayerViewModel}">
+                                            <Grid Margin="0,1">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <!-- Layer Name -->
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                                
+                                                <!-- "Modified" State Indicator -->
+                                                <TextBlock Grid.Column="1" Text="[ * ]" Foreground="Orange" FontWeight="SemiBold" Margin="8,0,0,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding State}" Value="{x:Static local:ActiveLayerViewModel+LayerState.Modified}">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Message for when no layers are active -->
+                                <TextBlock Text="{local:Translate Presets_State_Unsaved}" FontStyle="Italic">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveLayers.Count, Converter={StaticResource CountToBooleanConverter}}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </ToolTip>
+                    </TextBlock.ToolTip>
+                    <!-- END OF NEW TOOLTIP -->
+                </TextBlock>
 
                 <!-- "Layers" Button and Popup -->
                 <Grid>
