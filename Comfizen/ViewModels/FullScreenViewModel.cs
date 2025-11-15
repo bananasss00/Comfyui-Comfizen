@@ -112,10 +112,11 @@ namespace Comfizen
                 }
                 
                 string fileIdentifier = CurrentFullScreenImage.FilePath ?? CurrentFullScreenImage.FileName;
+                bool success = false;
 
                 if (CurrentFullScreenImage.Type == FileType.Video)
                 {
-                    await _comfyuiModel.SaveVideoFileAsync(
+                    success = await _comfyuiModel.SaveVideoFileAsync(
                         _settings.SavedImagesDirectory, 
                         fileIdentifier,
                         CurrentFullScreenImage.ImageBytes,
@@ -124,7 +125,7 @@ namespace Comfizen
                 }
                 else
                 {
-                    await _comfyuiModel.SaveImageFileAsync(
+                    success = await _comfyuiModel.SaveImageFileAsync(
                         _settings.SavedImagesDirectory,
                         fileIdentifier,
                         CurrentFullScreenImage.ImageBytes,
@@ -133,11 +134,19 @@ namespace Comfizen
                     );
                 }
                 
-                CurrentFullScreenImage.IsSaved = true;
-                SaveConfirmationText = LocalizationService.Instance["Fullscreen_Saved"]; 
-                await Task.Delay(1500);
+                if (success)
+                {
+                    CurrentFullScreenImage.IsSaved = true;
+                    SaveConfirmationText = LocalizationService.Instance["Fullscreen_Saved"]; 
+                    await Task.Delay(1500);
+                }
+                else
+                {
+                    SaveConfirmationText = "Save Failed!"; // Or a localized string
+                    await Task.Delay(2000);
+                }
                 ShowSaveConfirmation = false;
-            }, x => CurrentFullScreenImage != null && !CurrentFullScreenImage.IsSaved);
+            }, x => CurrentFullScreenImage != null && (!CurrentFullScreenImage.IsSaved || Keyboard.Modifiers == ModifierKeys.Control));
 
             MoveNextCommand = new RelayCommand(x =>
             {

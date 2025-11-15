@@ -372,5 +372,8 @@
   "Presets_FilterLogicAND": "AND",
   "Presets_UpdatePreset": "Update Preset",
   "Presets_UpdateButton": "Update",
-  "Presets_State_Modified_Short": "modified"
+  "Presets_State_Modified_Short": "modified",
+  "Tab_SaveSelectedAs": "Save As...",
+  "Fullscreen_SaveImage_Tooltip": "Save Image (NumPad 5)",
+  "Fullscreen_SaveImage_ResaveTooltip": "Image is saved (Hold Ctrl to re-save)"
 }

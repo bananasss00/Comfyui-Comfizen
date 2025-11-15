@@ -1160,6 +1160,11 @@
                                                 Background="{StaticResource SuccessBrush}"
                                             Command="{Binding ImageProcessing.SaveSelectedImagesCommand}"
                                                 CommandParameter="{Binding ElementName=lvOutputs, Path=SelectedItems}" />
+                                        <Button Content="{local:Translate Tab_SaveSelectedAs}"
+                                                Background="{StaticResource SuccessBrush}"
+                                                Command="{Binding ImageProcessing.SaveSelectedImagesAsCommand}"
+                                                CommandParameter="{Binding ElementName=lvOutputs, Path=SelectedItems}" 
+                                                Margin="5,0,0,0"/>
                                         <Button Content="{local:Translate Tab_DeleteSelected}"
                                                 Background="{StaticResource ErrorBrush}"
                                             Command="{Binding ImageProcessing.DeleteSelectedImagesCommand}"
@@ -1807,9 +1812,16 @@
                         </Grid>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
                             <Button Content="💾"
-                                    ToolTip="{x:Static local:Hotkeys.SaveImageTooltip}"
                                     Style="{StaticResource FullScreenSaveButton}"
-                                    Command="{Binding FullScreen.SaveCurrentImageCommand}"/>
+                                    Command="{Binding FullScreen.SaveCurrentImageCommand}">
+                                <Button.ToolTip>
+                                    <MultiBinding Converter="{StaticResource BoolToStringConverter}">
+                                        <Binding Path="FullScreen.CurrentFullScreenImage.IsSaved"/>
+                                        <Binding Source="{x:Static local:Hotkeys.SaveImageTooltip}"/>
+                                        <Binding Source="{x:Static local:Hotkeys.SaveImageResaveTooltip}"/>
+                                    </MultiBinding>
+                                </Button.ToolTip>
+                            </Button>
                             <Button Content="&#xE8C8;" FontFamily="Segoe MDL2 Assets"
                                     ToolTip="{local:Translate Fullscreen_Copy}"
                                     Style="{StaticResource FullScreenSaveButton}"

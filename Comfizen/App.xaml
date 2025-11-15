@@ -38,6 +38,7 @@
         <local:InvertBooleanConverter x:Key="InvertBooleanConverter"/>
         <local:BooleanAndConverter x:Key="BooleanAndConverter"/>
         <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <local:BoolToStringConverter x:Key="BoolToStringConverter"/>
         
         
         

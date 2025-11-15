@@ -45,6 +45,7 @@ namespace Comfizen
         public ICommand DeleteImageCommand { get; }
         public ICommand DeleteSelectedImagesCommand { get; }
         public ICommand SaveSelectedImagesCommand { get; }
+        public ICommand SaveSelectedImagesAsCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         
@@ -140,6 +141,57 @@ namespace Comfizen
                     }
                     // Mark as saved to update the UI
                     image.IsSaved = true;
+                }
+            }, param => param is IList selectedItems && selectedItems.Count > 0);
+            
+            SaveSelectedImagesAsCommand = new AsyncRelayCommand(async param =>
+            {
+                if (param is not IList selectedItems || selectedItems.Count == 0) return;
+
+                // Use a more modern folder browser dialog if possible, or stick to a simple one.
+                // This example uses a placeholder for simplicity. You might need to add a reference
+                // to System.Windows.Forms or use a custom WPF dialog.
+                using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
+                {
+                    dialog.Description = "Select a folder to save the selected items";
+                    if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                    {
+                        return; // User cancelled
+                    }
+
+                    var targetDirectory = dialog.SelectedPath;
+                    var itemsToSave = selectedItems.Cast<ImageOutput>().ToList();
+                    
+                    foreach (var image in itemsToSave)
+                    {
+                        string promptToSave = Settings.SavePromptWithFile ? image.Prompt : null;
+                        bool success = false;
+
+                        if (image.Type == FileType.Video)
+                        {
+                            success = await _comfyuiModel.SaveVideoFileAsync(
+                                targetDirectory, // Use the selected directory
+                                image.FilePath ?? image.FileName,
+                                image.ImageBytes,
+                                promptToSave
+                            );
+                        }
+                        else
+                        {
+                            success = await _comfyuiModel.SaveImageFileAsync(
+                                targetDirectory, // Use the selected directory
+                                image.FilePath ?? image.FileName,
+                                image.ImageBytes,
+                                promptToSave,
+                                Settings
+                            );
+                        }
+                        
+                        if (success)
+                        {
+                            image.IsSaved = true;
+                        }
+                    }
                 }
             }, param => param is IList selectedItems && selectedItems.Count > 0);
         }

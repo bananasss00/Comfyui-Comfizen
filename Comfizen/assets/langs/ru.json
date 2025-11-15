@@ -371,5 +371,8 @@
   "Presets_FilterLogicAND": "И",
   "Presets_UpdatePreset": "Обновить пресет",
   "Presets_UpdateButton": "Обновить",
-  "Presets_State_Modified_Short": "изменен"
+  "Presets_State_Modified_Short": "изменен",
+  "Tab_SaveSelectedAs": "Сохранить как...",
+  "Fullscreen_SaveImage_Tooltip": "Сохранить изображение (NumPad 5)",
+  "Fullscreen_SaveImage_ResaveTooltip": "Изображение сохранено (Удерживайте Ctrl, чтобы пересохранить)"
 }

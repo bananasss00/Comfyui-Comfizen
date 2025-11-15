@@ -26,7 +26,7 @@ namespace Comfizen
             await api.InterruptAsync();
         }
         
-        public async Task SaveImageFileAsync(string saveDirectory, string relativeFilePath, byte[] sourcePngBytes, string prompt, AppSettings settings)
+        public async Task<bool> SaveImageFileAsync(string saveDirectory, string relativeFilePath, byte[] sourcePngBytes, string prompt, AppSettings settings)
         {
             string promptToEmbed = settings.SavePromptWithFile ? prompt : null;
 
@@ -72,13 +72,22 @@ namespace Comfizen
 
             if (finalSavePath == null)
             {
-                return;
+                return true; // File already exists and is identical, consider it a "successful save"
             }
 
-            await File.WriteAllBytesAsync(finalSavePath, finalImageBytes);
+            try
+            {
+                await File.WriteAllBytesAsync(finalSavePath, finalImageBytes);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, $"Failed to save image file to '{finalSavePath}'");
+                return false;
+            }
         }
         
-        public async Task SaveVideoFileAsync(string saveDirectory, string relativeFilePath, byte[] videoBytes, string prompt)
+        public async Task<bool> SaveVideoFileAsync(string saveDirectory, string relativeFilePath, byte[] videoBytes, string prompt)
         {
             var desiredPath = Path.Combine(saveDirectory, relativeFilePath);
             var targetDirectory = Path.GetDirectoryName(desiredPath);
@@ -98,10 +107,19 @@ namespace Comfizen
             
             if (finalSavePath == null)
             {
-                return;
+                return true; // File already exists and is identical
             }
-            
-            await File.WriteAllBytesAsync(finalSavePath, videoBytesWithWorkflow);
+
+            try
+            {
+                await File.WriteAllBytesAsync(finalSavePath, videoBytesWithWorkflow);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, $"Failed to save video file to '{finalSavePath}'");
+                return false;
+            }
         }
 
 
