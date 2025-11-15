@@ -1,13 +1,61 @@
 ﻿// --- File: MarkdownConverter.cs ---
 
+using System;
+using System.Linq;
+using System.Windows;
 using System.Windows.Documents;
 using Markdig;
 using Markdig.Renderers;
 using Markdig.Renderers.Wpf;
 using Markdig.Renderers.Wpf.Inlines;
+using Markdig.Syntax;
 
 namespace Comfizen
 {
+    /// <summary>
+    /// A custom renderer for ListBlock elements.
+    /// This fixes two bugs in Markdig.Wpf:
+    /// 1. It prevents a crash when a list's StartIndex is 0, which is invalid in WPF.
+    /// 2. It ensures the correct WPF document structure (List -> ListItem -> Paragraph)
+    ///    is always generated, preventing "Invalid child" exceptions.
+    /// </summary>
+    public class CustomListRenderer : ListRenderer
+    {
+        protected override void Write(WpfRenderer renderer, ListBlock listBlock)
+        {
+            var list = new List();
+
+            if (listBlock.IsOrdered)
+            {
+                var firstItem = listBlock.FirstOrDefault() as ListItemBlock;
+                int start = firstItem?.Order ?? 1;
+                
+                // FIX 1: Ensure StartIndex is always 1 or greater.
+                list.StartIndex = Math.Max(1, start);
+                list.MarkerStyle = TextMarkerStyle.Decimal;
+            }
+            else
+            {
+                list.MarkerStyle = TextMarkerStyle.Disc;
+            }
+
+            renderer.Push(list);
+
+            // FIX 2: Manually iterate through list items to enforce the correct WPF hierarchy.
+            // This prevents paragraphs from being added directly to a list.
+            foreach (var block in listBlock)
+            {
+                var item = (ListItemBlock)block;
+                var listItem = new ListItem();
+                renderer.Push(listItem);
+                renderer.WriteChildren(item);
+                renderer.Pop();
+            }
+            
+            renderer.Pop();
+        }
+    }
+
     public static class MarkdownConverter
     {
         private static readonly MarkdownPipeline _pipeline = CreatePipeline();
@@ -44,8 +92,11 @@ namespace Comfizen
 
             // 3. Modify the renderers to use our custom link logic.
             renderer.ObjectRenderers.Replace<LinkInlineRenderer>(new CustomLinkRenderer());
+            
+            // 4. Replace the default ListRenderer with our custom, safe one to fix all list-related bugs.
+            renderer.ObjectRenderers.Replace<ListRenderer>(new CustomListRenderer());
 
-            // 4. Render the parsed document into the FlowDocument.
+            // 5. Render the parsed document into the FlowDocument.
             renderer.Render(document);
         }
     }
