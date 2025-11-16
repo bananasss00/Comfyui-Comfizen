@@ -760,9 +760,35 @@
                                                PlacementTarget="{Binding ElementName=XyGridToggleButton}"
                                                Placement="Top"
                                                AllowsTransparency="True">
-                                            <Border Background="{StaticResource TertiaryBackground}" CornerRadius="5"
-                                                    Padding="15" Margin="0,0,0,5"
-                                                    BorderBrush="{StaticResource PrimaryAccentBrush}"
+                                            <Popup.Resources>
+                                                <Style TargetType="GroupBox">
+                                                    <Setter Property="BorderBrush" Value="{StaticResource TertiaryBackground}"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Setter Property="Padding" Value="8"/>
+                                                    <Setter Property="Margin" Value="0,0,0,10"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="GroupBox">
+                                                                <Grid>
+                                                                    <Grid.RowDefinitions>
+                                                                        <RowDefinition Height="Auto"/>
+                                                                        <RowDefinition Height="*"/>
+                                                                    </Grid.RowDefinitions>
+                                                                    <Border Grid.Row="0" Background="{StaticResource TertiaryBackground}" Padding="5" CornerRadius="3,3,0,0">
+                                                                        <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" />
+                                                                    </Border>
+                                                                    <Border Grid.Row="1" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0,1,0,0" Padding="{TemplateBinding Padding}" CornerRadius="0,0,3,3">
+                                                                        <ContentPresenter/>
+                                                                    </Border>
+                                                                </Grid>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </Popup.Resources>
+                                            <Border Background="{StaticResource SecondaryBackground}" CornerRadius="5"
+                                                    Padding="10" Margin="0,0,0,5"
+                                                    BorderBrush="{StaticResource TertiaryBackground}"
                                                     BorderThickness="1">
                                                 <StackPanel MinWidth="350">
                                                     <CheckBox Content="{local:Translate XYGrid_Enable}"
@@ -770,7 +796,7 @@
                                                               FontWeight="Bold" Margin="0,0,0,10" />
 
                                                     <!-- START OF NEW SECTION: Grid Mode -->
-                                                    <GroupBox Header="{local:Translate XYGrid_Mode}" Margin="0,0,0,10">
+                                                    <GroupBox Header="{local:Translate XYGrid_Mode}">
                                                         <StackPanel>
                                                             <StackPanel Orientation="Horizontal">
                                                                 <RadioButton Content="{local:Translate XYGrid_ModeImage}" GroupName="GridMode"
@@ -796,7 +822,7 @@
                                                     </GroupBox>
                                                     <!-- END OF NEW SECTION -->
 
-                                                    <GroupBox Header="Cell Options" Margin="0,0,0,10">
+                                                    <GroupBox Header="Cell Options">
                                                         <StackPanel>
                                                             <CheckBox Content="{local:Translate XYGrid_CreateGridImage}"
                                                                       IsChecked="{Binding SelectedTab.WorkflowInputsController.XyGridCreateGridImage, Mode=TwoWay}" />
