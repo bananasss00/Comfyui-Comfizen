@@ -2398,20 +2398,24 @@ namespace Comfizen
             {
                 var apiJson = JObject.Parse(jsonContent);
                 var workflowName = Path.GetFileNameWithoutExtension(sourceFilePath);
-
-                // Create a new UIConstructorView and pass the raw API object and name to it
-                var constructorViewModel = new UIConstructorView(apiJson, workflowName);
-        
-                // Create and show the constructor window
-                var constructorWindow = new UIConstructor
+                
+                // We use the dispatcher to open the window AFTER the current drop event has fully completed.
+                Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    DataContext = constructorViewModel,
-                    Owner = Application.Current.MainWindow
-                };
-                constructorWindow.ShowDialog();
-        
-                // Refresh the main list of workflows in case the user saved the new one
-                UpdateWorkflows();
+                    // This code will run as a new task on the UI thread,
+                    // once the original DragDrop operation has finished.
+                    var constructorViewModel = new UIConstructorView(apiJson, workflowName);
+                    var constructorWindow = new UIConstructor
+                    {
+                        DataContext = constructorViewModel,
+                        Owner = Application.Current.MainWindow
+                    };
+                    constructorWindow.ShowDialog();
+            
+                    // Refresh the main list of workflows in case the user saved the new one.
+                    UpdateWorkflows();
+                    
+                }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             }
             catch (JsonReaderException)
             {

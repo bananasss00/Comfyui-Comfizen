@@ -2049,15 +2049,22 @@ namespace Comfizen
                 if (Math.Abs(position.X - _dragStartPoint.X) > SystemParameters.MinimumHorizontalDragDistance ||
                     Math.Abs(position.Y - _dragStartPoint.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
-                    _isDragging = true;
                     if (sender is ListBox listBox)
                     {
                         var fieldsToDrag = listBox.SelectedItems.OfType<WorkflowField>().ToList();
                         if (fieldsToDrag.Any())
                         {
-                            var finalDragData = new DataObject();
-                            finalDragData.SetData(typeof(List<WorkflowField>), fieldsToDrag);
-                            DragDrop.DoDragDrop(listBox, finalDragData, DragDropEffects.Move);
+                            _isDragging = true;
+                            try
+                            {
+                                var finalDragData = new DataObject();
+                                finalDragData.SetData(typeof(List<WorkflowField>), fieldsToDrag);
+                                DragDrop.DoDragDrop(listBox, finalDragData, DragDropEffects.Move);
+                            }
+                            finally
+                            {
+                                _isDragging = false;
+                            }
                         }
                     }
                 }
@@ -2218,7 +2225,6 @@ namespace Comfizen
                 if (Math.Abs(position.X - _dragStartPoint.X) > SystemParameters.MinimumHorizontalDragDistance ||
                     Math.Abs(position.Y - _dragStartPoint.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
-                    _isDragging = true;
                     if (sender is FrameworkElement element && element.DataContext is WorkflowField field)
                     {
                         var listBox = FindVisualParent<ListBox>(element);
@@ -2229,8 +2235,16 @@ namespace Comfizen
                         var expander = FindVisualParent<Expander>(element);
                         if (expander?.DataContext is WorkflowGroupViewModel groupVm)
                         {
-                            var finalDragData = new Tuple<List<WorkflowField>, WorkflowGroup>(fieldsToDrag, groupVm.Model);
-                            DragDrop.DoDragDrop(element, finalDragData, DragDropEffects.Move);
+                            _isDragging = true;
+                            try
+                            {
+                                var finalDragData = new Tuple<List<WorkflowField>, WorkflowGroup>(fieldsToDrag, groupVm.Model);
+                                DragDrop.DoDragDrop(element, finalDragData, DragDropEffects.Move);
+                            }
+                            finally
+                            {
+                                _isDragging = false;
+                            }
                         }
                     }
                 }
