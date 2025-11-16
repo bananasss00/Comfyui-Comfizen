@@ -262,12 +262,6 @@ namespace Comfizen
         public ICommand RenameWorkflowCommand { get; }
         
         // Helper classes to manage grid processing state
-        private class GridCellResult
-        {
-            public ImageOutput ImageOutput { get; set; }
-            public string XValue { get; set; }
-            public string YValue { get; set; }
-        }
 
         public class XYGridConfig
         {
@@ -1634,7 +1628,7 @@ namespace Comfizen
         private async Task ProcessQueueAsync()
         {
             WorkflowTabViewModel lastTaskOriginTab = null; 
-            List<GridCellResult> gridResults = null;
+            List<Utils.GridCellResult> gridResults = null;
             XYGridConfig gridConfig = null;
             
             try
@@ -1669,7 +1663,7 @@ namespace Comfizen
                         
                         if (task.IsGridTask && gridResults == null)
                         {
-                            gridResults = new List<GridCellResult>();
+                            gridResults = new List<Utils.GridCellResult>();
                             gridConfig = task.GridConfig; 
                         }
                         
@@ -1677,58 +1671,70 @@ namespace Comfizen
                         {
                             var promptForTask = JObject.Parse(task.JsonPromptForApi);
                             
+                            // --- START OF CHANGE: Collect all outputs for the task before processing ---
+                            var outputsForCurrentTask = new List<ImageOutput>();
                             await foreach (var io in _comfyuiModel.QueuePrompt(task.JsonPromptForApi))
                             {
-                                // A check here is no longer needed as we want the task to finish
+                                // First, check if the output node is blocked.
+                                if (task.OriginTab.Workflow.BlockedNodeIds.Contains(io.NodeId))
+                                {
+                                    continue; // Skip this output entirely.
+                                }
+
                                 io.Prompt = task.FullWorkflowStateJson;
                                 if (task.OriginTab?.Workflow.LoadedApi?[io.NodeId] is JObject nodeData)
                                 {
                                     io.NodeTitle = nodeData["_meta"]?["title"]?.ToString() ?? "Untitled";
                                     io.NodeType = nodeData["class_type"]?.ToString();
                                 }
-                                
-                                await Application.Current.Dispatcher.InvokeAsync(() =>
+                                outputsForCurrentTask.Add(io);
+                            }
+                            
+                            // Now process the collected and filtered outputs
+                            await Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                if (task.IsGridTask)
                                 {
-                                    if (task.OriginTab.Workflow.BlockedNodeIds.Contains(io.NodeId))
+                                    // For grid tasks, add the whole list of outputs to the results.
+                                    if (outputsForCurrentTask.Any())
                                     {
-                                        return;
-                                    }
-                                    
-                                    if (task.IsGridTask)
-                                    {
-                                        // For grid tasks, collect results instead of adding them to the gallery immediately
-                                        gridResults.Add(new GridCellResult
+                                        gridResults.Add(new Utils.GridCellResult
                                         {
-                                            ImageOutput = io,
+                                            ImageOutputs = outputsForCurrentTask,
                                             XValue = task.XValue,
                                             YValue = task.YValue
                                         });
+                                    }
 
-                                        // START OF CHANGE: Conditionally add individual images to the gallery
-                                        if (task.OriginTab.WorkflowInputsController.XyGridShowIndividualImages)
+                                    // Conditionally add individual images to the main gallery.
+                                    if (task.OriginTab.WorkflowInputsController.XyGridShowIndividualImages)
+                                    {
+                                        foreach (var imageOutput in outputsForCurrentTask)
                                         {
-                                            // Use VisualHash to prevent adding duplicates
-                                            if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == io.VisualHash))
+                                            if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == imageOutput.VisualHash))
                                             {
-                                                this.ImageProcessing.ImageOutputs.Insert(0, io);
+                                                this.ImageProcessing.ImageOutputs.Insert(0, imageOutput);
                                             }
                                         }
-                                        // END OF CHANGE
                                     }
-                                    else
+                                }
+                                else // For regular (non-grid) tasks
+                                {
+                                    foreach (var imageOutput in outputsForCurrentTask)
                                     {
-                                        // START OF CHANGE: Use VisualHash to prevent adding duplicates for regular tasks as well
-                                        if (!this.ImageProcessing.ImageOutputs.Any(existing =>
-                                                existing.VisualHash == io.VisualHash))
+                                        if (!this.ImageProcessing.ImageOutputs.Any(existing => existing.VisualHash == imageOutput.VisualHash))
                                         {
-                                            this.ImageProcessing.ImageOutputs.Insert(0, io);
+                                            this.ImageProcessing.ImageOutputs.Insert(0, imageOutput);
                                         }
-                                        // END OF CHANGE
                                     }
+                                }
 
-                                    task.OriginTab?.ExecuteHook("on_output_received", promptForTask, io);
-                                });
-                            }
+                                // Execute hook for each received output
+                                foreach (var imageOutput in outputsForCurrentTask)
+                                {
+                                    task.OriginTab?.ExecuteHook("on_output_received", promptForTask, imageOutput);
+                                }
+                            });
                         
                             await Application.Current.Dispatcher.InvokeAsync(() =>
                             {
@@ -1818,25 +1824,25 @@ namespace Comfizen
                     try
                     {
                         // Check if any of the results are videos. If so, we cannot create an image grid.
-                        if (gridResults.Any(r => r.ImageOutput.Type == FileType.Video))
+                        if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type == FileType.Video))
                         {
                             Logger.Log("XY Grid image creation was skipped because the output was video.", LogLevel.Warning);
                         }
                         else
                         {
                             var gridImageBytes = Utils.CreateImageGrid(
-                                gridResults.Select(r => new Utils.GridCellResult { ImageOutput = r.ImageOutput, XValue = r.XValue, YValue = r.YValue }).ToList(),
+                                gridResults.Select(r => new Utils.GridCellResult { ImageOutputs = r.ImageOutputs, XValue = r.XValue, YValue = r.YValue }).ToList(),
                                 gridConfig.XAxisField, gridConfig.XValues,
                                 gridConfig.YAxisField, gridConfig.YValues);
 
                             if (gridImageBytes != null)
                             {
-                                var firstTaskResult = gridResults.First();
+                                var firstTaskResult = gridResults.First().ImageOutputs.First();
                                 
                                 string promptForGrid;
                                 try
                                 {
-                                    var workflowJson = JObject.Parse(firstTaskResult.ImageOutput.Prompt);
+                                    var workflowJson = JObject.Parse(firstTaskResult.Prompt);
                                     var gridConfigData = new JObject
                                     {
                                         ["x_axis_field_path"] = gridConfig.XAxisPath,
@@ -1857,7 +1863,7 @@ namespace Comfizen
                                 catch (Exception ex)
                                 {
                                     Logger.Log(ex, "Failed to create composite JSON for XY Grid image. Falling back to simple prompt.");
-                                    promptForGrid = firstTaskResult.ImageOutput.Prompt; // Fallback
+                                    promptForGrid = firstTaskResult.Prompt; // Fallback
                                 }
 
                                 var gridImageOutput = new ImageOutput

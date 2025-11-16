@@ -584,9 +584,49 @@ namespace Comfizen
         /// </summary>
         public class GridCellResult
         {
-            public ImageOutput ImageOutput { get; set; }
+            public List<ImageOutput> ImageOutputs { get; set; } = new List<ImageOutput>();
             public string XValue { get; set; }
             public string YValue { get; set; }
+        }
+        
+        /// <summary>
+        /// Creates a composite tile image for a single grid cell if it contains multiple results.
+        /// </summary>
+        private static Image<Rgba32> CreateCellTileImage(List<ImageOutput> images, int cellWidth, int cellHeight)
+        {
+            int count = images.Count;
+            if (count == 0) return null;
+            if (count == 1) return Image.Load<Rgba32>(images[0].ImageBytes);
+
+            // Calculate grid dimensions for the tile
+            int cols = (int)Math.Ceiling(Math.Sqrt(count));
+            int rows = (int)Math.Ceiling((double)count / cols);
+
+            int tileWidth = cellWidth / cols;
+            int tileHeight = cellHeight / rows;
+
+            var cellCanvas = new Image<Rgba32>(cellWidth, cellHeight);
+
+            cellCanvas.Mutate(ctx =>
+            {
+                ctx.BackgroundColor(Color.Black); // Background for the cell tile
+                for (int i = 0; i < count; i++)
+                {
+                    using var img = Image.Load(images[i].ImageBytes);
+                    img.Mutate(x => x.Resize(new ResizeOptions
+                    {
+                        Size = new Size(tileWidth, tileHeight),
+                        Mode = ResizeMode.Pad,
+                        PadColor = Color.Black
+                    }));
+
+                    int x = (i % cols) * tileWidth;
+                    int y = (i / cols) * tileHeight;
+                    ctx.DrawImage(img, new Point(x, y), 1f);
+                }
+            });
+
+            return cellCanvas;
         }
 
         /// <summary>
@@ -600,7 +640,7 @@ namespace Comfizen
         {
             if (results == null || !results.Any()) return null;
             
-            var resultsPool = new List<GridCellResult>(results);
+            var resultsPool = new List<GridCellResult>(results.Select(r => new GridCellResult { ImageOutputs = new List<ImageOutput>(r.ImageOutputs), XValue = r.XValue, YValue = r.YValue }).ToList());
 
             // --- Configuration ---
             var backgroundColor = Color.ParseHex("#3F3F46");
@@ -621,7 +661,7 @@ namespace Comfizen
             var axisFont = fontFamily.CreateFont(axisFontSize, FontStyle.Bold);
 
             // --- Image Sizing ---
-            using var firstImage = Image.Load(results.First().ImageOutput.ImageBytes);
+            using var firstImage = Image.Load(results.First().ImageOutputs.First().ImageBytes);
             int cellWidth = firstImage.Width;
             int cellHeight = firstImage.Height;
             bool hasYAxis = yValues.Count > 1 || (yValues.Count == 1 && !string.IsNullOrEmpty(yValues[0]));
@@ -702,7 +742,7 @@ namespace Comfizen
                         // Find the first matching image for this cell.
                         var result = resultsPool.FirstOrDefault(r => r.XValue == currentXValue && r.YValue == currentYValue);
 
-                        if (result != null)
+                        if (result != null && result.ImageOutputs.Any())
                         {
                             // IMPORTANT: We remove the found image from the pool, so that on the next match
                             // (e.g., for the second "1"), we take the next generated image.
@@ -711,13 +751,13 @@ namespace Comfizen
                             var xPos = leftLabelAreaWidth + padding + (xIndex * (cellWidth + padding));
                             var yPos = topLabelAreaHeight + padding + (yIndex * (cellHeight + padding));
                             
-                            using var image = Image.Load<Rgba32>(result.ImageOutput.ImageBytes);
-                            if (image.Width != cellWidth || image.Height != cellHeight)
+                            using (var cellImage = CreateCellTileImage(result.ImageOutputs, cellWidth, cellHeight))
                             {
-                                image.Mutate(i => i.Resize(cellWidth, cellHeight));
+                                if (cellImage != null)
+                                {
+                                    ctx.DrawImage(cellImage, new Point(xPos, yPos), 1f);
+                                }
                             }
-                            
-                            ctx.DrawImage(image, new Point(xPos, yPos), 1f);
                             
                             var pen = Pens.Solid(lineColor, 1);
                             var rectangle = new RectangleF(xPos - 0.5f, yPos - 0.5f, cellWidth + 1, cellHeight + 1);
