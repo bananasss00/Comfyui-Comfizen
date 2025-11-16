@@ -2209,9 +2209,25 @@ namespace Comfizen
                 var listBoxItem = FindVisualParent<ListBoxItem>(element2);
                 if (listBoxItem != null && listBoxItem.IsSelected && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == ModifierKeys.None)
                 {
-                    // This is the key: if we are clicking on an already selected item
-                    // without modifiers, we are likely initiating a drag of the selection.
-                    // We handle the event to prevent the ListBox from clearing the selection.
+                    var source = e.OriginalSource as DependencyObject;
+                    while (source != null && source != listBoxItem)
+                    {
+                        // If the click was on any of these controls, do NOT handle the event.
+                        // Let the control process the click normally.
+                        if (source is TextBox || 
+                            source is ComboBox || 
+                            source is CheckBox || 
+                            source is ButtonBase || // Catches Button and ToggleButton
+                            source is Thumb)       // Catches slider thumbs
+                        {
+                            return; // Exit without setting e.Handled = true
+                        }
+                        source = VisualTreeHelper.GetParent(source);
+                    }
+
+                    // If we are here, the click was on a non-interactive part of the item.
+                    // We handle the event to prevent the ListBox from clearing the selection,
+                    // thus preserving it for a potential drag operation.
                     e.Handled = true;
                     }
                 }
