@@ -50,57 +50,6 @@ public class WorkflowUITabLayoutViewModel
     public ObservableCollection<WorkflowGroupViewModel> Groups { get; } = new ObservableCollection<WorkflowGroupViewModel>();
 }
 
-[AddINotifyPropertyChangedInterface]
-public class GlobalPresetsViewModel : INotifyPropertyChanged
-{
-    public string Header { get; set; } = LocalizationService.Instance["GlobalPresets_Header"];
-    public bool IsExpanded { get; set; } = true;
-    public bool IsVisible => GlobalPresetNames.Any();
-
-    public ObservableCollection<string> GlobalPresetNames { get; } = new();
-    
-    private readonly Action<string> _applyPresetAction;
-    private string _selectedGlobalPreset;
-    private bool _isInternalSet = false; // Flag to prevent action trigger on internal updates
-
-    public string SelectedGlobalPreset
-    {
-        get => _selectedGlobalPreset;
-        set
-        {
-            if (_selectedGlobalPreset == value) return;
-            
-            _selectedGlobalPreset = value;
-            OnPropertyChanged(nameof(SelectedGlobalPreset));
-
-            // Only trigger the action if the change was made by the user (not internally)
-            if (!_isInternalSet && value != null)
-            {
-                _applyPresetAction?.Invoke(value);
-            }
-        }
-    }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-    protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    
-    public GlobalPresetsViewModel(Action<string> applyPresetAction)
-    {
-        _applyPresetAction = applyPresetAction;
-        GlobalPresetNames.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsVisible));
-    }
-    
-    /// <summary>
-    /// Sets the selected preset without triggering the application action.
-    /// Used for syncing the UI from the model state.
-    /// </summary>
-    public void SetSelectedPresetSilently(string presetName)
-    {
-        _isInternalSet = true;
-        SelectedGlobalPreset = presetName;
-        _isInternalSet = false;
-    }
-}
 
 public enum XYGridMode
 {
@@ -225,6 +174,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public ICollectionView YSourcePresetsView { get; private set; }
     
     public ICommand AddValueToGridCommand { get; }
+    
+    public GlobalPresetEditorViewModel GlobalPresetEditor { get; set; }
+    public bool IsGlobalPresetEditorOpen { get; set; }
+
     public ICommand AddPresetValueToGridCommand { get; }
     
     public WorkflowInputsController(Workflow workflow, AppSettings settings, ModelService modelService, WorkflowTabViewModel parentTab)
@@ -243,6 +196,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         });
         
         GlobalControls = new GlobalControlsViewModel(ApplyGlobalPreset);
+        GlobalControls.OpenGlobalPresetEditorCommand = new RelayCommand(_ => OpenGlobalPresetEditor());
         
         this.PropertyChanged += (s, e) => {
             if (e.PropertyName == nameof(SelectedXSource))
@@ -292,6 +246,69 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 YValues = string.IsNullOrEmpty(YValues) ? selectedValue : YValues + Environment.NewLine + selectedValue;
             }
         });
+    }
+    
+    private void OpenGlobalPresetEditor()
+    {
+        var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
+    
+        GlobalPresetEditor = new GlobalPresetEditorViewModel(
+            _workflow.GlobalPresets,
+            allGroups,
+            SaveGlobalPreset,
+            DeleteGlobalPreset,
+            () => // Pass a function to get the current state
+            {
+                return allGroups
+                    .Where(g => g.ActiveLayers.Any())
+                    .ToDictionary(g => g.Id, g => g.ActiveLayers.Select(l => l.Name).ToList());
+            }
+        );
+
+        // Load the current UI state into the editor when it opens
+        GlobalPresetEditor.LoadCurrentStateIntoEditor();
+
+        IsGlobalPresetEditorOpen = true;
+    }
+
+    private void SaveGlobalPreset(GlobalPreset presetToSave)
+    {
+        // Remove old version if it exists
+        var existing = _workflow.GlobalPresets.FirstOrDefault(p => p.Name == presetToSave.Name);
+        if (existing != null)
+        {
+            _workflow.GlobalPresets.Remove(existing);
+        }
+        
+        _workflow.GlobalPresets.Add(presetToSave);
+        
+        // Notify the parent tab to trigger a workflow file save
+        PresetsModifiedInGroup?.Invoke();
+        
+        // Reload the presets in the UI
+        LoadGlobalPresets();
+        
+        // Reselect the saved preset
+        GlobalControls.SelectedGlobalPreset = presetToSave;
+    }
+
+    private void DeleteGlobalPreset(GlobalPreset presetToDelete)
+    {
+        if (MessageBox.Show(
+            string.Format(LocalizationService.Instance["Presets_DeleteConfirmMessage"], presetToDelete.Name),
+            LocalizationService.Instance["Presets_DeleteConfirmTitle"],
+            MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var existing = _workflow.GlobalPresets.FirstOrDefault(p => p.Name == presetToDelete.Name);
+        if (existing != null)
+        {
+            _workflow.GlobalPresets.Remove(existing);
+            PresetsModifiedInGroup?.Invoke();
+            LoadGlobalPresets();
+        }
     }
     
     /// <summary>
@@ -525,9 +542,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
             groupVm.PresetsModified += () =>
             {
                 PresetsModifiedInGroup?.Invoke();
-                DiscoverGlobalPresets();
+                LoadGlobalPresets();
             };
-            // REMOVED: groupVm.PropertyChanged += OnGroupPresetChanged;
+            groupVm.ActiveLayersChanged += SyncGlobalPresetFromGroups;
             groupVmLookup[group.Id] = groupVm;
 
             foreach (var tabVm in groupVm.Tabs)
@@ -731,7 +748,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         
         await Task.WhenAll(comboBoxLoadTasks);
         
-        DiscoverGlobalPresets(); 
+        LoadGlobalPresets(); 
         
         SyncGlobalPresetFromGroups();
         
@@ -820,7 +837,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
     }
-
+    
     /// <summary>
     /// Finds the WorkflowGroupViewModel that contains the specified InputFieldViewModel.
     /// </summary>
@@ -844,84 +861,117 @@ public class WorkflowInputsController : INotifyPropertyChanged
     }
     
     /// <summary>
-    /// Scans all presets in the workflow to find names that are shared across multiple groups.
-    /// Populates the GlobalPresets ViewModel with these names.
+    /// Populates the GlobalControls ViewModel with defined global presets from the workflow.
     /// </summary>
-    public void DiscoverGlobalPresets()
+    public void LoadGlobalPresets()
     {
-        GlobalControls.GlobalPresetNames.Clear();
+        GlobalControls.GlobalPresets.Clear();
+        if (_workflow.GlobalPresets == null) return;
 
-        if (_workflow.Presets == null) return;
-
-        var sharedPresetNames = _workflow.Presets
-            .SelectMany(kvp => kvp.Value) // Flatten all presets from all groups into a single list
-            .GroupBy(preset => preset.Name)      // Group them by name
-            .Where(group => group.Count() > 1)  // Find names that appear more than once
-            .Select(group => group.Key)         // Select the name
-            .OrderBy(name => name);             // Order alphabetically
-
-        foreach (var name in sharedPresetNames)
+        foreach (var preset in _workflow.GlobalPresets.OrderBy(p => p.Name))
         {
-            GlobalControls.GlobalPresetNames.Add(name);
+            GlobalControls.GlobalPresets.Add(preset);
         }
     }
 
     /// <summary>
-    /// This logic needs to be adapted to the new "Active Layers" system.
-    /// For now, we'll clear the global selection if group states diverge.
+    /// Checks if the current state of all active layers across all groups matches
+    /// any of the defined global presets and updates the UI accordingly.
     /// </summary>
     private void SyncGlobalPresetFromGroups()
     {
-        var participatingGroups = TabLayoouts.SelectMany(t => t.Groups)
-            .Where(g => g.AllPresets.Any(p => GlobalControls.GlobalPresetNames.Contains(p.Name)))
-            .ToList();
+        if (_isApplyingPreset) return; // Prevent sync while a preset is being applied
 
-        if (!participatingGroups.Any())
+        // 1. Get the current state of all groups.
+        var currentState = TabLayoouts.SelectMany(t => t.Groups)
+            .Where(g => g.ActiveLayers.Any()) // Only consider groups that have active layers.
+            .ToDictionary(g => g.Id, g => g.ActiveLayers.Select(l => l.Name).ToList());
+
+        GlobalPreset matchedPreset = null;
+    
+        // 2. Iterate through all defined global presets to find a match.
+        foreach (var globalPreset in _workflow.GlobalPresets)
         {
-            GlobalControls.SetSelectedPresetSilently(null);
-            return;
+            // A potential match must have the same number of groups defined.
+            if (globalPreset.GroupStates.Count != currentState.Count) continue;
+            
+            bool isMatch = true;
+            // Check if every group state in the global preset is matched by the current state.
+            foreach (var requiredState in globalPreset.GroupStates)
+            {
+                var groupId = requiredState.Key;
+                var requiredLayers = requiredState.Value.ToHashSet(); // Use HashSet for efficient comparison
+
+                // If the current state doesn't even have an entry for this group, it's not a match.
+                if (!currentState.TryGetValue(groupId, out var currentLayersList))
+                {
+                    isMatch = false;
+                    break;
+                }
+
+                var currentLayers = currentLayersList.ToHashSet();
+                
+                // Compare the sets of layer names. They must be identical.
+                if (!requiredLayers.SetEquals(currentLayers))
+                {
+                    isMatch = false;
+                    break;
+                }
+            }
+
+            if (isMatch)
+            {
+                matchedPreset = globalPreset;
+                break; // Found a match, no need to check others.
+            }
         }
 
-        // Check the first active layer of the first group.
-        var firstPresetName = participatingGroups.First().ActiveLayers.FirstOrDefault()?.Name;
-
-        if (firstPresetName == null || !GlobalControls.GlobalPresetNames.Contains(firstPresetName))
-        {
-            GlobalControls.SetSelectedPresetSilently(null);
-            return;
-        }
-
-        // Check if all other groups ALSO have this layer as their first active layer.
-        // This is a simplified check for the new system.
-        bool allMatch = participatingGroups.Skip(1)
-            .All(g => g.ActiveLayers.FirstOrDefault()?.Name == firstPresetName);
-
-        GlobalControls.SetSelectedPresetSilently(allMatch ? firstPresetName : null);
+        GlobalControls.SetSelectedPresetSilently(matchedPreset);
     }
     
     /// <summary>
-    /// Applies a preset of a given name to all groups that contain it.
+    /// Applies a global preset, setting the active layers for all relevant groups.
     /// </summary>
-    private void ApplyGlobalPreset(string presetName)
+    private void ApplyGlobalPreset(GlobalPreset preset)
     {
-        if (string.IsNullOrEmpty(presetName)) return;
+        if (preset == null) return;
         
         _isUpdatingFromGlobalPreset = true;
-
+        _isApplyingPreset = true;
         try
         {
-            foreach (var groupVm in TabLayoouts.SelectMany(t => t.Groups))
+            var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
+
+            // First, clear all layers from all groups to ensure a clean slate.
+            foreach (var groupVm in allGroups)
             {
-                var presetToApply = groupVm.AllPresets.FirstOrDefault(p => p.Name == presetName);
-                if (presetToApply != null)
+                groupVm.ClearActiveLayers();
+            }
+
+            // Now, apply the presets defined in the global preset.
+            foreach (var groupState in preset.GroupStates)
+            {
+                var groupId = groupState.Key;
+                var presetNames = groupState.Value;
+
+                var groupVmToApply = allGroups.FirstOrDefault(g => g.Id == groupId);
+                if (groupVmToApply == null) continue;
+                
+                // Apply all presets listed for this group.
+                foreach (var presetName in presetNames)
                 {
-                    groupVm.ApplyPreset(presetToApply); 
+                    var presetToApply = groupVmToApply.AllPresets.FirstOrDefault(p => p.Name == presetName);
+                    if (presetToApply != null)
+                    {
+                        groupVmToApply.ApplyPreset(presetToApply);
+                    }
                 }
             }
         }
         finally
         {
             _isUpdatingFromGlobalPreset = false;
+            _isApplyingPreset = false;
         }
     }
     

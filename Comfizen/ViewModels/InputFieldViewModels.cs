@@ -64,6 +64,165 @@ namespace Comfizen
     }
     
     /// <summary>
+    /// ViewModel for managing a single group's state within the Global Preset Editor.
+    /// </summary>
+    [AddINotifyPropertyChangedInterface]
+    public class GroupStateViewModel
+    {
+        public WorkflowGroupViewModel Group { get; }
+        public string GroupName => Group.Name;
+        public Guid GroupId => Group.Id;
+
+        // A combined list of snippets and layouts for the dropdown
+        public ObservableCollection<GroupPresetViewModel> AvailablePresets { get; }
+
+        // The currently selected preset (layer) for this group
+        public GroupPresetViewModel SelectedPreset { get; set; }
+
+        public GroupStateViewModel(WorkflowGroupViewModel group)
+        {
+            Group = group;
+            // Create a new collection that includes a "null" option for "no preset"
+            AvailablePresets = new ObservableCollection<GroupPresetViewModel> { null };
+            foreach (var preset in group.AllPresets.OrderBy(p => p.Name))
+            {
+                AvailablePresets.Add(preset);
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// ViewModel for the Global Preset Editor popup.
+    /// </summary>
+    [AddINotifyPropertyChangedInterface]
+    public class GlobalPresetEditorViewModel
+    {
+        public ObservableCollection<GlobalPreset> GlobalPresets { get; }
+        
+        private GlobalPreset _selectedPreset;
+        public GlobalPreset SelectedPreset
+        {
+            get => _selectedPreset;
+            set
+            {
+                _selectedPreset = value;
+                LoadPresetForEditing(value);
+            }
+        }
+
+        public string EditingPresetName { get; set; }
+        public ObservableCollection<GroupStateViewModel> GroupStates { get; } = new ObservableCollection<GroupStateViewModel>();
+
+        public ICommand AddNewCommand { get; }
+        public ICommand SaveCommand { get; }
+        public ICommand DeleteCommand { get; }
+
+        private readonly Action<GlobalPreset> _saveCallback;
+        private readonly Action<GlobalPreset> _deleteCallback;
+        private readonly Func<Dictionary<Guid, List<string>>> _getCurrentStateCallback;
+
+        public GlobalPresetEditorViewModel(
+            ObservableCollection<GlobalPreset> globalPresets,
+            IEnumerable<WorkflowGroupViewModel> allGroups,
+            Action<GlobalPreset> saveCallback,
+            Action<GlobalPreset> deleteCallback,
+            Func<Dictionary<Guid, List<string>>> getCurrentStateCallback)
+        {
+            GlobalPresets = globalPresets;
+            _saveCallback = saveCallback;
+            _deleteCallback = deleteCallback;
+            _getCurrentStateCallback = getCurrentStateCallback;
+
+            foreach (var group in allGroups.OrderBy(g => g.Name))
+            {
+                GroupStates.Add(new GroupStateViewModel(group));
+            }
+
+            AddNewCommand = new RelayCommand(_ => CreateNewPreset());
+            SaveCommand = new RelayCommand(_ => SaveChanges(), _ => !string.IsNullOrWhiteSpace(EditingPresetName));
+            DeleteCommand = new RelayCommand(_ => DeletePreset(), _ => SelectedPreset != null);
+        }
+
+        public void LoadCurrentStateIntoEditor()
+        {
+            var currentState = _getCurrentStateCallback();
+            EditingPresetName = "";
+            SelectedPreset = null; // Deselect from the list
+
+            foreach (var groupState in GroupStates)
+            {
+                if (currentState.TryGetValue(groupState.GroupId, out var layerNames) && layerNames.Any())
+                {
+                    var layerName = layerNames.First();
+                    groupState.SelectedPreset = groupState.AvailablePresets.FirstOrDefault(p => p?.Name == layerName);
+                }
+                else
+                {
+                    groupState.SelectedPreset = null;
+                }
+            }
+        }
+
+        private void LoadPresetForEditing(GlobalPreset preset)
+        {
+            if (preset == null)
+            {
+                // This can happen when deselecting. We don't want to clear the form here.
+                return;
+            }
+
+            EditingPresetName = preset.Name;
+
+            foreach (var groupState in GroupStates)
+            {
+                if (preset.GroupStates.TryGetValue(groupState.GroupId, out var layerNames) && layerNames.Any())
+                {
+                    // For now, we only support one layer per group in the editor
+                    var layerName = layerNames.First();
+                    groupState.SelectedPreset = groupState.AvailablePresets.FirstOrDefault(p => p?.Name == layerName);
+                }
+                else
+                {
+                    groupState.SelectedPreset = null;
+                }
+            }
+        }
+
+        public void CreateNewPreset()
+        {
+            LoadCurrentStateIntoEditor();
+        }
+
+        private void SaveChanges()
+        {
+            var presetToSave = GlobalPresets.FirstOrDefault(p => p.Name == EditingPresetName) ?? new GlobalPreset();
+            
+            presetToSave.Name = EditingPresetName;
+            presetToSave.GroupStates.Clear();
+
+            foreach (var groupState in GroupStates)
+            {
+                if (groupState.SelectedPreset != null)
+                {
+                    // Storing as a list to be future-proof for multi-layer support
+                    presetToSave.GroupStates[groupState.GroupId] = new List<string> { groupState.SelectedPreset.Name };
+                }
+            }
+            
+            _saveCallback(presetToSave);
+        }
+
+        private void DeletePreset()
+        {
+            if (SelectedPreset != null)
+            {
+                _deleteCallback(SelectedPreset);
+            }
+        }
+    }
+    
+    /// <summary>
     /// A ViewModel for the combined global controls section, managing both wildcard seed and global presets.
     /// </summary>
     [AddINotifyPropertyChangedInterface]
@@ -77,20 +236,20 @@ namespace Comfizen
         
         // english: Combined visibility logic
         public bool IsSeedSectionVisible { get; set; } = false;
-        public bool IsPresetsSectionVisible => GlobalPresetNames.Any();
+        public bool IsPresetsSectionVisible => true;
         public bool IsVisible => IsSeedSectionVisible || IsPresetsSectionVisible || IsHooksSectionVisible;
 
         // english: From former GlobalSettingsViewModel
         public long WildcardSeed { get; set; } = Utils.GenerateSeed(0, 4294967295L);
         public bool IsSeedLocked { get; set; } = false;
         
-        // english: From former GlobalPresetsViewModel
-        public ObservableCollection<string> GlobalPresetNames { get; } = new();
-        private readonly Action<string> _applyPresetAction;
-        private string _selectedGlobalPreset;
+        // Rebuilt global preset properties
+        public ObservableCollection<GlobalPreset> GlobalPresets { get; } = new();
+        private readonly Action<GlobalPreset> _applyPresetAction;
+        private GlobalPreset _selectedGlobalPreset;
         private bool _isInternalSet = false;
 
-        public string SelectedGlobalPreset
+        public GlobalPreset SelectedGlobalPreset
         {
             get => _selectedGlobalPreset;
             set
@@ -118,10 +277,13 @@ namespace Comfizen
             }
         }
         
-        public GlobalControlsViewModel(Action<string> applyPresetAction)
+        public bool IsGlobalPresetEditorOpen { get; set; }
+        public ICommand OpenGlobalPresetEditorCommand { get; set; }
+        
+        public GlobalControlsViewModel(Action<GlobalPreset> applyPresetAction)
         {
             _applyPresetAction = applyPresetAction;
-            GlobalPresetNames.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsPresetsSectionVisible));
+            GlobalPresets.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsPresetsSectionVisible));
             ImplementedHooks.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsHooksSectionVisible));
         }
         
@@ -168,10 +330,10 @@ namespace Comfizen
         /// Sets the selected preset without triggering the application action.
         /// Used for syncing the UI from the model state.
         /// </summary>
-        public void SetSelectedPresetSilently(string presetName)
+        public void SetSelectedPresetSilently(GlobalPreset preset)
         {
             _isInternalSet = true;
-            SelectedGlobalPreset = presetName;
+            SelectedGlobalPreset = preset;
             _isInternalSet = false;
         }
     }
@@ -821,6 +983,8 @@ namespace Comfizen
         
         private bool _isApplyingPreset = false; // Flag to prevent re-entrancy issues
         
+        public event Action ActiveLayersChanged;
+        
         public WorkflowGroupViewModel(WorkflowGroup model, Workflow workflow, AppSettings settings)
         {
             _model = model;
@@ -835,7 +999,11 @@ namespace Comfizen
             SelectedTab = Tabs.FirstOrDefault();
             
             // --- NEW: Refresh status text when layers change ---
-            ActiveLayers.CollectionChanged += (s, e) => OnPropertyChanged(nameof(CurrentStateStatus));
+            ActiveLayers.CollectionChanged += (s, e) =>
+            {
+                OnPropertyChanged(nameof(CurrentStateStatus));
+                ActiveLayersChanged?.Invoke();
+            };
             
             // --- NEW: Refresh filtered lists when search text changes ---
             this.PropertyChanged += (s, e) =>
@@ -1035,6 +1203,11 @@ namespace Comfizen
             }, _ => SelectedTab != null && Tabs.Count > 1);
             ExportPresetsCommand = new RelayCommand(ExportPresets);
             ImportPresetsCommand = new RelayCommand(ImportPresets);
+        }
+        
+        public void ClearActiveLayers()
+        {
+            ActiveLayers.Clear();
         }
         
         private void PopulateFieldsForPresetFilter()

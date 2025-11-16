@@ -190,7 +190,7 @@ namespace Comfizen
         {
             // When presets are modified (e.g., from the UI Constructor),
             // tell the controller to re-scan for global presets.
-            WorkflowInputsController.DiscoverGlobalPresets();
+            WorkflowInputsController.LoadGlobalPresets();
 
             if (IsVirtual)
             {

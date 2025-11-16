@@ -112,6 +112,19 @@ namespace Comfizen
         }
     }
     
+    /// <summary>
+    /// Represents a global preset that defines a state across multiple groups.
+    /// </summary>
+    public class GlobalPreset
+    {
+        public string Name { get; set; }
+    
+        /// <summary>
+        /// Maps a Group ID to a list of the names of the active presets (Snippets or Layouts) for that group.
+        /// </summary>
+        public Dictionary<Guid, List<string>> GroupStates { get; set; } = new Dictionary<Guid, List<string>>();
+    }
+    
     public class ScriptCollection
     {
         public Dictionary<string, string> Hooks { get; set; } = new Dictionary<string, string>();
@@ -153,7 +166,10 @@ namespace Comfizen
         /// </summary>
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public Dictionary<string, JObject> NodeConnectionSnapshots { get; set; } = new Dictionary<string, JObject>();
-
+        
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public ObservableCollection<GlobalPreset> GlobalPresets { get; set; } = new ObservableCollection<GlobalPreset>();
+        
         // --- START OF NEW PROPERTY ---
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public ObservableCollection<WorkflowTabDefinition> Tabs { get; set; } = new ObservableCollection<WorkflowTabDefinition>();
@@ -195,7 +211,7 @@ namespace Comfizen
         }
         
         // New public method to initialize a workflow object from parts.
-        public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts, ObservableCollection<WorkflowTabDefinition> tabs, Dictionary<Guid, List<GroupPreset>> presets, Dictionary<string, JObject> nodeConnectionSnapshots)
+        public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts, ObservableCollection<WorkflowTabDefinition> tabs, Dictionary<Guid, List<GroupPreset>> presets, Dictionary<string, JObject> nodeConnectionSnapshots, ObservableCollection<GlobalPreset> globalPresets)
         {
             OriginalApi = prompt;
             LoadedApi = prompt?.DeepClone() as JObject;
@@ -207,6 +223,7 @@ namespace Comfizen
             Tabs = tabs ?? new ObservableCollection<WorkflowTabDefinition>();
             Presets = presets ?? new Dictionary<Guid, List<GroupPreset>>();
             NodeConnectionSnapshots = nodeConnectionSnapshots ?? new Dictionary<string, JObject>();
+            GlobalPresets = globalPresets ?? new ObservableCollection<GlobalPreset>();
             
             // Run the migration logic here as well to handle older imported formats.
             if (LoadedApi != null)
@@ -301,6 +318,7 @@ namespace Comfizen
                 promptTemplate = Groups,
                 scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null,
                 presets = Presets.Any() ? Presets : null,
+                globalPresets = GlobalPresets.Any() ? GlobalPresets : null,
                 // --- ADDED: Save tabs information ---
                 tabs = Tabs.Any() ? Tabs : null,
                 nodeConnectionSnapshots = NodeConnectionSnapshots.Any() ? NodeConnectionSnapshots : null
@@ -320,6 +338,7 @@ namespace Comfizen
                 promptTemplate = Groups,
                 scripts = (Scripts.Hooks.Any() || Scripts.Actions.Any()) ? Scripts : null,
                 presets = Presets.Any() ? Presets : null,
+                globalPresets = GlobalPresets.Any() ? GlobalPresets : null,
                 tabs = Tabs.Any() ? Tabs : null,
                 nodeConnectionSnapshots = NodeConnectionSnapshots.Any() ? NodeConnectionSnapshots : null
             };
@@ -372,6 +391,7 @@ namespace Comfizen
                 promptTemplate = default(ObservableCollection<WorkflowGroup>),
                 scripts = default(ScriptCollection),
                 presets = default(Dictionary<Guid, List<GroupPreset>>),
+                globalPresets = default(ObservableCollection<GlobalPreset>),
                 // --- ADDED: Load tabs information ---
                 tabs = default(ObservableCollection<WorkflowTabDefinition>),
                 nodeConnectionSnapshots = default(Dictionary<string, JObject>)
@@ -386,6 +406,7 @@ namespace Comfizen
             Tabs = data.tabs ?? new ObservableCollection<WorkflowTabDefinition>();
             Scripts = data.scripts ?? new ScriptCollection();
             Presets = data.presets ?? new Dictionary<Guid, List<GroupPreset>>();
+            GlobalPresets = data.globalPresets ?? new ObservableCollection<GlobalPreset>();
             NodeConnectionSnapshots = data.nodeConnectionSnapshots ?? new Dictionary<string, JObject>();
 
             // --- НАЧАЛО МИГРАЦИИ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ---
