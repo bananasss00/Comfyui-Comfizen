@@ -191,7 +191,13 @@ namespace Comfizen
 
         public void CreateNewPreset()
         {
-            LoadCurrentStateIntoEditor();
+            // This now simply clears the form for a fresh start.
+            SelectedPreset = null;
+            EditingPresetName = "";
+            foreach (var groupState in GroupStates)
+            {
+                groupState.SelectedPreset = null;
+            }
         }
 
         private void SaveChanges()

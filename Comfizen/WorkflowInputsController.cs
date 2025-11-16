@@ -880,39 +880,79 @@ public class WorkflowInputsController : INotifyPropertyChanged
     /// </summary>
     private void SyncGlobalPresetFromGroups()
     {
-        if (_isApplyingPreset) return; // Prevent sync while a preset is being applied
+        if (_isApplyingPreset) return;
 
-        // 1. Get the current state of all groups.
-        var currentState = TabLayoouts.SelectMany(t => t.Groups)
-            .Where(g => g.ActiveLayers.Any()) // Only consider groups that have active layers.
-            .ToDictionary(g => g.Id, g => g.ActiveLayers.Select(l => l.Name).ToList());
+        var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
+        var groupLookup = allGroups.ToDictionary(g => g.Id);
+
+        // 1. Get the current state, resolving layouts into their constituent snippets.
+        var currentState = allGroups.ToDictionary(g => g.Id, g => {
+            var activeLayers = new HashSet<string>();
+            foreach (var layer in g.ActiveLayers)
+            {
+                if (layer.SourcePreset.IsLayout)
+                {
+                    // If it's a layout, add all its snippets.
+                    foreach (var snippetName in layer.SourcePreset.Model.SnippetNames ?? new List<string>())
+                    {
+                        activeLayers.Add(snippetName);
+                    }
+                }
+                else
+                {
+                    // If it's a snippet, add it directly.
+                    activeLayers.Add(layer.Name);
+                }
+            }
+            return activeLayers;
+        });
 
         GlobalPreset matchedPreset = null;
-    
+
         // 2. Iterate through all defined global presets to find a match.
         foreach (var globalPreset in _workflow.GlobalPresets)
         {
-            // A potential match must have the same number of groups defined.
-            if (globalPreset.GroupStates.Count != currentState.Count) continue;
-            
             bool isMatch = true;
-            // Check if every group state in the global preset is matched by the current state.
+            // 3. Check if the set of groups in the preset matches the set of groups with active layers.
+            var presetGroupIds = globalPreset.GroupStates.Keys.ToHashSet();
+            var currentStateGroupIds = currentState.Where(kvp => kvp.Value.Any()).Select(kvp => kvp.Key).ToHashSet();
+            
+            if (!presetGroupIds.SetEquals(currentStateGroupIds))
+            {
+                continue; // The set of active groups is different.
+            }
+
+            // 4. For each group defined in the preset, resolve its layers and compare with the current state.
             foreach (var requiredState in globalPreset.GroupStates)
             {
                 var groupId = requiredState.Key;
-                var requiredLayers = requiredState.Value.ToHashSet(); // Use HashSet for efficient comparison
-
-                // If the current state doesn't even have an entry for this group, it's not a match.
-                if (!currentState.TryGetValue(groupId, out var currentLayersList))
+                
+                // Resolve the global preset's layers for this group into a flat list of snippets.
+                var requiredSnippets = new HashSet<string>();
+                if (groupLookup.TryGetValue(groupId, out var groupVm))
                 {
-                    isMatch = false;
-                    break;
+                    foreach (var layerName in requiredState.Value)
+                    {
+                        var preset = groupVm.AllPresets.FirstOrDefault(p => p.Name == layerName);
+                        if (preset != null)
+                        {
+                            if (preset.IsLayout)
+                            {
+                                foreach (var snippetName in preset.Model.SnippetNames ?? new List<string>())
+                                {
+                                    requiredSnippets.Add(snippetName);
+                                }
+                            }
+                            else
+                            {
+                                requiredSnippets.Add(layerName);
+                            }
+                        }
+                    }
                 }
 
-                var currentLayers = currentLayersList.ToHashSet();
-                
-                // Compare the sets of layer names. They must be identical.
-                if (!requiredLayers.SetEquals(currentLayers))
+                // Compare the resolved snippets with the current state's active snippets for this group.
+                if (!currentState.TryGetValue(groupId, out var currentSnippets) || !requiredSnippets.SetEquals(currentSnippets))
                 {
                     isMatch = false;
                     break;
@@ -922,7 +962,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             if (isMatch)
             {
                 matchedPreset = globalPreset;
-                break; // Found a match, no need to check others.
+                break; // Found a match.
             }
         }
 

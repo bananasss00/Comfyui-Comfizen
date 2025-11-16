@@ -257,7 +257,7 @@
   "UIConstructor_Hook_on_before_prompt_queue": "Перед отправкой промпта в очередь",
   "UIConstructor_Hook_on_batch_finished": "После завершения всей пачки",
   "Presets_ManageTooltip": "Управление пресетами",
-  "Presets_AddNewGlobal": "Добавить пресет",
+  "Presets_CreateNewGlobal": "Создать новый",
   "Presets_LoadPlaceholder": "Загрузить пресет...",
   "Presets_SaveCurrentState": "Сохранить текущее состояние",
   "Presets_SaveButton": "Сохранить",

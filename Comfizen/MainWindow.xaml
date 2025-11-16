@@ -342,7 +342,7 @@
 
                                     <!-- Left Panel: List of Presets -->
                                     <DockPanel Grid.Column="0">
-                                        <Button DockPanel.Dock="Top" Content="{local:Translate Presets_AddNewGlobal}" Command="{Binding AddNewCommand}" Margin="0,0,0,10"/>
+                                        <Button DockPanel.Dock="Top" Content="{local:Translate Presets_CreateNewGlobal}" Command="{Binding AddNewCommand}" Margin="0,0,0,10"/>
                                         <ListBox ItemsSource="{Binding GlobalPresets}"
                                                  SelectedItem="{Binding SelectedPreset, Mode=TwoWay}"
                                                  Background="{StaticResource PrimaryBackground}"
@@ -355,7 +355,7 @@
                                         </ListBox>
                                     </DockPanel>
 
-                                    <GridSplitter Grid.Column="1" Style="{StaticResource VerticalGridSplitterStyle}"/>
+                                    <GridSplitter Grid.Column="1" Style="{StaticResource VerticalGridSplitterStyle}" ResizeBehavior="PreviousAndNext"/>
 
                                     <!-- Right Panel: Editor -->
                                     <DockPanel Grid.Column="2">

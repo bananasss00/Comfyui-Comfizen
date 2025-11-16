@@ -443,7 +443,11 @@ namespace Comfizen
             var selectableItems = ItemsSource.Cast<object>().Where(i => i is not WorkflowListHeader).ToList();
             if (!selectableItems.Any()) return;
 
-            int currentIndex = selectableItems.FindIndex(i => i.ToString().Equals(SelectedItem.ToString(), StringComparison.OrdinalIgnoreCase));
+            int currentIndex = -1;
+            if (SelectedItem != null)
+            {
+                currentIndex = selectableItems.FindIndex(i => i.ToString().Equals(SelectedItem.ToString(), StringComparison.OrdinalIgnoreCase));
+            }
 
             int newIndex;
             if (currentIndex == -1)

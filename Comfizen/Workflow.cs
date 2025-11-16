@@ -118,11 +118,13 @@ namespace Comfizen
     public class GlobalPreset
     {
         public string Name { get; set; }
-    
+
         /// <summary>
         /// Maps a Group ID to a list of the names of the active presets (Snippets or Layouts) for that group.
         /// </summary>
         public Dictionary<Guid, List<string>> GroupStates { get; set; } = new Dictionary<Guid, List<string>>();
+
+        public override string ToString() => Name;
     }
     
     public class ScriptCollection
