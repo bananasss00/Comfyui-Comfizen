@@ -300,6 +300,8 @@
   "XYGrid_YValues": "Значения для Y (каждое с новой строки):",
   "XYGrid_CreateGridImage": "Создавать итоговый грид",
   "XYGrid_ShowIndividualImages": "Показывать единичные изображения",
+  "XYGrid_LimitCellSize": "Ограничить размер ячейки",
+  "XYGrid_MaxMegapixels": "Макс. мегапикселей:",
   "UIConstructor_Field_UsePrefix": "Префикс",
   "UIConstructor_Field_UsePrefixTooltip": "Добавлять к имени поля префикс с названием ноды",
   "Tab_GallerySortSimilarity": "Похожие",

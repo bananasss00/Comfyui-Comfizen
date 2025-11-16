@@ -113,6 +113,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public bool XyGridShowIndividualImages { get; set; } = false;
     public bool IsXyGridPopupOpen { get; set; }
     
+    public bool XyGridLimitCellSize { get; set; } = false;
+    public double XyGridMaxMegapixels { get; set; } = 4.0;
+    
     public XYGridMode GridMode { get; set; } = XYGridMode.Image;
     public int VideoGridFrames { get; set; } = 4;
     

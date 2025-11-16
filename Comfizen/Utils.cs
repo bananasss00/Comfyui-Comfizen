@@ -698,7 +698,8 @@ namespace Comfizen
         public static byte[] CreateImageGrid(
             List<GridCellResult> results,
             string xAxisField, IReadOnlyList<string> xValues,
-            string yAxisField, IReadOnlyList<string> yValues)
+            string yAxisField, IReadOnlyList<string> yValues,
+            bool limitCellSize, double maxMegapixels)
         {
             if (results == null || !results.Any()) return null;
             
@@ -706,6 +707,21 @@ namespace Comfizen
             using var firstImage = Image.Load(results.First().ImageOutputs.First().ImageBytes);
             int cellWidth = firstImage.Width;
             int cellHeight = firstImage.Height;
+
+            // --- START OF ADDED LOGIC: Limit cell size by megapixels ---
+            if (limitCellSize && maxMegapixels > 0)
+            {
+                long maxPixels = (long)(maxMegapixels * 1_000_000);
+                long currentPixels = (long)cellWidth * cellHeight;
+
+                if (currentPixels > maxPixels)
+                {
+                    double scaleRatio = Math.Sqrt((double)maxPixels / currentPixels);
+                    cellWidth = (int)(cellWidth * scaleRatio);
+                    cellHeight = (int)(cellHeight * scaleRatio);
+                }
+            }
+            // --- END OF ADDED LOGIC ---
             
             // --- Define how to draw a cell for an image grid ---
             Action<IImageProcessingContext, Rectangle, GridCellResult> drawCellAction = (ctx, cellRect, result) =>
@@ -713,10 +729,18 @@ namespace Comfizen
                 int count = result.ImageOutputs.Count;
                 if (count == 0) return;
                 
-                // If there's only one image, just draw it.
+                // If there's only one image, draw it, resized to fit the cell.
                 if (count == 1)
                 {
                     using var img = Image.Load(result.ImageOutputs[0].ImageBytes);
+                    // --- START OF CHANGE: Resize image to fit the calculated cell size ---
+                    img.Mutate(x => x.Resize(new ResizeOptions 
+                    { 
+                        Size = new Size(cellRect.Width, cellRect.Height), 
+                        Mode = ResizeMode.Pad, 
+                        PadColor = Color.Black 
+                    }));
+                    // --- END OF CHANGE ---
                     ctx.DrawImage(img, cellRect.Location, 1f);
                     return;
                 }
@@ -751,7 +775,8 @@ namespace Comfizen
             List<GridCellResult> results,
             string xAxisField, IReadOnlyList<string> xValues,
             string yAxisField, IReadOnlyList<string> yValues,
-            int frameCount)
+            int frameCount,
+            bool limitCellSize, double maxMegapixels)
         {
             if (results == null || !results.Any() || frameCount <= 0) return null;
 
@@ -779,6 +804,21 @@ namespace Comfizen
                 
                 int frameWidth = firstFrameList[0].Width;
                 int frameHeight = firstFrameList[0].Height;
+                
+                // --- START OF ADDED LOGIC: Limit frame size by megapixels ---
+                if (limitCellSize && maxMegapixels > 0)
+                {
+                    long maxPixels = (long)(maxMegapixels * 1_000_000);
+                    long currentPixels = (long)frameWidth * frameHeight;
+    
+                    if (currentPixels > maxPixels)
+                    {
+                        double scaleRatio = Math.Sqrt((double)maxPixels / currentPixels);
+                        frameWidth = (int)(frameWidth * scaleRatio);
+                        frameHeight = (int)(frameHeight * scaleRatio);
+                    }
+                }
+                // --- END OF ADDED LOGIC ---
                 
                 int cols = (int)Math.Ceiling(Math.Sqrt(frameCount));
                 int rows = (int)Math.Ceiling((double)frameCount / cols);

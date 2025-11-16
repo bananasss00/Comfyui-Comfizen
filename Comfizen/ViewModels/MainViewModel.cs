@@ -272,6 +272,8 @@ namespace Comfizen
             public string YAxisPath { get; set; }
             public IReadOnlyList<string> YValues { get; set; }
             public bool CreateGridImage { get; set; }
+            public bool LimitCellSize { get; set; }
+            public double MaxMegapixels { get; set; }
             public XYGridMode GridMode { get; set; }
             public int VideoGridFrames { get; set; }
         }
@@ -1349,6 +1351,8 @@ namespace Comfizen
                     YAxisPath = controller.SelectedYField?.Path,
                     YValues = yValuesList,
                     CreateGridImage = controller.XyGridCreateGridImage,
+                    LimitCellSize = controller.XyGridLimitCellSize,
+                    MaxMegapixels = controller.XyGridMaxMegapixels,
                     GridMode = controller.GridMode,
                     VideoGridFrames = controller.VideoGridFrames
                 };
@@ -1839,7 +1843,9 @@ namespace Comfizen
                                     gridResults.Select(r => new Utils.GridCellResult { ImageOutputs = r.ImageOutputs, XValue = r.XValue, YValue = r.YValue }).ToList(),
                                     gridConfig.XAxisField, gridConfig.XValues,
                                     gridConfig.YAxisField, gridConfig.YValues,
-                                    gridConfig.VideoGridFrames);
+                                    gridConfig.VideoGridFrames,
+                                    gridConfig.LimitCellSize, 
+                                    gridConfig.MaxMegapixels);
                                 
                                 // (The rest of the logic for saving the grid image remains the same)
                                 if (gridImageBytes != null)
@@ -1899,7 +1905,9 @@ namespace Comfizen
                                 var gridImageBytes = Utils.CreateImageGrid(
                                     gridResults.Select(r => new Utils.GridCellResult { ImageOutputs = r.ImageOutputs, XValue = r.XValue, YValue = r.YValue }).ToList(),
                                     gridConfig.XAxisField, gridConfig.XValues,
-                                    gridConfig.YAxisField, gridConfig.YValues);
+                                    gridConfig.YAxisField, gridConfig.YValues,
+                                    gridConfig.LimitCellSize, 
+                                    gridConfig.MaxMegapixels);
 
                                 if (gridImageBytes != null)
                                 {

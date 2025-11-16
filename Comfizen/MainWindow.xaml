@@ -796,14 +796,35 @@
                                                     </GroupBox>
                                                     <!-- END OF NEW SECTION -->
 
-                                                    <StackPanel Margin="15,0,0,10">
-                                                        <CheckBox Content="{local:Translate XYGrid_CreateGridImage}"
-                                                                  IsChecked="{Binding SelectedTab.WorkflowInputsController.XyGridCreateGridImage, Mode=TwoWay}" />
-                                                        <CheckBox
-                                                            Content="{local:Translate XYGrid_ShowIndividualImages}"
-                                                            IsChecked="{Binding SelectedTab.WorkflowInputsController.XyGridShowIndividualImages, Mode=TwoWay}"
-                                                            Margin="0,5,0,0" />
-                                                    </StackPanel>
+                                                    <GroupBox Header="Cell Options" Margin="0,0,0,10">
+                                                        <StackPanel>
+                                                            <CheckBox Content="{local:Translate XYGrid_CreateGridImage}"
+                                                                      IsChecked="{Binding SelectedTab.WorkflowInputsController.XyGridCreateGridImage, Mode=TwoWay}" />
+                                                            <CheckBox
+                                                                Content="{local:Translate XYGrid_ShowIndividualImages}"
+                                                                IsChecked="{Binding SelectedTab.WorkflowInputsController.XyGridShowIndividualImages, Mode=TwoWay}"
+                                                                Margin="0,5,0,0" />
+                                                            
+                                                            <Separator Margin="0,10"/>
+                                                            
+                                                            <CheckBox Content="{local:Translate XYGrid_LimitCellSize}"
+                                                                      IsChecked="{Binding SelectedTab.WorkflowInputsController.XyGridLimitCellSize, Mode=TwoWay}"/>
+                                                            <StackPanel Orientation="Horizontal" Margin="20,8,0,0">
+                                                                <StackPanel.Style>
+                                                                    <Style TargetType="StackPanel">
+                                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding SelectedTab.WorkflowInputsController.XyGridLimitCellSize}" Value="True">
+                                                                                <Setter Property="IsEnabled" Value="True"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </StackPanel.Style>
+                                                                <TextBlock Text="{local:Translate XYGrid_MaxMegapixels}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                <xctk:DoubleUpDown Value="{Binding SelectedTab.WorkflowInputsController.XyGridMaxMegapixels, Mode=TwoWay}" Minimum="0.1" Maximum="256" Increment="0.5" FormatString="F1" Width="70"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </GroupBox>
 
                                                     <!-- X AXIS -->
                                                     <TextBlock Text="{local:Translate XYGrid_XAxisField}"
