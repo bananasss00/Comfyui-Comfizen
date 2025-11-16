@@ -996,7 +996,20 @@ namespace Comfizen
         /// </summary>
         private void ControlsScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (e.OriginalSource is DependencyObject source && source.TryFindParent<AdvancedPromptEditor>() != null)
+            if (sender is not ScrollViewer mainScroller) return;
+            
+            // Get the ViewModel for the current UI tab layout.
+            var tabLayoutVm = mainScroller.DataContext as WorkflowUITabLayoutViewModel;
+            
+            // Check if any group within this tab has its preset panel currently open.
+            if (tabLayoutVm != null && tabLayoutVm.Groups.Any(g => g.IsPresetPanelOpen))
+            {
+                // If a preset panel is open, do nothing and let default behavior take over.
+                // This prevents the main content from scrolling while a popup is active.
+                return;
+            }
+            
+            if (e.OriginalSource is DependencyObject source2 && source2.TryFindParent<AdvancedPromptEditor>() != null)
             {
                 // If the event came from inside our new editor, do nothing and let the editor handle it.
                 return;
@@ -1014,9 +1027,6 @@ namespace Comfizen
             {
                 return;
             }
-
-            var mainScroller = sender as ScrollViewer;
-            if (mainScroller == null) return;
 
             var sourceElement = e.OriginalSource as DependencyObject;
             ScrollViewer innerScroller = null;
