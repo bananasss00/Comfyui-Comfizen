@@ -272,6 +272,8 @@ namespace Comfizen
             public string YAxisPath { get; set; }
             public IReadOnlyList<string> YValues { get; set; }
             public bool CreateGridImage { get; set; }
+            public XYGridMode GridMode { get; set; }
+            public int VideoGridFrames { get; set; }
         }
         
         public class PromptTask
@@ -1346,7 +1348,9 @@ namespace Comfizen
                     YAxisField = controller.SelectedYField?.Name,
                     YAxisPath = controller.SelectedYField?.Path,
                     YValues = yValuesList,
-                    CreateGridImage = controller.XyGridCreateGridImage
+                    CreateGridImage = controller.XyGridCreateGridImage,
+                    GridMode = controller.GridMode,
+                    VideoGridFrames = controller.VideoGridFrames
                 };
 
                 var pathsToIgnore = new HashSet<string>();
@@ -1823,61 +1827,124 @@ namespace Comfizen
                 {
                     try
                     {
-                        // Check if any of the results are videos. If so, we cannot create an image grid.
-                        if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type == FileType.Video))
+                        if (gridConfig.GridMode == XYGridMode.Video)
                         {
-                            Logger.Log("XY Grid image creation was skipped because the output was video.", LogLevel.Warning);
-                        }
-                        else
-                        {
-                            var gridImageBytes = Utils.CreateImageGrid(
-                                gridResults.Select(r => new Utils.GridCellResult { ImageOutputs = r.ImageOutputs, XValue = r.XValue, YValue = r.YValue }).ToList(),
-                                gridConfig.XAxisField, gridConfig.XValues,
-                                gridConfig.YAxisField, gridConfig.YValues);
-
-                            if (gridImageBytes != null)
+                            if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type != FileType.Video))
                             {
-                                var firstTaskResult = gridResults.First().ImageOutputs.First();
+                                Logger.Log("XY Grid (Video Mode) was skipped because some outputs were images, not videos.", LogLevel.Warning);
+                            }
+                            else
+                            {
+                                var gridImageBytes = await Utils.CreateVideoGridAsync(
+                                    gridResults.Select(r => new Utils.GridCellResult { ImageOutputs = r.ImageOutputs, XValue = r.XValue, YValue = r.YValue }).ToList(),
+                                    gridConfig.XAxisField, gridConfig.XValues,
+                                    gridConfig.YAxisField, gridConfig.YValues,
+                                    gridConfig.VideoGridFrames);
                                 
-                                string promptForGrid;
-                                try
+                                // (The rest of the logic for saving the grid image remains the same)
+                                if (gridImageBytes != null)
                                 {
-                                    var workflowJson = JObject.Parse(firstTaskResult.Prompt);
-                                    var gridConfigData = new JObject
+                                    var firstTaskResult = gridResults.First().ImageOutputs.First();
+                                
+                                    string promptForGrid;
+                                    try
                                     {
-                                        ["x_axis_field_path"] = gridConfig.XAxisPath,
-                                        ["x_axis_field_name"] = gridConfig.XAxisField,
-                                        ["x_values"] = JArray.FromObject(gridConfig.XValues),
-                                        ["y_axis_field_path"] = gridConfig.YAxisPath,
-                                        ["y_axis_field_name"] = gridConfig.YAxisField,
-                                        ["y_values"] = JArray.FromObject(gridConfig.YValues)
+                                        var workflowJson = JObject.Parse(firstTaskResult.Prompt);
+                                        var gridConfigData = new JObject
+                                        {
+                                            ["x_axis_field_path"] = gridConfig.XAxisPath,
+                                            ["x_axis_field_name"] = gridConfig.XAxisField,
+                                            ["x_values"] = JArray.FromObject(gridConfig.XValues),
+                                            ["y_axis_field_path"] = gridConfig.YAxisPath,
+                                            ["y_axis_field_name"] = gridConfig.YAxisField,
+                                            ["y_values"] = JArray.FromObject(gridConfig.YValues)
+                                        };
+
+                                        var compositePrompt = new JObject
+                                        {
+                                            ["workflow"] = workflowJson,
+                                            ["grid_config"] = gridConfigData
+                                        };
+                                        promptForGrid = compositePrompt.ToString(Formatting.None);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Logger.Log(ex, "Failed to create composite JSON for XY Grid image. Falling back to simple prompt.");
+                                        promptForGrid = firstTaskResult.Prompt; // Fallback
+                                    }
+
+                                    var gridImageOutput = new ImageOutput
+                                    {
+                                        ImageBytes = gridImageBytes,
+                                        FileName = $"{LocalizationService.Instance["XYGrid_GeneratedImageName"]}_{DateTime.Now:yyyyMMdd_HHmmss}.png",
+                                        Prompt = promptForGrid,
+                                        VisualHash = Utils.ComputePixelHash(gridImageBytes)
                                     };
 
-                                    var compositePrompt = new JObject
+                                    await Application.Current.Dispatcher.InvokeAsync(() =>
                                     {
-                                        ["workflow"] = workflowJson,
-                                        ["grid_config"] = gridConfigData
+                                        this.ImageProcessing.ImageOutputs.Insert(0, gridImageOutput);
+                                    });
+                                }
+                            }
+                        }
+                        else // Image Mode (existing logic)
+                        {
+                             if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type == FileType.Video))
+                            {
+                                Logger.Log("XY Grid image creation was skipped because the output was video.", LogLevel.Warning);
+                            }
+                            else
+                            {
+                                var gridImageBytes = Utils.CreateImageGrid(
+                                    gridResults.Select(r => new Utils.GridCellResult { ImageOutputs = r.ImageOutputs, XValue = r.XValue, YValue = r.YValue }).ToList(),
+                                    gridConfig.XAxisField, gridConfig.XValues,
+                                    gridConfig.YAxisField, gridConfig.YValues);
+
+                                if (gridImageBytes != null)
+                                {
+                                    var firstTaskResult = gridResults.First().ImageOutputs.First();
+                                
+                                    string promptForGrid;
+                                    try
+                                    {
+                                        var workflowJson = JObject.Parse(firstTaskResult.Prompt);
+                                        var gridConfigData = new JObject
+                                        {
+                                            ["x_axis_field_path"] = gridConfig.XAxisPath,
+                                            ["x_axis_field_name"] = gridConfig.XAxisField,
+                                            ["x_values"] = JArray.FromObject(gridConfig.XValues),
+                                            ["y_axis_field_path"] = gridConfig.YAxisPath,
+                                            ["y_axis_field_name"] = gridConfig.YAxisField,
+                                            ["y_values"] = JArray.FromObject(gridConfig.YValues)
+                                        };
+
+                                        var compositePrompt = new JObject
+                                        {
+                                            ["workflow"] = workflowJson,
+                                            ["grid_config"] = gridConfigData
+                                        };
+                                        promptForGrid = compositePrompt.ToString(Formatting.None);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Logger.Log(ex, "Failed to create composite JSON for XY Grid image. Falling back to simple prompt.");
+                                        promptForGrid = firstTaskResult.Prompt; // Fallback
+                                    }
+
+                                    var gridImageOutput = new ImageOutput
+                                    {
+                                        ImageBytes = gridImageBytes,
+                                        FileName = $"{LocalizationService.Instance["XYGrid_GeneratedImageName"]}_{DateTime.Now:yyyyMMdd_HHmmss}.png",
+                                        Prompt = promptForGrid,
+                                        VisualHash = Utils.ComputePixelHash(gridImageBytes)
                                     };
-                                    promptForGrid = compositePrompt.ToString(Formatting.None);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Logger.Log(ex, "Failed to create composite JSON for XY Grid image. Falling back to simple prompt.");
-                                    promptForGrid = firstTaskResult.Prompt; // Fallback
-                                }
 
-                                var gridImageOutput = new ImageOutput
-                                {
-                                    ImageBytes = gridImageBytes,
-                                    FileName = $"{LocalizationService.Instance["XYGrid_GeneratedImageName"]}_{DateTime.Now:yyyyMMdd_HHmmss}.png",
-                                    Prompt = promptForGrid,
-                                    VisualHash = Utils.ComputePixelHash(gridImageBytes)
-                                };
-
-                                await Application.Current.Dispatcher.InvokeAsync(() =>
-                                {
-                                    this.ImageProcessing.ImageOutputs.Insert(0, gridImageOutput);
-                                });
+                                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                                    {
+                                        this.ImageProcessing.ImageOutputs.Insert(0, gridImageOutput);
+                                    });
+                                }
                             }
                         }
                     }

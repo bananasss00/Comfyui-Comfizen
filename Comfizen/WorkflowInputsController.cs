@@ -78,6 +78,12 @@ public class GlobalPresetsViewModel : INotifyPropertyChanged
     }
 }
 
+public enum XYGridMode
+{
+    Image,
+    Video
+}
+
 [AddINotifyPropertyChangedInterface]
 public class WorkflowInputsController : INotifyPropertyChanged
 {
@@ -106,6 +112,10 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public bool XyGridCreateGridImage { get; set; } = true;
     public bool XyGridShowIndividualImages { get; set; } = false;
     public bool IsXyGridPopupOpen { get; set; }
+    
+    public XYGridMode GridMode { get; set; } = XYGridMode.Image;
+    public int VideoGridFrames { get; set; } = 4;
+    
     public ObservableCollection<InputFieldViewModel> GridableFields { get; } = new ObservableCollection<InputFieldViewModel>();
     public InputFieldViewModel SelectedXField { get; set; }
     public string XValues { get; set; }

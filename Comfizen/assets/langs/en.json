@@ -377,5 +377,9 @@
   "Fullscreen_SaveImage_Tooltip": "Save Image (NumPad 5)",
   "Fullscreen_SaveImage_ResaveTooltip": "Image is saved (Hold Ctrl to re-save)",
   "UIConstructor_Seed_AllowNegative": "Allow Negative",
-  "UIConstructor_Seed_MaxValue": "Max Value:"
+  "UIConstructor_Seed_MaxValue": "Max Value:",
+  "XYGrid_Mode": "Grid Mode:",
+  "XYGrid_ModeImage": "Image",
+  "XYGrid_ModeVideo": "Video (storyboard)",
+  "XYGrid_FrameCount": "Frames to extract:"
 }

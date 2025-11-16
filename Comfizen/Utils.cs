@@ -774,6 +774,271 @@ namespace Comfizen
         }
         
         /// <summary>
+        /// Creates a composite storyboard grid image from a collection of videos.
+        /// </summary>
+        public static async Task<byte[]> CreateVideoGridAsync(
+            List<GridCellResult> results,
+            string xAxisField, IReadOnlyList<string> xValues,
+            string yAxisField, IReadOnlyList<string> yValues,
+            int frameCount)
+        {
+            if (results == null || !results.Any() || frameCount <= 0) return null;
+
+            // --- Configuration (same as before) ---
+            var backgroundColor = Color.ParseHex("#3F3F46");
+            var textColor = Color.ParseHex("#E0E0E0");
+            var lineColor = Color.ParseHex("#2D2D30");
+            const int padding = 10;
+            const int labelPadding = 8;
+            const float fontSize = 14f;
+            const float axisFontSize = 16f;
+
+            FontFamily fontFamily;
+            try { fontFamily = SystemFonts.Get("Segoe UI"); }
+            catch { fontFamily = SystemFonts.Families.FirstOrDefault(); }
+            if (fontFamily == null) return null;
+
+            var font = fontFamily.CreateFont(fontSize, FontStyle.Regular);
+            var axisFont = fontFamily.CreateFont(axisFontSize, FontStyle.Bold);
+
+            // --- Image Sizing ---
+            var firstVideo = results.SelectMany(r => r.ImageOutputs).FirstOrDefault(io => io.Type == FileType.Video);
+            if (firstVideo == null) return null;
+
+            var firstFrameList = await ExtractFramesAsync(firstVideo.ImageBytes, 1);
+            if (firstFrameList == null || !firstFrameList.Any()) return null;
+
+            int frameWidth = firstFrameList[0].Width;
+            int frameHeight = firstFrameList[0].Height;
+            int cellWidth = frameWidth * frameCount;
+            int cellHeight = frameHeight;
+
+            // --- Layout Calculation (same as before) ---
+            bool hasYAxis = yValues.Count > 1 || (yValues.Count == 1 && !string.IsNullOrEmpty(yValues[0]));
+            var textMeasureOptions = new TextOptions(font);
+            var xLabelMaxHeight = xValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Height).DefaultIfEmpty(0).Max();
+            var yLabelMaxWidth = yValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Width).DefaultIfEmpty(0).Max();
+            int topLabelAreaHeight = (int)xLabelMaxHeight + labelPadding * 2;
+            int leftLabelAreaWidth = hasYAxis ? (int)yLabelMaxWidth + labelPadding * 2 : 0;
+            if (hasYAxis)
+            {
+                var yAxisLabelBounds = TextMeasurer.MeasureBounds("Y: " + yAxisField, new TextOptions(axisFont));
+                leftLabelAreaWidth += (int)yAxisLabelBounds.Height + padding;
+            }
+            int totalWidth = leftLabelAreaWidth + (cellWidth * xValues.Count) + (padding * (xValues.Count + 1));
+            int totalHeight = topLabelAreaHeight + (cellHeight * yValues.Count) + (padding * (yValues.Count + 1));
+            
+            // --- Step 1: Asynchronously extract all frames first ---
+            var extractionTasks = new Dictionary<GridCellResult, Task<List<Image<Rgba32>>>>();
+            foreach (var result in results)
+            {
+                var videoToProcess = result.ImageOutputs.FirstOrDefault(io => io.Type == FileType.Video);
+                if (videoToProcess != null)
+                {
+                    // Start the extraction task and store it in the dictionary.
+                    extractionTasks[result] = ExtractFramesAsync(videoToProcess.ImageBytes, frameCount);
+                }
+            }
+
+            // Wait for all extraction tasks to complete.
+            await Task.WhenAll(extractionTasks.Values);
+
+            // Create a dictionary with the results for easy lookup.
+            var preExtractedFrames = extractionTasks.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.Result // .Result is safe here because the task is already completed.
+            );
+
+            // --- Step 2: Now that all async work is done, perform synchronous drawing ---
+            using var canvas = new Image<Rgba32>(totalWidth, totalHeight);
+            canvas.Mutate(ctx =>
+            {
+                ctx.Fill(backgroundColor);
+
+                // --- Draw Axis and Value Labels (same as before) ---
+                // (This code is unchanged)
+                ctx.DrawText(new RichTextOptions(axisFont) { Origin = new PointF(leftLabelAreaWidth + padding, padding) }, "X: " + xAxisField, textColor);
+                if (hasYAxis)
+                {
+                    var yAxisTextOptions = new RichTextOptions(axisFont) { Origin = new PointF(padding + axisFontSize / 2, topLabelAreaHeight + (totalHeight - topLabelAreaHeight) / 2f), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    float rotationInRadians = (float)(-90 * (Math.PI / 180.0));
+                    var rotationMatrix = Matrix3x2.CreateRotation(rotationInRadians, yAxisTextOptions.Origin);
+                    ctx.SetDrawingTransform(rotationMatrix);
+                    ctx.DrawText(yAxisTextOptions, "Y: " + yAxisField, textColor);
+                    ctx.SetDrawingTransform(Matrix3x2.Identity);
+                }
+                var valueLabelOptions = new RichTextOptions(font) { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                for (int i = 0; i < xValues.Count; i++) { valueLabelOptions.Origin = new PointF(leftLabelAreaWidth + padding + (i * (cellWidth + padding)) + cellWidth / 2, topLabelAreaHeight / 2); ctx.DrawText(valueLabelOptions, xValues[i], textColor); }
+                if (hasYAxis) { for (int i = 0; i < yValues.Count; i++) { valueLabelOptions.Origin = new PointF(leftLabelAreaWidth / 2, topLabelAreaHeight + padding + (i * (cellHeight + padding)) + cellHeight / 2); ctx.DrawText(valueLabelOptions, yValues[i], textColor); } }
+
+                // --- Draw Video Frames ---
+                for (int yIndex = 0; yIndex < yValues.Count; yIndex++)
+                {
+                    for (int xIndex = 0; xIndex < xValues.Count; xIndex++)
+                    {
+                        var currentXValue = xValues[xIndex];
+                        var currentYValue = yValues[yIndex];
+
+                        var result = results.FirstOrDefault(r => r.XValue == currentXValue && r.YValue == currentYValue);
+
+                        // Check if we have pre-extracted frames for this result.
+                        if (result != null && preExtractedFrames.TryGetValue(result, out var frames) && frames != null)
+                        {
+                            for (int frameIndex = 0; frameIndex < frames.Count; frameIndex++)
+                            {
+                                using var frame = frames[frameIndex];
+                                if (frame.Width != frameWidth || frame.Height != frameHeight)
+                                {
+                                    frame.Mutate(i => i.Resize(new ResizeOptions { Size = new Size(frameWidth, frameHeight), Mode = ResizeMode.Pad, PadColor = Color.Black }));
+                                }
+
+                                var xPos = leftLabelAreaWidth + padding + (xIndex * (cellWidth + padding)) + (frameIndex * frameWidth);
+                                var yPos = topLabelAreaHeight + padding + (yIndex * (cellHeight + padding));
+
+                                ctx.DrawImage(frame, new Point(xPos, yPos), 1f);
+                                
+                                var pen = Pens.Solid(lineColor, 1);
+                                var rectangle = new RectangleF(xPos - 0.5f, yPos - 0.5f, frameWidth + 1, frameHeight + 1);
+                                ctx.Draw(pen, rectangle);
+                            }
+                        }
+                    }
+                }
+            });
+
+            using var ms = new MemoryStream();
+            await canvas.SaveAsPngAsync(ms);
+            return ms.ToArray();
+        }
+
+        public static async Task<List<Image<Rgba32>>> ExtractFramesAsync(byte[] videoBytes, int frameCount)
+        {
+            if (!IsFfmpegAvailable() || videoBytes == null || videoBytes.Length == 0 || frameCount <= 0)
+            {
+                return null;
+            }
+
+            var tempInputFile = Path.GetTempFileName();
+            var frames = new List<Image<Rgba32>>();
+
+            try
+            {
+                await File.WriteAllBytesAsync(tempInputFile, videoBytes);
+
+                double duration = await GetVideoDurationAsync(tempInputFile);
+                if (duration <= 0) return null;
+
+                // --- START OF ROBUST IMPLEMENTATION ---
+                double effectiveDuration = Math.Max(duration, 0.1);
+                double frameRate = frameCount / effectiveDuration;
+                string frameRateString = frameRate.ToString(CultureInfo.InvariantCulture);
+
+                string ffmpegArgs = $"-i \"{tempInputFile}\" -vf \"fps={frameRateString}\" -vframes {frameCount} -f image2pipe -vcodec png -";
+                
+                var processStartInfo = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = ffmpegArgs,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                using (var process = new Process { StartInfo = processStartInfo })
+                using (var outputStream = new MemoryStream())
+                {
+                    process.Start();
+
+                    // Step 1: Asynchronously copy the entire standard output to a memory stream.
+                    // Do not try to parse it live.
+                    var outputReaderTask = process.StandardOutput.BaseStream.CopyToAsync(outputStream);
+                    var errorReaderTask = process.StandardError.ReadToEndAsync();
+
+                    // Wait for the process to exit AND for the stream copying to complete.
+                    await Task.WhenAll(outputReaderTask, errorReaderTask);
+                    process.WaitForExit();
+
+                    var errorOutput = await errorReaderTask;
+                    if (process.ExitCode != 0 && !string.IsNullOrWhiteSpace(errorOutput))
+                    {
+                        // Log errors, but don't immediately fail, as ffmpeg might still have produced frames.
+                        Logger.Log($"ffmpeg process exited with code {process.ExitCode}. Error: {errorOutput}", LogLevel.Warning);
+                    }
+
+                    // Step 2: Now that we have all the data buffered, parse it safely.
+                    if (outputStream.Length > 0)
+                    {
+                        outputStream.Position = 0; // Rewind the stream to the beginning.
+                        
+                        // Loop through the buffered data, loading one image at a time.
+                        while (outputStream.Position < outputStream.Length)
+                        {
+                            try
+                            {
+                                // Image.Load will read one complete image and advance the stream's position automatically.
+                                var frame = Image.Load<Rgba32>(outputStream);
+                                frames.Add(frame);
+                            }
+                            catch (Exception ex)
+                            {
+                                // If parsing fails here, it's likely due to trailing non-image data from ffmpeg.
+                                // We can break the loop as we've probably read all valid frames.
+                                Logger.Log(ex, "Failed to parse a frame from the buffered output. This can happen if ffmpeg writes text at the end of the stream. Stopping frame read.");
+                                break; 
+                            }
+                        }
+                    }
+                }
+                
+                // --- END OF ROBUST IMPLEMENTATION ---
+                
+                return frames.Take(frameCount).ToList();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Exception during ffmpeg frame extraction.");
+                return null;
+            }
+            finally
+            {
+                if (File.Exists(tempInputFile))
+                {
+                    try { File.Delete(tempInputFile); } catch {}
+                }
+            }
+        }
+        
+        private static async Task<double> GetVideoDurationAsync(string videoPath)
+        {
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = "ffprobe",
+                Arguments = $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{videoPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            using (var process = new Process { StartInfo = processStartInfo })
+            {
+                process.Start();
+                var output = await process.StandardOutput.ReadToEndAsync();
+                var error = await process.StandardError.ReadToEndAsync();
+                process.WaitForExit();
+
+                if (process.ExitCode == 0 && double.TryParse(output.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double duration))
+                {
+                    return duration;
+                }
+                
+                Logger.Log($"ffprobe failed to get duration for '{videoPath}'. Error: {error}", LogLevel.Error);
+                return -1;
+            }
+        }
+        
+        /// <summary>
         /// Computes a 64-bit average hash (aHash) for an image.
         /// This hash represents the basic structure of the image and can be used for similarity comparison.
         /// </summary>
