@@ -894,11 +894,14 @@ namespace Comfizen
                 if (duration <= 0) return null;
 
                 // --- START OF ROBUST IMPLEMENTATION ---
-                double effectiveDuration = Math.Max(duration, 0.1);
-                double frameRate = frameCount / effectiveDuration;
-                string frameRateString = frameRate.ToString(CultureInfo.InvariantCulture);
+                double interval = duration / frameCount;
+                string intervalString = interval.ToString(CultureInfo.InvariantCulture);
 
-                string ffmpegArgs = $"-i \"{tempInputFile}\" -vf \"fps={frameRateString}\" -vframes {frameCount} -f image2pipe -vcodec png -";
+                // Use the 'select' filter instead of 'fps'.
+                // 'select' picks existing frames based on a time interval and doesn't create duplicates.
+                // 'isnan(prev_selected_t)' ensures the very first frame is always included.
+                // 'gte(t-prev_selected_t,{intervalString})' selects subsequent frames that appear after the calculated interval.
+                string ffmpegArgs = $"-i \"{tempInputFile}\" -vf \"select='isnan(prev_selected_t)+gte(t-prev_selected_t,{intervalString})'\" -vframes {frameCount} -f image2pipe -vcodec png -";
                 
                 var processStartInfo = new ProcessStartInfo
                 {
