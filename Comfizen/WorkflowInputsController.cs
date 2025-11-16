@@ -84,6 +84,16 @@ public enum XYGridMode
     Video
 }
 
+// This avoids data binding issues with selecting a null item.
+public class NullFieldViewModelPlaceholder : InputFieldViewModel
+{
+    // Singleton pattern ensures we use the exact same instance everywhere.
+    public static NullFieldViewModelPlaceholder Instance { get; } = new NullFieldViewModelPlaceholder();
+
+    // Private constructor for singleton pattern. Sets the display name.
+    private NullFieldViewModelPlaceholder() : base(new WorkflowField { Name = "---" }, null, null, null) { }
+}
+
 [AddINotifyPropertyChangedInterface]
 public class WorkflowInputsController : INotifyPropertyChanged
 {
@@ -120,9 +130,33 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public int VideoGridFrames { get; set; } = 4;
     
     public ObservableCollection<InputFieldViewModel> GridableFields { get; } = new ObservableCollection<InputFieldViewModel>();
-    public InputFieldViewModel SelectedXField { get; set; }
+
+    private InputFieldViewModel _selectedXField;
+    public InputFieldViewModel SelectedXField
+    {
+        get => _selectedXField ?? NullFieldViewModelPlaceholder.Instance;
+        set
+        {
+            var newValue = (value is NullFieldViewModelPlaceholder) ? null : value;
+            if (_selectedXField == newValue) return;
+            _selectedXField = newValue;
+            OnPropertyChanged(nameof(SelectedXField));
+        }
+    }
     public string XValues { get; set; }
-    public InputFieldViewModel SelectedYField { get; set; }
+
+    private InputFieldViewModel _selectedYField;
+    public InputFieldViewModel SelectedYField
+    {
+        get => _selectedYField ?? NullFieldViewModelPlaceholder.Instance;
+        set
+        {
+            var newValue = (value is NullFieldViewModelPlaceholder) ? null : value;
+            if (_selectedYField == newValue) return;
+            _selectedYField = newValue;
+            OnPropertyChanged(nameof(SelectedYField));
+        }
+    }
     public string YValues { get; set; }
 
     // New properties to support combo box helpers
@@ -643,7 +677,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     private void PopulateGridableFields()
     {
         GridableFields.Clear();
-        GridableFields.Add(null);
+        GridableFields.Add(NullFieldViewModelPlaceholder.Instance);
 
         var fields = _workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields)
             .Where(f => f.Type == FieldType.Any ||
