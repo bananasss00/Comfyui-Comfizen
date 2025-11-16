@@ -822,7 +822,7 @@
                                                     </GroupBox>
                                                     <!-- END OF NEW SECTION -->
 
-                                                    <GroupBox Header="Cell Options">
+                                                    <GroupBox Header="{local:Translate XYGrid_CellOptions}">
                                                         <StackPanel>
                                                             <CheckBox Content="{local:Translate XYGrid_CreateGridImage}"
                                                                       IsChecked="{Binding SelectedTab.WorkflowInputsController.XyGridCreateGridImage, Mode=TwoWay}" />

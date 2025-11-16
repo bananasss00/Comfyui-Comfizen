@@ -383,5 +383,6 @@
   "XYGrid_Mode": "Grid Mode:",
   "XYGrid_ModeImage": "Image",
   "XYGrid_ModeVideo": "Video (storyboard)",
-  "XYGrid_FrameCount": "Frames to extract:"
+  "XYGrid_FrameCount": "Frames to extract:",
+  "XYGrid_CellOptions": "Cell Options"
 }

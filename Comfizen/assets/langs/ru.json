@@ -382,5 +382,6 @@
   "XYGrid_Mode": "Режим грида:",
   "XYGrid_ModeImage": "Изображение",
   "XYGrid_ModeVideo": "Видео (сториборд)",
-  "XYGrid_FrameCount": "Кадров для извлечения:"
+  "XYGrid_FrameCount": "Кадров для извлечения:",
+  "XYGrid_CellOptions": "Опции ячейки"
 }
