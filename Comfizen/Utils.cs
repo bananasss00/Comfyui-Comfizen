@@ -589,58 +589,25 @@ namespace Comfizen
             public string YValue { get; set; }
         }
         
-        /// <summary>
-        /// Creates a composite tile image for a single grid cell if it contains multiple results.
-        /// </summary>
-        private static Image<Rgba32> CreateCellTileImage(List<ImageOutput> images, int cellWidth, int cellHeight)
-        {
-            int count = images.Count;
-            if (count == 0) return null;
-            if (count == 1) return Image.Load<Rgba32>(images[0].ImageBytes);
-
-            // Calculate grid dimensions for the tile
-            int cols = (int)Math.Ceiling(Math.Sqrt(count));
-            int rows = (int)Math.Ceiling((double)count / cols);
-
-            int tileWidth = cellWidth / cols;
-            int tileHeight = cellHeight / rows;
-
-            var cellCanvas = new Image<Rgba32>(cellWidth, cellHeight);
-
-            cellCanvas.Mutate(ctx =>
-            {
-                ctx.BackgroundColor(Color.Black); // Background for the cell tile
-                for (int i = 0; i < count; i++)
-                {
-                    using var img = Image.Load(images[i].ImageBytes);
-                    img.Mutate(x => x.Resize(new ResizeOptions
-                    {
-                        Size = new Size(tileWidth, tileHeight),
-                        Mode = ResizeMode.Pad,
-                        PadColor = Color.Black
-                    }));
-
-                    int x = (i % cols) * tileWidth;
-                    int y = (i / cols) * tileHeight;
-                    ctx.DrawImage(img, new Point(x, y), 1f);
-                }
-            });
-
-            return cellCanvas;
-        }
 
         /// <summary>
-        // Creates a composite grid image from a collection of individual images, with labels for axes and values.
+        /// A private helper method that contains all the common logic for drawing a grid's background, labels, and borders.
+        /// The actual content of each cell is drawn by the 'drawCellAction' delegate.
         /// </summary>
-        // <returns>A byte array representing the final PNG image, or null if an error occurs.</returns>
-        public static byte[] CreateImageGrid(
+        private static Image<Rgba32> CreateGrid(
             List<GridCellResult> results,
             string xAxisField, IReadOnlyList<string> xValues,
-            string yAxisField, IReadOnlyList<string> yValues)
+            string yAxisField, IReadOnlyList<string> yValues,
+            int cellWidth, int cellHeight,
+            Action<IImageProcessingContext, Rectangle, GridCellResult> drawCellAction)
         {
-            if (results == null || !results.Any()) return null;
-            
-            var resultsPool = new List<GridCellResult>(results.Select(r => new GridCellResult { ImageOutputs = new List<ImageOutput>(r.ImageOutputs), XValue = r.XValue, YValue = r.YValue }).ToList());
+            // --- START OF FIX ---
+            // The previous implementation created new GridCellResult objects here,
+            // which broke the key-based lookup for pre-extracted frames.
+            // This now creates a shallow copy of the list, preserving the original object references
+            // to be used as valid keys for the dictionary.
+            var resultsPool = new List<GridCellResult>(results);
+            // --- END OF FIX ---
 
             // --- Configuration ---
             var backgroundColor = Color.ParseHex("#3F3F46");
@@ -660,13 +627,8 @@ namespace Comfizen
             var font = fontFamily.CreateFont(fontSize, FontStyle.Regular);
             var axisFont = fontFamily.CreateFont(axisFontSize, FontStyle.Bold);
 
-            // --- Image Sizing ---
-            using var firstImage = Image.Load(results.First().ImageOutputs.First().ImageBytes);
-            int cellWidth = firstImage.Width;
-            int cellHeight = firstImage.Height;
+            // --- Layout Calculation ---
             bool hasYAxis = yValues.Count > 1 || (yValues.Count == 1 && !string.IsNullOrEmpty(yValues[0]));
-
-            // --- Calculate Layout ---
             var textMeasureOptions = new TextOptions(font);
             var xLabelMaxHeight = xValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Height).DefaultIfEmpty(0).Max();
             var yLabelMaxWidth = yValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Width).DefaultIfEmpty(0).Max();
@@ -680,58 +642,29 @@ namespace Comfizen
             int totalWidth = leftLabelAreaWidth + (cellWidth * xValues.Count) + (padding * (xValues.Count + 1));
             int totalHeight = topLabelAreaHeight + (cellHeight * yValues.Count) + (padding * (yValues.Count + 1));
 
-            using var canvas = new Image<Rgba32>(totalWidth, totalHeight);
+            var canvas = new Image<Rgba32>(totalWidth, totalHeight);
             
-            canvas.Mutate<Rgba32>(ctx =>
+            canvas.Mutate(ctx =>
             {
                 ctx.Fill(backgroundColor);
 
-                // --- Draw Axis Labels ---
-                ctx.DrawText(
-                    new RichTextOptions(axisFont) { Origin = new PointF(leftLabelAreaWidth + padding, padding) },
-                    "X: " + xAxisField,
-                    textColor);
-
+                // Draw Axis Labels
+                ctx.DrawText(new RichTextOptions(axisFont) { Origin = new PointF(leftLabelAreaWidth + padding, padding) }, "X: " + xAxisField, textColor);
                 if (hasYAxis)
                 {
-                    var yAxisTextOptions = new RichTextOptions(axisFont)
-                    {
-                        Origin = new PointF(padding + axisFontSize / 2, topLabelAreaHeight + (totalHeight - topLabelAreaHeight) / 2f),
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-                    
-                    float rotationInRadians = (float)(-90 * (Math.PI / 180.0));
-                    var rotationMatrix = Matrix3x2.CreateRotation(rotationInRadians, yAxisTextOptions.Origin);
-
+                    var yAxisTextOptions = new RichTextOptions(axisFont) { Origin = new PointF(padding + axisFontSize / 2, topLabelAreaHeight + (totalHeight - topLabelAreaHeight) / 2f), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    var rotationMatrix = Matrix3x2.CreateRotation((float)(-90 * (Math.PI / 180.0)), yAxisTextOptions.Origin);
                     ctx.SetDrawingTransform(rotationMatrix);
                     ctx.DrawText(yAxisTextOptions, "Y: " + yAxisField, textColor);
                     ctx.SetDrawingTransform(Matrix3x2.Identity);
                 }
 
-                // --- Draw Value Labels ---
-                var valueLabelOptions = new RichTextOptions(font)
-                {
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                for (int i = 0; i < xValues.Count; i++)
-                {
-                    valueLabelOptions.Origin = new PointF(leftLabelAreaWidth + padding + (i * (cellWidth + padding)) + cellWidth / 2, topLabelAreaHeight / 2);
-                    ctx.DrawText(valueLabelOptions, xValues[i], textColor);
-                }
-                if (hasYAxis)
-                {
-                    for (int i = 0; i < yValues.Count; i++)
-                    {
-                        valueLabelOptions.Origin = new PointF(leftLabelAreaWidth / 2, topLabelAreaHeight + padding + (i * (cellHeight + padding)) + cellHeight / 2);
-                        ctx.DrawText(valueLabelOptions, yValues[i], textColor);
-                    }
-                }
+                // Draw Value Labels
+                var valueLabelOptions = new RichTextOptions(font) { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                for (int i = 0; i < xValues.Count; i++) { valueLabelOptions.Origin = new PointF(leftLabelAreaWidth + padding + (i * (cellWidth + padding)) + cellWidth / 2, topLabelAreaHeight / 2); ctx.DrawText(valueLabelOptions, xValues[i], textColor); }
+                if (hasYAxis) { for (int i = 0; i < yValues.Count; i++) { valueLabelOptions.Origin = new PointF(leftLabelAreaWidth / 2, topLabelAreaHeight + padding + (i * (cellHeight + padding)) + cellHeight / 2); ctx.DrawText(valueLabelOptions, yValues[i], textColor); } }
 
-                // --- START OF FIX: Completely reworked image drawing logic ---
-                // We iterate over the grid structure (by cell) instead of iterating over the results.
-                // This allows for the correct handling of duplicate values in the axes.
+                // --- Draw Cell Content using the provided action ---
                 for (int yIndex = 0; yIndex < yValues.Count; yIndex++)
                 {
                     for (int xIndex = 0; xIndex < xValues.Count; xIndex++)
@@ -739,43 +672,81 @@ namespace Comfizen
                         var currentXValue = xValues[xIndex];
                         var currentYValue = yValues[yIndex];
 
-                        // Find the first matching image for this cell.
                         var result = resultsPool.FirstOrDefault(r => r.XValue == currentXValue && r.YValue == currentYValue);
 
                         if (result != null && result.ImageOutputs.Any())
                         {
-                            // IMPORTANT: We remove the found image from the pool, so that on the next match
-                            // (e.g., for the second "1"), we take the next generated image.
                             resultsPool.Remove(result);
 
                             var xPos = leftLabelAreaWidth + padding + (xIndex * (cellWidth + padding));
                             var yPos = topLabelAreaHeight + padding + (yIndex * (cellHeight + padding));
+                            var cellRect = new Rectangle(xPos, yPos, cellWidth, cellHeight);
                             
-                            using (var cellImage = CreateCellTileImage(result.ImageOutputs, cellWidth, cellHeight))
-                            {
-                                if (cellImage != null)
-                                {
-                                    ctx.DrawImage(cellImage, new Point(xPos, yPos), 1f);
-                                }
-                            }
+                            drawCellAction(ctx, cellRect, result);
                             
                             var pen = Pens.Solid(lineColor, 1);
-                            var rectangle = new RectangleF(xPos - 0.5f, yPos - 0.5f, cellWidth + 1, cellHeight + 1);
-                            ctx.Draw(pen, rectangle);
+                            var rectangleF = new RectangleF(xPos - 0.5f, yPos - 0.5f, cellWidth + 1, cellHeight + 1);
+                            ctx.Draw(pen, rectangleF);
                         }
                     }
                 }
-                // --- END OF FIX ---
             });
+
+            return canvas;
+        }
+        
+        public static byte[] CreateImageGrid(
+            List<GridCellResult> results,
+            string xAxisField, IReadOnlyList<string> xValues,
+            string yAxisField, IReadOnlyList<string> yValues)
+        {
+            if (results == null || !results.Any()) return null;
+            
+            // --- Image Grid Specifics: Determine cell size from the first image ---
+            using var firstImage = Image.Load(results.First().ImageOutputs.First().ImageBytes);
+            int cellWidth = firstImage.Width;
+            int cellHeight = firstImage.Height;
+            
+            // --- Define how to draw a cell for an image grid ---
+            Action<IImageProcessingContext, Rectangle, GridCellResult> drawCellAction = (ctx, cellRect, result) =>
+            {
+                int count = result.ImageOutputs.Count;
+                if (count == 0) return;
+                
+                // If there's only one image, just draw it.
+                if (count == 1)
+                {
+                    using var img = Image.Load(result.ImageOutputs[0].ImageBytes);
+                    ctx.DrawImage(img, cellRect.Location, 1f);
+                    return;
+                }
+                
+                // --- Compact Tiling Logic for multiple images in a cell ---
+                int cols = (int)Math.Ceiling(Math.Sqrt(count));
+                int rows = (int)Math.Ceiling((double)count / cols);
+                int tileWidth = cellRect.Width / cols;
+                int tileHeight = cellRect.Height / rows;
+                
+                for (int i = 0; i < count; i++)
+                {
+                    using var img = Image.Load(result.ImageOutputs[i].ImageBytes);
+                    img.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(tileWidth, tileHeight), Mode = ResizeMode.Pad, PadColor = Color.Black }));
+                    
+                    int x = cellRect.X + (i % cols) * tileWidth;
+                    int y = cellRect.Y + (i / cols) * tileHeight;
+                    ctx.DrawImage(img, new Point(x, y), 1f);
+                }
+            };
+            
+            // --- Use the common grid creation method ---
+            using var canvas = CreateGrid(results, xAxisField, xValues, yAxisField, yValues, cellWidth, cellHeight, drawCellAction);
+            if (canvas == null) return null;
 
             using var ms = new MemoryStream();
             canvas.SaveAsPng(ms);
             return ms.ToArray();
         }
         
-        /// <summary>
-        /// Creates a composite storyboard grid image from a collection of videos.
-        /// </summary>
         public static async Task<byte[]> CreateVideoGridAsync(
             List<GridCellResult> results,
             string xAxisField, IReadOnlyList<string> xValues,
@@ -784,131 +755,85 @@ namespace Comfizen
         {
             if (results == null || !results.Any() || frameCount <= 0) return null;
 
-            // --- Configuration (same as before) ---
-            var backgroundColor = Color.ParseHex("#3F3F46");
-            var textColor = Color.ParseHex("#E0E0E0");
-            var lineColor = Color.ParseHex("#2D2D30");
-            const int padding = 10;
-            const int labelPadding = 8;
-            const float fontSize = 14f;
-            const float axisFontSize = 16f;
-
-            FontFamily fontFamily;
-            try { fontFamily = SystemFonts.Get("Segoe UI"); }
-            catch { fontFamily = SystemFonts.Families.FirstOrDefault(); }
-            if (fontFamily == null) return null;
-
-            var font = fontFamily.CreateFont(fontSize, FontStyle.Regular);
-            var axisFont = fontFamily.CreateFont(axisFontSize, FontStyle.Bold);
-
-            // --- Image Sizing ---
-            var firstVideo = results.SelectMany(r => r.ImageOutputs).FirstOrDefault(io => io.Type == FileType.Video);
-            if (firstVideo == null) return null;
-
-            var firstFrameList = await ExtractFramesAsync(firstVideo.ImageBytes, 1);
-            if (firstFrameList == null || !firstFrameList.Any()) return null;
-
-            int frameWidth = firstFrameList[0].Width;
-            int frameHeight = firstFrameList[0].Height;
-            int cellWidth = frameWidth * frameCount;
-            int cellHeight = frameHeight;
-
-            // --- Layout Calculation (same as before) ---
-            bool hasYAxis = yValues.Count > 1 || (yValues.Count == 1 && !string.IsNullOrEmpty(yValues[0]));
-            var textMeasureOptions = new TextOptions(font);
-            var xLabelMaxHeight = xValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Height).DefaultIfEmpty(0).Max();
-            var yLabelMaxWidth = yValues.Select(v => TextMeasurer.MeasureBounds(v, textMeasureOptions).Width).DefaultIfEmpty(0).Max();
-            int topLabelAreaHeight = (int)xLabelMaxHeight + labelPadding * 2;
-            int leftLabelAreaWidth = hasYAxis ? (int)yLabelMaxWidth + labelPadding * 2 : 0;
-            if (hasYAxis)
-            {
-                var yAxisLabelBounds = TextMeasurer.MeasureBounds("Y: " + yAxisField, new TextOptions(axisFont));
-                leftLabelAreaWidth += (int)yAxisLabelBounds.Height + padding;
-            }
-            int totalWidth = leftLabelAreaWidth + (cellWidth * xValues.Count) + (padding * (xValues.Count + 1));
-            int totalHeight = topLabelAreaHeight + (cellHeight * yValues.Count) + (padding * (yValues.Count + 1));
-            
-            // --- Step 1: Asynchronously extract all frames first ---
             var extractionTasks = new Dictionary<GridCellResult, Task<List<Image<Rgba32>>>>();
             foreach (var result in results)
             {
                 var videoToProcess = result.ImageOutputs.FirstOrDefault(io => io.Type == FileType.Video);
                 if (videoToProcess != null)
                 {
-                    // Start the extraction task and store it in the dictionary.
                     extractionTasks[result] = ExtractFramesAsync(videoToProcess.ImageBytes, frameCount);
                 }
             }
 
-            // Wait for all extraction tasks to complete.
             await Task.WhenAll(extractionTasks.Values);
 
-            // Create a dictionary with the results for easy lookup.
             var preExtractedFrames = extractionTasks.ToDictionary(
                 kvp => kvp.Key,
-                kvp => kvp.Value.Result // .Result is safe here because the task is already completed.
+                kvp => kvp.Value.Result 
             );
-
-            // --- Step 2: Now that all async work is done, perform synchronous drawing ---
-            using var canvas = new Image<Rgba32>(totalWidth, totalHeight);
-            canvas.Mutate(ctx =>
+            
+            try
             {
-                ctx.Fill(backgroundColor);
-
-                // --- Draw Axis and Value Labels (same as before) ---
-                // (This code is unchanged)
-                ctx.DrawText(new RichTextOptions(axisFont) { Origin = new PointF(leftLabelAreaWidth + padding, padding) }, "X: " + xAxisField, textColor);
-                if (hasYAxis)
+                var firstFrameList = preExtractedFrames.Values.FirstOrDefault(fl => fl != null && fl.Any());
+                if (firstFrameList == null) return null;
+                
+                int frameWidth = firstFrameList[0].Width;
+                int frameHeight = firstFrameList[0].Height;
+                
+                int cols = (int)Math.Ceiling(Math.Sqrt(frameCount));
+                int rows = (int)Math.Ceiling((double)frameCount / cols);
+                int cellWidth = frameWidth * cols;
+                int cellHeight = frameHeight * rows;
+                
+                Action<IImageProcessingContext, Rectangle, GridCellResult> drawCellAction = (ctx, cellRect, result) =>
                 {
-                    var yAxisTextOptions = new RichTextOptions(axisFont) { Origin = new PointF(padding + axisFontSize / 2, topLabelAreaHeight + (totalHeight - topLabelAreaHeight) / 2f), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                    float rotationInRadians = (float)(-90 * (Math.PI / 180.0));
-                    var rotationMatrix = Matrix3x2.CreateRotation(rotationInRadians, yAxisTextOptions.Origin);
-                    ctx.SetDrawingTransform(rotationMatrix);
-                    ctx.DrawText(yAxisTextOptions, "Y: " + yAxisField, textColor);
-                    ctx.SetDrawingTransform(Matrix3x2.Identity);
-                }
-                var valueLabelOptions = new RichTextOptions(font) { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                for (int i = 0; i < xValues.Count; i++) { valueLabelOptions.Origin = new PointF(leftLabelAreaWidth + padding + (i * (cellWidth + padding)) + cellWidth / 2, topLabelAreaHeight / 2); ctx.DrawText(valueLabelOptions, xValues[i], textColor); }
-                if (hasYAxis) { for (int i = 0; i < yValues.Count; i++) { valueLabelOptions.Origin = new PointF(leftLabelAreaWidth / 2, topLabelAreaHeight + padding + (i * (cellHeight + padding)) + cellHeight / 2); ctx.DrawText(valueLabelOptions, yValues[i], textColor); } }
-
-                // --- Draw Video Frames ---
-                for (int yIndex = 0; yIndex < yValues.Count; yIndex++)
-                {
-                    for (int xIndex = 0; xIndex < xValues.Count; xIndex++)
+                    if (preExtractedFrames.TryGetValue(result, out var frames) && frames != null)
                     {
-                        var currentXValue = xValues[xIndex];
-                        var currentYValue = yValues[yIndex];
-
-                        var result = results.FirstOrDefault(r => r.XValue == currentXValue && r.YValue == currentYValue);
-
-                        // Check if we have pre-extracted frames for this result.
-                        if (result != null && preExtractedFrames.TryGetValue(result, out var frames) && frames != null)
+                        for (int frameIndex = 0; frameIndex < frames.Count; frameIndex++)
                         {
-                            for (int frameIndex = 0; frameIndex < frames.Count; frameIndex++)
+                            // --- START OF FIX ---
+                            // Create a temporary clone of the frame for modification and drawing.
+                            // This prevents modifying the original image object, which caused rendering issues.
+                            // The 'using' statement ensures the clone is disposed of immediately after it's drawn.
+                            using var frameToDraw = frames[frameIndex].Clone();
+                            // --- END OF FIX ---
+
+                            if (frameToDraw.Width != frameWidth || frameToDraw.Height != frameHeight)
                             {
-                                using var frame = frames[frameIndex];
-                                if (frame.Width != frameWidth || frame.Height != frameHeight)
-                                {
-                                    frame.Mutate(i => i.Resize(new ResizeOptions { Size = new Size(frameWidth, frameHeight), Mode = ResizeMode.Pad, PadColor = Color.Black }));
-                                }
-
-                                var xPos = leftLabelAreaWidth + padding + (xIndex * (cellWidth + padding)) + (frameIndex * frameWidth);
-                                var yPos = topLabelAreaHeight + padding + (yIndex * (cellHeight + padding));
-
-                                ctx.DrawImage(frame, new Point(xPos, yPos), 1f);
-                                
-                                var pen = Pens.Solid(lineColor, 1);
-                                var rectangle = new RectangleF(xPos - 0.5f, yPos - 0.5f, frameWidth + 1, frameHeight + 1);
-                                ctx.Draw(pen, rectangle);
+                                frameToDraw.Mutate(i => i.Resize(new ResizeOptions { Size = new Size(frameWidth, frameHeight), Mode = ResizeMode.Pad, PadColor = Color.Black }));
                             }
+
+                            int xOffset = (frameIndex % cols) * frameWidth;
+                            int yOffset = (frameIndex / cols) * frameHeight;
+                            var drawPoint = new Point(cellRect.X + xOffset, cellRect.Y + yOffset);
+                            
+                            // Draw the clone, not the original frame.
+                            ctx.DrawImage(frameToDraw, drawPoint, 1f);
+                        }
+                    }
+                };
+                
+                using var canvas = CreateGrid(results, xAxisField, xValues, yAxisField, yValues, cellWidth, cellHeight, drawCellAction);
+                if (canvas == null) return null;
+
+                using var ms = new MemoryStream();
+                await canvas.SaveAsPngAsync(ms);
+                return ms.ToArray();
+            }
+            finally
+            {
+                // This final cleanup of the original pre-loaded images remains correct.
+                foreach (var frameList in preExtractedFrames.Values)
+                {
+                    if (frameList != null)
+                    {
+                        foreach (var frame in frameList)
+                        {
+                            frame.Dispose();
                         }
                     }
                 }
-            });
-
-            using var ms = new MemoryStream();
-            await canvas.SaveAsPngAsync(ms);
-            return ms.ToArray();
+            }
         }
 
         public static async Task<List<Image<Rgba32>>> ExtractFramesAsync(byte[] videoBytes, int frameCount)
