@@ -314,7 +314,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 {
                     case SeedControl.Increment: newValue++; break;
                     case SeedControl.Decrement: newValue--; break;
-                    case SeedControl.Randomize: newValue = Utils.GenerateSeed(); break;
+                    case SeedControl.Randomize: newValue = Utils.GenerateSeed(seedVm.MinValue, seedVm.MaxValue); break;
                 }
                 
                 prop.Value = new JValue(newValue);
@@ -330,7 +330,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             {
                 case SeedControl.Increment: newSeed++; break;
                 case SeedControl.Decrement: newSeed--; break;
-                case SeedControl.Randomize: newSeed = Utils.GenerateSeed(); break;
+                case SeedControl.Randomize: newSeed = Utils.GenerateSeed(0, 4294967295L); break;
             }
             // Обновляем UI через свойство ViewModel
             GlobalControls.WildcardSeed = newSeed;

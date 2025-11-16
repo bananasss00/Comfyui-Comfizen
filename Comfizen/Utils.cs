@@ -354,12 +354,16 @@ namespace Comfizen
             }
         }
 
-        public static long GenerateSeed()
+        public static long GenerateSeed(long min, long max)
         {
-            var random = new Random();
-            byte[] buffer = new byte[sizeof(ulong)];
-            random.NextBytes(buffer);
-            return Math.Abs(BitConverter.ToInt64(buffer, 0)); 
+            if (min >= max) return min;
+            
+            Random random = new Random();
+            byte[] buf = new byte[8];
+            random.NextBytes(buf);
+            long longRand = BitConverter.ToInt64(buf, 0);
+
+            return (Math.Abs(longRand % (max - min)) + min);
         }
         
         public static void MergeJsonObjects(JObject target, JObject source)

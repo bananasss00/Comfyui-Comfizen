@@ -592,9 +592,20 @@
                                                                                                     <TextBlock Text="Step:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding StepValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.01"/>
                                                                                                 </StackPanel>
                                                                                                 <StackPanel Orientation="Horizontal" Margin="5,0,0,0" VerticalAlignment="Center">
-                                                                                                    <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="SliderFloat"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
-                                                                                                    <TextBlock Text="{local:Translate UIConstructor_Field_Precision}" VerticalAlignment="Center" Margin="5,0"/><xctk:IntegerUpDown Value="{Binding Precision, UpdateSourceTrigger=PropertyChanged}" Width="40" Minimum="0" Maximum="8"/>
-                                                                                                </StackPanel>
+                                                                                                                <StackPanel.Style>
+                                                                                                                    <Style TargetType="StackPanel">
+                                                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                                        <Style.Triggers>
+                                                                                                                            <DataTrigger Binding="{Binding Type}" Value="Seed">
+                                                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                                                            </DataTrigger>
+                                                                                                                        </Style.Triggers>
+                                                                                                                    </Style>
+                                                                                                                </StackPanel.Style>
+                                                                                                                    <CheckBox IsChecked="{Binding AllowNegativeSeed, Mode=TwoWay}" Content="{local:Translate UIConstructor_Seed_AllowNegative}" VerticalAlignment="Center" Margin="5,0"/>
+                                                                                                                    <TextBlock Text="{local:Translate UIConstructor_Seed_MaxValue}" VerticalAlignment="Center" Margin="10,0,5,0"/>
+                                                                                                                    <xctk:LongUpDown Value="{Binding MaxSeedValue, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                                                                                                            </StackPanel>
                                                                                                 <Grid Margin="10,0,0,0" VerticalAlignment="Center">
                                                                                                     <TextBlock>
                                                                                                         <TextBlock.Text>

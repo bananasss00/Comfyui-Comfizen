@@ -374,5 +374,7 @@
   "Presets_State_Modified_Short": "изменен",
   "Tab_SaveSelectedAs": "Сохранить как...",
   "Fullscreen_SaveImage_Tooltip": "Сохранить изображение (NumPad 5)",
-  "Fullscreen_SaveImage_ResaveTooltip": "Изображение сохранено (Удерживайте Ctrl, чтобы пересохранить)"
+  "Fullscreen_SaveImage_ResaveTooltip": "Изображение сохранено (Удерживайте Ctrl, чтобы пересохранить)",
+  "UIConstructor_Seed_AllowNegative": "Разрешить отрицательные",
+  "UIConstructor_Seed_MaxValue": "Макс. значение:"
 }

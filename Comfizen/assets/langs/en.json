@@ -375,5 +375,7 @@
   "Presets_State_Modified_Short": "modified",
   "Tab_SaveSelectedAs": "Save As...",
   "Fullscreen_SaveImage_Tooltip": "Save Image (NumPad 5)",
-  "Fullscreen_SaveImage_ResaveTooltip": "Image is saved (Hold Ctrl to re-save)"
+  "Fullscreen_SaveImage_ResaveTooltip": "Image is saved (Hold Ctrl to re-save)",
+  "UIConstructor_Seed_AllowNegative": "Allow Negative",
+  "UIConstructor_Seed_MaxValue": "Max Value:"
 }

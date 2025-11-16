@@ -81,7 +81,7 @@ namespace Comfizen
         public bool IsVisible => IsSeedSectionVisible || IsPresetsSectionVisible || IsHooksSectionVisible;
 
         // english: From former GlobalSettingsViewModel
-        public long WildcardSeed { get; set; } = Utils.GenerateSeed();
+        public long WildcardSeed { get; set; } = Utils.GenerateSeed(0, 4294967295L);
         public bool IsSeedLocked { get; set; } = false;
         
         // english: From former GlobalPresetsViewModel
@@ -2015,10 +2015,17 @@ namespace Comfizen
                 }
             }
         }
+        
+        public long MinValue { get; }
+        public long MaxValue { get; }
+        
         public SeedFieldViewModel(WorkflowField field, JProperty property, string nodeTitle = null, string nodeType = null) : base(field, property, nodeTitle, nodeType)
         {
             Type = FieldType.Seed;
             _field = field;
+            long max = field.MaxSeedValue ?? long.MaxValue;
+            MinValue = field.AllowNegativeSeed ? -max : 0;
+            MaxValue = max;
         }
         
         public override void RefreshValue()

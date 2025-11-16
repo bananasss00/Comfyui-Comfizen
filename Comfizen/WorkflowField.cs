@@ -21,6 +21,14 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public bool IsSeedLocked { get; set; } = false;
         
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(false)]
+        public bool AllowNegativeSeed { get; set; } = false;
+
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(4294967295L)] // A common 32-bit unsigned max, good default
+        public long? MaxSeedValue { get; set; } = 4294967295L;
+        
         /// <summary>
         /// The highlight color for the field in HEX format (e.g., #RRGGBB).
         /// </summary>
