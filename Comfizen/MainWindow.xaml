@@ -1523,6 +1523,9 @@
                                                 <MenuItem Header="{local:Translate Console_CopyItem}"
                                                           Command="{Binding PlacementTarget.Tag.CopyConsoleItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                           CommandParameter="{Binding}" />
+                                                <Separator/>
+                                                <MenuItem Header="{local:Translate Console_Clear}"
+                                                          Command="{Binding PlacementTarget.Tag.ClearConsoleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                             </ContextMenu>
                                         </Setter.Value>
                                     </Setter>
