@@ -795,7 +795,7 @@
                                                               IsChecked="{Binding SelectedTab.WorkflowInputsController.IsXyGridEnabled, Mode=TwoWay}"
                                                               FontWeight="Bold" Margin="0,0,0,10" />
 
-                                                    <!-- START OF NEW SECTION: Grid Mode -->
+                                                    <!-- Grid Mode -->
                                                     <GroupBox Header="{local:Translate XYGrid_Mode}">
                                                         <StackPanel>
                                                             <StackPanel Orientation="Horizontal">
@@ -820,8 +820,7 @@
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </GroupBox>
-                                                    <!-- END OF NEW SECTION -->
-
+                                                    
                                                     <GroupBox Header="{local:Translate XYGrid_CellOptions}">
                                                         <StackPanel>
                                                             <CheckBox Content="{local:Translate XYGrid_CreateGridImage}"
@@ -855,20 +854,22 @@
                                                     <!-- X AXIS -->
                                                     <TextBlock Text="{local:Translate XYGrid_XAxisField}"
                                                                Margin="0,0,0,2" />
-                                                    <ComboBox Margin="0,0,0,5"
-                                                              ItemsSource="{Binding SelectedTab.WorkflowInputsController.GridableFields}"
-                                                              SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedXField}">
-                                                        <ComboBox.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <TextBlock Text="{Binding Name}"
-                                                                           ToolTip="{Binding Path}" />
+                                                    <local:FilterableComboBox Margin="0,0,0,5"
+                                                                              ItemsSource="{Binding SelectedTab.WorkflowInputsController.GridableSources}"
+                                                                              SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedXSource, Mode=TwoWay}"
+                                                                              ShowCycleButtons="False">
+                                                        <local:FilterableComboBox.ItemTemplate>
+                                                            <DataTemplate DataType="{x:Type local:GridAxisSource}">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding DisplayName}" />
+                                                                    <TextBlock Text="{Binding GroupName, StringFormat=' ({0})'}" Foreground="{StaticResource TextSecondaryBrush}" Margin="5,0,0,0"/>
+                                                                </StackPanel>
                                                             </DataTemplate>
-                                                        </ComboBox.ItemTemplate>
-                                                    </ComboBox>
+                                                        </local:FilterableComboBox.ItemTemplate>
+                                                    </local:FilterableComboBox>
 
-                                                    <!-- START OF XY GRID CHANGES -->
                                                     <local:FilterableComboBox
-                                                        ItemsSource="{Binding SelectedTab.WorkflowInputsController.XFieldItemsSource}"
+                                                        ItemsSource="{Binding SelectedTab.WorkflowInputsController.XSourceItemsSource}"
                                                                               PlaceholderText="{local:Translate XYGrid_AddValuePlaceholder}"
                                                                               Margin="0,0,0,5"
                                                                               ItemSelectedCommand="{Binding SelectedTab.WorkflowInputsController.AddValueToGridCommand}"
@@ -878,7 +879,7 @@
                                                                 <Setter Property="Visibility" Value="Collapsed" />
                                                                 <Style.Triggers>
                                                                     <DataTrigger
-                                                                        Binding="{Binding SelectedTab.WorkflowInputsController.IsXFieldComboBox}"
+                                                                        Binding="{Binding SelectedTab.WorkflowInputsController.IsXSourceComboBox}"
                                                                         Value="True">
                                                                         <Setter Property="Visibility" Value="Visible" />
                                                                     </DataTrigger>
@@ -886,7 +887,48 @@
                                                             </Style>
                                                         </local:FilterableComboBox.Style>
                                                     </local:FilterableComboBox>
-                                                    <!-- END OF XY GRID CHANGES -->
+                                                    
+                                                    <local:FilterableComboBox
+                                                        ItemsSource="{Binding SelectedTab.WorkflowInputsController.XSourcePresetsView}"
+                                                        PlaceholderText="{local:Translate XYGrid_AddValuePlaceholder}"
+                                                        Margin="0,0,0,5"
+                                                        ShowCycleButtons="False"
+                                                        ItemSelectedCommand="{Binding SelectedTab.WorkflowInputsController.AddPresetValueToGridCommand}"
+                                                        ItemSelectedCommandParameter="X">
+                                                        <local:FilterableComboBox.Style>
+                                                            <Style TargetType="local:FilterableComboBox">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SelectedTab.WorkflowInputsController.IsXSourcePresetGroup}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </local:FilterableComboBox.Style>
+                                                        <local:FilterableComboBox.GroupStyle>
+                                                            <GroupStyle>
+                                                                <GroupStyle.HeaderTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBlock FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5,0,2">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding Name}" Value="False"><Setter Property="Text" Value="{local:Translate Presets_Snippets}"/></DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Name}" Value="True"><Setter Property="Text" Value="{local:Translate Presets_Layouts}"/></DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+                                                                    </DataTemplate>
+                                                                </GroupStyle.HeaderTemplate>
+                                                            </GroupStyle>
+                                                        </local:FilterableComboBox.GroupStyle>
+                                                        <local:FilterableComboBox.ItemTemplate>
+                                                            <DataTemplate DataType="{x:Type local:GroupPresetViewModel}">
+                                                                <TextBlock Text="{Binding Name}"/>
+                                                            </DataTemplate>
+                                                        </local:FilterableComboBox.ItemTemplate>
+                                                    </local:FilterableComboBox>
 
                                                     <TextBlock Text="{local:Translate XYGrid_XValues}" Margin="0,0,0,2" />
                                                     <TextBox Margin="0,0,0,10" MinHeight="60"
@@ -897,20 +939,22 @@
                                                     <!-- Y AXIS -->
                                                     <TextBlock Text="{local:Translate XYGrid_YAxisField}"
                                                                Margin="0,0,0,2" />
-                                                    <ComboBox Margin="0,0,0,5"
-                                                              ItemsSource="{Binding SelectedTab.WorkflowInputsController.GridableFields}"
-                                                              SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedYField}">
-                                                        <ComboBox.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <TextBlock Text="{Binding Name}"
-                                                                           ToolTip="{Binding Path}" />
+                                                    <local:FilterableComboBox Margin="0,0,0,5"
+                                                                              ItemsSource="{Binding SelectedTab.WorkflowInputsController.GridableSources}"
+                                                                              SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedYSource, Mode=TwoWay}"
+                                                                              ShowCycleButtons="False">
+                                                        <local:FilterableComboBox.ItemTemplate>
+                                                            <DataTemplate DataType="{x:Type local:GridAxisSource}">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding DisplayName}" />
+                                                                    <TextBlock Text="{Binding GroupName, StringFormat=' ({0})'}" Foreground="{StaticResource TextSecondaryBrush}" Margin="5,0,0,0"/>
+                                                                </StackPanel>
                                                             </DataTemplate>
-                                                        </ComboBox.ItemTemplate>
-                                                    </ComboBox>
+                                                        </local:FilterableComboBox.ItemTemplate>
+                                                    </local:FilterableComboBox>
 
-                                                    <!-- START OF XY GRID CHANGES -->
                                                     <local:FilterableComboBox
-                                                        ItemsSource="{Binding SelectedTab.WorkflowInputsController.YFieldItemsSource}"
+                                                        ItemsSource="{Binding SelectedTab.WorkflowInputsController.YSourceItemsSource}"
                                                                               PlaceholderText="{local:Translate XYGrid_AddValuePlaceholder}"
                                                                               Margin="0,0,0,5"
                                                                               ItemSelectedCommand="{Binding SelectedTab.WorkflowInputsController.AddValueToGridCommand}"
@@ -920,7 +964,7 @@
                                                                 <Setter Property="Visibility" Value="Collapsed" />
                                                                 <Style.Triggers>
                                                                     <DataTrigger
-                                                                        Binding="{Binding SelectedTab.WorkflowInputsController.IsYFieldComboBox}"
+                                                                        Binding="{Binding SelectedTab.WorkflowInputsController.IsYSourceComboBox}"
                                                                         Value="True">
                                                                         <Setter Property="Visibility" Value="Visible" />
                                                                     </DataTrigger>
@@ -928,7 +972,48 @@
                                                             </Style>
                                                         </local:FilterableComboBox.Style>
                                                     </local:FilterableComboBox>
-                                                    <!-- END OF XY GRID CHANGES -->
+                                                    
+                                                    <local:FilterableComboBox
+                                                        ItemsSource="{Binding SelectedTab.WorkflowInputsController.YSourcePresetsView}"
+                                                        PlaceholderText="{local:Translate XYGrid_AddValuePlaceholder}"
+                                                        Margin="0,0,0,5"
+                                                        ShowCycleButtons="False"
+                                                        ItemSelectedCommand="{Binding SelectedTab.WorkflowInputsController.AddPresetValueToGridCommand}"
+                                                        ItemSelectedCommandParameter="Y">
+                                                        <local:FilterableComboBox.Style>
+                                                            <Style TargetType="local:FilterableComboBox">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SelectedTab.WorkflowInputsController.IsYSourcePresetGroup}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </local:FilterableComboBox.Style>
+                                                         <local:FilterableComboBox.GroupStyle>
+                                                            <GroupStyle>
+                                                                <GroupStyle.HeaderTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBlock FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5,0,2">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding Name}" Value="False"><Setter Property="Text" Value="{local:Translate Presets_Snippets}"/></DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Name}" Value="True"><Setter Property="Text" Value="{local:Translate Presets_Layouts}"/></DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+                                                                    </DataTemplate>
+                                                                </GroupStyle.HeaderTemplate>
+                                                            </GroupStyle>
+                                                        </local:FilterableComboBox.GroupStyle>
+                                                        <local:FilterableComboBox.ItemTemplate>
+                                                            <DataTemplate DataType="{x:Type local:GroupPresetViewModel}">
+                                                                <TextBlock Text="{Binding Name}"/>
+                                                            </DataTemplate>
+                                                        </local:FilterableComboBox.ItemTemplate>
+                                                    </local:FilterableComboBox>
 
                                                     <TextBlock Text="{local:Translate XYGrid_YValues}" Margin="0,0,0,2" />
                                                     <TextBox

@@ -286,6 +286,8 @@ namespace Comfizen
         {
             Model = model;
         }
+        
+        public override string ToString() => Name;
     }
     
     [AddINotifyPropertyChangedInterface]

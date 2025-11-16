@@ -19,6 +19,30 @@ using System.Drawing.Imaging;
 
 namespace Comfizen;
 
+public class GridAxisSource
+{
+    public virtual string DisplayName { get; set; }
+    public object Source { get; set; } // Can be InputFieldViewModel or WorkflowGroupViewModel
+    public string GroupName { get; set; }
+    
+    // For easy binding in templates
+    public bool IsField => Source is InputFieldViewModel;
+    public bool IsGroup => Source is WorkflowGroupViewModel;
+
+    public override string ToString() => DisplayName;
+}
+
+public class NullGridAxisSource : GridAxisSource
+{
+    public static NullGridAxisSource Instance { get; } = new NullGridAxisSource();
+    private NullGridAxisSource()
+    {
+        DisplayName = "---";
+        Source = null;
+        GroupName = "Grid";
+    }
+}
+
 [AddINotifyPropertyChangedInterface]
 public class WorkflowUITabLayoutViewModel
 {
@@ -129,43 +153,79 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public XYGridMode GridMode { get; set; } = XYGridMode.Image;
     public int VideoGridFrames { get; set; } = 4;
     
-    public ObservableCollection<InputFieldViewModel> GridableFields { get; } = new ObservableCollection<InputFieldViewModel>();
+    public ObservableCollection<GridAxisSource> GridableSources { get; } = new ObservableCollection<GridAxisSource>();
 
-    private InputFieldViewModel _selectedXField;
-    public InputFieldViewModel SelectedXField
+    private GridAxisSource _selectedXSource;
+    public GridAxisSource SelectedXSource
     {
-        get => _selectedXField ?? NullFieldViewModelPlaceholder.Instance;
+        get => _selectedXSource ?? NullGridAxisSource.Instance;
         set
         {
-            var newValue = (value is NullFieldViewModelPlaceholder) ? null : value;
-            if (_selectedXField == newValue) return;
-            _selectedXField = newValue;
-            OnPropertyChanged(nameof(SelectedXField));
+            var newValue = (value is NullGridAxisSource) ? null : value;
+            if (_selectedXSource == newValue) return;
+            _selectedXSource = newValue;
+            OnPropertyChanged(nameof(SelectedXSource));
+            OnPropertyChanged(nameof(IsXSourceComboBox));
+            OnPropertyChanged(nameof(XSourceItemsSource));
+            OnPropertyChanged(nameof(IsXSourcePresetGroup));
+            if (IsXSourcePresetGroup && SelectedXSource.Source is WorkflowGroupViewModel groupVm)
+            {
+                XSourcePresetsView = CollectionViewSource.GetDefaultView(groupVm.AllPresets);
+                XSourcePresetsView.GroupDescriptions.Add(new PropertyGroupDescription("Model.IsLayout"));
+                XSourcePresetsView.SortDescriptions.Add(new SortDescription("IsLayout", ListSortDirection.Ascending));
+                XSourcePresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            }
+            else
+            {
+                XSourcePresetsView = null;
+            }
+            OnPropertyChanged(nameof(XSourcePresetsView));
         }
     }
     public string XValues { get; set; }
 
-    private InputFieldViewModel _selectedYField;
-    public InputFieldViewModel SelectedYField
+    private GridAxisSource _selectedYSource;
+    public GridAxisSource SelectedYSource
     {
-        get => _selectedYField ?? NullFieldViewModelPlaceholder.Instance;
+        get => _selectedYSource ?? NullGridAxisSource.Instance;
         set
         {
-            var newValue = (value is NullFieldViewModelPlaceholder) ? null : value;
-            if (_selectedYField == newValue) return;
-            _selectedYField = newValue;
-            OnPropertyChanged(nameof(SelectedYField));
+            var newValue = (value is NullGridAxisSource) ? null : value;
+            if (_selectedYSource == newValue) return;
+            _selectedYSource = newValue;
+            OnPropertyChanged(nameof(SelectedYSource));
+            OnPropertyChanged(nameof(IsYSourceComboBox));
+            OnPropertyChanged(nameof(YSourceItemsSource));
+            OnPropertyChanged(nameof(IsYSourcePresetGroup));
+            if (IsYSourcePresetGroup && SelectedYSource.Source is WorkflowGroupViewModel groupVm)
+            {
+                YSourcePresetsView = CollectionViewSource.GetDefaultView(groupVm.AllPresets);
+                YSourcePresetsView.GroupDescriptions.Add(new PropertyGroupDescription("Model.IsLayout"));
+                YSourcePresetsView.SortDescriptions.Add(new SortDescription("IsLayout", ListSortDirection.Ascending));
+                YSourcePresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            }
+            else
+            {
+                YSourcePresetsView = null;
+            }
+            OnPropertyChanged(nameof(YSourcePresetsView));
         }
     }
     public string YValues { get; set; }
 
     // New properties to support combo box helpers
-    public bool IsXFieldComboBox => SelectedXField is ComboBoxFieldViewModel;
-    public List<string> XFieldItemsSource => (SelectedXField as ComboBoxFieldViewModel)?.ItemsSource;
-    public bool IsYFieldComboBox => SelectedYField is ComboBoxFieldViewModel;
-    public List<string> YFieldItemsSource => (SelectedYField as ComboBoxFieldViewModel)?.ItemsSource;
+    public bool IsXSourceComboBox => SelectedXSource?.Source is ComboBoxFieldViewModel;
+    public List<string> XSourceItemsSource => (SelectedXSource?.Source as ComboBoxFieldViewModel)?.ItemsSource;
+    public bool IsYSourceComboBox => SelectedYSource?.Source is ComboBoxFieldViewModel;
+    public List<string> YSourceItemsSource => (SelectedYSource?.Source as ComboBoxFieldViewModel)?.ItemsSource;
+    
+    public bool IsXSourcePresetGroup => SelectedXSource?.Source is WorkflowGroupViewModel;
+    public ICollectionView XSourcePresetsView { get; private set; }
+    public bool IsYSourcePresetGroup => SelectedYSource?.Source is WorkflowGroupViewModel;
+    public ICollectionView YSourcePresetsView { get; private set; }
     
     public ICommand AddValueToGridCommand { get; }
+    public ICommand AddPresetValueToGridCommand { get; }
     
     public WorkflowInputsController(Workflow workflow, AppSettings settings, ModelService modelService, WorkflowTabViewModel parentTab)
     {
@@ -185,15 +245,15 @@ public class WorkflowInputsController : INotifyPropertyChanged
         GlobalControls = new GlobalControlsViewModel(ApplyGlobalPreset);
         
         this.PropertyChanged += (s, e) => {
-            if (e.PropertyName == nameof(SelectedXField))
+            if (e.PropertyName == nameof(SelectedXSource))
             {
-                OnPropertyChanged(nameof(IsXFieldComboBox));
-                OnPropertyChanged(nameof(XFieldItemsSource));
+                OnPropertyChanged(nameof(IsXSourceComboBox));
+                OnPropertyChanged(nameof(XSourceItemsSource));
             }
-            if (e.PropertyName == nameof(SelectedYField))
+            if (e.PropertyName == nameof(SelectedYSource))
             {
-                OnPropertyChanged(nameof(IsYFieldComboBox));
-                OnPropertyChanged(nameof(YFieldItemsSource));
+                OnPropertyChanged(nameof(IsYSourceComboBox));
+                OnPropertyChanged(nameof(YSourceItemsSource));
             }
         };
 
@@ -203,6 +263,25 @@ public class WorkflowInputsController : INotifyPropertyChanged
             {
                 return;
             }
+
+            if (axis == "X")
+            {
+                XValues = string.IsNullOrEmpty(XValues) ? selectedValue : XValues + Environment.NewLine + selectedValue;
+            }
+            else if (axis == "Y")
+            {
+                YValues = string.IsNullOrEmpty(YValues) ? selectedValue : YValues + Environment.NewLine + selectedValue;
+            }
+        });
+        
+        AddPresetValueToGridCommand = new RelayCommand(param =>
+        {
+            if (param is not Tuple<object, object> tuple || tuple.Item1 is not GroupPresetViewModel preset || tuple.Item2 is not string axis)
+            {
+                return;
+            }
+
+            string selectedValue = preset.Name;
 
             if (axis == "X")
             {
@@ -233,6 +312,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
     /// Bubbles up the PresetsModified event from any of the child WorkflowGroupViewModels.
     /// </summary>
     public event Action PresetsModifiedInGroup;
+    public event Action InputsLoaded;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -647,7 +727,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
         
-        PopulateGridableFields();
+        PopulateGridableSources();
         
         await Task.WhenAll(comboBoxLoadTasks);
         
@@ -672,35 +752,51 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         // If no saved tab was found (e.g., first load, or tab was renamed/deleted), default to the first one.
         SelectedTabLayout = tabToSelect ?? TabLayoouts.FirstOrDefault();
+        InputsLoaded?.Invoke();
     }
 
-    private void PopulateGridableFields()
+    private void PopulateGridableSources()
     {
-        GridableFields.Clear();
-        GridableFields.Add(NullFieldViewModelPlaceholder.Instance);
+        GridableSources.Clear();
+        GridableSources.Add(NullGridAxisSource.Instance);
 
-        var fields = _workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields)
-            .Where(f => f.Type == FieldType.Any ||
-                        f.Type == FieldType.Seed ||
-                        f.Type == FieldType.WildcardSupportPrompt ||
-                        f.Type == FieldType.Sampler ||
-                        f.Type == FieldType.Scheduler ||
-                        f.Type == FieldType.SliderInt ||
-                        f.Type == FieldType.SliderFloat ||
-                        f.Type == FieldType.ComboBox ||
-                        f.Type == FieldType.NodeBypass ||
-                        f.Type == FieldType.Model)
-            .OrderBy(f => f.Name);
+        // 1. Add all regular fields
+        var allFieldVms = TabLayoouts.SelectMany(t => t.Groups)
+            .SelectMany(g => g.Tabs).SelectMany(t => t.Fields)
+            .Where(vm => vm.FieldModel != null && (
+                vm.FieldModel.Type == FieldType.Any ||
+                vm.FieldModel.Type == FieldType.Seed ||
+                vm.FieldModel.Type == FieldType.WildcardSupportPrompt ||
+                vm.FieldModel.Type == FieldType.Sampler ||
+                vm.FieldModel.Type == FieldType.Scheduler ||
+                vm.FieldModel.Type == FieldType.SliderInt ||
+                vm.FieldModel.Type == FieldType.SliderFloat ||
+                vm.FieldModel.Type == FieldType.ComboBox ||
+                vm.FieldModel.Type == FieldType.NodeBypass ||
+                vm.FieldModel.Type == FieldType.Model))
+            .ToList();
 
-        foreach (var field in fields)
+        foreach (var fieldVm in allFieldVms.OrderBy(f => f.Name))
         {
-            var fieldVm = TabLayoouts.SelectMany(t => t.Groups)
-                .SelectMany(g => g.Tabs).SelectMany(t => t.Fields)
-                .FirstOrDefault(vm => vm.FieldModel == field);
-            if (fieldVm != null)
+            var group = FindGroupForField(fieldVm);
+            GridableSources.Add(new GridAxisSource
             {
-                GridableFields.Add(fieldVm);
-            }
+                DisplayName = fieldVm.Name,
+                Source = fieldVm,
+                GroupName = group?.Name ?? "Unknown"
+            });
+        }
+        
+        // 2. Add all groups that have presets
+        var allGroupVms = TabLayoouts.SelectMany(t => t.Groups).Distinct();
+        foreach (var groupVm in allGroupVms.Where(g => g.HasPresets).OrderBy(g => g.Name))
+        {
+            GridableSources.Add(new GridAxisSource
+            {
+                DisplayName = $"[Presets] {groupVm.Name}",
+                Source = groupVm,
+                GroupName = groupVm.Name
+            });
         }
     }
 
@@ -977,11 +1073,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
         _wildcardPropertyPaths.Clear();
         _inpaintViewModels.Clear();
         
-        GridableFields.Clear();
+        GridableSources.Clear();
         IsXyGridEnabled = false;
         IsXyGridPopupOpen = false; // Reset popup state
-        SelectedXField = null;
-        SelectedYField = null;
+        SelectedXSource = null;
+        SelectedYSource = null;
         XValues = null;
         YValues = null;
         

@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,10 +14,12 @@ namespace Comfizen
     public partial class FilterableComboBox : UserControl
     {
         public ObservableCollection<object> FilteredItems { get; } = new ObservableCollection<object>();
-        public event EventHandler<string> ItemSelected;
+        public event EventHandler<object> ItemSelected;
         public ICommand ClearSearchCommand { get; }
         public ICommand CycleNextCommand { get; }
         public ICommand CyclePreviousCommand { get; }
+
+        public ObservableCollection<GroupStyle> GroupStyle => ItemListBox.GroupStyle;
 
         public FilterableComboBox()
         {
@@ -87,12 +90,12 @@ namespace Comfizen
         }
 
         public static readonly DependencyProperty SelectedItemProperty = DependencyProperty.Register(
-            "SelectedItem", typeof(string), typeof(FilterableComboBox), 
+            "SelectedItem", typeof(object), typeof(FilterableComboBox), 
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnSelectedItemChanged));
 
-        public string SelectedItem
+        public object SelectedItem
         {
-            get => (string)GetValue(SelectedItemProperty);
+            get => GetValue(SelectedItemProperty);
             set => SetValue(SelectedItemProperty, value);
         }
 
@@ -185,18 +188,14 @@ namespace Comfizen
         private void ValidateSelectedItem()
         {
             // Считаем значение валидным, если список пуст или значение не установлено.
-            if (ItemsSource == null || string.IsNullOrEmpty(SelectedItem))
+            if (ItemsSource == null || SelectedItem == null)
             {
                 IsValueValid = true;
                 return;
             }
 
-            // --- START OF MODIFICATION ---
-            // The ItemsSource can contain any object, not just strings.
-            // We need to cast to object and compare using ToString(), which is what the user sees.
             var source = ItemsSource.Cast<object>();
-            IsValueValid = source.Any(s => s.ToString().Equals(SelectedItem, StringComparison.OrdinalIgnoreCase));
-            // --- END OF MODIFICATION ---
+            IsValueValid = source.Contains(SelectedItem);
         }
         
         private void FilterItems()
@@ -204,12 +203,23 @@ namespace Comfizen
             FilteredItems.Clear();
             if (ItemsSource == null) return;
 
-            var source = ItemsSource.Cast<object>();
+            IEnumerable source;
+            if (ItemsSource is ICollectionView view)
+            {
+                // If it's a view, get the original, unfiltered collection.
+                source = view.SourceCollection;
+            }
+            else
+            {
+                // Otherwise, use the ItemsSource as is.
+                source = ItemsSource;
+            }
+            var sourceObjects = source.Cast<object>();
 
             // Если фильтр пуст, показываем всё как есть (с заголовками)
             if (string.IsNullOrWhiteSpace(SearchFilter))
             {
-                foreach (var item in source)
+                foreach (var item in sourceObjects)
                 {
                     FilteredItems.Add(item);
                 }
@@ -219,7 +229,7 @@ namespace Comfizen
                 // --- MODIFIED: Split search filter by spaces for multi-word search ---
                 string[] searchTerms = SearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 
-                var filtered = source
+                var filtered = sourceObjects
                     .Where(item => searchTerms.All(term => 
                         item.ToString().IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
 
@@ -433,7 +443,7 @@ namespace Comfizen
             var selectableItems = ItemsSource.Cast<object>().Where(i => i is not WorkflowListHeader).ToList();
             if (!selectableItems.Any()) return;
 
-            int currentIndex = selectableItems.FindIndex(i => i.ToString().Equals(SelectedItem, StringComparison.OrdinalIgnoreCase));
+            int currentIndex = selectableItems.FindIndex(i => i.ToString().Equals(SelectedItem.ToString(), StringComparison.OrdinalIgnoreCase));
 
             int newIndex;
             if (currentIndex == -1)
@@ -495,11 +505,9 @@ namespace Comfizen
         {
             if (selectedItem == null) return;
             
-            var selectedItemString = selectedItem.ToString();
-            
-            SetValue(SelectedItemProperty, selectedItemString);
+            SetValue(SelectedItemProperty, selectedItem);
             ItemPopup.IsOpen = false;
-            ItemSelected?.Invoke(this, selectedItemString);
+            ItemSelected?.Invoke(this, selectedItem);
 
             // --- MODIFIED: Package the selected item and the command parameter into a Tuple ---
             if (ItemSelectedCommand != null)
@@ -513,7 +521,7 @@ namespace Comfizen
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         SearchFilter = string.Empty;
-                        SetValue(SelectedItemProperty, string.Empty);
+                        SetValue(SelectedItemProperty, null);
                     }));
                 }
             }

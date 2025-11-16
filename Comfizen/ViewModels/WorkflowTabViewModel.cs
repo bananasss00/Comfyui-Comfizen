@@ -92,7 +92,7 @@ namespace Comfizen
         }
         
         // New constructor for creating "virtual" tabs from an in-memory workflow.
-        public WorkflowTabViewModel(Workflow preloadedWorkflow, string header, ComfyuiModel comfyModel, AppSettings settings, ModelService modelService, SessionManager sessionManager)
+        public WorkflowTabViewModel(Workflow preloadedWorkflow, string header, ComfyuiModel comfyModel, AppSettings settings, ModelService modelService, SessionManager sessionManager, JObject gridConfig = null)
         {
             FilePath = null; // This indicates a virtual tab.
             Header = header;
@@ -107,18 +107,15 @@ namespace Comfizen
             InitializeController();
             
             ExecuteActionCommand = new RelayCommand(actionName => ExecuteAction(actionName as string));
+            
+            if (gridConfig != null)
+            {
+                WorkflowInputsController.InputsLoaded += () => ApplyGridConfig(gridConfig);
+            }
 
-            // START OF CHANGE: Use an async void method for initialization
-            // This mirrors the behavior of the file-based constructor and avoids Task.Run,
-            // which can cause threading issues with UI updates.
             InitializeFromPreloadedAsync();
-            // END OF CHANGE
         }
         
-        // START OF CHANGE: New method for initializing virtual tabs
-        /// <summary>
-        /// Asynchronously initializes the UI for a pre-loaded ("virtual") workflow.
-        /// </summary>
         private async void InitializeFromPreloadedAsync()
         {
             // For virtual tabs, just populate the hooks. There's no session state to apply.
@@ -130,7 +127,35 @@ namespace Comfizen
             }
             ExecuteHook("on_workflow_load", Workflow.LoadedApi);
         }
-        // END OF CHANGE
+        
+        private void ApplyGridConfig(JObject gridConfig)
+        {
+            var controller = this.WorkflowInputsController;
+            try
+            {
+                controller.IsXyGridEnabled = true;
+
+                string xAxisPath = gridConfig["x_axis_field_path"]?.ToString();
+                string yAxisPath = gridConfig["y_axis_field_path"]?.ToString();
+                    
+                if (!string.IsNullOrEmpty(xAxisPath))
+                {
+                    controller.SelectedXSource = controller.GridableSources.FirstOrDefault(s => (s.Source as InputFieldViewModel)?.Path == xAxisPath);
+                }
+
+                if (!string.IsNullOrEmpty(yAxisPath))
+                {
+                    controller.SelectedYSource = controller.GridableSources.FirstOrDefault(s => (s.Source as InputFieldViewModel)?.Path == yAxisPath);
+                }
+
+                controller.XValues = string.Join(Environment.NewLine, gridConfig["x_values"]?.ToObject<List<string>>() ?? new List<string>());
+                controller.YValues = string.Join(Environment.NewLine, gridConfig["y_values"]?.ToObject<List<string>>() ?? new List<string>());
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to restore XY Grid settings from imported image.");
+            }
+        }
 
         private void InitializeController()
         {

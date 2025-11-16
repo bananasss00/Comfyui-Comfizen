@@ -1108,11 +1108,11 @@ namespace Comfizen
             return null;
         }
         
-        private void FilterableComboBox_ItemSelected(object sender, string selectedItem)
+        private void FilterableComboBox_ItemSelected(object sender, object selectedItem)
         {
-            if (DataContext is MainViewModel viewModel)
+            if (DataContext is MainViewModel viewModel && selectedItem is string selectedWorkflow)
             {
-                viewModel.OpenOrSwitchToWorkflow(selectedItem);
+                viewModel.OpenOrSwitchToWorkflow(selectedWorkflow);
             }
         }
 

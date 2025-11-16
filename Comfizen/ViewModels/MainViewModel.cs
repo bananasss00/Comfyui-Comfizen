@@ -822,39 +822,9 @@ namespace Comfizen
                 _comfyuiModel, 
                 _settings, 
                 _modelService, 
-                _sessionManager
+                _sessionManager,
+                gridConfig // Pass grid config directly here
             );
-
-            // --- START OF NEW LOGIC: Apply grid config if it exists ---
-            if (gridConfig != null)
-            {
-                var controller = newTab.WorkflowInputsController;
-                try
-                {
-                    controller.IsXyGridEnabled = true;
-
-                    string xAxisPath = gridConfig["x_axis_field_path"]?.ToString();
-                    string yAxisPath = gridConfig["y_axis_field_path"]?.ToString();
-                    
-                    if (!string.IsNullOrEmpty(xAxisPath))
-                    {
-                        controller.SelectedXField = controller.GridableFields.FirstOrDefault(f => f?.Path == xAxisPath);
-                    }
-
-                    if (!string.IsNullOrEmpty(yAxisPath))
-                    {
-                        controller.SelectedYField = controller.GridableFields.FirstOrDefault(f => f?.Path == yAxisPath);
-                    }
-
-                    controller.XValues = string.Join(Environment.NewLine, gridConfig["x_values"]?.ToObject<List<string>>() ?? new List<string>());
-                    controller.YValues = string.Join(Environment.NewLine, gridConfig["y_values"]?.ToObject<List<string>>() ?? new List<string>());
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log(ex, "Failed to restore XY Grid settings from imported image.");
-                }
-            }
-            // --- END OF NEW LOGIC ---
 
             OpenTabs.Add(newTab);
             SelectedTab = newTab;
@@ -1332,23 +1302,23 @@ namespace Comfizen
                 return originalTexts;
             }
 
-            if (controller.IsXyGridEnabled && controller.SelectedXField != null && !string.IsNullOrWhiteSpace(controller.XValues))
+            if (controller.IsXyGridEnabled && controller.SelectedXSource?.Source != null && !string.IsNullOrWhiteSpace(controller.XValues))
             {
                 var xValuesList = controller.XValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
                 var yValuesList = new List<string> { "" };
 
-                if (controller.SelectedYField != null && !string.IsNullOrWhiteSpace(controller.YValues))
+                if (controller.SelectedYSource?.Source != null && !string.IsNullOrWhiteSpace(controller.YValues))
                 {
                     yValuesList = controller.YValues.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(v => v.Trim()).Where(v => !string.IsNullOrEmpty(v)).ToList();
                 }
 
                 var gridConfigForBatch = new XYGridConfig
                 {
-                    XAxisField = controller.SelectedXField?.Name,
-                    XAxisPath = controller.SelectedXField?.Path,
+                    XAxisField = controller.SelectedXSource?.DisplayName,
+                    XAxisPath = (controller.SelectedXSource?.Source as InputFieldViewModel)?.Path,
                     XValues = xValuesList,
-                    YAxisField = controller.SelectedYField?.Name,
-                    YAxisPath = controller.SelectedYField?.Path,
+                    YAxisField = controller.SelectedYSource?.DisplayName,
+                    YAxisPath = (controller.SelectedYSource?.Source as InputFieldViewModel)?.Path,
                     YValues = yValuesList,
                     CreateGridImage = controller.XyGridCreateGridImage,
                     LimitCellSize = controller.XyGridLimitCellSize,
@@ -1358,63 +1328,115 @@ namespace Comfizen
                 };
 
                 var pathsToIgnore = new HashSet<string>();
-                if (controller.SelectedXField != null) pathsToIgnore.Add(controller.SelectedXField.Path);
-                if (controller.SelectedYField != null) pathsToIgnore.Add(controller.SelectedYField.Path);
+                if (controller.SelectedXSource?.Source is InputFieldViewModel xF) pathsToIgnore.Add(xF.Path);
+                if (controller.SelectedYSource?.Source is InputFieldViewModel yF) pathsToIgnore.Add(yF.Path);
 
-                var allBypassVms = tab.WorkflowInputsController.TabLayoouts
-                    .SelectMany(t => t.Groups)
-                    .SelectMany(g => g.Tabs.SelectMany(subTab => subTab.Fields))
-                    .OfType<NodeBypassFieldViewModel>()
-                    .ToList();
-
+                var allGroupVms = tab.WorkflowInputsController.TabLayoouts.SelectMany(t => t.Groups).ToList();
 
                 foreach (var yValue in yValuesList)
                 {
                     foreach (var xValue in xValuesList)
                     {
-                        var xBypassVmInstance = controller.SelectedXField is NodeBypassFieldViewModel xBypassVm
-                            ? allBypassVms.FirstOrDefault(vm => vm.Path == xBypassVm.Path)
-                            : null;
-                
-                        var yBypassVmInstance = controller.SelectedYField is NodeBypassFieldViewModel yBypassVm
-                            ? allBypassVms.FirstOrDefault(vm => vm.Path == yBypassVm.Path)
-                            : null;
+                        var xBypassVmInstance = controller.SelectedXSource.Source as NodeBypassFieldViewModel;
+                        var yBypassVmInstance = controller.SelectedYSource?.Source as NodeBypassFieldViewModel;
                 
                         bool? originalXState = xBypassVmInstance?.IsEnabled;
                         bool? originalYState = yBypassVmInstance?.IsEnabled;
                         
                         try
                         {
-                             var apiPromptForTask = tab.Workflow.JsonClone();
-    
+                            var apiPromptForTask = tab.Workflow.JsonClone();
+
                             // Apply X value
-                            if (xBypassVmInstance != null)
+                            var xSource = controller.SelectedXSource.Source;
+                            if (xSource is WorkflowGroupViewModel xGroupVm)
+                            {
+                                var groupVmInstance = allGroupVms.FirstOrDefault(g => g.Id == xGroupVm.Id);
+                                if (groupVmInstance != null)
+                                {
+                                    var presetToApply = groupVmInstance.AllPresets.FirstOrDefault(p => p.Name == xValue);
+                                    if (presetToApply != null)
+                                    {
+                                        var valuesToApply = new Dictionary<string, JToken>();
+                                        if (presetToApply.IsLayout)
+                                        {
+                                            foreach (var snippetName in presetToApply.Model.SnippetNames ?? new List<string>())
+                                            {
+                                                var snippet = groupVmInstance.AllPresets.FirstOrDefault(p => p.Name == snippetName);
+                                                if (snippet != null)
+                                                {
+                                                    foreach (var kvp in snippet.Model.Values) valuesToApply[kvp.Key] = kvp.Value;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            valuesToApply = presetToApply.Model.Values;
+                                        }
+
+                                        foreach(var change in valuesToApply)
+                                        {
+                                            var prop = Utils.GetJsonPropertyByPath(apiPromptForTask, change.Key);
+                                            if (prop != null) prop.Value = change.Value.DeepClone();
+                                        }
+                                    }
+                                }
+                            }
+                            else if (xBypassVmInstance != null)
                             {
                                 xBypassVmInstance.IsEnabled = ConvertStringToBool(xValue);
                             }
-                            else if (controller.SelectedXField != null)
+                            else if (xSource is InputFieldViewModel xFieldVm)
                             {
-                                var xProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedXField.Path);
-                                if (xProp != null)
-                                {
-                                    xProp.Value = ConvertValueToJToken(xValue, controller.SelectedXField);
-                                }
+                                var xProp = Utils.GetJsonPropertyByPath(apiPromptForTask, xFieldVm.Path);
+                                if (xProp != null) xProp.Value = ConvertValueToJToken(xValue, xFieldVm);
                             }
 
-                            // Apply Y value if applicable
-                            if (yBypassVmInstance != null)
+                            // Apply Y value
+                            var ySource = controller.SelectedYSource?.Source;
+                            if (ySource is WorkflowGroupViewModel yGroupVm)
+                            {
+                                var groupVmInstance = allGroupVms.FirstOrDefault(g => g.Id == yGroupVm.Id);
+                                if (groupVmInstance != null)
+                                {
+                                    var presetToApply = groupVmInstance.AllPresets.FirstOrDefault(p => p.Name == yValue);
+                                    if (presetToApply != null)
+                                    {
+                                        var valuesToApply = new Dictionary<string, JToken>();
+                                        if (presetToApply.IsLayout)
+                                        {
+                                            foreach (var snippetName in presetToApply.Model.SnippetNames ?? new List<string>())
+                                            {
+                                                var snippet = groupVmInstance.AllPresets.FirstOrDefault(p => p.Name == snippetName);
+                                                if (snippet != null)
+                                                {
+                                                    foreach (var kvp in snippet.Model.Values) valuesToApply[kvp.Key] = kvp.Value;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            valuesToApply = presetToApply.Model.Values;
+                                        }
+
+                                        foreach(var change in valuesToApply)
+                                        {
+                                            var prop = Utils.GetJsonPropertyByPath(apiPromptForTask, change.Key);
+                                            if (prop != null) prop.Value = change.Value.DeepClone();
+                                        }
+                                    }
+                                }
+                            }
+                            else if (yBypassVmInstance != null)
                             {
                                 yBypassVmInstance.IsEnabled = ConvertStringToBool(yValue);
                             }
-                            else if (controller.SelectedYField != null)
+                            else if (ySource is InputFieldViewModel yFieldVm)
                             {
-                                var yProp = Utils.GetJsonPropertyByPath(apiPromptForTask, controller.SelectedYField.Path);
-                                if (yProp != null)
-                                {
-                                    yProp.Value = ConvertValueToJToken(yValue, controller.SelectedYField);
-                                }
+                                var yProp = Utils.GetJsonPropertyByPath(apiPromptForTask, yFieldVm.Path);
+                                if (yProp != null) yProp.Value = ConvertValueToJToken(yValue, yFieldVm);
                             }
-
+    
                             var advancedPromptOriginalTexts = GetAdvancedPromptOriginalTexts(apiPromptForTask);
 
                             await tab.WorkflowInputsController.ProcessSpecialFieldsAsync(apiPromptForTask, pathsToIgnore);
