@@ -135,17 +135,33 @@ namespace Comfizen
             {
                 controller.IsXyGridEnabled = true;
 
-                string xAxisPath = gridConfig["x_axis_field_path"]?.ToString();
-                string yAxisPath = gridConfig["y_axis_field_path"]?.ToString();
+                string xAxisIdentifier = gridConfig["x_axis_identifier"]?.ToString();
+                string xAxisSourceType = gridConfig["x_axis_source_type"]?.ToString();
+                string yAxisIdentifier = gridConfig["y_axis_identifier"]?.ToString();
+                string yAxisSourceType = gridConfig["y_axis_source_type"]?.ToString();
                     
-                if (!string.IsNullOrEmpty(xAxisPath))
+                if (!string.IsNullOrEmpty(xAxisIdentifier))
                 {
-                    controller.SelectedXSource = controller.GridableSources.FirstOrDefault(s => (s.Source as InputFieldViewModel)?.Path == xAxisPath);
+                    if (xAxisSourceType == "PresetGroup")
+                    {
+                        controller.SelectedXSource = controller.GridableSources.FirstOrDefault(s => (s.Source as WorkflowGroupViewModel)?.Id.ToString() == xAxisIdentifier);
+                    }
+                    else // Default to "Field"
+                    {
+                        controller.SelectedXSource = controller.GridableSources.FirstOrDefault(s => (s.Source as InputFieldViewModel)?.Path == xAxisIdentifier);
+                    }
                 }
 
-                if (!string.IsNullOrEmpty(yAxisPath))
+                if (!string.IsNullOrEmpty(yAxisIdentifier))
                 {
-                    controller.SelectedYSource = controller.GridableSources.FirstOrDefault(s => (s.Source as InputFieldViewModel)?.Path == yAxisPath);
+                    if (yAxisSourceType == "PresetGroup")
+                    {
+                        controller.SelectedYSource = controller.GridableSources.FirstOrDefault(s => (s.Source as WorkflowGroupViewModel)?.Id.ToString() == yAxisIdentifier);
+                    }
+                    else // Default to "Field"
+                    {
+                        controller.SelectedYSource = controller.GridableSources.FirstOrDefault(s => (s.Source as InputFieldViewModel)?.Path == yAxisIdentifier);
+                    }
                 }
 
                 controller.XValues = string.Join(Environment.NewLine, gridConfig["x_values"]?.ToObject<List<string>>() ?? new List<string>());

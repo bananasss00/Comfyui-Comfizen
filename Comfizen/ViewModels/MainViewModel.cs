@@ -266,10 +266,12 @@ namespace Comfizen
         public class XYGridConfig
         {
             public string XAxisField { get; set; }
-            public string XAxisPath { get; set; }
+            public string XAxisIdentifier { get; set; }
+            public string XAxisSourceType { get; set; }
             public IReadOnlyList<string> XValues { get; set; }
             public string YAxisField { get; set; }
-            public string YAxisPath { get; set; }
+            public string YAxisIdentifier { get; set; }
+            public string YAxisSourceType { get; set; }
             public IReadOnlyList<string> YValues { get; set; }
             public bool CreateGridImage { get; set; }
             public bool LimitCellSize { get; set; }
@@ -1315,10 +1317,8 @@ namespace Comfizen
                 var gridConfigForBatch = new XYGridConfig
                 {
                     XAxisField = controller.SelectedXSource?.DisplayName,
-                    XAxisPath = (controller.SelectedXSource?.Source as InputFieldViewModel)?.Path,
                     XValues = xValuesList,
                     YAxisField = controller.SelectedYSource?.DisplayName,
-                    YAxisPath = (controller.SelectedYSource?.Source as InputFieldViewModel)?.Path,
                     YValues = yValuesList,
                     CreateGridImage = controller.XyGridCreateGridImage,
                     LimitCellSize = controller.XyGridLimitCellSize,
@@ -1326,6 +1326,28 @@ namespace Comfizen
                     GridMode = controller.GridMode,
                     VideoGridFrames = controller.VideoGridFrames
                 };
+
+                if (controller.SelectedXSource?.Source is InputFieldViewModel xField)
+                {
+                    gridConfigForBatch.XAxisIdentifier = xField.Path;
+                    gridConfigForBatch.XAxisSourceType = "Field";
+                }
+                else if (controller.SelectedXSource?.Source is WorkflowGroupViewModel xGroup)
+                {
+                    gridConfigForBatch.XAxisIdentifier = xGroup.Id.ToString();
+                    gridConfigForBatch.XAxisSourceType = "PresetGroup";
+                }
+
+                if (controller.SelectedYSource?.Source is InputFieldViewModel yField)
+                {
+                    gridConfigForBatch.YAxisIdentifier = yField.Path;
+                    gridConfigForBatch.YAxisSourceType = "Field";
+                }
+                else if (controller.SelectedYSource?.Source is WorkflowGroupViewModel yGroup)
+                {
+                    gridConfigForBatch.YAxisIdentifier = yGroup.Id.ToString();
+                    gridConfigForBatch.YAxisSourceType = "PresetGroup";
+                }
 
                 var pathsToIgnore = new HashSet<string>();
                 if (controller.SelectedXSource?.Source is InputFieldViewModel xF) pathsToIgnore.Add(xF.Path);
@@ -1880,10 +1902,12 @@ namespace Comfizen
                                         var workflowJson = JObject.Parse(firstTaskResult.Prompt);
                                         var gridConfigData = new JObject
                                         {
-                                            ["x_axis_field_path"] = gridConfig.XAxisPath,
+                                            ["x_axis_identifier"] = gridConfig.XAxisIdentifier,
+                                            ["x_axis_source_type"] = gridConfig.XAxisSourceType,
                                             ["x_axis_field_name"] = gridConfig.XAxisField,
                                             ["x_values"] = JArray.FromObject(gridConfig.XValues),
-                                            ["y_axis_field_path"] = gridConfig.YAxisPath,
+                                            ["y_axis_identifier"] = gridConfig.YAxisIdentifier,
+                                            ["y_axis_source_type"] = gridConfig.YAxisSourceType,
                                             ["y_axis_field_name"] = gridConfig.YAxisField,
                                             ["y_values"] = JArray.FromObject(gridConfig.YValues)
                                         };
@@ -1941,11 +1965,11 @@ namespace Comfizen
                                         var workflowJson = JObject.Parse(firstTaskResult.Prompt);
                                         var gridConfigData = new JObject
                                         {
-                                            ["x_axis_field_path"] = gridConfig.XAxisPath,
-                                            ["x_axis_field_name"] = gridConfig.XAxisField,
+                                            ["x_axis_identifier"] = gridConfig.XAxisIdentifier,
+                                            ["x_axis_source_type"] = gridConfig.XAxisSourceType,
                                             ["x_values"] = JArray.FromObject(gridConfig.XValues),
-                                            ["y_axis_field_path"] = gridConfig.YAxisPath,
-                                            ["y_axis_field_name"] = gridConfig.YAxisField,
+                                            ["y_axis_identifier"] = gridConfig.YAxisIdentifier,
+                                            ["y_axis_source_type"] = gridConfig.YAxisSourceType,
                                             ["y_values"] = JArray.FromObject(gridConfig.YValues)
                                         };
 
