@@ -385,5 +385,7 @@
   "XYGrid_ModeImage": "Image",
   "XYGrid_ModeVideo": "Video (storyboard)",
   "XYGrid_FrameCount": "Frames to extract:",
-  "XYGrid_CellOptions": "Cell Options"
+  "XYGrid_CellOptions": "Cell Options",
+  "UndockPanel_Undock": "Undock Panel",
+  "UndockPanel_Dock": "Dock Panel"
 }

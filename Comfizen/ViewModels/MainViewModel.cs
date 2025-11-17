@@ -159,6 +159,17 @@ namespace Comfizen
         public ICommand CompareSelectedImagesCommand { get; }
         public ICommand DeleteSelectedQueueItemCommand { get; }
         
+        /// <summary>
+        /// A transient UI state indicating whether the queue control panel is undocked.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsQueueControlsUndocked { get; set; }
+        
+        public ICommand ToggleUndockQueueControlsCommand { get; }
+        
+        // A reference to the floating window for the queue controls.
+        private Window _undockedQueueControlsWindow;
+        
         public ICollectionView FilteredPendingQueueItemsView { get; }
         public string QueueSearchText { get; set; }
         
@@ -598,6 +609,8 @@ namespace Comfizen
                 }
             
             }, param => param is IList list && list.Count >= 1); // Can execute if 1 or more images are selected.
+            
+            ToggleUndockQueueControlsCommand = new RelayCommand(_ => ToggleUndockQueueControls());
             
             RenameWorkflowCommand = new RelayCommand(p => {
                 if (p is WorkflowTabViewModel tab)
@@ -2329,6 +2342,52 @@ namespace Comfizen
             }
 
             // Explicitly activate the main window to restore focus.
+            Application.Current.MainWindow?.Activate();
+        }
+        
+        private void ToggleUndockQueueControls()
+        {
+            // If the window already exists, close it to re-dock.
+            if (_undockedQueueControlsWindow != null)
+            {
+                _undockedQueueControlsWindow.Close();
+            }
+            // Otherwise, create and show a new floating window.
+            else
+            {
+                var floatingWindow = new Window
+                {
+                    Title = LocalizationService.Instance["QueueManager_Title"], // Use a localized title
+                    DataContext = this, // The ViewModel for the window is the MainViewModel itself
+                    Content = this,     // The content is also the MainViewModel, to be templated
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                    Topmost = true,
+                    SizeToContent = SizeToContent.WidthAndHeight,
+                    ShowInTaskbar = false,
+                    Style = (Style)Application.Current.FindResource("ToolWindowStyle_SimpleHeader"),
+                    ContentTemplate = (DataTemplate)Application.Current.FindResource("UndockableQueueControlsTemplate")
+                };
+
+                floatingWindow.Closed += QueueControlsWindow_Closed;
+                _undockedQueueControlsWindow = floatingWindow;
+                IsQueueControlsUndocked = true;
+                floatingWindow.Show();
+            }
+        }
+
+        private void QueueControlsWindow_Closed(object sender, EventArgs e)
+        {
+            // Clean up the event handler
+            if (sender is Window window)
+            {
+                window.Closed -= QueueControlsWindow_Closed;
+            }
+
+            // Update the state
+            _undockedQueueControlsWindow = null;
+            IsQueueControlsUndocked = false;
+            
+            // Restore focus to the main window
             Application.Current.MainWindow?.Activate();
         }
 

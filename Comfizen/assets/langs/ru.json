@@ -384,5 +384,7 @@
   "XYGrid_ModeImage": "Изображение",
   "XYGrid_ModeVideo": "Видео (сториборд)",
   "XYGrid_FrameCount": "Кадров для извлечения:",
-  "XYGrid_CellOptions": "Опции ячейки"
+  "XYGrid_CellOptions": "Опции ячейки",
+  "UndockPanel_Undock": "Открепить панель",
+  "UndockPanel_Dock": "Прикрепить панель"
 }

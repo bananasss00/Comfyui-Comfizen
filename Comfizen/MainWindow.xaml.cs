@@ -408,33 +408,6 @@ namespace Comfizen
             }
         }
         
-        private void QueueSizeUpDown_OnSpinned(object sender, SpinEventArgs e)
-        {
-            var upDown = sender as IntegerUpDown;
-            if (upDown == null || !upDown.Value.HasValue) return;
-
-            int currentValue = upDown.Value.Value;
-            int newValue;
-            int originalValue;
-
-            if (e.Direction == SpinDirection.Increase)
-            {
-                originalValue = currentValue - 1;
-                newValue = originalValue < 2 ? originalValue + 1 : originalValue * 2;
-            }
-            else // Decrease
-            {
-                originalValue = currentValue + 1;
-                newValue = (int)Math.Ceiling(originalValue / 2.0);
-            }
-
-            if (newValue < upDown.Minimum) newValue = upDown.Minimum.Value;
-            if (newValue > upDown.Maximum) newValue = upDown.Maximum.Value;
-            
-            upDown.Value = newValue;
-            e.Handled = true;
-        }
-        
         private void ListViewItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _galleryDragStartPoint = e.GetPosition(null);
