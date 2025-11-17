@@ -124,7 +124,7 @@ namespace Comfizen
                     {
                         await _comfyuiModel.SaveVideoFileAsync(
                             Settings.SavedImagesDirectory,
-                            image.FilePath,
+                            image.FilePath ?? image.FileName,
                             image.ImageBytes,
                             promptToSave
                         );
@@ -133,7 +133,7 @@ namespace Comfizen
                     {
                         await _comfyuiModel.SaveImageFileAsync(
                             Settings.SavedImagesDirectory,
-                            image.FilePath,
+                            image.FilePath ?? image.FileName,
                             image.ImageBytes,
                             promptToSave,
                             Settings
