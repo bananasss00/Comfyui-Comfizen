@@ -312,6 +312,31 @@ public class WorkflowInputsController : INotifyPropertyChanged
     }
     
     /// <summary>
+    /// Re-creates the ICollectionView for the X and Y axes if they are bound to a preset group.
+    /// This is necessary to reflect newly created or deleted presets in the XY Grid popup.
+    /// </summary>
+    private void RefreshPresetViewsForXyGrid()
+    {
+        if (IsXSourcePresetGroup && SelectedXSource.Source is WorkflowGroupViewModel xGroupVm)
+        {
+            XSourcePresetsView = CollectionViewSource.GetDefaultView(xGroupVm.AllPresets);
+            XSourcePresetsView.GroupDescriptions.Add(new PropertyGroupDescription("Model.IsLayout"));
+            XSourcePresetsView.SortDescriptions.Add(new SortDescription("IsLayout", ListSortDirection.Ascending));
+            XSourcePresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            OnPropertyChanged(nameof(XSourcePresetsView));
+        }
+            
+        if (IsYSourcePresetGroup && SelectedYSource.Source is WorkflowGroupViewModel yGroupVm)
+        {
+            YSourcePresetsView = CollectionViewSource.GetDefaultView(yGroupVm.AllPresets);
+            YSourcePresetsView.GroupDescriptions.Add(new PropertyGroupDescription("Model.IsLayout"));
+            YSourcePresetsView.SortDescriptions.Add(new SortDescription("IsLayout", ListSortDirection.Ascending));
+            YSourcePresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            OnPropertyChanged(nameof(YSourcePresetsView));
+        }
+    }
+    
+    /// <summary>
     /// Populates the hook toggles in the GlobalControlsViewModel based on the workflow's scripts.
     /// </summary>
     public void PopulateHooks(ScriptCollection scripts)
@@ -543,6 +568,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             {
                 PresetsModifiedInGroup?.Invoke();
                 LoadGlobalPresets();
+                RefreshPresetViewsForXyGrid();
             };
             groupVm.ActiveLayersChanged += SyncGlobalPresetFromGroups;
             groupVmLookup[group.Id] = groupVm;
