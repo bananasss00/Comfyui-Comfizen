@@ -1488,6 +1488,8 @@ namespace Comfizen
         
         public void LoadPresets()
         {
+            var hadPresetsBefore = AllPresets.Any(); // Check state before modification
+
             AllPresets.Clear();
             if (_workflow.Presets.TryGetValue(Id, out var presets))
             {
@@ -1496,6 +1498,14 @@ namespace Comfizen
                     var presetVM = new GroupPresetViewModel(preset);
                     AllPresets.Add(presetVM);
                 }
+            }
+            
+            var hasPresetsAfter = AllPresets.Any(); // Check state after modification
+            
+            // If the "has presets" status has changed, notify the UI
+            if (hadPresetsBefore != hasPresetsAfter)
+            {
+                OnPropertyChanged(nameof(HasPresets));
             }
             
             // Generate tooltips for all presets after they have been loaded.
