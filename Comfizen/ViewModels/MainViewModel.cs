@@ -361,8 +361,8 @@ namespace Comfizen
             _etaUpdateTimer.Tick += EtaUpdateTimer_Tick;
             
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
-            ClearConsoleCommand = new RelayCommand(_ => _allConsoleLogMessages.Clear());
-            CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => _allConsoleLogMessages.Any());
+            ClearConsoleCommand = new RelayCommand(_ => _consoleLogService.ClearLogs());
+            CopyConsoleCommand = new RelayCommand(CopyConsoleContent, _ => _consoleLogService.GetFullHistory().Any());
             CopyConsoleItemCommand = new RelayCommand(CopyConsoleItem);
             HideConsoleCommand = new RelayCommand(_ => IsConsoleVisible = false);
             ToggleQueueManagerCommand = new RelayCommand(_ => IsQueueManagerVisible = !IsQueueManagerVisible);
@@ -1198,27 +1198,18 @@ namespace Comfizen
         /// </summary>
         private void CopyConsoleContent(object obj)
         {
-            // The CanExecute predicate already checks if there are any items,
-            // but a defensive check here is good practice.
-            if (_allConsoleLogMessages == null || !_allConsoleLogMessages.Any())
+            var fullHistory = _consoleLogService.GetFullHistory();
+            if (fullHistory == null || !fullHistory.Any())
             {
                 return;
             }
 
             var stringBuilder = new StringBuilder();
-            
-            // MODIFIED: Iterate over the filtered view, but cast each item to the correct type.
-            // The ICollectionView returns items as 'object'.
-            foreach (var item in ConsoleLogMessages)
+
+            foreach (var logMessage in fullHistory)
             {
-                if (item is LogMessage logMessage)
-                {
-                    // Concatenate all text parts from the segments
-                    var lineText = string.Concat(logMessage.Segments.Select(s => s.Text));
-            
-                    // Format the line with timestamp and level for clarity
-                    stringBuilder.AppendLine($"{logMessage.Timestamp:HH:mm:ss} [{logMessage.Level.ToString().ToUpper()}] {lineText}");
-                }
+                var lineText = string.Concat(logMessage.Segments.Select(s => s.Text));
+                stringBuilder.AppendLine($"{logMessage.Timestamp:HH:mm:ss} [{logMessage.Level.ToString().ToUpper()}] {lineText}");
             }
 
             try

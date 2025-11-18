@@ -75,6 +75,7 @@ namespace Comfizen
         /// Format: "[NodeType::]FieldName=min max step [precision]"
         /// </summary>
         public List<string> SliderDefaults { get; set; }
+        public int ConsoleDisplayLimit { get; set; } = 200;
         
         // Main window dimensions
         public double MainWindowHeight { get; set; } = 768;

@@ -27,6 +27,7 @@ namespace Comfizen
         
         private readonly ConcurrentQueue<LogMessage> _logQueue = new();
         private readonly DispatcherTimer _logUpdateTimer;
+        private readonly List<LogMessage> _fullLogHistory = new List<LogMessage>();
 
         private readonly object _connectionLock = new object();
         private Task _connectionManagerTask;
@@ -215,6 +216,14 @@ namespace Comfizen
             }
         }
         
+        public IEnumerable<LogMessage> GetFullHistory() => _fullLogHistory;
+        
+        public void ClearLogs()
+        {
+            _fullLogHistory.Clear();
+            LogMessages.Clear();
+        }
+        
         private void ProcessMessage(string message)
         {
             try
@@ -286,7 +295,7 @@ namespace Comfizen
                 // Ignore non-JSON messages
             }
         }
-        
+
         /// <summary>
         /// Dequeues messages and adds them to the observable collection in a UI-thread-safe manner.
         /// </summary>
@@ -297,7 +306,7 @@ namespace Comfizen
             while (_logQueue.TryDequeue(out var message) && count < 50)
             {
                 var lastMessage = LogMessages.LastOrDefault();
-            
+
                 // Handle progress bar updates by modifying the last message if it's also a progress bar.
                 if (message.IsProgress && lastMessage != null && lastMessage.IsProgress)
                 {
@@ -305,9 +314,15 @@ namespace Comfizen
                 }
                 else
                 {
-                    // For all other messages, just add them to the collection.
+                    _fullLogHistory.Add(message);
                     LogMessages.Add(message);
                 }
+
+                if (LogMessages.Count > _settings.ConsoleDisplayLimit)
+                {
+                    LogMessages.RemoveAt(0);
+                }
+
                 count++;
             }
         }
