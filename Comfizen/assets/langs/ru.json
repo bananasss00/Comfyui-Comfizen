@@ -386,5 +386,13 @@
   "XYGrid_FrameCount": "Кадров для извлечения:",
   "XYGrid_CellOptions": "Опции ячейки",
   "UndockPanel_Undock": "Открепить панель",
-  "UndockPanel_Dock": "Прикрепить панель"
+  "UndockPanel_Dock": "Прикрепить панель",
+  "UIConstructor_Slider_Min": "Мин:",
+  "UIConstructor_Slider_Max": "Макс:",
+  "UIConstructor_Slider_Step": "Шаг:",
+  "UIConstructor_Slider_Precision": "Точн:",
+  "UIConstructor_Slider_PrecisionTooltip": "Точность (знаков после запятой)",
+  "UIConstructor_Preset_Tooltip": "Выбрать пресет диапазона",
+  "UIConstructor_Preset_SearchPlaceholder": "Поиск пресетов...",
+  "UIConstructor_Preset_ShowAll": "Показать все типы"
 }

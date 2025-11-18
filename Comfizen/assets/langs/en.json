@@ -387,5 +387,13 @@
   "XYGrid_FrameCount": "Frames to extract:",
   "XYGrid_CellOptions": "Cell Options",
   "UndockPanel_Undock": "Undock Panel",
-  "UndockPanel_Dock": "Dock Panel"
+  "UndockPanel_Dock": "Dock Panel",
+  "UIConstructor_Slider_Min": "Min:",
+  "UIConstructor_Slider_Max": "Max:",
+  "UIConstructor_Slider_Step": "Step:",
+  "UIConstructor_Slider_Precision": "Prec:",
+  "UIConstructor_Slider_PrecisionTooltip": "Precision (decimal places)",
+  "UIConstructor_Preset_Tooltip": "Select range preset",
+  "UIConstructor_Preset_SearchPlaceholder": "Search presets...",
+  "UIConstructor_Preset_ShowAll": "Show all types"
 }

@@ -40,6 +40,7 @@
         <local:BooleanAndConverter x:Key="BooleanAndConverter"/>
         <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <local:BoolToStringConverter x:Key="BoolToStringConverter"/>
+        <local:SliderPresetsFilterConverter x:Key="SliderPresetsFilterConverter"/>
         
         
         

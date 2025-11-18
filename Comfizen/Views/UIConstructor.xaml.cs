@@ -208,6 +208,14 @@ namespace Comfizen
         
         public object PopupTarget { get; set; }
         
+        public ObservableCollection<SliderDefaultRule> SliderPresets { get; private set; }
+        public ICommand ApplySliderPresetCommand { get; }
+        
+        // Property for the search text inside the popup
+        public string SliderPresetSearchText { get; set; }
+        public bool ShowAllSliderPresets { get; set; } = false;
+        
+        
         public UIConstructorView(Workflow liveWorkflow, string? workflowRelativePath)
         {
             // Assign the live workflow object directly.
@@ -220,6 +228,7 @@ namespace Comfizen
             _settings = settingsService.Settings;
             UseNodeTitlePrefix = _settings.UseNodeTitlePrefixInDesigner;
             _sliderDefaultsService = new SliderDefaultsService(_settings.SliderDefaults);
+            SliderPresets = new ObservableCollection<SliderDefaultRule>(_sliderDefaultsService.AllRules);
             _sessionManager = new SessionManager(_settings);
             _modelService = new ModelService(_settings);
 
@@ -360,7 +369,26 @@ namespace Comfizen
                     field.NotifyBypassNodeIdsChanged();
                 }
             });
-
+            
+            ApplySliderPresetCommand = new RelayCommand(param =>
+            {
+                if (param is object[] args && 
+                    args.Length == 2 &&
+                    args[0] is WorkflowField field && 
+                    args[1] is SliderDefaultRule rule)
+                {
+                    field.MinValue = rule.Min;
+                    field.MaxValue = rule.Max;
+                    field.StepValue = rule.Step;
+                    
+                    // Apply precision only if the field supports float AND the rule specifies it
+                    if (field.Type == FieldType.SliderFloat && rule.Precision.HasValue)
+                    {
+                        field.Precision = rule.Precision;
+                    }
+                }
+            });
+            
             // Attach event handlers
             // this.PropertyChanged += (s, e) => {
             //     if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();

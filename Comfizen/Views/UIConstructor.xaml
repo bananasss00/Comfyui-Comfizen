@@ -586,11 +586,138 @@
                                                                                             
                                                                                             <StackPanel Grid.Column="1" Orientation="Horizontal">
                                                                                                 <StackPanel Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
-                                                                                                    <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="SliderInt"><Setter Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding Type}" Value="SliderFloat"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
-                                                                                                    <TextBlock Text="Min:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding MinValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.1"/>
-                                                                                                    <TextBlock Text="Max:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding MaxValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.1"/>
-                                                                                                    <TextBlock Text="Step:" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding StepValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.01"/>
+                                                                                                <StackPanel.Style>
+                                                                                                    <Style TargetType="StackPanel">
+                                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                        <Style.Triggers>
+                                                                                                            <DataTrigger Binding="{Binding Type}" Value="SliderInt"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                                                            <DataTrigger Binding="{Binding Type}" Value="SliderFloat"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                                                        </Style.Triggers>
+                                                                                                    </Style>
+                                                                                                </StackPanel.Style>
+                                                                                                
+                                                                                                <!-- Preset Selection Button -->
+                                                                                                <ToggleButton x:Name="SliderPresetButton" 
+                                                                                                              Content="&#xE71D;" FontFamily="Segoe MDL2 Assets"
+                                                                                                              Style="{StaticResource IconToggleButton}" 
+                                                                                                              Width="24" Height="24" Margin="0,0,5,0"
+                                                                                                              ToolTip="{local:Translate UIConstructor_Preset_Tooltip}"/>
+
+                                                                                                <Popup IsOpen="{Binding IsChecked, ElementName=SliderPresetButton, Mode=TwoWay}" 
+                                                                                                       StaysOpen="False" 
+                                                                                                       PlacementTarget="{Binding ElementName=SliderPresetButton}" 
+                                                                                                       Placement="Bottom" 
+                                                                                                       AllowsTransparency="True">
+                                                                                                    <Border Background="{StaticResource SecondaryBackground}" 
+                                                                                                            BorderBrush="{StaticResource TertiaryBackground}" 
+                                                                                                            BorderThickness="1" 
+                                                                                                            CornerRadius="3" 
+                                                                                                            Padding="5">
+                                                                                                        
+                                                                                                        <StackPanel Width="300">
+                                                                                                            <!-- Search Box -->
+                                                                                                            <TextBox Text="{Binding Data.SliderPresetSearchText, Source={StaticResource Proxy}, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                                     Margin="0,0,0,5"
+                                                                                                                     local:FocusBehavior.FocusOnOpen="True"
+                                                                                                                     local:TextBoxExtensions.PlaceholderText="{local:Translate UIConstructor_Preset_SearchPlaceholder}"/>
+                                                                                                            
+                                                                                                            <CheckBox Content="{local:Translate UIConstructor_Preset_ShowAll}"
+                                                                                                                      IsChecked="{Binding Data.ShowAllSliderPresets, Source={StaticResource Proxy}, Mode=TwoWay}"
+                                                                                                                      Margin="2,0,0,5"
+                                                                                                                      FontSize="11"
+                                                                                                                      Foreground="{StaticResource TextSecondaryBrush}"/>
+
+                                                                                                            <ListBox Tag="{Binding}" 
+                                                                                                                     Background="Transparent" 
+                                                                                                                     BorderThickness="0" 
+                                                                                                                     MaxHeight="300" 
+                                                                                                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                                                                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                                                                                                
+                                                                                                                <ListBox.ItemsSource>
+                                                                                                                    <MultiBinding Converter="{StaticResource SliderPresetsFilterConverter}">
+                                                                                                                        <Binding Path="Data.SliderPresets" Source="{StaticResource Proxy}"/>
+                                                                                                                        <Binding Path="Type"/>
+                                                                                                                        <Binding Path="Data.SliderPresetSearchText" Source="{StaticResource Proxy}"/>
+                                                                                                                        <Binding Path="Data.ShowAllSliderPresets" Source="{StaticResource Proxy}"/>
+                                                                                                                    </MultiBinding>
+                                                                                                                </ListBox.ItemsSource>
+                                                                                                                
+                                                                                                                <ListBox.ItemContainerStyle>
+                                                                                                                    <Style TargetType="ListBoxItem">
+                                                                                                                        <Setter Property="Padding" Value="2"/>
+                                                                                                                        <Setter Property="Cursor" Value="Hand"/>
+                                                                                                                        <Setter Property="Template">
+                                                                                                                            <Setter.Value>
+                                                                                                                                <ControlTemplate TargetType="ListBoxItem">
+                                                                                                                                    <Border x:Name="Border" Background="Transparent" Padding="{TemplateBinding Padding}" CornerRadius="2">
+                                                                                                                                        <ContentPresenter/>
+                                                                                                                                    </Border>
+                                                                                                                                    <ControlTemplate.Triggers>
+                                                                                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                                                                                            <Setter TargetName="Border" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                                                                                                                        </Trigger>
+                                                                                                                                    </ControlTemplate.Triggers>
+                                                                                                                                </ControlTemplate>
+                                                                                                                            </Setter.Value>
+                                                                                                                        </Setter>
+                                                                                                                    </Style>
+                                                                                                                </ListBox.ItemContainerStyle>
+                                                                                                                <ListBox.ItemTemplate>
+                                                                                                                    <DataTemplate>
+                                                                                                                        <Button Background="Transparent" 
+                                                                                                                                BorderThickness="0" 
+                                                                                                                                HorizontalContentAlignment="Stretch" 
+                                                                                                                                Padding="4"
+                                                                                                                                Command="{Binding Data.ApplySliderPresetCommand, Source={StaticResource Proxy}}"
+                                                                                                                                Click="ClosePopupOnClick">
+                                                                                                                            <Button.CommandParameter>
+                                                                                                                                <MultiBinding Converter="{StaticResource MultiValueToArrayConverter}">
+                                                                                                                                    <Binding Path="Tag" RelativeSource="{RelativeSource AncestorType=ListBox}"/> 
+                                                                                                                                    <Binding /> 
+                                                                                                                                </MultiBinding>
+                                                                                                                            </Button.CommandParameter>
+                                                                                                                            
+                                                                                                                            <Grid>
+                                                                                                                                <Grid.ColumnDefinitions>
+                                                                                                                                    <ColumnDefinition Width="*"/>
+                                                                                                                                    <ColumnDefinition Width="Auto"/>
+                                                                                                                                </Grid.ColumnDefinitions>
+                                                                                                                                <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                                                                                                <TextBlock Grid.Column="1" Text="{Binding DisplayRange}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                                                                                                            </Grid>
+                                                                                                                        </Button>
+                                                                                                                    </DataTemplate>
+                                                                                                                </ListBox.ItemTemplate>
+                                                                                                            </ListBox>
+                                                                                                        </StackPanel>
+                                                                                                    </Border>
+                                                                                                </Popup>
+
+                                                                                                <TextBlock Text="{local:Translate UIConstructor_Slider_Min}" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding MinValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.1"/>
+                                                                                                <TextBlock Text="{local:Translate UIConstructor_Slider_Max}" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding MaxValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.1"/>
+                                                                                                <TextBlock Text="{local:Translate UIConstructor_Slider_Step}" VerticalAlignment="Center" Margin="5,0"/><xctk:DoubleUpDown Value="{Binding StepValue, UpdateSourceTrigger=PropertyChanged}" Width="50" FormatString="F4" Increment="0.01"/>
+
+                                                                                                <!-- Precision setting (only for SliderFloat) -->
+                                                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                                    <StackPanel.Style>
+                                                                                                        <Style TargetType="StackPanel">
+                                                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                            <Style.Triggers>
+                                                                                                                <DataTrigger Binding="{Binding Type}" Value="SliderFloat">
+                                                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                                                </DataTrigger>
+                                                                                                            </Style.Triggers>
+                                                                                                        </Style>
+                                                                                                    </StackPanel.Style>
+                                                                                                    
+                                                                                                    <TextBlock Text="{local:Translate UIConstructor_Slider_Precision}" VerticalAlignment="Center" Margin="5,0" ToolTip="{local:Translate UIConstructor_Slider_PrecisionTooltip}"/>
+                                                                                                    <xctk:IntegerUpDown Value="{Binding Precision, UpdateSourceTrigger=PropertyChanged}" 
+                                                                                                                        Minimum="0" Maximum="10" Width="45" 
+                                                                                                                        ToolTip="{local:Translate UIConstructor_Slider_PrecisionTooltip}"/>
                                                                                                 </StackPanel>
+
+                                                                                            </StackPanel>
                                                                                                 <StackPanel Orientation="Horizontal" Margin="5,0,0,0" VerticalAlignment="Center">
                                                                                                                 <StackPanel.Style>
                                                                                                                     <Style TargetType="StackPanel">

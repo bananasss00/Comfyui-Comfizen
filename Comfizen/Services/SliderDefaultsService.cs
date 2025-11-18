@@ -16,6 +16,39 @@ namespace Comfizen
         public double Max { get; set; }
         public double Step { get; set; }
         public int? Precision { get; set; }
+
+        // Helper for UI display
+        // UPDATED: Now includes Precision if it has a value
+        public string DisplayRange
+        {
+            get
+            {
+                var details = new List<string> { $"Step: {Step}" };
+                
+                if (Precision.HasValue)
+                {
+                    // Using "Prec" as a short form to save horizontal space
+                    details.Add($"Prec: {Precision}");
+                }
+                
+                return $"{Min} - {Max} ({string.Join(", ", details)})";
+            }
+        }
+
+        public string DisplayName => string.IsNullOrEmpty(NodeType) ? FieldName : $"{FieldName} [{NodeType}]";
+
+        // Checks if this rule can be applied to an integer slider (no decimals)
+        public bool IsIntegerCompatible
+        {
+            get
+            {
+                // Precision must be null, and values must be whole numbers
+                return Precision == null &&
+                       (Min % 1 == 0) &&
+                       (Max % 1 == 0) &&
+                       (Step % 1 == 0);
+            }
+        }
     }
 
     /// <summary>
@@ -26,6 +59,9 @@ namespace Comfizen
         private readonly List<SliderDefaultRule> _rulesWithNodeType = new List<SliderDefaultRule>();
         private readonly List<SliderDefaultRule> _rulesWithoutNodeType = new List<SliderDefaultRule>();
 
+        // Public property to access all rules for the UI list
+        public List<SliderDefaultRule> AllRules { get; private set; } = new List<SliderDefaultRule>();
+
         public SliderDefaultsService(List<string> rules)
         {
             if (rules == null) return;
@@ -35,6 +71,8 @@ namespace Comfizen
                 var rule = ParseRule(ruleString);
                 if (rule != null)
                 {
+                    AllRules.Add(rule); 
+
                     if (string.IsNullOrEmpty(rule.NodeType))
                     {
                         _rulesWithoutNodeType.Add(rule);
@@ -45,6 +83,8 @@ namespace Comfizen
                     }
                 }
             }
+            // Sort for better UI presentation
+            AllRules = AllRules.OrderBy(r => r.FieldName).ThenBy(r => r.NodeType).ToList();
         }
 
         /// <summary>
@@ -103,6 +143,7 @@ namespace Comfizen
                     Min = double.Parse(valueParts[0].Replace(',', '.'), CultureInfo.InvariantCulture),
                     Max = double.Parse(valueParts[1].Replace(',', '.'), CultureInfo.InvariantCulture),
                     Step = double.Parse(valueParts[2].Replace(',', '.'), CultureInfo.InvariantCulture),
+                    // Parse precision only if present
                     Precision = valueParts.Length == 4 ? int.Parse(valueParts[3]) : (int?)null
                 };
 
