@@ -164,9 +164,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
     // New properties to support combo box helpers
     public bool IsXSourceComboBox => SelectedXSource?.Source is ComboBoxFieldViewModel;
-    public List<string> XSourceItemsSource => (SelectedXSource?.Source as ComboBoxFieldViewModel)?.ItemsSource;
+    public List<object> XSourceItemsSource => (SelectedXSource?.Source as ComboBoxFieldViewModel)?.ItemsSource;
     public bool IsYSourceComboBox => SelectedYSource?.Source is ComboBoxFieldViewModel;
-    public List<string> YSourceItemsSource => (SelectedYSource?.Source as ComboBoxFieldViewModel)?.ItemsSource;
+    public List<object> YSourceItemsSource => (SelectedYSource?.Source as ComboBoxFieldViewModel)?.ItemsSource;
     
     public bool IsXSourcePresetGroup => SelectedXSource?.Source is WorkflowGroupViewModel;
     public ICollectionView XSourcePresetsView { get; private set; }
@@ -213,18 +213,36 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         AddValueToGridCommand = new RelayCommand(param =>
         {
-            if (param is not Tuple<object, object> tuple || tuple.Item1 is not string selectedValue || tuple.Item2 is not string axis)
+            if (param is not Tuple<object, object> tuple)
+            {
+                return;
+            }
+
+            // CHANGE: Handle both strings and ComboBoxItemWrapper
+            string selectedValueString = null;
+
+            if (tuple.Item1 is ComboBoxItemWrapper wrapper)
+            {
+                // Use the underlying API value, not the display label
+                selectedValueString = wrapper.Value;
+            }
+            else
+            {
+                selectedValueString = tuple.Item1?.ToString();
+            }
+
+            if (string.IsNullOrEmpty(selectedValueString) || tuple.Item2 is not string axis)
             {
                 return;
             }
 
             if (axis == "X")
             {
-                XValues = string.IsNullOrEmpty(XValues) ? selectedValue : XValues + Environment.NewLine + selectedValue;
+                XValues = string.IsNullOrEmpty(XValues) ? selectedValueString : XValues + Environment.NewLine + selectedValueString;
             }
             else if (axis == "Y")
             {
-                YValues = string.IsNullOrEmpty(YValues) ? selectedValue : YValues + Environment.NewLine + selectedValue;
+                YValues = string.IsNullOrEmpty(YValues) ? selectedValueString : YValues + Environment.NewLine + selectedValueString;
             }
         });
         

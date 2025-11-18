@@ -2297,51 +2297,106 @@ namespace Comfizen
             OnPropertyChanged(nameof(FormattedValue));
         }
     }
+    
+    /// <summary>
+    /// Helper class to wrap ComboBox items allowing separate Display and API values.
+    /// </summary>
+    public class ComboBoxItemWrapper
+    {
+        public string Label { get; }
+        public string Value { get; }
 
+        public ComboBoxItemWrapper(string label, string value)
+        {
+            Label = label;
+            Value = value;
+        }
+
+        // Override ToString so the FilterableComboBox search and display work correctly by default
+        public override string ToString() => Label;
+
+        public override bool Equals(object obj)
+        {
+            if (obj is ComboBoxItemWrapper other) return Value == other.Value;
+            if (obj is string str) return Value == str; // Allow comparison with raw string
+            return false;
+        }
+
+        public override int GetHashCode() => Value.GetHashCode();
+    }
+    
     public class ComboBoxFieldViewModel : InputFieldViewModel
     {
-        public string Value
+        private readonly WorkflowField _field;
+        
+        // We store the actual API value in the Property (JToken),
+        // but the UI binds to this property which returns the corresponding Wrapper object.
+        public object Value
         {
-            get => Property.Value.ToString();
+            get
+            {
+                var rawValue = Property.Value.ToString();
+                
+                // Try to find the matching wrapper in our list
+                var matchingItem = ItemsSource.OfType<ComboBoxItemWrapper>()
+                    .FirstOrDefault(item => item.Value == rawValue);
+
+                // If found, return the wrapper (so the UI shows the Label).
+                // If not found (e.g. custom value typed by user), return the raw string.
+                return matchingItem ?? (object)rawValue;
+            }
             set
             {
-                if (Property.Value.ToString() != value)
+                string newValueToStore;
+
+                if (value is ComboBoxItemWrapper wrapper)
                 {
-                    Property.Value = new JValue(value);
+                    newValueToStore = wrapper.Value;
+                }
+                else
+                {
+                    newValueToStore = value?.ToString() ?? "";
+                }
+
+                // Only update if the API value actually changed
+                if (Property.Value.ToString() != newValueToStore)
+                {
+                    Property.Value = new JValue(newValueToStore);
                     OnPropertyChanged(nameof(Value));
                 }
             }
         }
-        public List<string> ItemsSource { get; set; }
+
+        // Changed from List<string> to List<object> to support both Wrappers and Strings
+        public List<object> ItemsSource { get; set; }
 
         public ComboBoxFieldViewModel(WorkflowField field, JProperty property, string nodeTitle = null, string nodeType = null) : base(field, property, nodeTitle, nodeType)
         {
             Type = field.Type;
-            // ИСПРАВЛЕНИЕ: Сохраняем field в член класса
-            _field = field; 
-            ItemsSource = new List<string>();
+            _field = field;
+            ItemsSource = new List<object>();
         }
 
         public async Task LoadItemsAsync(ModelService modelService, AppSettings settings)
         {
             try
             {
-                var finalItemsSource = new List<string>();
+                var rawItems = new List<string>();
 
                 if (Type == FieldType.Model)
                 {
-                    var types = await modelService.GetModelTypesAsync(); // This might throw an exception
+                    var types = await modelService.GetModelTypesAsync();
                     var modelTypeInfo = types.FirstOrDefault(t => t.Name == _field.ModelType);
                     if (modelTypeInfo != null)
                     {
                         var models = await modelService.GetModelFilesAsync(modelTypeInfo);
-                        finalItemsSource.AddRange(settings.SpecialModelValues);
-                        finalItemsSource.AddRange(models);
+                        rawItems.AddRange(settings.SpecialModelValues);
+                        rawItems.AddRange(models);
                     }
                 }
                 else
                 {
-                    finalItemsSource = _field.Type switch
+                    rawItems = _field.Type switch
                     {
                         FieldType.Sampler => settings.Samplers,
                         FieldType.Scheduler => settings.Schedulers,
@@ -2349,12 +2404,41 @@ namespace Comfizen
                         _ => new List<string>()
                     };
                 }
-                ItemsSource = finalItemsSource.Distinct().ToList();
+
+                // --- PARSING LOGIC ---
+                var processedItems = new List<object>();
+                foreach (var item in rawItems.Distinct())
+                {
+                    // Check for separator " :: "
+                    // Example: "High Quality :: high_res_model"
+                    // Label: High Quality, Value: high_res_model
+                    if (item.Contains(" :: "))
+                    {
+                        var parts = item.Split(new[] { " :: " }, StringSplitOptions.None);
+                        if (parts.Length >= 2)
+                        {
+                            processedItems.Add(new ComboBoxItemWrapper(parts[0].Trim(), parts[1].Trim()));
+                        }
+                        else
+                        {
+                            processedItems.Add(new ComboBoxItemWrapper(item, item));
+                        }
+                    }
+                    else
+                    {
+                        // Old style: Label is Value
+                        processedItems.Add(new ComboBoxItemWrapper(item, item));
+                    }
+                }
+
+                ItemsSource = processedItems;
                 OnPropertyChanged(nameof(ItemsSource));
+                
+                // Refresh Value to ensure the correct initial Label is shown if it matches a loaded item
+                OnPropertyChanged(nameof(Value));
             }
             catch (Exception ex)
             {
-                // Silently log the error. The user has already been notified by the ModelService.
                 System.Diagnostics.Debug.WriteLine($"Failed to load items for combobox '{Name}': {ex.Message}");
             }
         }
@@ -2363,8 +2447,6 @@ namespace Comfizen
         {
             OnPropertyChanged(nameof(Value));
         }
-        
-        private readonly WorkflowField _field;
     }
     
     public class CheckBoxFieldViewModel : InputFieldViewModel

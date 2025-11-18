@@ -395,5 +395,6 @@
   "UIConstructor_Slider_PrecisionTooltip": "Precision (decimal places)",
   "UIConstructor_Preset_Tooltip": "Select range preset",
   "UIConstructor_Preset_SearchPlaceholder": "Search presets...",
-  "UIConstructor_Preset_ShowAll": "Show all types"
+  "UIConstructor_Preset_ShowAll": "Show all types",
+  "UIConstructor_Field_ItemsTooltip": "Enter items, one per line.\nTo separate Display Name and API Value use ' :: '.\nExample: 'Nice Name :: api_value'\nIf no separator is used, the name will equal the value."
 }

@@ -788,7 +788,11 @@
                                                                                                 </StackPanel>
                                                                                             </Grid>
                                                                                             
-                                                                                            <TextBox Text="{Binding ComboBoxItemsAsString, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="80"/>
+                                                                                            <TextBox Text="{Binding ComboBoxItemsAsString, UpdateSourceTrigger=PropertyChanged}" 
+                                                                                                AcceptsReturn="True" 
+                                                                                                TextWrapping="Wrap" 
+                                                                                                MaxHeight="80"
+                                                                                                ToolTip="{local:Translate UIConstructor_Field_ItemsTooltip}"/>
                                                                                         </StackPanel>
                                                                                         <StackPanel Grid.Row="2" Margin="0,5,0,0">
                                                                                             <StackPanel.Style>

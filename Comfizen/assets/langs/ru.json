@@ -394,5 +394,6 @@
   "UIConstructor_Slider_PrecisionTooltip": "Точность (знаков после запятой)",
   "UIConstructor_Preset_Tooltip": "Выбрать пресет диапазона",
   "UIConstructor_Preset_SearchPlaceholder": "Поиск пресетов...",
-  "UIConstructor_Preset_ShowAll": "Показать все типы"
+  "UIConstructor_Preset_ShowAll": "Показать все типы",
+  "UIConstructor_Field_ItemsTooltip": "Введите значения, каждое с новой строки.\nДля разделения имени и значения API используйте ' :: '.\nПример: 'Красивое имя :: api_value'\nЕсли разделителя нет, имя будет равно значению."
 }
