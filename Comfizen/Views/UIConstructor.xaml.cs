@@ -748,7 +748,6 @@ namespace Comfizen
 
             var group = groupVm.Model;
 
-            var targetTab = group.Tabs.FirstOrDefault();
             // Get the model of the active sub-tab from the ViewModel.
             var targetTab = groupVm.SelectedTab?.Model;
 
