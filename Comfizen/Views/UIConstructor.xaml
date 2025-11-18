@@ -233,7 +233,7 @@
                                     <ListBox ItemsSource="{Binding UnassignedGroups}" Background="Transparent" BorderThickness="0" Margin="5"
                                              AllowDrop="True" Drop="UnassignedGroups_Drop" DragEnter="UnassignedGroups_DragEnter">
                                         <ListBox.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type local:WorkflowGroup}">
+                                            <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
                                                 <Border Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8" PreviewMouseLeftButtonDown="GroupHeader_PreviewMouseLeftButtonDown">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
@@ -316,16 +316,14 @@
                                 <Button Content="{local:Translate UIConstructor_AddGroup}" Command="{Binding AddGroupCommand}" HorizontalAlignment="Left"/>
                                 <TextBlock Text="{Binding SelectedTab.Name, StringFormat='{}{0}'}" FontWeight="Bold" FontSize="16" Margin="15,0" VerticalAlignment="Center"/>
                             </StackPanel>
-                            
+
                             <ScrollViewer x:Name="GroupsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding SelectedTabGroups}">
-                                        
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <!-- START OF CHANGES: Replace StackPanel with Expander -->
+                                        <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
                                             <StackPanel AllowDrop="True" Drop="Group_Drop" DragEnter="Group_DragOver" DragLeave="Group_DragLeave" DragOver="Group_DragOver" Background="Transparent">
                                                 <Border x:Name="GroupDropIndicatorBefore" Height="3" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1.5" Margin="0,2" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                                
+
                                                 <Expander IsExpanded="{Binding IsExpandedInDesigner, Mode=TwoWay}" Margin="0,2">
                                                     <Expander.Header>
                                                         <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1"
@@ -382,11 +380,60 @@
                                                         </Border>
                                                     </Expander.Header>
                                                     <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1,0,1,1" CornerRadius="0,0,3,3">
-                                                        <Grid>
-                                                            <Border Opacity="0.2"
-                                                                    Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}"/>
-                                                            <ItemsControl ItemsSource="{Binding Fields}" Padding="8">
-                                                                <ItemsControl.ItemTemplate>
+                                                        <DockPanel LastChildFill="True">
+                                                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="8,5">
+                                                                <Button Content="{local:Translate UIConstructor_AddSubTab}" Command="{Binding AddTabCommand}" />
+                                                                <Button Content="{local:Translate UIConstructor_RemoveSubTab}" Command="{Binding RemoveSelectedTabCommand}" Margin="5,0,0,0" />
+                                                            </StackPanel>
+
+                                                            <TabControl ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
+                                                                        AllowDrop="True" Drop="GroupSubTabContent_Drop">
+                                                                <TabControl.Resources>
+                                                                    <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                                                                        <Setter Property="AllowDrop" Value="True"/>
+                                                                        <EventSetter Event="Drop" Handler="GroupSubTabItem_Drop"/>
+                                                                        <EventSetter Event="DragOver" Handler="GroupSubTabItem_DragOver"/>
+                                                                        <EventSetter Event="DragLeave" Handler="GroupSubTabItem_DragLeave"/>
+                                                                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="GroupSubTabItem_PreviewMouseLeftButtonDown"/>
+                                                                    </Style>
+                                                                </TabControl.Resources>
+                                                                <TabControl.ItemTemplate>
+                                                                    <DataTemplate DataType="{x:Type local:WorkflowGroupTabViewModel}">
+                                                                        <Grid MouseRightButtonUp="ShowColorPickerPopup">
+                                                                            <Border x:Name="SubTabDropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="-10,0,-10,2" VerticalAlignment="Top" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                                                            
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <Border Width="8" Height="8" CornerRadius="4" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                                                        Background="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}">
+                                                                                    <Border.Style>
+                                                                                        <Style TargetType="Border">
+                                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding HighlightColor, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}" Value="True">
+                                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </Border.Style>
+                                                                                </Border>
+                                                                                <TextBlock Text="{Binding Name}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}"
+                                                                                           MouseLeftButtonDown="SubTabName_MouseLeftButtonDown"/>
+                                                                            </StackPanel>
+
+                                                                            <TextBox Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}"
+                                                                                     Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                            <Border x:Name="SubTabDropIndicatorAfter" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="-10,2,-10,0" VerticalAlignment="Bottom" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </TabControl.ItemTemplate>
+                                                                <TabControl.ContentTemplate>
+                                                                    <DataTemplate DataType="{x:Type local:WorkflowGroupTabViewModel}">
+                                                                        <Grid>
+                                                                            <Border Opacity="0.2"
+                                                                                    Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}"/>
+                                                                            
+                                                                            <ItemsControl ItemsSource="{Binding Model.Fields}" Padding="8">
+                                                                                <ItemsControl.ItemTemplate>
                                                                     <DataTemplate>
                                                                         <StackPanel AllowDrop="True" DragEnter="Field_DragOver" DragLeave="Field_DragLeave" DragOver="Field_DragOver" Drop="Field_Drop" Background="Transparent">
                                                                             <Border x:Name="DropIndicatorBefore" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
@@ -477,8 +524,11 @@
                                                                                                             <Binding Path="Type" />
                                                                                                         </TextBlock.Text>
                                                                                                         <TextBlock.Style>
-                                                                                                            <Style TargetType="TextBlock">
+                                                                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                                                                                                 <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                                <Setter Property="Padding" Value="5"/>
+                                                                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                                                                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
                                                                                                                 <Style.Triggers>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Markdown"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="ScriptButton"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
@@ -675,9 +725,13 @@
                                                                              <Border x:Name="DropIndicatorAfter" Height="2" Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1" Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False"/>
                                                                         </StackPanel>
                                                                     </DataTemplate>
-                                                                </ItemsControl.ItemTemplate>
-                                                            </ItemsControl>
-                                                        </Grid>
+                                                                                </ItemsControl.ItemTemplate>
+                                                                            </ItemsControl>
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </TabControl.ContentTemplate>
+                                                            </TabControl>
+                                                        </DockPanel>
                                                     </Border>
                                                 </Expander>
 

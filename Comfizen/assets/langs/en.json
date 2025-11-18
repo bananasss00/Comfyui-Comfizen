@@ -11,6 +11,8 @@
   "UIConstructor_NewTabDefaultName": "New Tab",
   "UIConstructor_ConfirmDeleteTabTitle": "Confirmation",
   "UIConstructor_ConfirmDeleteTabMessage": "Are you sure you want to delete the tab '{0}'? All groups from this tab will become unassigned.",
+  "UIConstructor_AddSubTab": "Add Tab",
+  "UIConstructor_RemoveSubTab": "Remove Tab",
   "FilterableComboBox_Placeholder": "Select or find a workflow...",
   "Tab_Outputs": "Outputs",
   "Tab_WildcardSeed": "Wildcard Seed",

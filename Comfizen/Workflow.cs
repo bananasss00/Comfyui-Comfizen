@@ -141,15 +141,32 @@ namespace Comfizen
             {
                 foreach (var group in Groups)
                 {
-                    foreach (var field in group.Fields)
+                    // Migration for Group Tabs: If a group has fields but no tabs, it's an old format.
+                    // Migrate the fields to a default tab.
+                    if (group.Fields.Any() && !group.Tabs.Any())
                     {
-                        if (field.Type == FieldType.Markdown && string.IsNullOrEmpty(field.DefaultValue))
+                        var defaultTab = new WorkflowGroupTab { Name = "Controls" };
+                        foreach (var field in group.Fields)
                         {
-                            var prop = Utils.GetJsonPropertyByPath(LoadedApi, field.Path);
-                            if (prop != null && prop.Value.Type == JTokenType.String)
+                            defaultTab.Fields.Add(field);
+                        }
+                        group.Tabs.Add(defaultTab);
+                        group.Fields.Clear(); // Clear the old collection to complete migration.
+                    }
+
+                    // Markdown migration: now iterates through the new tab structure.
+                    foreach (var tab in group.Tabs)
+                    {
+                        foreach (var field in tab.Fields)
+                        {
+                            if (field.Type == FieldType.Markdown && string.IsNullOrEmpty(field.DefaultValue))
                             {
-                                field.DefaultValue = prop.Value.ToString();
-                                prop.Value = "";
+                                var prop = Utils.GetJsonPropertyByPath(LoadedApi, field.Path);
+                                if (prop != null && prop.Value.Type == JTokenType.String)
+                                {
+                                    field.DefaultValue = prop.Value.ToString();
+                                    prop.Value = "";
+                                }
                             }
                         }
                     }
@@ -304,26 +321,42 @@ namespace Comfizen
             {
                 foreach (var group in Groups)
                 {
-                    foreach (var field in group.Fields)
+                    // Migration for Group Tabs: If a group has fields but no tabs, it's an old format.
+                    // Migrate the fields to a default tab.
+                    if (group.Fields.Any() && !group.Tabs.Any())
                     {
-                        // Мигрируем только Markdown-поля, у которых еще нет значения в DefaultValue
-                        if (field.Type == FieldType.Markdown && string.IsNullOrEmpty(field.DefaultValue))
+                        var defaultTab = new WorkflowGroupTab { Name = "Controls" };
+                        foreach (var field in group.Fields)
                         {
-                            // Пытаемся найти свойство в API по старому пути
-                            var prop = Utils.GetJsonPropertyByPath(LoadedApi, field.Path);
-                            if (prop != null && prop.Value.Type == JTokenType.String)
+                            defaultTab.Fields.Add(field);
+                        }
+                        group.Tabs.Add(defaultTab);
+                        group.Fields.Clear(); // Clear the old collection to complete migration.
+                    }
+
+                    // Markdown field migration: now iterates through the new tab structure.
+                    foreach (var tab in group.Tabs)
+                    {
+                        foreach (var field in tab.Fields)
+                        {
+                            // Мигрируем только Markdown-поля, у которых еще нет значения в DefaultValue
+                            if (field.Type == FieldType.Markdown && string.IsNullOrEmpty(field.DefaultValue))
                             {
-                                // Копируем значение из API в новое поле DefaultValue
-                                field.DefaultValue = prop.Value.ToString();
+                                // Пытаемся найти свойство в API по старому пути
+                                var prop = Utils.GetJsonPropertyByPath(LoadedApi, field.Path);
+                                if (prop != null && prop.Value.Type == JTokenType.String)
+                                {
+                                    // Копируем значение из API в новое поле DefaultValue
+                                    field.DefaultValue = prop.Value.ToString();
                         
-                                // Очищаем старое значение в API, чтобы завершить миграцию
-                                prop.Value = ""; 
+                                    // Очищаем старое значение в API, чтобы завершить миграцию
+                                    prop.Value = ""; 
+                                }
                             }
                         }
                     }
                 }
             }
-            // --- КОНЕЦ МИГРАЦИИ ---
         }
     }
 }

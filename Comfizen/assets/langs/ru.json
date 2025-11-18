@@ -11,6 +11,8 @@
   "UIConstructor_NewTabDefaultName": "Новая вкладка",
   "UIConstructor_ConfirmDeleteTabTitle": "Подтверждение",
   "UIConstructor_ConfirmDeleteTabMessage": "Вы уверены, что хотите удалить вкладку '{0}'? Все группы с этой вкладки станут нераспределенными.",
+  "UIConstructor_AddSubTab": "Добавить вкладку",
+  "UIConstructor_RemoveSubTab": "Удалить вкладку",
   "FilterableComboBox_Placeholder": "Выберите или найдите воркфлоу...",
   "Tab_Outputs": "Результаты",
   "Tab_WildcardSeed": "Wildcard Seed",

@@ -129,6 +129,26 @@ namespace Comfizen
                         var oldApiState = JObject.Parse(jsonString);
                         return new SessionData { ApiState = oldApiState, GroupsState = null };
                     }
+                    
+                    if (sessionData?.GroupsState != null)
+                    {
+                        foreach (var group in sessionData.GroupsState)
+                        {
+                            // If a group has fields but no tabs, it's an old session format.
+                            // Migrate the fields to a default tab.
+                            if (group.Fields.Any() && !group.Tabs.Any())
+                            {
+                                var defaultTab = new WorkflowGroupTab { Name = "Controls" };
+                                foreach (var field in group.Fields)
+                                {
+                                    defaultTab.Fields.Add(field);
+                                }
+                                group.Tabs.Add(defaultTab);
+                                group.Fields.Clear(); // Clear the old collection to complete migration.
+                            }
+                        }
+                    }
+
                     return sessionData;
                 }
                 catch (JsonSerializationException)

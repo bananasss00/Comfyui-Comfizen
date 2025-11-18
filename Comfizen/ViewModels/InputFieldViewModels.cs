@@ -195,6 +195,60 @@ namespace Comfizen
         }
     }
     
+    [AddINotifyPropertyChangedInterface]
+    public class WorkflowGroupTabViewModel : INotifyPropertyChanged
+    {
+        public WorkflowGroupTab Model { get; }
+        public string Name
+        {
+            get => Model.Name;
+            set
+            {
+                if (Model.Name != value)
+                {
+                    Model.Name = value;
+                    OnPropertyChanged(nameof(Name));
+                }
+            }
+        }
+        public ObservableCollection<InputFieldViewModel> Fields { get; } = new();
+
+        public bool IsRenaming
+        {
+            get => Model.IsRenaming;
+            set
+            {
+                if (Model.IsRenaming != value)
+                {
+                    Model.IsRenaming = value;
+                    OnPropertyChanged(nameof(IsRenaming));
+                }
+            }
+        }
+        
+        public string HighlightColor
+        {
+            get => Model.HighlightColor;
+            set
+            {
+                if (Model.HighlightColor != value)
+                {
+                    Model.HighlightColor = value;
+                    OnPropertyChanged(nameof(HighlightColor));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        
+        public WorkflowGroupTabViewModel(WorkflowGroupTab model)
+        {
+            Model = model;
+        }
+    }
+    
     // --- ViewModel для группы ---
     [AddINotifyPropertyChangedInterface]
     public class WorkflowGroupViewModel : INotifyPropertyChanged
@@ -203,7 +257,31 @@ namespace Comfizen
         private readonly Workflow _workflow; 
         
         public WorkflowGroup Model => _model;
-        public string Name { get; set; }
+       public string Name
+       {
+           get => _model.Name;
+           set
+           {
+               if (_model.Name != value)
+               {
+                   _model.Name = value;
+                   OnPropertyChanged(nameof(Name));
+               }
+           }
+       }
+        
+        public bool IsRenaming
+        {
+            get => _model.IsRenaming;
+            set
+            {
+                if (_model.IsRenaming != value)
+                {
+                    _model.IsRenaming = value;
+                    OnPropertyChanged(nameof(IsRenaming));
+                }
+            }
+        }
         
         /// <summary>
         /// Gets or sets a value indicating whether this group is currently displayed in a separate window.
@@ -224,13 +302,55 @@ namespace Comfizen
                 }
             }
         }
-        public ObservableCollection<InputFieldViewModel> Fields { get; set; } = new();
         
+        /// <summary>
+        /// A collection of view models for the tabs within this group.
+        /// </summary>
+        public ObservableCollection<WorkflowGroupTabViewModel> Tabs { get; set; } = new();
+        
+        /// <summary>
+        /// The currently selected tab in the group's UI.
+        /// </summary>
+        public WorkflowGroupTabViewModel SelectedTab { get; set; }
+
+        /// <summary>
+        /// Controls whether the group is expanded in the UI Constructor.
+        /// This property is not saved to the workflow JSON file.
+        /// </summary>
+        public bool IsExpandedInDesigner
+        {
+            get => _model.IsExpandedInDesigner;
+            set
+            {
+                if (_model.IsExpandedInDesigner != value)
+                {
+                    _model.IsExpandedInDesigner = value;
+                    OnPropertyChanged(nameof(IsExpandedInDesigner));
+                }
+            }
+        }
+        
+        //public ObservableCollection<InputFieldViewModel> Fields { get; set; } = new();
+
         /// <summary>
         /// The highlight color for the group in HEX format.
         /// </summary>
-        public string HighlightColor { get; set; }
-        
+        /// <summary>
+        /// The highlight color for the group in HEX format.
+        /// </summary>
+        public string HighlightColor
+        {
+            get => _model.HighlightColor;
+            set
+            {
+                if (_model.HighlightColor != value)
+                {
+                    _model.HighlightColor = value;
+                    OnPropertyChanged(nameof(HighlightColor));
+                }
+            }
+        }
+
         // Свойство для InpaintEditor
         public InpaintEditor InpaintEditorControl { get; set; }
         public bool HasInpaintEditor => InpaintEditorControl != null;
@@ -282,6 +402,8 @@ namespace Comfizen
         public ICommand ApplySelectedPresetCommand { get; }
         public ICommand SelectAllFieldsForPresetCommand { get; }
         public ICommand DeselectAllFieldsForPresetCommand { get; }
+        public ICommand AddTabCommand { get; }
+        public ICommand RemoveSelectedTabCommand { get; }
         
         /// <summary>
         /// This event is raised whenever presets are added or removed, signaling a need to save the workflow.
@@ -297,8 +419,13 @@ namespace Comfizen
         {
             _model = model;
             _workflow = workflow; // Store the reference
-            Name = model.Name;
-            HighlightColor = model.HighlightColor;
+            
+            foreach (var tabModel in _model.Tabs)
+            {
+                var tabVm = new WorkflowGroupTabViewModel(tabModel);
+                Tabs.Add(tabVm);
+            }
+            SelectedTab = Tabs.FirstOrDefault();
             
             this.PropertyChanged += (sender, args) =>
             {
@@ -316,12 +443,11 @@ namespace Comfizen
             
             OpenSavePresetPopupCommand = new RelayCommand(_ => 
             {
-                // Pre-fill the textbox with the currently selected name, if any
                 NewPresetName = SelectedPresetName;
                 
                 FieldsForPresetSelection.Clear();
-                var savableFields = Fields
-                    .Where(f => f.Type != FieldType.ScriptButton) // Exclude non-savable fields
+                var savableFields = Tabs.SelectMany(t => t.Fields)
+                    .Where(f => f.Type != FieldType.ScriptButton)
                     .OrderBy(f => f.Name);
 
                 foreach (var field in savableFields)
@@ -330,7 +456,7 @@ namespace Comfizen
                     {
                         Name = field.Name,
                         Path = field.Path,
-                        IsSelected = true // Select all by default
+                        IsSelected = true 
                     });
                 }
                 IsSavePresetPopupOpen = true; 
@@ -347,7 +473,7 @@ namespace Comfizen
                     var existingPreset = Presets.FirstOrDefault(p => p.Name == presetName)?.Model;
                     var existingPresetPaths = new HashSet<string>(existingPreset?.Values.Keys ?? Enumerable.Empty<string>());
 
-                    var savableFields = Fields
+                    var savableFields = Tabs.SelectMany(t => t.Fields)
                         .Where(f => f.Type != FieldType.ScriptButton)
                         .OrderBy(f => f.Name);
 
@@ -357,7 +483,6 @@ namespace Comfizen
                         {
                             Name = field.Name,
                             Path = field.Path,
-                            // Select if it's in the existing preset, or if there's no preset (new save)
                             IsSelected = existingPreset == null || existingPresetPaths.Contains(field.Path)
                         });
                     }
@@ -369,10 +494,8 @@ namespace Comfizen
             {
                 if (string.IsNullOrWhiteSpace(NewPresetName)) return;
 
-                // If we started by clicking an existing preset, we might need to remove the old entry if the name changed.
                 if (!string.IsNullOrEmpty(_presetToUpdateName) && !_presetToUpdateName.Equals(NewPresetName, StringComparison.OrdinalIgnoreCase))
                 {
-                    // This is a rename operation, so remove the preset with the old name.
                     if (_workflow.Presets.TryGetValue(Id, out var presets))
                     {
                         presets.RemoveAll(p => p.Name.Equals(_presetToUpdateName, StringComparison.OrdinalIgnoreCase));
@@ -381,7 +504,6 @@ namespace Comfizen
                 
                 SaveCurrentStateAsPreset(NewPresetName, FieldsForPresetSelection.Where(f => f.IsSelected));
 
-                // Cleanup and UI refresh
                 _presetToUpdateName = null;
                 IsSavePresetPopupOpen = false;
                 NewPresetName = string.Empty;
@@ -395,7 +517,6 @@ namespace Comfizen
             {
                 if (param is string presetName)
                 {
-                    // START OF CHANGE: Add confirmation dialog
                     var message = string.Format(LocalizationService.Instance["Presets_DeleteConfirmMessage"], presetName);
                     var caption = LocalizationService.Instance["Presets_DeleteConfirmTitle"];
                     
@@ -407,7 +528,6 @@ namespace Comfizen
                             DeletePreset(presetVM);
                         }
                     }
-                    // END OF CHANGE
                 }
             });
             
@@ -421,6 +541,37 @@ namespace Comfizen
             
             SelectAllFieldsForPresetCommand = new RelayCommand(_ => ToggleAllFieldsForPreset(true));
             DeselectAllFieldsForPresetCommand = new RelayCommand(_ => ToggleAllFieldsForPreset(false));
+
+            AddTabCommand = new RelayCommand(_ =>
+            {
+                var baseName = "New Tab";
+                string newTabName = baseName;
+                int counter = 1;
+                while (Tabs.Any(t => t.Name == newTabName))
+                {
+                    newTabName = $"{baseName} {++counter}";
+                }
+                var newTabModel = new WorkflowGroupTab { Name = newTabName };
+                _model.Tabs.Add(newTabModel);
+                var newTabVm = new WorkflowGroupTabViewModel(newTabModel);
+                Tabs.Add(newTabVm);
+                SelectedTab = newTabVm;
+            });
+
+            RemoveSelectedTabCommand = new RelayCommand(_ =>
+            {
+                if (SelectedTab == null || Tabs.Count <= 1) return;
+
+                var message = string.Format("Are you sure you want to delete the tab '{0}' and all its fields?", SelectedTab.Name);
+                var caption = "Confirm Deletion";
+
+                if (MessageBox.Show(message, caption, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                {
+                    _model.Tabs.Remove(SelectedTab.Model);
+                    Tabs.Remove(SelectedTab);
+                    SelectedTab = Tabs.FirstOrDefault();
+                }
+            }, _ => SelectedTab != null && Tabs.Count > 1);
         }
         
         private void ToggleAllFieldsForPreset(bool isSelected)
@@ -468,8 +619,7 @@ namespace Comfizen
                     var fieldPath = valuePair.Key;
                     var presetValue = valuePair.Value;
 
-                    // Find the ViewModel corresponding to the path from the preset
-                    var fieldVM = Fields.FirstOrDefault(f => f.Path == fieldPath);
+                    var fieldVM = Tabs.SelectMany(t => t.Fields).FirstOrDefault(f => f.Path == fieldPath);
                     if (fieldVM == null) continue;
 
                     bool valueChanged = false;
@@ -537,7 +687,8 @@ namespace Comfizen
         {
             var newPreset = new GroupPreset { Name = name };
             var selectedFieldPaths = new HashSet<string>(selectedFields.Select(f => f.Path));
-            foreach (var field in Fields)
+            
+            foreach (var field in Tabs.SelectMany(t => t.Fields))
             {
                 if (!selectedFieldPaths.Contains(field.Path))
                 {
@@ -618,8 +769,7 @@ namespace Comfizen
                 var fieldPath = valuePair.Key;
                 var presetValue = valuePair.Value;
 
-                // Find the corresponding field in the UI.
-                var fieldVm = Fields.FirstOrDefault(f => f.Path == fieldPath);
+                var fieldVm = Tabs.SelectMany(t => t.Fields).FirstOrDefault(f => f.Path == fieldPath);
 
                 // If the field from the preset doesn't exist in the UI anymore, it's a mismatch.
                 if (fieldVm == null)

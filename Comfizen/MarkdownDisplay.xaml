@@ -22,7 +22,7 @@
             </FlowDocumentScrollViewer.Resources>
             
             <!-- A dummy document to hold the resources and content -->
-            <FlowDocument>
+            <FlowDocument Foreground="{DynamicResource TextBrush}">
                 <FlowDocument.Resources>
                     <!-- Global document styles -->
                     <Style TargetType="{x:Type Paragraph}">

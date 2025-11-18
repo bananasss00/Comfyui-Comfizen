@@ -113,7 +113,15 @@ namespace Comfizen
         public IHighlightingDefinition PythonSyntaxHighlighting { get; }
         public ObservableCollection<string> ModelSubTypes { get; } = new();
         private bool _apiWasReplaced = false;
-        
+
+        /// <summary>
+        /// Master list of all group ViewModels for the current workflow.
+        /// </summary>
+        public ObservableCollection<WorkflowGroupViewModel> AllGroupViewModels { get; } = new();
+
+        public ObservableCollection<WorkflowGroupViewModel> UnassignedGroups { get; } = new();
+        public ObservableCollection<WorkflowGroupViewModel> SelectedTabGroups { get; } = new();
+
         // --- SCRIPTING PROPERTIES ---
         public ObservableCollection<string> AvailableHooks { get; }
         public string SelectedHookName { get; set; }
@@ -143,8 +151,6 @@ namespace Comfizen
             : this(LoadWorkflowFromFile(workflowRelativePath), workflowRelativePath) { }
         
         // --- START OF NEW PROPERTIES FOR TABS ---
-        public ObservableCollection<WorkflowGroup> UnassignedGroups { get; } = new();
-        public ObservableCollection<WorkflowGroup> SelectedTabGroups { get; } = new();
 
         private WorkflowTabDefinition _selectedTab;
         public WorkflowTabDefinition SelectedTab
@@ -183,7 +189,10 @@ namespace Comfizen
             _sliderDefaultsService = new SliderDefaultsService(_settings.SliderDefaults);
             _sessionManager = new SessionManager(_settings);
             _modelService = new ModelService(_settings);
-            
+
+            liveWorkflow.Groups.CollectionChanged += OnWorkflowGroupsModelChanged;
+            InitializeGroupViewModels();
+
             if (!liveWorkflow.IsLoaded && !liveWorkflow.Tabs.Any() && !liveWorkflow.Groups.Any())
             {
                 // Create a default tab
@@ -192,6 +201,10 @@ namespace Comfizen
 
                 // Create a default group
                 var defaultGroup = new WorkflowGroup { Name = string.Format(LocalizationService.Instance["UIConstructor_NewGroupDefaultName"], 1) };
+                
+                var defaultGroupTab = new WorkflowGroupTab { Name = "Controls" };
+                defaultGroup.Tabs.Add(defaultGroupTab);
+                
                 liveWorkflow.Groups.Add(defaultGroup);
 
                 // Link the group to the tab
@@ -206,10 +219,10 @@ namespace Comfizen
                 _ => !string.IsNullOrWhiteSpace(NewWorkflowName) && Workflow.IsLoaded);
             ExportApiWorkflowCommand = new RelayCommand(_ => ExportApiWorkflow(), _ => Workflow.IsLoaded);
             AddGroupCommand = new RelayCommand(_ => AddGroup());
-            RemoveGroupCommand = new RelayCommand(param => RemoveGroup(param as WorkflowGroup));
+            RemoveGroupCommand = new RelayCommand(param => RemoveGroup(param as WorkflowGroupViewModel));
             RemoveFieldFromGroupCommand = new RelayCommand(param => RemoveField(param as WorkflowField));
             ToggleRenameCommand = new RelayCommand(ToggleRename);
-            
+
             // --- Scripting initialization ---
             AvailableHooks = new ObservableCollection<string> { 
                 "on_workflow_load", 
@@ -225,11 +238,11 @@ namespace Comfizen
                 _ => TestSelectedScript(),
                 _ => SelectedActionName != null && !string.IsNullOrWhiteSpace(SelectedActionScript.Text)
             );
-            
+
             // --- Other initializations ---
-            AddMarkdownFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.Markdown));
-            AddScriptButtonFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.ScriptButton));
-            AddNodeBypassFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroup, FieldType.NodeBypass));
+            AddMarkdownFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Markdown));
+            AddScriptButtonFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.ScriptButton));
+            AddNodeBypassFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.NodeBypass));
             ColorPalette = new ObservableCollection<ColorInfo>
             {
                 // --- Warm Tones (Reds, Oranges, Browns) ---
@@ -258,16 +271,18 @@ namespace Comfizen
                 {
                     var target = args[0];
                     var colorHex = args[1] as string;
-                    if (target is WorkflowGroup group) group.HighlightColor = colorHex;
+                    if (target is WorkflowGroupViewModel groupVm) groupVm.HighlightColor = colorHex;
+                    else if (target is WorkflowGroupTabViewModel tabVm) tabVm.HighlightColor = colorHex;
                     else if (target is WorkflowField field) field.HighlightColor = colorHex;
                 }
             });
             ClearHighlightColorCommand = new RelayCommand(param =>
             {
-                if (param is WorkflowGroup group) group.HighlightColor = null;
+                if (param is WorkflowGroupViewModel groupVm) groupVm.HighlightColor = null;
+                else if (param is WorkflowGroupTabViewModel tabVm) tabVm.HighlightColor = null;
                 else if (param is WorkflowField field) field.HighlightColor = null;
             });
-            
+
             AddBypassNodeIdCommand = new RelayCommand(param =>
             {
                 if (param is Tuple<object, object> tuple &&
@@ -394,7 +409,48 @@ namespace Comfizen
                 .Where(t => t != FieldType.Markdown && t != FieldType.ScriptButton && t != FieldType.NodeBypass));
 
         public event PropertyChangedEventHandler? PropertyChanged;
-        
+
+
+        private void InitializeGroupViewModels()
+        {
+            AllGroupViewModels.Clear();
+            foreach (var groupModel in Workflow.Groups)
+            {
+                AllGroupViewModels.Add(new WorkflowGroupViewModel(groupModel, Workflow));
+            }
+            UpdateGroupAssignments();
+        }
+
+        private void OnWorkflowGroupsModelChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            // Keep the ViewModel collection in sync with the Model collection
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+            {
+                foreach (WorkflowGroup newGroup in e.NewItems)
+                {
+                    AllGroupViewModels.Add(new WorkflowGroupViewModel(newGroup, Workflow));
+                }
+            }
+            else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
+            {
+                foreach (WorkflowGroup oldGroup in e.OldItems)
+                {
+                    var vmToRemove = AllGroupViewModels.FirstOrDefault(vm => vm.Model == oldGroup);
+                    if (vmToRemove != null)
+                    {
+                        AllGroupViewModels.Remove(vmToRemove);
+                    }
+                }
+            }
+            else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+            {
+                AllGroupViewModels.Clear();
+            }
+
+            // Always refresh the UI assignments
+            UpdateGroupAssignments();
+        }
+
         // Helper method to load a workflow from a file path.
         private static Workflow LoadWorkflowFromFile(string? relativePath)
         {
@@ -409,29 +465,31 @@ namespace Comfizen
             }
             return workflow;
         }
-        
-        private void AddVirtualField(WorkflowGroup group, FieldType type)
+
+        private void AddVirtualField(WorkflowGroupViewModel groupVm, FieldType type)
         {
-            if (group == null) return;
+            if (groupVm == null) return;
+
+            var group = groupVm.Model; // Получаем модель из ViewModel
+
+            var targetTab = group.Tabs.FirstOrDefault();
+            if (targetTab == null)
+            {
+                targetTab = new WorkflowGroupTab { Name = "Controls" };
+                group.Tabs.Add(targetTab);
+            }
 
             string baseName = "New Field";
             switch (type)
             {
-                case FieldType.Markdown:
-                    baseName = "Markdown Block";
-                    break;
-                case FieldType.ScriptButton:
-                    baseName = "New Action Button";
-                    break;
-                case FieldType.NodeBypass:
-                    baseName = "New Bypass Switch";
-                    break;
+                case FieldType.Markdown: baseName = "Markdown Block"; break;
+                case FieldType.ScriptButton: baseName = "New Action Button"; break;
+                case FieldType.NodeBypass: baseName = "New Bypass Switch"; break;
             }
             string newName = baseName;
             int counter = 1;
     
-            // Гарантируем уникальное имя внутри группы
-            while (group.Fields.Any(f => f.Name == newName))
+            while (targetTab.Fields.Any(f => f.Name == newName))
             {
                 newName = $"{baseName} {++counter}";
             }
@@ -440,7 +498,6 @@ namespace Comfizen
             {
                 Name = newName,
                 Type = type,
-                // Создаем уникальный путь, который никогда не пересечется с реальным API
                 Path = $"virtual_{type.ToString().ToLower()}_{Guid.NewGuid()}"
             };
 
@@ -449,7 +506,7 @@ namespace Comfizen
                 newField.DefaultValue = "# " + newName + "\n\nEdit this text.";
             }
 
-            group.Fields.Add(newField);
+            targetTab.Fields.Add(newField);
         }
         
         // --- SCRIPTING METHODS ---
@@ -661,14 +718,18 @@ namespace Comfizen
         {
             if (_itemBeingRenamed != null && _itemBeingRenamed != itemToRename)
             {
+                if (_itemBeingRenamed is WorkflowGroupViewModel gvm) gvm.IsRenaming = false;
                 if (_itemBeingRenamed is WorkflowGroup g) g.IsRenaming = false;
                 if (_itemBeingRenamed is WorkflowField f) f.IsRenaming = false;
-                // --- START OF CHANGE ---
                 if (_itemBeingRenamed is WorkflowTabDefinition t) t.IsRenaming = false;
-                // --- END OF CHANGE ---
             }
 
-            if (itemToRename is WorkflowGroup group)
+            if (itemToRename is WorkflowGroupViewModel groupVm)
+            {
+                groupVm.IsRenaming = !groupVm.IsRenaming;
+                _itemBeingRenamed = groupVm.IsRenaming ? groupVm : null;
+            }
+            else if (itemToRename is WorkflowGroup group)
             {
                 group.IsRenaming = !group.IsRenaming;
                 _itemBeingRenamed = group.IsRenaming ? group : null;
@@ -862,52 +923,44 @@ namespace Comfizen
                     Logger.Log(ex, string.Format(LocalizationService.Instance["UIConstructor_SaveErrorMessage"], ex.Message));
                 }
         }
-        
+
         // --- START OF NEW/MODIFIED METHODS FOR TABS ---
         private void UpdateGroupAssignments()
         {
             if (Workflow == null || Workflow.Groups == null) return;
-            
-            // Re-subscribe to collection changed events
-            Workflow.Groups.CollectionChanged -= OnWorkflowGroupsChanged;
-            Workflow.Groups.CollectionChanged += OnWorkflowGroupsChanged;
+
             Workflow.Tabs.CollectionChanged -= OnWorkflowTabsChanged;
             Workflow.Tabs.CollectionChanged += OnWorkflowTabsChanged;
 
             var allGroupIdsInTabs = Workflow.Tabs.SelectMany(t => t.GroupIds).ToHashSet();
-            
-            // Update Unassigned Groups
+
             UnassignedGroups.Clear();
-            foreach (var group in Workflow.Groups.Where(g => !allGroupIdsInTabs.Contains(g.Id)))
+            foreach (var groupVm in AllGroupViewModels.Where(vm => !allGroupIdsInTabs.Contains(vm.Id)))
             {
-                UnassignedGroups.Add(group);
+                UnassignedGroups.Add(groupVm);
             }
 
-            // Update Groups for the Selected Tab
             SelectedTabGroups.Clear();
             if (SelectedTab != null)
             {
-                // Ensure the tab exists in the main workflow collection
                 if (!Workflow.Tabs.Contains(SelectedTab))
                 {
                     SelectedTab = null;
                     return;
                 }
 
-                // Create a lookup for quick access
-                var groupLookup = Workflow.Groups.ToDictionary(g => g.Id);
-                
-                // Add groups in the order specified by the Tab's GroupIds
+                var groupVMLookup = AllGroupViewModels.ToDictionary(vm => vm.Id);
+
                 foreach (var groupId in SelectedTab.GroupIds)
                 {
-                    if (groupLookup.TryGetValue(groupId, out var group))
+                    if (groupVMLookup.TryGetValue(groupId, out var groupVm))
                     {
-                        SelectedTabGroups.Add(group);
+                        SelectedTabGroups.Add(groupVm);
                     }
                 }
             }
         }
-        
+
         private void OnWorkflowGroupsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             UpdateGroupAssignments();
@@ -954,37 +1007,35 @@ namespace Comfizen
             UpdateGroupAssignments();
         }
 
-        public void MoveGroupToTab(WorkflowGroup group, WorkflowTabDefinition targetTab, int insertIndex = -1)
+        public void MoveGroupToTab(WorkflowGroupViewModel groupVM, WorkflowTabDefinition targetTab, int insertIndex = -1)
         {
-            if (group == null) return;
-            
-            // 1. Remove from any previous tab
+            if (groupVM == null) return;
+            var groupId = groupVM.Id;
+
             foreach (var tab in Workflow.Tabs)
             {
-                if (tab.GroupIds.Contains(group.Id))
+                if (tab.GroupIds.Contains(groupId))
                 {
-                    tab.GroupIds.Remove(group.Id);
+                    tab.GroupIds.Remove(groupId);
                     break;
                 }
             }
 
-            // 2. Add to the new tab if one is specified
             if (targetTab != null)
             {
                 if (insertIndex < 0 || insertIndex > targetTab.GroupIds.Count)
                 {
-                    targetTab.GroupIds.Add(group.Id);
+                    targetTab.GroupIds.Add(groupId);
                 }
                 else
                 {
-                    targetTab.GroupIds.Insert(insertIndex, group.Id);
+                    targetTab.GroupIds.Insert(insertIndex, groupId);
                 }
             }
 
-            // 3. Refresh UI
             UpdateGroupAssignments();
         }
-        
+
         public void MoveTab(int oldIndex, int newIndex)
         {
             if (oldIndex < 0 || newIndex < 0 || oldIndex >= Workflow.Tabs.Count || newIndex > Workflow.Tabs.Count) return;
@@ -998,40 +1049,44 @@ namespace Comfizen
         {
             var newGroupName = string.Format(LocalizationService.Instance["UIConstructor_NewGroupDefaultName"], Workflow.Groups.Count + 1);
             var newGroup = new WorkflowGroup { Name = newGroupName };
+
+            var defaultTab = new WorkflowGroupTab { Name = "Controls" };
+            newGroup.Tabs.Add(defaultTab);
+
             Workflow.Groups.Add(newGroup);
 
-            // --- START OF CHANGE: Add new group directly to the selected tab ---
             if (SelectedTab != null)
             {
-                MoveGroupToTab(newGroup, SelectedTab);
+                var newGroupVm = AllGroupViewModels.FirstOrDefault(vm => vm.Model == newGroup);
+                MoveGroupToTab(newGroupVm, SelectedTab);
             }
-            // --- END OF CHANGE ---
         }
 
-        private void RemoveGroup(WorkflowGroup group)
+        private void RemoveGroup(WorkflowGroupViewModel groupVm)
         {
-            if (group != null && MessageBox.Show(string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupMessage"], group.Name), 
+            if (groupVm != null && MessageBox.Show(string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupMessage"], groupVm.Name),
                     LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupTitle"],
                     MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
-                // --- MODIFIED: Also remove from any tab definition ---
-                MoveGroupToTab(group, null); 
-                Workflow.Groups.Remove(group);
+                MoveGroupToTab(groupVm, null);
+                Workflow.Groups.Remove(groupVm.Model); // Удаляем модель, ViewModel обновится через событие
                 UpdateAvailableFields();
-                // UpdateGroupAssignments() is called by the CollectionChanged event
             }
         }
 
         private void RemoveField(WorkflowField field)
         {
             foreach (var group in Workflow.Groups)
-                if (group.Fields.Contains(field))
+            {
+                var tab = group.Tabs.FirstOrDefault(t => t.Fields.Contains(field));
+                if (tab != null)
                 {
                     field.PropertyChanged -= OnFieldPropertyChanged;
-                    group.Fields.Remove(field);
+                    tab.Fields.Remove(field);
                     UpdateAvailableFields();
                     return;
                 }
+            }
         }
 
         private void UpdateAvailableFields()
@@ -1043,7 +1098,7 @@ namespace Comfizen
             }
 
             var allFields = Workflow.ParseFields();
-            var usedFieldPaths = Workflow.Groups.SelectMany(g => g.Fields).Select(f => f.Path).ToHashSet();
+            var usedFieldPaths = Workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields).Select(f => f.Path).ToHashSet();
             var available = allFields.Where(f => !usedFieldPaths.Contains(f.Path));
             if (!string.IsNullOrWhiteSpace(SearchFilter))
             {
@@ -1055,20 +1110,49 @@ namespace Comfizen
             foreach (var field in available.OrderBy(f => f.Name)) AvailableFields.Add(field);
         }
 
-        public void AddFieldToGroupAtIndex(WorkflowField field, WorkflowGroup group, int targetIndex = -1)
+        public void AddFieldToGroupAtIndex(WorkflowField field, WorkflowGroupViewModel groupVm, int targetIndex = -1)
         {
-            if (field == null || group == null || group.Fields.Any(f => f.Path == field.Path)) return;
+            if (groupVm == null) return;
+
+            var targetTabVm = groupVm.SelectedTab; // Get the currently active tab
+            if (targetTabVm == null)
+            {
+                // Fallback: if no tab is selected for some reason, use the first one.
+                targetTabVm = groupVm.Tabs.FirstOrDefault();
+            }
+
+            if (targetTabVm == null)
+            {
+                // This case should not happen, but as a last resort, create a tab.
+                var newTabModel = new WorkflowGroupTab { Name = "Controls" };
+                groupVm.Model.Tabs.Add(newTabModel);
+                targetTabVm = new WorkflowGroupTabViewModel(newTabModel);
+                groupVm.Tabs.Add(targetTabVm);
+            }
+
+            AddFieldToSubTabAtIndex(field, targetTabVm.Model, targetIndex);
+        }
+
+        public void AddFieldToGroup(WorkflowField field, WorkflowGroupViewModel groupVm)
+        {
+            AddFieldToGroupAtIndex(field, groupVm);
+        }
+
+        public void AddFieldToSubTabAtIndex(WorkflowField field, WorkflowGroupTab targetTab, int targetIndex = -1)
+        {
+            if (field == null || targetTab == null || targetTab.Fields.Any(f => f.Path == field.Path)) return;
+
             var newField = new WorkflowField { Name = field.Name, Path = field.Path, Type = FieldType.Any, NodeTitle = field.NodeTitle, NodeType = field.NodeType };
-            
+
             if (!this.UseNodeTitlePrefix && newField.Name.Contains("::"))
             {
                 newField.Name = newField.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1];
             }
-            
-            var rawFieldName = field.Name.Contains("::") 
-                ? field.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1] 
+
+            var rawFieldName = field.Name.Contains("::")
+                ? field.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1]
                 : field.Name;
-            
+
             if (_sliderDefaultsService.TryGetDefaults(newField.NodeType, rawFieldName, out var defaults))
             {
                 newField.Type = defaults.Precision.HasValue ? FieldType.SliderFloat : FieldType.SliderInt;
@@ -1077,57 +1161,20 @@ namespace Comfizen
                 newField.StepValue = defaults.Step;
                 newField.Precision = defaults.Precision;
             }
-            else if (rawFieldName.Equals("seed", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Seed;
-            }
-            else if (rawFieldName.Equals("sampler_name", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Sampler;
-            }
-            else if (rawFieldName.Equals("scheduler", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Scheduler;
-            }
-            else if (rawFieldName.Equals("ckpt_name", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Model;
-                newField.ModelType = "checkpoints";
-            }
-            else if (rawFieldName.StartsWith("lora_name", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Model;
-                newField.ModelType = "loras";
-            }
-            else if (rawFieldName.StartsWith("clip_name", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Model;
-                newField.ModelType = "clip";
-            }
-            else if (rawFieldName.Equals("unet_name", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Model;
-                newField.ModelType = "diffusion_models";
-            }
-            else if (rawFieldName.Equals("control_net_name", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Model;
-                newField.ModelType = "controlnet";
-            }
-            else if (rawFieldName.Equals("style_model_name", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Model;
-                newField.ModelType = "style_models";
-            }
-            else if (rawFieldName.Equals("model_name", StringComparison.OrdinalIgnoreCase))
-            {
-                newField.Type = FieldType.Model;
-                newField.ModelType = "upscale_models";
-            }
-            
+            else if (rawFieldName.Equals("seed", StringComparison.OrdinalIgnoreCase)) newField.Type = FieldType.Seed;
+            else if (rawFieldName.Equals("sampler_name", StringComparison.OrdinalIgnoreCase)) newField.Type = FieldType.Sampler;
+            else if (rawFieldName.Equals("scheduler", StringComparison.OrdinalIgnoreCase)) newField.Type = FieldType.Scheduler;
+            else if (rawFieldName.Equals("ckpt_name", StringComparison.OrdinalIgnoreCase)) { newField.Type = FieldType.Model; newField.ModelType = "checkpoints"; }
+            else if (rawFieldName.StartsWith("lora_name", StringComparison.OrdinalIgnoreCase)) { newField.Type = FieldType.Model; newField.ModelType = "loras"; }
+            else if (rawFieldName.StartsWith("clip_name", StringComparison.OrdinalIgnoreCase)) { newField.Type = FieldType.Model; newField.ModelType = "clip"; }
+            else if (rawFieldName.Equals("unet_name", StringComparison.OrdinalIgnoreCase)) { newField.Type = FieldType.Model; newField.ModelType = "diffusion_models"; }
+            else if (rawFieldName.Equals("control_net_name", StringComparison.OrdinalIgnoreCase)) { newField.Type = FieldType.Model; newField.ModelType = "controlnet"; }
+            else if (rawFieldName.Equals("style_model_name", StringComparison.OrdinalIgnoreCase)) { newField.Type = FieldType.Model; newField.ModelType = "style_models"; }
+            else if (rawFieldName.Equals("model_name", StringComparison.OrdinalIgnoreCase)) { newField.Type = FieldType.Model; newField.ModelType = "upscale_models"; }
+
             newField.PropertyChanged += OnFieldPropertyChanged;
-            if (targetIndex < 0 || targetIndex >= group.Fields.Count) group.Fields.Add(newField);
-            else group.Fields.Insert(targetIndex, newField);
+            if (targetIndex < 0 || targetIndex >= targetTab.Fields.Count) targetTab.Fields.Add(newField);
+            else targetTab.Fields.Insert(targetIndex, newField);
             UpdateAvailableFields();
         }
         
@@ -1184,24 +1231,74 @@ namespace Comfizen
             }
         }
 
-        public void AddFieldToGroup(WorkflowField field, WorkflowGroup group)
+        //public void AddFieldToGroup(WorkflowField field, WorkflowGroup group)
+        //{
+        //    AddFieldToGroupAtIndex(field, group);
+        //}
+
+        public void MoveField(WorkflowField field, WorkflowGroupViewModel sourceGroupVM, WorkflowGroupViewModel targetGroupVM, int targetIndex = -1)
         {
-            AddFieldToGroupAtIndex(field, group);
+            if (field == null || sourceGroupVM == null || targetGroupVM == null) return;
+            var sourceTab = sourceGroupVM.Model.Tabs.FirstOrDefault(t => t.Fields.Contains(field));
+            if (sourceTab == null) return;
+
+            var targetTab = targetGroupVM.Model.Tabs.FirstOrDefault();
+            if (targetTab == null)
+            {
+                targetTab = new WorkflowGroupTab { Name = "Controls" };
+                targetGroupVM.Model.Tabs.Add(targetTab);
+                // Also update the ViewModel
+                targetGroupVM.Tabs.Add(new WorkflowGroupTabViewModel(targetTab));
+            }
+
+            MoveFieldToSubTab(field, sourceTab, targetTab, targetIndex);
         }
 
-        public void MoveField(WorkflowField field, WorkflowGroup sourceGroup, WorkflowGroup targetGroup, int targetIndex = -1)
+        public void MoveFieldToSubTab(WorkflowField field, WorkflowGroupTab sourceTab, WorkflowGroupTab targetTab, int targetIndex = -1)
         {
-            // Эта логика остается прежней, так как она работает на уровне полей внутри групп
-            if (field == null || sourceGroup == null || targetGroup == null) return;
-            var oldIndex = sourceGroup.Fields.IndexOf(field);
+            if (field == null || sourceTab == null || targetTab == null) return;
+
+            var oldIndex = sourceTab.Fields.IndexOf(field);
             if (oldIndex == -1) return;
-            sourceGroup.Fields.RemoveAt(oldIndex);
+
+            sourceTab.Fields.RemoveAt(oldIndex);
+
             var finalInsertIndex = targetIndex;
-            if (finalInsertIndex == -1) finalInsertIndex = targetGroup.Fields.Count;
-            else if (sourceGroup == targetGroup && oldIndex < targetIndex) finalInsertIndex--;
-            if (finalInsertIndex > targetGroup.Fields.Count) finalInsertIndex = targetGroup.Fields.Count;
-            targetGroup.Fields.Insert(finalInsertIndex, field);
+            if (finalInsertIndex == -1)
+            {
+                finalInsertIndex = targetTab.Fields.Count;
+            }
+            else if (sourceTab == targetTab && oldIndex < targetIndex)
+            {
+                finalInsertIndex--;
+            }
+
+            if (finalInsertIndex > targetTab.Fields.Count)
+            {
+                finalInsertIndex = targetTab.Fields.Count;
+            }
+            targetTab.Fields.Insert(finalInsertIndex, field);
         }
+        
+        public void MoveSubTab(WorkflowGroupTab tabToMove, WorkflowGroup ownerGroup, int newIndex)
+        {
+            if (tabToMove == null || ownerGroup == null) return;
+            var oldIndex = ownerGroup.Tabs.IndexOf(tabToMove);
+            if (oldIndex < 0) return;
+
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex > ownerGroup.Tabs.Count) newIndex = ownerGroup.Tabs.Count;
+
+            if (oldIndex < newIndex)
+            {
+                newIndex--;
+            }
+
+            if (oldIndex == newIndex) return;
+
+            ownerGroup.Tabs.Move(oldIndex, newIndex);
+        }
+        
 
         public void MoveGroup(int oldIndex, int newIndex)
         {
@@ -1225,6 +1322,7 @@ namespace Comfizen
         private Border? _lastFieldIndicator;
         private Border? _lastGroupIndicator;
         private Border? _lastTabIndicator;
+        private Border? _lastSubTabIndicator;
         private Border? _lastIndicator;
         private CompletionWindow _completionWindow;
         
@@ -1392,14 +1490,14 @@ namespace Comfizen
         private void TabContent_Drop(object sender, DragEventArgs e)
         {
             // Handle dropping a group from the unassigned list onto the current tab content area
-            if (e.Data.GetData(typeof(WorkflowGroup)) is WorkflowGroup group && _viewModel.SelectedTab != null)
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>)) is Tuple<WorkflowGroupViewModel, WorkflowTabDefinition> data && _viewModel.SelectedTab != null)
             {
-                _viewModel.MoveGroupToTab(group, _viewModel.SelectedTab);
+                _viewModel.MoveGroupToTab(data.Item1, _viewModel.SelectedTab);
                 e.Handled = true;
             }
         }
         // --- END OF NEW METHODS ---
-        
+
         private void TextArea_TextEntered(object sender, TextCompositionEventArgs e)
         {
             // Вызываем автозавершение только при вводе точки
@@ -1745,14 +1843,14 @@ namespace Comfizen
             if (sender is FrameworkElement fe && fe.DataContext is WorkflowTabDefinition targetTab)
             {
                 fe.Opacity = 1.0;
-                if (e.Data.GetData(typeof(WorkflowGroup)) is WorkflowGroup group)
+                if (e.Data.GetData(typeof(Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>)) is Tuple<WorkflowGroupViewModel, WorkflowTabDefinition> data)
                 {
-                    _viewModel.MoveGroupToTab(group, targetTab);
+                    _viewModel.MoveGroupToTab(data.Item1, targetTab);
                     e.Handled = true;
                 }
             }
         }
-        
+
         private void UnassignedGroups_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)))
@@ -1768,7 +1866,7 @@ namespace Comfizen
 
         private void UnassignedGroups_Drop(object sender, DragEventArgs e)
         {
-            if (e.Data.GetData(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)) is Tuple<WorkflowGroup, WorkflowTabDefinition> data)
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>)) is Tuple<WorkflowGroupViewModel, WorkflowTabDefinition> data)
             {
                 // Move group to "unassigned" by passing a null target tab
                 _viewModel.MoveGroupToTab(data.Item1, null);
@@ -1785,17 +1883,16 @@ namespace Comfizen
                 source = VisualTreeHelper.GetParent(source);
             }
 
-            if (sender is FrameworkElement element && element.DataContext is WorkflowGroup group)
+            if (sender is FrameworkElement element && element.DataContext is WorkflowGroupViewModel groupVm)
             {
-                // If the group is in the "unassigned" list, we just drag the group.
-                if (_viewModel.UnassignedGroups.Contains(group))
+                if (_viewModel.UnassignedGroups.Contains(groupVm))
                 {
-                    DragDrop.DoDragDrop(element, group, DragDropEffects.Move);
+                    var dragData = new Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>(groupVm, null);
+                    DragDrop.DoDragDrop(element, dragData, DragDropEffects.Move);
                 }
-                // If it's in a tab, we drag a tuple containing the group and its tab.
                 else
                 {
-                    var dragData = new Tuple<WorkflowGroup, WorkflowTabDefinition>(group, _viewModel.SelectedTab);
+                    var dragData = new Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>(groupVm, _viewModel.SelectedTab);
                     DragDrop.DoDragDrop(element, dragData, DragDropEffects.Move);
                 }
             }
@@ -1809,16 +1906,14 @@ namespace Comfizen
             e.Effects = DragDropEffects.None;
 
             if (sender is not StackPanel dropTarget) return;
-            
-            // --- START OF CHANGE: Accept both group types for drag operations ---
-            if (e.Data.GetDataPresent(typeof(WorkflowGroup)) || e.Data.GetDataPresent(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)))
-                // --- END OF CHANGE ---
+
+            if (e.Data.GetDataPresent(typeof(Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>)))
             {
                 var position = e.GetPosition(dropTarget);
                 var indicator = position.Y < dropTarget.ActualHeight / 2
                     ? FindVisualChild<Border>(dropTarget, "GroupDropIndicatorBefore")
                     : FindVisualChild<Border>(dropTarget, "GroupDropIndicatorAfter");
-                
+
                 if (indicator != null)
                 {
                     indicator.Visibility = Visibility.Visible;
@@ -1829,8 +1924,8 @@ namespace Comfizen
             else if (e.Data.GetDataPresent(typeof(WorkflowField)) ||
                      e.Data.GetDataPresent(typeof(Tuple<WorkflowField, WorkflowGroup>)))
             {
-                var targetGroup = dropTarget.DataContext as WorkflowGroup;
-                if (targetGroup != null && targetGroup.Fields.Count == 0)
+                var targetGroupVM = dropTarget.DataContext as WorkflowGroupViewModel;
+                if (targetGroupVM != null && !targetGroupVM.Tabs.SelectMany(t => t.Fields).Any())
                 {
                     var expander = FindVisualChild<Expander>(dropTarget);
                     if (expander?.Content is Border contentBorder)
@@ -1857,43 +1952,38 @@ namespace Comfizen
 
         private void Group_Drop(object sender, DragEventArgs e)
         {
-            if (sender is not StackPanel dropTarget || dropTarget.DataContext is not WorkflowGroup targetGroup || DataContext is not UIConstructorView viewModel)
+            if (sender is not StackPanel dropTarget || dropTarget.DataContext is not WorkflowGroupViewModel targetGroupVM || DataContext is not UIConstructorView viewModel)
             {
                 HideAllIndicators();
                 return;
             }
 
-            // --- START OF CHANGE: Unified logic for moving/reordering groups ---
-            WorkflowGroup sourceGroup = null;
-            if (e.Data.GetData(typeof(Tuple<WorkflowGroup, WorkflowTabDefinition>)) is Tuple<WorkflowGroup, WorkflowTabDefinition> draggedTuple)
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroupViewModel, WorkflowTabDefinition>)) is Tuple<WorkflowGroupViewModel, WorkflowTabDefinition> draggedTuple)
             {
-                sourceGroup = draggedTuple.Item1;
-            }
-            else if (e.Data.GetData(typeof(WorkflowGroup)) is WorkflowGroup draggedGroup)
-            {
-                sourceGroup = draggedGroup;
-            }
-
-            if (sourceGroup != null && sourceGroup != targetGroup)
-            {
-                var targetIndex = viewModel.SelectedTabGroups.IndexOf(targetGroup);
-                
-                var indicatorAfter = FindVisualChild<Border>(dropTarget, "GroupDropIndicatorAfter");
-                if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible)
+                var sourceGroupVM = draggedTuple.Item1;
+                if (sourceGroupVM != null && sourceGroupVM != targetGroupVM)
                 {
-                    targetIndex++;
+                    var targetIndex = viewModel.SelectedTabGroups.IndexOf(targetGroupVM);
+
+                    var indicatorAfter = FindVisualChild<Border>(dropTarget, "GroupDropIndicatorAfter");
+                    if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible)
+                    {
+                        targetIndex++;
+                    }
+                    viewModel.MoveGroupToTab(sourceGroupVM, viewModel.SelectedTab, targetIndex);
                 }
-                
-                viewModel.MoveGroupToTab(sourceGroup, viewModel.SelectedTab, targetIndex);
             }
-            // --- END OF CHANGE ---
             else if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> draggedData)
             {
-                viewModel.MoveField(draggedData.Item1, draggedData.Item2, targetGroup);
+                var sourceGroupVM = _viewModel.AllGroupViewModels.FirstOrDefault(vm => vm.Model == draggedData.Item2);
+                if (sourceGroupVM != null)
+                {
+                    viewModel.MoveField(draggedData.Item1, sourceGroupVM, targetGroupVM);
+                }
             }
             else if (e.Data.GetData(typeof(WorkflowField)) is WorkflowField newField)
             {
-                viewModel.AddFieldToGroup(newField, targetGroup);
+                viewModel.AddFieldToGroup(newField, targetGroupVM);
             }
 
             HideAllIndicators();
@@ -1939,6 +2029,120 @@ namespace Comfizen
             HideFieldDropIndicator();
             e.Handled = true;
         }
+        
+        private void SubTabName_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2 && sender is FrameworkElement element && element.DataContext is WorkflowGroupTabViewModel tabVm)
+            {
+                // Для вкладок внутри групп нет глобальной команды, управляем напрямую
+                tabVm.IsRenaming = true;
+                e.Handled = true;
+            }
+        }
+
+        private void GroupSubTabItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement element &&
+                element.DataContext is WorkflowGroupTabViewModel tabVm &&
+                FindVisualParent<Expander>(element)?.DataContext is WorkflowGroupViewModel groupVm)
+            {
+                var dragData = new Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>(tabVm, groupVm);
+                DragDrop.DoDragDrop(element, dragData, DragDropEffects.Move);
+            }
+        }
+        
+        private void GroupSubTabItem_DragOver(object sender, DragEventArgs e)
+        {
+            HideSubTabDropIndicator();
+            e.Effects = DragDropEffects.None;
+
+            if (sender is not FrameworkElement dropTarget || dropTarget.DataContext is not WorkflowGroupTabViewModel targetTabVm) return;
+
+            var targetGroupVm = FindVisualParent<Expander>(dropTarget)?.DataContext as WorkflowGroupViewModel;
+            if (targetGroupVm == null) return;
+            
+            var position = e.GetPosition(dropTarget);
+
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)) is Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel> draggedTabData && draggedTabData.Item2 == targetGroupVm)
+            {
+                var indicator = position.X < dropTarget.ActualWidth / 2
+                    ? FindVisualChild<Border>(dropTarget, "SubTabDropIndicatorBefore")
+                    : FindVisualChild<Border>(dropTarget, "SubTabDropIndicatorAfter");
+
+                if (indicator != null)
+                {
+                    indicator.Visibility = Visibility.Visible;
+                    _lastSubTabIndicator = indicator;
+                }
+                e.Effects = DragDropEffects.Move;
+            }
+            else if (e.Data.GetDataPresent(typeof(WorkflowField)) || e.Data.GetDataPresent(typeof(Tuple<WorkflowField, WorkflowGroup>)))
+            {
+                e.Effects = DragDropEffects.Move;
+            }
+            
+            e.Handled = true;
+        }
+
+        private void GroupSubTabItem_DragLeave(object sender, DragEventArgs e)
+        {
+            HideSubTabDropIndicator();
+        }
+
+        private void GroupSubTabItem_Drop(object sender, DragEventArgs e)
+        {
+            HideAllIndicators();
+            if (sender is not FrameworkElement dropTarget || dropTarget.DataContext is not WorkflowGroupTabViewModel targetTabVm) return;
+            
+            var targetGroupVm = FindVisualParent<Expander>(dropTarget)?.DataContext as WorkflowGroupViewModel;
+            if (targetGroupVm == null) return;
+
+            if (e.Data.GetData(typeof(Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel>)) is Tuple<WorkflowGroupTabViewModel, WorkflowGroupViewModel> draggedTabData && draggedTabData.Item2 == targetGroupVm)
+            {
+                var targetIndex = targetGroupVm.Tabs.IndexOf(targetTabVm);
+                var indicatorAfter = FindVisualChild<Border>(dropTarget, "SubTabDropIndicatorAfter");
+                if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible)
+                {
+                    targetIndex++;
+                }
+                _viewModel.MoveSubTab(draggedTabData.Item1.Model, targetGroupVm.Model, targetIndex);
+            }
+            else if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> fieldData)
+            {
+                var sourceTab = fieldData.Item2.Tabs.FirstOrDefault(t => t.Fields.Contains(fieldData.Item1));
+                if (sourceTab != null)
+                {
+                    _viewModel.MoveFieldToSubTab(fieldData.Item1, sourceTab, targetTabVm.Model);
+                }
+            }
+            else if (e.Data.GetData(typeof(WorkflowField)) is WorkflowField newField)
+            {
+                _viewModel.AddFieldToSubTabAtIndex(newField, targetTabVm.Model);
+            }
+
+            e.Handled = true;
+        }
+
+        private void GroupSubTabContent_Drop(object sender, DragEventArgs e)
+        {
+            HideAllIndicators();
+            if (sender is not FrameworkElement dropTarget || dropTarget.DataContext is not WorkflowGroupTabViewModel targetTabVm) return;
+
+            if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> fieldData)
+            {
+                var sourceTab = fieldData.Item2.Tabs.FirstOrDefault(t => t.Fields.Contains(fieldData.Item1));
+                if (sourceTab != null)
+                {
+                    _viewModel.MoveFieldToSubTab(fieldData.Item1, sourceTab, targetTabVm.Model);
+                }
+            }
+            else if (e.Data.GetData(typeof(WorkflowField)) is WorkflowField newField)
+            {
+                _viewModel.AddFieldToSubTabAtIndex(newField, targetTabVm.Model);
+            }
+
+            e.Handled = true;
+        }
 
         private void Field_Drop(object sender, DragEventArgs e)
         {
@@ -1948,19 +2152,29 @@ namespace Comfizen
                 return;
             }
 
-            var targetGroup = viewModel.Workflow.Groups.FirstOrDefault(g => g.Fields.Contains(targetField));
+            var targetGroup = viewModel.Workflow.Groups.FirstOrDefault(g => g.Tabs.Any(t => t.Fields.Contains(targetField)));
             if (targetGroup == null) return;
-
-            var targetIndex = targetGroup.Fields.IndexOf(targetField);
+            var targetTab = targetGroup.Tabs.FirstOrDefault(t => t.Fields.Contains(targetField));
+            if (targetTab == null) return;
+            
+            var targetIndex = targetTab.Fields.IndexOf(targetField);
             
             var indicatorAfter = FindVisualChild<Border>(dropTargetElement, "DropIndicatorAfter");
 
             if (indicatorAfter != null && indicatorAfter.Visibility == Visibility.Visible) targetIndex++;
 
             if (e.Data.GetData(typeof(Tuple<WorkflowField, WorkflowGroup>)) is Tuple<WorkflowField, WorkflowGroup> draggedData)
-                viewModel.MoveField(draggedData.Item1, draggedData.Item2, targetGroup, targetIndex);
+            {
+                var sourceTab = draggedData.Item2.Tabs.FirstOrDefault(t => t.Fields.Contains(draggedData.Item1));
+                if (sourceTab != null)
+                {
+                    viewModel.MoveFieldToSubTab(draggedData.Item1, sourceTab, targetTab, targetIndex);
+                }
+            }
             else if (e.Data.GetData(typeof(WorkflowField)) is WorkflowField newField)
-                viewModel.AddFieldToGroupAtIndex(newField, targetGroup, targetIndex);
+            {
+                viewModel.AddFieldToSubTabAtIndex(newField, targetTab, targetIndex);
+            }
 
             HideAllIndicators();
             e.Handled = true;
@@ -1995,11 +2209,21 @@ namespace Comfizen
             HideGroupDropIndicator();
             // START OF CHANGES: Hide tab indicators as well
             HideTabDropIndicator();
+            HideSubTabDropIndicator();
             // END OF CHANGES
             if (_currentGroupHighlight != null)
             {
                 _currentGroupHighlight.Background = Brushes.Transparent;
                 _currentGroupHighlight = null;
+            }
+        }
+        
+        private void HideSubTabDropIndicator()
+        {
+            if (_lastSubTabIndicator != null)
+            {
+                _lastSubTabIndicator.Visibility = Visibility.Collapsed;
+                _lastSubTabIndicator = null;
             }
         }
         
@@ -2053,19 +2277,23 @@ namespace Comfizen
             if (sender is not TextBox textBox || DataContext is not UIConstructorView viewModel) return;
             var dataContext = textBox.DataContext;
 
-            // --- START OF CHANGE: Unified and corrected logic for all renameable types ---
             if (dataContext is ActionNameViewModel actionVm && actionVm.IsRenaming)
             {
                 viewModel.CommitActionRename(actionVm, textBox.Text);
             }
-            else if ((dataContext is WorkflowGroup g && g.IsRenaming) ||
+            else if (dataContext is WorkflowGroupTabViewModel subTabVm && subTabVm.IsRenaming)
+            {
+                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                subTabVm.IsRenaming = false;
+            }
+            else if ((dataContext is WorkflowGroupViewModel gvm && gvm.IsRenaming) ||
+                     (dataContext is WorkflowGroup g && g.IsRenaming) ||
                      (dataContext is WorkflowField f && f.IsRenaming) ||
                      (dataContext is WorkflowTabDefinition t && t.IsRenaming))
             {
                 textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
                 StopEditing(dataContext);
             }
-            // --- END OF CHANGE ---
         }
 
         private void InlineTextBox_KeyDown(object sender, KeyEventArgs e)
@@ -2073,12 +2301,13 @@ namespace Comfizen
             if (sender is not TextBox textBox || DataContext is not UIConstructorView viewModel) return;
             var dataContext = textBox.DataContext;
             
-            // --- START OF CHANGE: Unified and corrected logic for all renameable types ---
             if (e.Key == Key.Enter)
             {
-                if (dataContext is ActionNameViewModel actionVm)
+                if (dataContext is ActionNameViewModel actionVm) viewModel.CommitActionRename(actionVm, textBox.Text);
+                else if (dataContext is WorkflowGroupTabViewModel subTabVm)
                 {
-                    viewModel.CommitActionRename(actionVm, textBox.Text);
+                    textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                    subTabVm.IsRenaming = false;
                 }
                 else if (dataContext is WorkflowGroup || dataContext is WorkflowField || dataContext is WorkflowTabDefinition)
                 {
@@ -2089,9 +2318,11 @@ namespace Comfizen
             }
             else if (e.Key == Key.Escape)
             {
-                if (dataContext is ActionNameViewModel actionVm)
+                if (dataContext is ActionNameViewModel actionVm) viewModel.CancelActionRename(actionVm);
+                else if (dataContext is WorkflowGroupTabViewModel subTabVm)
                 {
-                    viewModel.CancelActionRename(actionVm);
+                    textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget(); // Revert
+                    subTabVm.IsRenaming = false;
                 }
                 else if (dataContext is WorkflowGroup || dataContext is WorkflowField || dataContext is WorkflowTabDefinition)
                 {
@@ -2121,11 +2352,10 @@ namespace Comfizen
 
         private void StopEditing(object dataContext)
         {
+            if (dataContext is WorkflowGroupViewModel gvm) gvm.IsRenaming = false;
             if (dataContext is WorkflowGroup g) g.IsRenaming = false;
             if (dataContext is WorkflowField f) f.IsRenaming = false;
-            // --- START OF CHANGE ---
             if (dataContext is WorkflowTabDefinition t) t.IsRenaming = false;
-            // --- END OF CHANGE ---
         }
 
         private void InlineTextBox_GotFocus(object sender, RoutedEventArgs e)
@@ -2142,13 +2372,15 @@ namespace Comfizen
         {
             if (sender is FrameworkElement element && element.DataContext is WorkflowField field)
             {
-                var parentItemsControl = VisualTreeHelper.GetParent(element);
-                while (parentItemsControl != null && !(parentItemsControl is ItemsControl))
-                    parentItemsControl = VisualTreeHelper.GetParent(parentItemsControl);
-                if (parentItemsControl is ItemsControl itemsControl && itemsControl.DataContext is WorkflowGroup group)
+                var parentItemsControl = FindVisualParent<ItemsControl>(element);
+                if (parentItemsControl?.DataContext is WorkflowGroupTabViewModel)
                 {
-                    var dragData = new Tuple<WorkflowField, WorkflowGroup>(field, group);
-                    DragDrop.DoDragDrop(element, dragData, DragDropEffects.Move);
+                    var expander = FindVisualParent<Expander>(parentItemsControl);
+                    if (expander?.DataContext is WorkflowGroupViewModel groupVm)
+                    {
+                        var dragData = new Tuple<WorkflowField, WorkflowGroup>(field, groupVm.Model);
+                        DragDrop.DoDragDrop(element, dragData, DragDropEffects.Move);
+                    }
                 }
             }
         }

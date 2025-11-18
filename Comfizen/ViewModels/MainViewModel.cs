@@ -1186,10 +1186,10 @@ namespace Comfizen
 
                 var allBypassVms = tab.WorkflowInputsController.TabLayoouts
                     .SelectMany(t => t.Groups)
-                    .SelectMany(g => g.Fields)
+                    .SelectMany(g => g.Tabs.SelectMany(subTab => subTab.Fields))
                     .OfType<NodeBypassFieldViewModel>()
                     .ToList();
-                
+
 
                 foreach (var yValue in yValuesList)
                 {
@@ -1756,7 +1756,9 @@ namespace Comfizen
 
                 if (taskPrompt == null || originalApiPrompt == null) return;
 
-                var allFields = item.Task.OriginTab.Workflow.Groups.SelectMany(g => g.Fields);
+                var allFields = item.Task.OriginTab.Workflow.Groups
+                .SelectMany(g => g.Tabs)
+                .SelectMany(t => t.Fields);
 
                 // Use SelectTokens for a deep search, which is more robust
                 foreach (var taskToken in taskPrompt.SelectTokens("..*").OfType<JValue>())

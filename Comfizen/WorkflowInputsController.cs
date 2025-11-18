@@ -225,7 +225,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             prop.Value = new JValue(filteredText);
         }
     }
-    
+
     /// <summary>
     /// Modifies a JObject prompt in-place to apply node bypass logic for a single generation run.
     /// This method is idempotent; it restores the prompt to its original state before applying the current bypasses.
@@ -239,7 +239,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         // --- SECTION 1: Find all bypass control ViewModels in the current UI layout ---
         var bypassViewModels = TabLayoouts
             .SelectMany(t => t.Groups)
-            .SelectMany(g => g.Fields)
+            .SelectMany(g => g.Tabs.SelectMany(tab => tab.Fields))
             .OfType<NodeBypassFieldViewModel>()
             .ToList();
 
@@ -500,14 +500,14 @@ public class WorkflowInputsController : INotifyPropertyChanged
     {
         CleanupInputs();
 
-        _hasWildcardFields = _workflow.Groups.SelectMany(g => g.Fields)
+        _hasWildcardFields = _workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields)
             .Any(f => f.Type == FieldType.WildcardSupportPrompt);
         GlobalControls.IsSeedSectionVisible = _hasWildcardFields;
-        
+
         var groupVmLookup = new Dictionary<Guid, WorkflowGroupViewModel>();
         var comboBoxLoadTasks = new List<Task>();
 
-        // First pass: Create all GroupViewModels and their fields
+        // First pass: Create all GroupViewModels and populate their TabViewModels
         foreach (var group in _workflow.Groups)
         {
             var groupVm = new WorkflowGroupViewModel(group, _workflow);
@@ -519,148 +519,129 @@ public class WorkflowInputsController : INotifyPropertyChanged
             groupVm.PropertyChanged += OnGroupPresetChanged;
             groupVmLookup[group.Id] = groupVm;
 
-            // (Этот код по обработке полей, Inpaint, ComboBox и т.д. остается без изменений)
-            var processedFields = new HashSet<WorkflowField>();
-
-            for (int i = 0; i < group.Fields.Count; i++)
+            foreach (var tabVm in groupVm.Tabs)
             {
-                var field = group.Fields[i];
-                if (processedFields.Contains(field))
-                {
-                    continue; // Skip if this field was already handled as part of a pair
-                }
+                var processedFields = new HashSet<WorkflowField>();
 
-                InputFieldViewModel fieldVm = null;
-                var property = _workflow.GetPropertyByPath(field.Path);
-                
-                if (property != null)
+                for (int i = 0; i < tabVm.Model.Fields.Count; i++)
                 {
-                    // Scenario 1: Found an ImageInput
-                    if (field.Type == FieldType.ImageInput)
+                    var field = tabVm.Model.Fields[i];
+                    if (processedFields.Contains(field))
                     {
-                        WorkflowField pairedMaskField = null;
-                        if (i + 1 < group.Fields.Count && group.Fields[i + 1].Type == FieldType.MaskInput)
+                        continue;
+                    }
+
+                    InputFieldViewModel fieldVm = null;
+                    var property = _workflow.GetPropertyByPath(field.Path);
+
+                    if (property != null)
+                    {
+                        if (field.Type == FieldType.ImageInput)
                         {
-                            pairedMaskField = group.Fields[i + 1];
-                        }
+                            WorkflowField pairedMaskField = null;
+                            if (i + 1 < tabVm.Model.Fields.Count && tabVm.Model.Fields[i + 1].Type == FieldType.MaskInput)
+                            {
+                                pairedMaskField = tabVm.Model.Fields[i + 1];
+                            }
 
-                        fieldVm = new InpaintFieldViewModel(field, pairedMaskField, property);
-                        _inpaintViewModels.Add((InpaintFieldViewModel)fieldVm);
-                        processedFields.Add(field);
-                        if (pairedMaskField != null) processedFields.Add(pairedMaskField);
+                            fieldVm = new InpaintFieldViewModel(field, pairedMaskField, property);
+                            _inpaintViewModels.Add((InpaintFieldViewModel)fieldVm);
+                            processedFields.Add(field);
+                            if (pairedMaskField != null) processedFields.Add(pairedMaskField);
+                        }
+                        else if (field.Type == FieldType.MaskInput)
+                        {
+                            fieldVm = new InpaintFieldViewModel(field, null, property);
+                            _inpaintViewModels.Add((InpaintFieldViewModel)fieldVm);
+                            processedFields.Add(field);
+                        }
+                        else
+                        {
+                            fieldVm = CreateDefaultFieldViewModel(field, property);
+                            processedFields.Add(field);
+                        }
                     }
-                    // Scenario 2: Found a MaskInput that was not part of a pair
-                    else if (field.Type == FieldType.MaskInput)
-                    {
-                        // Create a standalone editor just for the mask
-                        fieldVm = new InpaintFieldViewModel(field, null, property);
-                        _inpaintViewModels.Add((InpaintFieldViewModel)fieldVm);
-                        processedFields.Add(field);
-                    }
-                    // Scenario 3: Any other field
                     else
                     {
-                        fieldVm = CreateDefaultFieldViewModel(field, property);
-                        processedFields.Add(field);
-                    }
-                }
-                else
-                {
-                    if (field.Type == FieldType.Markdown)
-                    {
-                        fieldVm = new MarkdownFieldViewModel(field);
-                        processedFields.Add(field);
-                    }
-                    else if (field.Type == FieldType.ScriptButton)
-                    {
-                        fieldVm = new ScriptButtonFieldViewModel(field, this.ExecuteActionCommand);
-                        processedFields.Add(field);
-                    }
-                    else if (field.Type == FieldType.NodeBypass)
-                    {
-                        fieldVm = new NodeBypassFieldViewModel(field, null);
-                        processedFields.Add(field);
-                        
-                        // --- START OF REWORKED SNAPSHOT LOGIC ---
-                        var bypassVm = (NodeBypassFieldViewModel)fieldVm;
-                        var controlledNodeIds = bypassVm.BypassNodeIds.ToHashSet();
-                        if (!controlledNodeIds.Any()) continue;
-                        
-                        var nodesToSnapshot = new HashSet<string>(controlledNodeIds);
-                        if (_workflow.LoadedApi != null)
+                        if (field.Type == FieldType.Markdown)
                         {
-                            foreach (var nodeProperty in _workflow.LoadedApi.Properties())
-                            {
-                                if (nodeProperty.Value is not JObject node || node["inputs"] is not JObject inputs) continue;
+                            fieldVm = new MarkdownFieldViewModel(field);
+                            processedFields.Add(field);
+                        }
+                        else if (field.Type == FieldType.ScriptButton)
+                        {
+                            fieldVm = new ScriptButtonFieldViewModel(field, this.ExecuteActionCommand);
+                            processedFields.Add(field);
+                        }
+                        else if (field.Type == FieldType.NodeBypass)
+                        {
+                            fieldVm = new NodeBypassFieldViewModel(field, null);
+                            processedFields.Add(field);
 
-                                foreach (var inputProperty in inputs.Properties())
+                            var bypassVm = (NodeBypassFieldViewModel)fieldVm;
+                            var controlledNodeIds = bypassVm.BypassNodeIds.ToHashSet();
+                            if (!controlledNodeIds.Any()) continue;
+
+                            var nodesToSnapshot = new HashSet<string>(controlledNodeIds);
+                            if (_workflow.LoadedApi != null)
+                            {
+                                foreach (var nodeProperty in _workflow.LoadedApi.Properties())
                                 {
-                                    if (inputProperty.Value is JArray link && link.Count > 0 &&
-                                        link[0].Type == JTokenType.String && controlledNodeIds.Contains(link[0].ToString()))
+                                    if (nodeProperty.Value is not JObject node || node["inputs"] is not JObject inputs) continue;
+
+                                    foreach (var inputProperty in inputs.Properties())
                                     {
-                                        nodesToSnapshot.Add(nodeProperty.Name);
-                                        break; 
+                                        if (inputProperty.Value is JArray link && link.Count > 0 &&
+                                            link[0].Type == JTokenType.String && controlledNodeIds.Contains(link[0].ToString()))
+                                        {
+                                            nodesToSnapshot.Add(nodeProperty.Name);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            foreach (var nodeId in nodesToSnapshot)
+                            {
+                                if (_workflow.LoadedApi?[nodeId] is not JObject node) continue;
+
+                                if (!_workflow.NodeConnectionSnapshots.ContainsKey(nodeId) && node["inputs"] is JObject inputsToSave)
+                                {
+                                    var originalConnections = new JObject();
+                                    foreach (var prop in inputsToSave.Properties().Where(p => p.Value is JArray))
+                                    {
+                                        originalConnections.Add(prop.Name, prop.Value.DeepClone());
+                                    }
+
+                                    if (originalConnections.HasValues)
+                                    {
+                                        _workflow.NodeConnectionSnapshots[nodeId] = originalConnections;
                                     }
                                 }
                             }
                         }
-
-                        foreach (var nodeId in nodesToSnapshot)
+                        else
                         {
-                            if (_workflow.LoadedApi?[nodeId] is not JObject node) continue;
-                            
-                            // CHANGE: Instead of creating _meta, we now check and write to the workflow's snapshot dictionary.
-                            // If a snapshot for this node already exists, we don't overwrite it.
-                            if (!_workflow.NodeConnectionSnapshots.ContainsKey(nodeId) && node["inputs"] is JObject inputsToSave)
-                            {
-                                // Create a snapshot of *only* the connections (JArray properties).
-                                var originalConnections = new JObject();
-                                foreach (var prop in inputsToSave.Properties().Where(p => p.Value is JArray))
-                                {
-                                    originalConnections.Add(prop.Name, prop.Value.DeepClone());
-                                }
-                                
-                                if (originalConnections.HasValues)
-                                {
-                                    // Save the snapshot to the central dictionary in the Workflow object.
-                                    _workflow.NodeConnectionSnapshots[nodeId] = originalConnections;
-                                }
-                            }
+                            Logger.Log($"[UI Validation] UI field '{field.Name}' references a non-existent API path: '{field.Path}'. This field will be ignored.", LogLevel.Error);
+                            processedFields.Add(field);
                         }
-                        // --- END OF REWORKED SNAPSHOT LOGIC ---
                     }
-                    else
+
+                    if (fieldVm != null)
                     {
-                        // This field is not a known virtual type and its path was not found in the API JSON.
-                        // It's a dangling reference, likely from a previous or different API structure.
-                        Logger.Log($"[UI Validation] UI field '{field.Name}' references a non-existent API path: '{field.Path}'. This field will be ignored.", LogLevel.Error);
-                        // fieldVm remains null, so it won't be added to the UI.
-                        processedFields.Add(field);
-                    }
-                }
+                        tabVm.Fields.Add(fieldVm);
 
-                if (fieldVm != null)
-                {
-                    groupVm.Fields.Add(fieldVm);
+                        fieldVm.PropertyChanged += OnFieldViewModelPropertyChanged;
 
-                    // --- START OF NEW LOGIC ---
-                    // Subscribe to value changes in the field to trigger auto-preset selection.
-                    fieldVm.PropertyChanged += OnFieldViewModelPropertyChanged;
-                    // --- END OF NEW LOGIC ---
-
-                    if (fieldVm is ComboBoxFieldViewModel comboBoxVm)
-                    {
-                        comboBoxLoadTasks.Add(comboBoxVm.LoadItemsAsync(_modelService, _settings));
+                        if (fieldVm is ComboBoxFieldViewModel comboBoxVm)
+                        {
+                            comboBoxLoadTasks.Add(comboBoxVm.LoadItemsAsync(_modelService, _settings));
+                        }
                     }
                 }
             }
-            
-            // if (groupVm.Fields.Any())
-            // {
-            //     InputGroups.Add(groupVm);
-            // }
         }
-        
+
         // Second pass: Arrange GroupViewModels into tabs
         if (_workflow.Tabs.Any())
         {
@@ -721,15 +702,13 @@ public class WorkflowInputsController : INotifyPropertyChanged
         // If no saved tab was found (e.g., first load, or tab was renamed/deleted), default to the first one.
         SelectedTabLayout = tabToSelect ?? TabLayoouts.FirstOrDefault();
     }
-    
+
     private void PopulateGridableFields()
     {
         GridableFields.Clear();
-
-        // Add a null option to allow disabling an axis
         GridableFields.Add(null);
 
-        var fields = _workflow.Groups.SelectMany(g => g.Fields)
+        var fields = _workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields)
             .Where(f => f.Type == FieldType.Any ||
                         f.Type == FieldType.Seed ||
                         f.Type == FieldType.WildcardSupportPrompt ||
@@ -741,12 +720,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
                         f.Type == FieldType.NodeBypass ||
                         f.Type == FieldType.Model)
             .OrderBy(f => f.Name);
-            
-        foreach(var field in fields)
+
+        foreach (var field in fields)
         {
-            // Find the ViewModel that was already created for this field model
             var fieldVm = TabLayoouts.SelectMany(t => t.Groups)
-                .SelectMany(g => g.Fields)
+                .SelectMany(g => g.Tabs).SelectMany(t => t.Fields)
                 .FirstOrDefault(vm => vm.FieldModel == field);
             if (fieldVm != null)
             {
@@ -754,7 +732,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
     }
-    
+
     /// <summary>
     /// When any field's value changes, find its parent group and check if the group's
     /// state now matches any of its saved presets.
@@ -780,16 +758,16 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
     }
-    
+
     /// <summary>
     /// Finds the WorkflowGroupViewModel that contains the specified InputFieldViewModel.
     /// </summary>
     private WorkflowGroupViewModel FindGroupForField(InputFieldViewModel fieldVm)
     {
         return TabLayoouts.SelectMany(tab => tab.Groups)
-            .FirstOrDefault(group => group.Fields.Contains(fieldVm));
+            .FirstOrDefault(group => group.Tabs.SelectMany(t => t.Fields).Contains(fieldVm));
     }
-    
+
     /// <summary>
     /// Handles the PropertyChanged event for a WorkflowGroupViewModel to sync the global preset selection.
     /// </summary>
@@ -1077,15 +1055,16 @@ public class WorkflowInputsController : INotifyPropertyChanged
         foreach (var groupVm in allGroups)
         {
             groupVm.PropertyChanged -= OnGroupPresetChanged;
-            // --- START OF NEW LOGIC ---
-            // Unsubscribe from all field events within the group.
-            foreach (var fieldVm in groupVm.Fields)
+
+            foreach (var tabVm in groupVm.Tabs)
             {
-                fieldVm.PropertyChanged -= OnFieldViewModelPropertyChanged;
+                foreach (var fieldVm in tabVm.Fields)
+                {
+                    fieldVm.PropertyChanged -= OnFieldViewModelPropertyChanged;
+                }
             }
-            // --- END OF NEW LOGIC ---
         }
-        
+
         TabLayoouts.Clear();
 
         _hasWildcardFields = false;
