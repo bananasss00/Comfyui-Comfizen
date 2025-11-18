@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -11,6 +12,11 @@ using System.Windows.Media;
 
 namespace Comfizen
 {
+    public interface ISearchableContent
+    {
+        string GetSearchString();
+    }
+    
     public partial class FilterableComboBox : UserControl
     {
         public ObservableCollection<object> FilteredItems { get; } = new ObservableCollection<object>();
@@ -187,15 +193,38 @@ namespace Comfizen
         
         private void ValidateSelectedItem()
         {
-            // Считаем значение валидным, если список пуст или значение не установлено.
             if (ItemsSource == null || SelectedItem == null)
             {
                 IsValueValid = true;
                 return;
             }
 
-            var source = ItemsSource.Cast<object>();
-            IsValueValid = source.Contains(SelectedItem);
+            var source = ItemsSource.Cast<object>().ToList();
+            
+            if (source.Contains(SelectedItem))
+            {
+                IsValueValid = true;
+                return;
+            }
+            
+            var selectedString = SelectedItem.ToString();
+
+            IsValueValid = source.Any(item => 
+            {
+                if (item == null) return false;
+                string itemString = item.ToString();
+                
+                if (string.Equals(itemString, selectedString, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                
+                if (double.TryParse(selectedString.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out double selVal) &&
+                    double.TryParse(itemString.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out double itemVal))
+                {
+                    return Math.Abs(selVal - itemVal) < 0.000001;
+                }
+
+                return false;
+            });
         }
         
         private void FilterItems()
@@ -206,17 +235,14 @@ namespace Comfizen
             IEnumerable source;
             if (ItemsSource is ICollectionView view)
             {
-                // If it's a view, get the original, unfiltered collection.
                 source = view.SourceCollection;
             }
             else
             {
-                // Otherwise, use the ItemsSource as is.
                 source = ItemsSource;
             }
             var sourceObjects = source.Cast<object>();
 
-            // Если фильтр пуст, показываем всё как есть (с заголовками)
             if (string.IsNullOrWhiteSpace(SearchFilter))
             {
                 foreach (var item in sourceObjects)
@@ -226,12 +252,21 @@ namespace Comfizen
             }
             else
             {
-                // --- MODIFIED: Split search filter by spaces for multi-word search ---
                 string[] searchTerms = SearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 
-                var filtered = sourceObjects
-                    .Where(item => searchTerms.All(term => 
-                        item.ToString().IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
+                var filtered = sourceObjects.Where(item => 
+                {
+                    if (item == null) return false;
+                    
+                    string contentToSearch = item is ISearchableContent searchable 
+                        ? searchable.GetSearchString() 
+                        : item.ToString();
+
+                    if (string.IsNullOrEmpty(contentToSearch)) return false;
+
+                    return searchTerms.All(term => 
+                        contentToSearch.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
+                });
 
                 foreach (var item in filtered)
                 {

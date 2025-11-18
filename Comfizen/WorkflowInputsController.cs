@@ -19,7 +19,7 @@ using System.Drawing.Imaging;
 
 namespace Comfizen;
 
-public class GridAxisSource
+public class GridAxisSource : ISearchableContent
 {
     public virtual string DisplayName { get; set; }
     public object Source { get; set; } // Can be InputFieldViewModel or WorkflowGroupViewModel
@@ -30,6 +30,12 @@ public class GridAxisSource
     public bool IsGroup => Source is WorkflowGroupViewModel;
 
     public override string ToString() => DisplayName;
+    
+    public string GetSearchString()
+    {
+        if (string.IsNullOrEmpty(GroupName)) return DisplayName;
+        return $"{DisplayName} {GroupName}";
+    }
 }
 
 public class NullGridAxisSource : GridAxisSource
@@ -825,43 +831,58 @@ public class WorkflowInputsController : INotifyPropertyChanged
         GridableSources.Clear();
         GridableSources.Add(NullGridAxisSource.Instance);
 
-        // 1. Add all regular fields
-        var allFieldVms = TabLayoouts.SelectMany(t => t.Groups)
-            .SelectMany(g => g.Tabs).SelectMany(t => t.Fields)
-            .Where(vm => vm.FieldModel != null && (
-                vm.FieldModel.Type == FieldType.Any ||
-                vm.FieldModel.Type == FieldType.Seed ||
-                vm.FieldModel.Type == FieldType.WildcardSupportPrompt ||
-                vm.FieldModel.Type == FieldType.Sampler ||
-                vm.FieldModel.Type == FieldType.Scheduler ||
-                vm.FieldModel.Type == FieldType.SliderInt ||
-                vm.FieldModel.Type == FieldType.SliderFloat ||
-                vm.FieldModel.Type == FieldType.ComboBox ||
-                vm.FieldModel.Type == FieldType.NodeBypass ||
-                vm.FieldModel.Type == FieldType.Model))
-            .ToList();
-
-        foreach (var fieldVm in allFieldVms.OrderBy(f => f.Name))
+        // 1. Add fields preserving the UI order (Layout -> Group -> Tab -> Field)
+        foreach (var tabLayout in TabLayoouts)
         {
-            var group = FindGroupForField(fieldVm);
-            GridableSources.Add(new GridAxisSource
+            foreach (var groupVm in tabLayout.Groups)
             {
-                DisplayName = fieldVm.Name,
-                Source = fieldVm,
-                GroupName = group?.Name ?? "Unknown"
-            });
+                foreach (var tabVm in groupVm.Tabs)
+                {
+                    foreach (var fieldVm in tabVm.Fields)
+                    {
+                        if (fieldVm.FieldModel != null && (
+                            fieldVm.FieldModel.Type == FieldType.Any ||
+                            fieldVm.FieldModel.Type == FieldType.Seed ||
+                            fieldVm.FieldModel.Type == FieldType.WildcardSupportPrompt ||
+                            fieldVm.FieldModel.Type == FieldType.Sampler ||
+                            fieldVm.FieldModel.Type == FieldType.Scheduler ||
+                            fieldVm.FieldModel.Type == FieldType.SliderInt ||
+                            fieldVm.FieldModel.Type == FieldType.SliderFloat ||
+                            fieldVm.FieldModel.Type == FieldType.ComboBox ||
+                            fieldVm.FieldModel.Type == FieldType.NodeBypass ||
+                            fieldVm.FieldModel.Type == FieldType.Model))
+                        {
+                            GridableSources.Add(new GridAxisSource
+                            {
+                                DisplayName = fieldVm.Name,
+                                Source = fieldVm,
+                                GroupName = groupVm.Name
+                            });
+                        }
+                    }
+                }
+            }
         }
         
-        // 2. Add all groups that have presets
-        var allGroupVms = TabLayoouts.SelectMany(t => t.Groups).Distinct();
-        foreach (var groupVm in allGroupVms.Where(g => g.HasPresets).OrderBy(g => g.Name))
+        // 2. Add all groups that have presets (at the bottom)
+        // We also iterate through TabLayouts to keep the group order consistent with the UI
+        var processedGroups = new HashSet<WorkflowGroupViewModel>();
+        
+        foreach (var tabLayout in TabLayoouts)
         {
-            GridableSources.Add(new GridAxisSource
+            foreach (var groupVm in tabLayout.Groups)
             {
-                DisplayName = $"[Presets] {groupVm.Name}",
-                Source = groupVm,
-                GroupName = groupVm.Name
-            });
+                if (groupVm.HasPresets && !processedGroups.Contains(groupVm))
+                {
+                    GridableSources.Add(new GridAxisSource
+                    {
+                        DisplayName = $"[Presets] {groupVm.Name}",
+                        Source = groupVm,
+                        GroupName = groupVm.Name
+                    });
+                    processedGroups.Add(groupVm);
+                }
+            }
         }
         
         if (selectedX != null)
