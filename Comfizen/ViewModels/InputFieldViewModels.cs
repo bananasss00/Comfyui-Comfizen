@@ -373,6 +373,37 @@ namespace Comfizen
             var allUiFields = parentGroup.Tabs.SelectMany(t => t.Fields).ToList();
             var showTabNames = parentGroup.Tabs.Count > 1;
 
+            // Helper to process a single field-value pair
+            void AddFieldDetail(string fieldPath, JToken val)
+            {
+                var field = allUiFields.FirstOrDefault(f => f.Path == fieldPath);
+                if (field != null)
+                {
+                    var tab = parentGroup.Tabs.FirstOrDefault(t => t.Fields.Contains(field));
+                    
+                    string displayValue;
+
+                    // --- START OF CHANGE: Handle ComboBox friendly names ---
+                    if (field is ComboBoxFieldViewModel comboVm)
+                    {
+                        displayValue = comboVm.GetDisplayLabelForValue(val);
+                    }
+                    else
+                    {
+                        displayValue = FormatJTokenForDisplay(val);
+                    }
+                    // --- END OF CHANGE ---
+
+                    details.Add(new PresetFieldInfo
+                    {
+                        FieldName = field.Name,
+                        FieldValue = displayValue,
+                        TabName = tab?.Name,
+                        ShowTabName = showTabNames
+                    });
+                }
+            }
+
             if (IsLayout)
             {
                 var combinedFields = new Dictionary<string, JToken>();
@@ -393,42 +424,21 @@ namespace Comfizen
                     }
                 }
                 
-                    foreach (var combinedPair in combinedFields.OrderBy(kv => kv.Key))
-                    {
-                        var field = allUiFields.FirstOrDefault(f => f.Path == combinedPair.Key);
-                        if (field != null)
-                        {
-                            var tab = parentGroup.Tabs.FirstOrDefault(t => t.Fields.Contains(field));
-                        details.Add(new PresetFieldInfo
-                            {
-                            FieldName = field.Name,
-                            FieldValue = FormatJTokenForDisplay(combinedPair.Value),
-                            TabName = tab?.Name,
-                            ShowTabName = showTabNames
-                        });
-                            }
-                            }
-                        }
+                foreach (var combinedPair in combinedFields.OrderBy(kv => kv.Key))
+                {
+                     AddFieldDetail(combinedPair.Key, combinedPair.Value);
+                }
+            }
             else // Is Snippet
             {
                 foreach (var valuePair in Model.Values)
                 {
-                    var field = allUiFields.FirstOrDefault(f => f.Path == valuePair.Key);
-                    if (field != null)
-                    {
-                            var tab = parentGroup.Tabs.FirstOrDefault(t => t.Fields.Contains(field));
-                        details.Add(new PresetFieldInfo
-                        {
-                            FieldName = field.Name,
-                            FieldValue = FormatJTokenForDisplay(valuePair.Value),
-                            TabName = tab?.Name,
-                            ShowTabName = showTabNames
-                        });
-                        }
-                    }
+                    AddFieldDetail(valuePair.Key, valuePair.Value);
                 }
-            FieldDetails = details;
             }
+            
+            FieldDetails = details;
+        }
         
         private string FormatJTokenForDisplay(JToken token)
         {
@@ -1608,16 +1618,17 @@ namespace Comfizen
         /// Returns true if the value was changed.
         /// </summary>
         private bool ApplyFieldValue(InputFieldViewModel fieldVM, JToken presetValue)
-            {
+        {
             bool valueChanged = false;
+
             if (fieldVM is MarkdownFieldViewModel markdownVm)
             {
                 if (markdownVm.Value != presetValue.ToString())
                 {
                     markdownVm.Value = presetValue.ToString();
                     valueChanged = true;
+                }
             }
-        }
             else if (fieldVM is NodeBypassFieldViewModel bypassVm)
             {
                 var presetBool = presetValue.ToObject<bool>();
@@ -1627,16 +1638,34 @@ namespace Comfizen
                     valueChanged = true;
                 }
             }
+            // --- START OF CHANGE: Explicit handling for ComboBox to be safe ---
+            else if (fieldVM is ComboBoxFieldViewModel comboVm)
+            {
+                 var prop = _workflow.GetPropertyByPath(fieldVM.Path);
+                 // Compare raw tokens (String vs String)
+                 if (prop != null && !Utils.AreJTokensEquivalent(prop.Value, presetValue))
+                 {
+                     prop.Value = presetValue.DeepClone(); // Update the API value (String)
+                     
+                     // Force the UI to refresh.
+                     // The 'Value' getter in ComboBoxFieldViewModel will trigger, 
+                     // read the new prop.Value, find the matching Wrapper, and update the View.
+                     comboVm.RefreshValue(); 
+                     
+                     valueChanged = true;
+                 }
+            }
+            // --- END OF CHANGE ---
             else
-        {
+            {
                 var prop = _workflow.GetPropertyByPath(fieldVM.Path);
                 if (prop != null && !Utils.AreJTokensEquivalent(prop.Value, presetValue))
-            {
+                {
                     prop.Value = presetValue.DeepClone();
                     (fieldVM as dynamic)?.RefreshValue();
                     valueChanged = true;
+                }
             }
-        }
             return valueChanged;
         }
         
@@ -2347,21 +2376,38 @@ namespace Comfizen
             }
             set
             {
-                string newValueToStore;
+                string newValueString;
 
                 if (value is ComboBoxItemWrapper wrapper)
                 {
-                    newValueToStore = wrapper.Value;
+                    newValueString = wrapper.Value;
                 }
                 else
                 {
-                    newValueToStore = value?.ToString() ?? "";
+                    newValueString = value?.ToString() ?? "";
                 }
 
-                // Only update if the API value actually changed
-                if (Property.Value.ToString() != newValueToStore)
+                JToken newToken;
+                if (long.TryParse(newValueString, NumberStyles.Integer, CultureInfo.InvariantCulture, out long longVal))
                 {
-                    Property.Value = new JValue(newValueToStore);
+                    newToken = new JValue(longVal);
+                }
+                else if (double.TryParse(newValueString, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleVal))
+                {
+                    newToken = new JValue(doubleVal);
+                }
+                else if (bool.TryParse(newValueString, out bool boolVal))
+                {
+                    newToken = new JValue(boolVal);
+                }
+                else
+                {
+                    newToken = new JValue(newValueString);
+                }
+
+                if (!Utils.AreJTokensEquivalent(Property.Value, newToken))
+                {
+                    Property.Value = newToken;
                     OnPropertyChanged(nameof(Value));
                 }
             }
@@ -2443,8 +2489,28 @@ namespace Comfizen
             }
         }
         
+        /// <summary>
+        /// Helper method to get the Display Label corresponding to a raw API value.
+        /// Used by Presets to show friendly names in tooltips.
+        /// </summary>
+        public string GetDisplayLabelForValue(JToken token)
+        {
+            if (token == null) return "null";
+            var rawVal = token.ToString();
+
+            // Search in the items list for a wrapper with a matching value
+            var wrapper = ItemsSource.OfType<ComboBoxItemWrapper>()
+                .FirstOrDefault(w => w.Value == rawVal);
+
+            // Return the label if found, otherwise the raw value
+            return wrapper != null ? wrapper.Label : rawVal;
+        }
+
         public override void RefreshValue()
         {
+            // When the underlying JProperty changes externally (e.g. by a preset),
+            // we must notify the UI to re-read the 'Value' property.
+            // The 'Value' getter will then look up the correct Wrapper based on the new JProperty value.
             OnPropertyChanged(nameof(Value));
         }
     }

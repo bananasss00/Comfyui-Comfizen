@@ -553,30 +553,37 @@ namespace Comfizen
         }
         
         /// <summary>
-        /// Compares two JTokens for equivalence, with special handling for floating-point precision.
+        /// Compares two JTokens for equivalence, with special handling for floating-point precision
+        /// and loose type comparison (e.g. "10" == 10).
         /// </summary>
-        /// <param name="t1">The first JToken.</param>
-        /// <param name="t2">The second JToken.</param>
-        /// <returns>True if the tokens are equivalent, otherwise false.</returns>
         public static bool AreJTokensEquivalent(JToken t1, JToken t2)
         {
-            // Define a small tolerance for float comparisons.
-            const double epsilon = 1e-6;
+            if (t1 == null || t2 == null) return t1 == t2;
 
+            // 1. Strict DeepEquals (handles objects, arrays, and correctly typed values)
+            if (JToken.DeepEquals(t1, t2)) return true;
+
+            // 2. Float tolerance check (existing logic)
             if (t1.Type == JTokenType.Float || t2.Type == JTokenType.Float)
             {
-                // If either token is a float, convert both to double for comparison.
-                // This correctly handles comparing an integer (e.g., 5) with a float (e.g., 5.0).
+                const double epsilon = 1e-6;
                 if (double.TryParse(t1.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var d1) &&
                     double.TryParse(t2.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var d2))
                 {
-                    // Compare the absolute difference against the tolerance.
                     return Math.Abs(d1 - d2) < epsilon;
                 }
             }
 
-            // For all other types (string, boolean, integer vs integer, etc.), use the strict DeepEquals.
-            return JToken.DeepEquals(t1, t2);
+            // 3. Loose Value Comparison (New Logic)
+            // This handles cases where one is String "20" and other is Integer 20, or Boolean "true" vs True.
+            if (t1 is JValue v1 && t2 is JValue v2)
+            {
+                var s1 = v1.ToString(CultureInfo.InvariantCulture);
+                var s2 = v2.ToString(CultureInfo.InvariantCulture);
+                return string.Equals(s1, s2, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return false;
         }
         
         /// <summary>
