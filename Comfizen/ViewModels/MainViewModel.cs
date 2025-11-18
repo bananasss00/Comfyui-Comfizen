@@ -1685,8 +1685,8 @@ namespace Comfizen
         private async Task ProcessQueueAsync()
         {
             WorkflowTabViewModel lastTaskOriginTab = null; 
-            List<Utils.GridCellResult> gridResults = null;
-            XYGridConfig gridConfig = null;
+            List<Utils.GridCellResult> currentGridResults = null;
+            XYGridConfig currentGridConfig = null;
             
             try
             {
@@ -1700,7 +1700,7 @@ namespace Comfizen
                     }
                     
                     if (_cancellationRequested) break;
-    
+
                     QueueItemViewModel taskVm = null;
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
@@ -1715,27 +1715,33 @@ namespace Comfizen
                     if (taskVm != null)
                     {
                         var task = taskVm.Task;
+                        
+                        if (currentGridResults != null && task.GridConfig != currentGridConfig)
+                        {
+                            await GenerateAndAddGridImageAsync(currentGridResults, currentGridConfig);
+                            currentGridResults = null;
+                            currentGridConfig = null;
+                        }
+                        
                         _currentTask = task;
                         lastTaskOriginTab = task.OriginTab;
                         
-                        if (task.IsGridTask && gridResults == null)
+                        if (task.IsGridTask && currentGridResults == null)
                         {
-                            gridResults = new List<Utils.GridCellResult>();
-                            gridConfig = task.GridConfig; 
+                            currentGridResults = new List<Utils.GridCellResult>();
+                            currentGridConfig = task.GridConfig; 
                         }
                         
                         try
                         {
                             var promptForTask = JObject.Parse(task.JsonPromptForApi);
                             
-                            // --- START OF CHANGE: Collect all outputs for the task before processing ---
                             var outputsForCurrentTask = new List<ImageOutput>();
                             await foreach (var io in _comfyuiModel.QueuePrompt(task.JsonPromptForApi))
                             {
-                                // First, check if the output node is blocked.
                                 if (task.OriginTab.Workflow.BlockedNodeIds.Contains(io.NodeId))
                                 {
-                                    continue; // Skip this output entirely.
+                                    continue; 
                                 }
 
                                 io.Prompt = task.FullWorkflowStateJson;
@@ -1747,23 +1753,20 @@ namespace Comfizen
                                 outputsForCurrentTask.Add(io);
                             }
                             
-                            // Now process the collected and filtered outputs
                             await Application.Current.Dispatcher.InvokeAsync(() =>
                             {
                                 if (task.IsGridTask)
                                 {
-                                    // For grid tasks, add the whole list of outputs to the results.
                                     if (outputsForCurrentTask.Any())
                                     {
-                                        gridResults.Add(new Utils.GridCellResult
+                                        currentGridResults.Add(new Utils.GridCellResult
                                         {
                                             ImageOutputs = outputsForCurrentTask,
                                             XValue = task.XValue,
                                             YValue = task.YValue
                                         });
                                     }
-
-                                    // Conditionally add individual images to the main gallery.
+                                    
                                     if (task.OriginTab.WorkflowInputsController.XyGridShowIndividualImages)
                                     {
                                         foreach (var imageOutput in outputsForCurrentTask)
@@ -1775,7 +1778,7 @@ namespace Comfizen
                                         }
                                     }
                                 }
-                                else // For regular (non-grid) tasks
+                                else 
                                 {
                                     foreach (var imageOutput in outputsForCurrentTask)
                                     {
@@ -1785,8 +1788,7 @@ namespace Comfizen
                                         }
                                     }
                                 }
-
-                                // Execute hook for each received output
+                                
                                 foreach (var imageOutput in outputsForCurrentTask)
                                 {
                                     task.OriginTab?.ExecuteHook("on_output_received", promptForTask, imageOutput);
@@ -1798,23 +1800,6 @@ namespace Comfizen
                                 CompletedTasks++;
                                 CurrentProgress = (TotalTasks > 0) ? (CompletedTasks * 100) / TotalTasks : 0;
                             });
-
-                            // if (CompletedTasks > 0 && TotalTasks > CompletedTasks)
-                            // {
-                            //     var elapsed = _queueStopwatch.Elapsed;
-                            //     // Only show ETA after a second to get a more stable estimate
-                            //     if (elapsed.TotalSeconds > 1)
-                            //     {
-                            //         var timePerTask = elapsed / CompletedTasks;
-                            //         var remainingTime = timePerTask * (TotalTasks - CompletedTasks);
-                            //         EstimatedTimeRemaining = $"~{FormatEta(remainingTime)}";
-                            //     }
-                            // }
-                            // else
-                            // {
-                            //     // Clear when the last task is done or if there's only one task.
-                            //     EstimatedTimeRemaining = null;
-                            // }
                             
                             await Application.Current.Dispatcher.InvokeAsync(() => task.OriginTab?.ExecuteHook("on_queue_finish", promptForTask));
                         }
@@ -1830,7 +1815,7 @@ namespace Comfizen
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                             });
                         
-                            _cancellationRequested = true; // Set flag on error
+                            _cancellationRequested = true; 
                             break;
                         }
                     }
@@ -1843,7 +1828,6 @@ namespace Comfizen
 
                             if (newTasks != null && newTasks.Any())
                             {
-                                // ADD NEW TASKS TO UI QUEUE
                                 foreach (var p in newTasks)
                                 {
                                     var templatePrompt = lastTaskOriginTab.Workflow.JsonClone();
@@ -1859,7 +1843,7 @@ namespace Comfizen
                             }
                             else
                             {
-                                break; // No new tasks generated, so stop the queue.
+                                break; 
                             }
                         }
                         else
@@ -1875,156 +1859,23 @@ namespace Comfizen
                 
                 await Application.Current.Dispatcher.InvokeAsync(() => CurrentTaskVm = null);
                 
-                // After the queue is empty, check if we need to generate a grid image
-                if (gridResults != null && gridResults.Any() && gridConfig.CreateGridImage)
+                if (currentGridResults != null && currentGridResults.Any())
                 {
-                    try
-                    {
-                        if (gridConfig.GridMode == XYGridMode.Video)
-                        {
-                            if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type != FileType.Video))
-                            {
-                                Logger.Log("XY Grid (Video Mode) was skipped because some outputs were images, not videos.", LogLevel.Warning);
-                            }
-                            else
-                            {
-                                var gridImageBytes = await Utils.CreateVideoGridAsync(
-                                    gridResults.Select(r => new Utils.GridCellResult { ImageOutputs = r.ImageOutputs, XValue = r.XValue, YValue = r.YValue }).ToList(),
-                                    gridConfig.XAxisField, gridConfig.XValues,
-                                    gridConfig.YAxisField, gridConfig.YValues,
-                                    gridConfig.VideoGridFrames,
-                                    gridConfig.LimitCellSize, 
-                                    gridConfig.MaxMegapixels);
-                                
-                                // (The rest of the logic for saving the grid image remains the same)
-                                if (gridImageBytes != null)
-                                {
-                                    var firstTaskResult = gridResults.First().ImageOutputs.First();
-                                
-                                    string promptForGrid;
-                                    try
-                                    {
-                                        var workflowJson = JObject.Parse(firstTaskResult.Prompt);
-                                        var gridConfigData = new JObject
-                                        {
-                                            ["x_axis_identifier"] = gridConfig.XAxisIdentifier,
-                                            ["x_axis_source_type"] = gridConfig.XAxisSourceType,
-                                            ["x_axis_field_name"] = gridConfig.XAxisField,
-                                            ["x_values"] = JArray.FromObject(gridConfig.XValues),
-                                            ["y_axis_identifier"] = gridConfig.YAxisIdentifier,
-                                            ["y_axis_source_type"] = gridConfig.YAxisSourceType,
-                                            ["y_axis_field_name"] = gridConfig.YAxisField,
-                                            ["y_values"] = JArray.FromObject(gridConfig.YValues)
-                                        };
-
-                                        var compositePrompt = new JObject
-                                        {
-                                            ["workflow"] = workflowJson,
-                                            ["grid_config"] = gridConfigData
-                                        };
-                                        promptForGrid = compositePrompt.ToString(Formatting.None);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Logger.Log(ex, "Failed to create composite JSON for XY Grid image. Falling back to simple prompt.");
-                                        promptForGrid = firstTaskResult.Prompt; // Fallback
-                                    }
-
-                                    var gridImageOutput = new ImageOutput
-                                    {
-                                        ImageBytes = gridImageBytes,
-                                        FileName = $"{LocalizationService.Instance["XYGrid_GeneratedImageName"]}_{DateTime.Now:yyyyMMdd_HHmmss}.png",
-                                        Prompt = promptForGrid,
-                                        VisualHash = Utils.ComputePixelHash(gridImageBytes)
-                                    };
-
-                                    await Application.Current.Dispatcher.InvokeAsync(() =>
-                                    {
-                                        this.ImageProcessing.ImageOutputs.Insert(0, gridImageOutput);
-                                    });
-                                }
-                            }
-                        }
-                        else // Image Mode (existing logic)
-                        {
-                             if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type == FileType.Video))
-                            {
-                                Logger.Log("XY Grid image creation was skipped because the output was video.", LogLevel.Warning);
-                            }
-                            else
-                            {
-                                var gridImageBytes = Utils.CreateImageGrid(
-                                    gridResults.Select(r => new Utils.GridCellResult { ImageOutputs = r.ImageOutputs, XValue = r.XValue, YValue = r.YValue }).ToList(),
-                                    gridConfig.XAxisField, gridConfig.XValues,
-                                    gridConfig.YAxisField, gridConfig.YValues,
-                                    gridConfig.LimitCellSize, 
-                                    gridConfig.MaxMegapixels);
-
-                                if (gridImageBytes != null)
-                                {
-                                    var firstTaskResult = gridResults.First().ImageOutputs.First();
-                                
-                                    string promptForGrid;
-                                    try
-                                    {
-                                        var workflowJson = JObject.Parse(firstTaskResult.Prompt);
-                                        var gridConfigData = new JObject
-                                        {
-                                            ["x_axis_identifier"] = gridConfig.XAxisIdentifier,
-                                            ["x_axis_source_type"] = gridConfig.XAxisSourceType,
-                                            ["x_values"] = JArray.FromObject(gridConfig.XValues),
-                                            ["y_axis_identifier"] = gridConfig.YAxisIdentifier,
-                                            ["y_axis_source_type"] = gridConfig.YAxisSourceType,
-                                            ["y_values"] = JArray.FromObject(gridConfig.YValues)
-                                        };
-
-                                        var compositePrompt = new JObject
-                                        {
-                                            ["workflow"] = workflowJson,
-                                            ["grid_config"] = gridConfigData
-                                        };
-                                        promptForGrid = compositePrompt.ToString(Formatting.None);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Logger.Log(ex, "Failed to create composite JSON for XY Grid image. Falling back to simple prompt.");
-                                        promptForGrid = firstTaskResult.Prompt; // Fallback
-                                    }
-
-                                    var gridImageOutput = new ImageOutput
-                                    {
-                                        ImageBytes = gridImageBytes,
-                                        FileName = $"{LocalizationService.Instance["XYGrid_GeneratedImageName"]}_{DateTime.Now:yyyyMMdd_HHmmss}.png",
-                                        Prompt = promptForGrid,
-                                        VisualHash = Utils.ComputePixelHash(gridImageBytes)
-                                    };
-
-                                    await Application.Current.Dispatcher.InvokeAsync(() =>
-                                    {
-                                        this.ImageProcessing.ImageOutputs.Insert(0, gridImageOutput);
-                                    });
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Log(ex, "Failed to create XY Grid image. The processing queue will continue.");
-                    }
+                    await GenerateAndAddGridImageAsync(currentGridResults, currentGridConfig);
                 }
                 
                 lock (_processingLock)
                 {
                     _isProcessing = false;
                 }
-                _currentTask = null; // Clear the current task
+                _currentTask = null; 
             
                 _queueStopwatch.Stop();
                 EstimatedTimeRemaining = null; 
                 
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    IsQueuePaused = false; // Always reset pause state when queue finishes
+                    IsQueuePaused = false; 
                 });
             
                 if (_cancellationRequested)
@@ -2044,6 +1895,100 @@ namespace Comfizen
                 {
                     await Application.Current.Dispatcher.InvokeAsync(() => lastTaskOriginTab.ExecuteHook("on_batch_finished", lastTaskOriginTab.Workflow.LoadedApi));
                 }
+            }
+        }
+
+        private async Task GenerateAndAddGridImageAsync(List<Utils.GridCellResult> gridResults, XYGridConfig gridConfig)
+        {
+            if (gridResults == null || !gridResults.Any() || gridConfig == null || !gridConfig.CreateGridImage)
+            {
+                return;
+            }
+
+            try
+            {
+                byte[] gridImageBytes = null;
+                if (gridConfig.GridMode == XYGridMode.Video)
+                {
+                    if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type != FileType.Video))
+                    {
+                        Logger.Log("XY Grid (Video Mode) was skipped because some outputs were images, not videos.", LogLevel.Warning);
+                    }
+                    else
+                    {
+                        gridImageBytes = await Utils.CreateVideoGridAsync(
+                            gridResults,
+                            gridConfig.XAxisField, gridConfig.XValues,
+                            gridConfig.YAxisField, gridConfig.YValues,
+                            gridConfig.VideoGridFrames,
+                            gridConfig.LimitCellSize, 
+                            gridConfig.MaxMegapixels);
+                    }
+                }
+                else // Image Mode
+                {
+                    if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type == FileType.Video))
+                    {
+                        Logger.Log("XY Grid image creation was skipped because the output was video.", LogLevel.Warning);
+                    }
+                    else
+                    {
+                        gridImageBytes = Utils.CreateImageGrid(
+                            gridResults,
+                            gridConfig.XAxisField, gridConfig.XValues,
+                            gridConfig.YAxisField, gridConfig.YValues,
+                            gridConfig.LimitCellSize, 
+                            gridConfig.MaxMegapixels);
+                    }
+                }
+
+                if (gridImageBytes != null)
+                {
+                    var firstTaskResult = gridResults.First().ImageOutputs.First();
+                    string promptForGrid;
+                    try
+                    {
+                        var workflowJson = JObject.Parse(firstTaskResult.Prompt);
+                        var gridConfigData = new JObject
+                        {
+                            ["x_axis_identifier"] = gridConfig.XAxisIdentifier,
+                            ["x_axis_source_type"] = gridConfig.XAxisSourceType,
+                            ["x_values"] = JArray.FromObject(gridConfig.XValues),
+                            ["y_axis_identifier"] = gridConfig.YAxisIdentifier,
+                            ["y_axis_source_type"] = gridConfig.YAxisSourceType,
+                            ["y_values"] = JArray.FromObject(gridConfig.YValues)
+                        };
+
+                        var compositePrompt = new JObject
+                        {
+                            ["workflow"] = workflowJson,
+                            ["grid_config"] = gridConfigData
+                        };
+                        promptForGrid = compositePrompt.ToString(Formatting.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(ex, "Failed to create composite JSON for XY Grid image. Falling back to simple prompt.");
+                        promptForGrid = firstTaskResult.Prompt; // Fallback
+                    }
+
+                    var gridImageOutput = new ImageOutput
+                    {
+                        ImageBytes = gridImageBytes,
+                        FileName = $"{LocalizationService.Instance["XYGrid_GeneratedImageName"]}_{DateTime.Now:yyyyMMdd_HHmmss}.png",
+                        Prompt = promptForGrid,
+                        VisualHash = Utils.ComputePixelHash(gridImageBytes)
+                    };
+
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        this.ImageProcessing.ImageOutputs.Insert(0, gridImageOutput);
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to create XY Grid image. The processing queue will continue.");
             }
         }
         
