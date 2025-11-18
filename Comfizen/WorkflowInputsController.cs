@@ -568,6 +568,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             {
                 PresetsModifiedInGroup?.Invoke();
                 LoadGlobalPresets();
+                PopulateGridableSources();
                 RefreshPresetViewsForXyGrid();
             };
             groupVm.ActiveLayersChanged += SyncGlobalPresetFromGroups;
@@ -800,6 +801,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
     private void PopulateGridableSources()
     {
+        var selectedX = SelectedXSource?.Source;
+        var selectedY = SelectedYSource?.Source;
+
         GridableSources.Clear();
         GridableSources.Add(NullGridAxisSource.Instance);
 
@@ -840,6 +844,15 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 Source = groupVm,
                 GroupName = groupVm.Name
             });
+        }
+        
+        if (selectedX != null)
+        {
+            SelectedXSource = GridableSources.FirstOrDefault(s => s.Source == selectedX);
+        }
+        if (selectedY != null)
+        {
+            SelectedYSource = GridableSources.FirstOrDefault(s => s.Source == selectedY);
         }
     }
 
