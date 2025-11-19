@@ -1664,9 +1664,15 @@ namespace Comfizen
                 Name = helpTabHeader,
                 Type = FieldType.Markdown,
                 DefaultValue = LocalizationService.Instance["Help_Content"],
-                MaxDisplayLines = null
+                MaxDisplayLines = null,
+                Path = "virtual_help_markdown_doc" 
             };
-            helpGroup.Fields.Add(markdownField);
+
+            // Use the new Tabs structure
+            var helpGroupTab = new WorkflowGroupTab { Name = "Docs" };
+            helpGroupTab.Fields.Add(markdownField);
+            helpGroup.Tabs.Add(helpGroupTab);
+
             helpWorkflow.Groups.Add(helpGroup);
             
             var helpTab = new WorkflowTabViewModel(

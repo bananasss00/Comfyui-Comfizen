@@ -1861,8 +1861,10 @@ namespace Comfizen
         public void NotifyFieldValueChanged(InputFieldViewModel fieldVM)
         {
             bool stateChanged = false;
+            
             var currentState = Tabs.SelectMany(t => t.Fields)
-                .Where(f => f.Property != null || f is MarkdownFieldViewModel || f is NodeBypassFieldViewModel)
+                .Where(f => (f.Property != null || f is MarkdownFieldViewModel || f is NodeBypassFieldViewModel) 
+                            && !string.IsNullOrEmpty(f.Path)) // Filter out fields without a path
                 .ToDictionary(f => f.Path, f => GetFieldValueAsJToken(f));
 
             // Check for newly matching snippets
