@@ -1198,9 +1198,9 @@
                     </DockPanel>
                 </Border>
 
-                <Border Grid.Column="0" Grid.ColumnSpan="3" Background="{StaticResource PrimaryBackground}"
+                <Border Grid.Column="0" Grid.ColumnSpan="5" Background="{StaticResource PrimaryBackground}"
                         Margin="5,0,5,5">
-                     <Border.Style>
+                    <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Collapsed" />
                             <Style.Triggers>
