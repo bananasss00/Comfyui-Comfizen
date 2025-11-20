@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -122,7 +123,16 @@ namespace Comfizen
             get => (string)GetValue(PlaceholderTextProperty);
             set => SetValue(PlaceholderTextProperty, value);
         }
+        
+        public static readonly DependencyProperty GroupByProperty = DependencyProperty.Register(
+            "GroupBy", typeof(string), typeof(FilterableComboBox), new PropertyMetadata(null, OnGroupByChanged));
 
+        public string GroupBy
+        {
+            get => (string)GetValue(GroupByProperty);
+            set => SetValue(GroupByProperty, value);
+        }
+        
         #endregion
         
         #region Validation Dependency Property
@@ -188,8 +198,27 @@ namespace Comfizen
                 control.ValidateSelectedItem();
             }
         }
-
+        
+        private static void OnGroupByChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is FilterableComboBox control)
+            {
+                control.ApplyGrouping();
+            }
+        }
+        
         #endregion
+        
+        private void ApplyGrouping()
+        {
+            var view = CollectionViewSource.GetDefaultView(FilteredItems);
+            view.GroupDescriptions.Clear();
+
+            if (!string.IsNullOrEmpty(GroupBy))
+            {
+                view.GroupDescriptions.Add(new PropertyGroupDescription(GroupBy));
+            }
+        }
         
         private void ValidateSelectedItem()
         {
@@ -226,7 +255,7 @@ namespace Comfizen
                 return false;
             });
         }
-        
+      
         private void FilterItems()
         {
             FilteredItems.Clear();
@@ -273,6 +302,7 @@ namespace Comfizen
                     FilteredItems.Add(item);
                 }
             }
+            ApplyGrouping();
         }
 
         private void ItemListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

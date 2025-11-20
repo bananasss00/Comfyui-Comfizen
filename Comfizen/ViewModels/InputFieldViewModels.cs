@@ -112,6 +112,16 @@ namespace Comfizen
         }
 
         public string EditingPresetName { get; set; }
+
+        // --- START OF CHANGES: New editing properties ---
+        public string EditingDescription { get; set; }
+        public string EditingCategory { get; set; }
+        public string EditingTags { get; set; }
+        
+        public ICollectionView FilteredPresetsView { get; private set; }
+        public ObservableCollection<string> AllCategories { get; } = new ObservableCollection<string>();
+        // --- END OF CHANGES ---
+
         public ObservableCollection<GroupStateViewModel> GroupStates { get; } = new ObservableCollection<GroupStateViewModel>();
 
         public ICommand AddNewCommand { get; }
@@ -134,6 +144,17 @@ namespace Comfizen
             _deleteCallback = deleteCallback;
             _getCurrentStateCallback = getCurrentStateCallback;
 
+            FilteredPresetsView = CollectionViewSource.GetDefaultView(GlobalPresets);
+            
+            FilteredPresetsView.GroupDescriptions.Clear(); 
+            FilteredPresetsView.SortDescriptions.Clear();
+
+            FilteredPresetsView.GroupDescriptions.Add(new PropertyGroupDescription("Category"));
+            FilteredPresetsView.SortDescriptions.Add(new SortDescription("Category", ListSortDirection.Ascending));
+            FilteredPresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            
+            UpdateCategories();
+
             foreach (var group in allGroups.OrderBy(g => g.Name))
             {
                 GroupStates.Add(new GroupStateViewModel(group));
@@ -143,11 +164,31 @@ namespace Comfizen
             SaveCommand = new RelayCommand(_ => SaveChanges(), _ => !string.IsNullOrWhiteSpace(EditingPresetName));
             DeleteCommand = new RelayCommand(_ => DeletePreset(), _ => SelectedPreset != null);
         }
+        
+        private void UpdateCategories()
+        {
+            var categories = GlobalPresets
+                .Select(p => p.Category)
+                .Where(c => !string.IsNullOrEmpty(c))
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
+            
+            AllCategories.Clear();
+            foreach (var cat in categories) AllCategories.Add(cat);
+        }
 
         public void LoadCurrentStateIntoEditor()
         {
             var currentState = _getCurrentStateCallback();
+            
+            // --- START OF CHANGES: Clear new fields ---
             EditingPresetName = "";
+            EditingDescription = "";
+            EditingCategory = "";
+            EditingTags = "";
+            // --- END OF CHANGES ---
+            
             SelectedPreset = null; // Deselect from the list
 
             foreach (var groupState in GroupStates)
@@ -173,6 +214,12 @@ namespace Comfizen
             }
 
             EditingPresetName = preset.Name;
+            
+            // --- START OF CHANGES: Load new fields ---
+            EditingDescription = preset.Description;
+            EditingCategory = preset.Category;
+            EditingTags = preset.Tags != null ? string.Join(", ", preset.Tags) : "";
+            // --- END OF CHANGES ---
 
             foreach (var groupState in GroupStates)
             {
@@ -194,6 +241,12 @@ namespace Comfizen
             // This now simply clears the form for a fresh start.
             SelectedPreset = null;
             EditingPresetName = "";
+            // --- START OF CHANGES: Clear fields ---
+            EditingDescription = "";
+            EditingCategory = ""; // Optionally preserve last used category here
+            EditingTags = "";
+            // --- END OF CHANGES ---
+            
             foreach (var groupState in GroupStates)
             {
                 groupState.SelectedPreset = null;
@@ -202,21 +255,34 @@ namespace Comfizen
 
         private void SaveChanges()
         {
-            var presetToSave = GlobalPresets.FirstOrDefault(p => p.Name == EditingPresetName) ?? new GlobalPreset();
-            
-            presetToSave.Name = EditingPresetName;
+            // --- START OF CHANGES: Save with new metadata ---
+            var presetToSave = new GlobalPreset
+            {
+                Name = EditingPresetName,
+                Description = EditingDescription,
+                Category = EditingCategory,
+                Tags = EditingTags?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(t => t.Trim())
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .ToList() ?? new List<string>()
+            };
+            // --- END OF CHANGES ---
+
             presetToSave.GroupStates.Clear();
 
             foreach (var groupState in GroupStates)
             {
                 if (groupState.SelectedPreset != null)
                 {
-                    // Storing as a list to be future-proof for multi-layer support
                     presetToSave.GroupStates[groupState.GroupId] = new List<string> { groupState.SelectedPreset.Name };
                 }
             }
             
             _saveCallback(presetToSave);
+            
+            // Refresh categories list
+            UpdateCategories();
+            FilteredPresetsView.Refresh();
         }
 
         private void DeletePreset()
@@ -286,11 +352,108 @@ namespace Comfizen
         public bool IsGlobalPresetEditorOpen { get; set; }
         public ICommand OpenGlobalPresetEditorCommand { get; set; }
         
+        public ICollectionView GroupedGlobalPresetsView { get; private set; }
+        
+        public ObservableCollection<GlobalPreset> FilteredGlobalPresets { get; } = new();
+        
+        public ObservableCollection<string> AllCategories { get; } = new();
+        public string SelectedCategoryFilter { get; set; }
+        
+        public ObservableCollection<string> AllTags { get; } = new();
+        public string SelectedTagFilter { get; set; }
+        
+        public ICommand ClearFiltersCommand { get; }
+
         public GlobalControlsViewModel(Action<GlobalPreset> applyPresetAction)
         {
             _applyPresetAction = applyPresetAction;
-            GlobalPresets.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsPresetsSectionVisible));
+            
+            GlobalPresets.CollectionChanged += (s, e) => 
+            {
+                OnPropertyChanged(nameof(IsPresetsSectionVisible));
+                RefreshFilteredList(rebuildCategories: true); 
+            };
+            
             ImplementedHooks.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsHooksSectionVisible));
+            
+            ClearFiltersCommand = new RelayCommand(_ =>
+            {
+                SelectedCategoryFilter = AllCategories.FirstOrDefault();
+                SelectedTagFilter = AllTags.FirstOrDefault();
+            });
+            
+            this.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(SelectedCategoryFilter) || 
+                    e.PropertyName == nameof(SelectedTagFilter))
+                {
+                    RefreshFilteredList(rebuildCategories: false);
+                }
+            };
+            
+            RefreshFilteredList(rebuildCategories: true);
+        }
+        
+        private void RefreshFilteredList(bool rebuildCategories = false)
+        {
+            if (rebuildCategories)
+            {
+                PopulateCategoriesAndTags();
+            }
+
+            FilteredGlobalPresets.Clear();
+            
+            var query = GlobalPresets.AsEnumerable();
+            
+            if (!string.IsNullOrEmpty(SelectedCategoryFilter) && SelectedCategoryFilter != "[ All ]")
+            {
+                query = query.Where(p => p.Category == SelectedCategoryFilter);
+            }
+            
+            if (!string.IsNullOrEmpty(SelectedTagFilter) && SelectedTagFilter != "[ All ]")
+            {
+                query = query.Where(p => p.Tags != null && p.Tags.Contains(SelectedTagFilter));
+            }
+
+            foreach (var preset in query.OrderBy(p => p.Category).ThenBy(p => p.Name))
+            {
+                FilteredGlobalPresets.Add(preset);
+            }
+        }
+
+        private void PopulateCategoriesAndTags()
+        {
+            var allStr = "[ All ]";
+            
+            var currentCat = SelectedCategoryFilter;
+            var currentTag = SelectedTagFilter;
+
+            AllCategories.Clear();
+            AllCategories.Add(allStr);
+            
+            if (GlobalPresets != null)
+            {
+                var cats = GlobalPresets
+                    .Select(p => p.Category)
+                    .Where(c => !string.IsNullOrEmpty(c))
+                    .Distinct()
+                    .OrderBy(c => c);
+                
+                foreach (var c in cats) AllCategories.Add(c);
+
+                AllTags.Clear();
+                AllTags.Add(allStr);
+                
+                var tags = GlobalPresets
+                    .SelectMany(p => p.Tags ?? new List<string>())
+                    .Distinct()
+                    .OrderBy(t => t);
+                
+                foreach (var t in tags) AllTags.Add(t);
+            }
+
+            SelectedCategoryFilter = AllCategories.Contains(currentCat) ? currentCat : allStr;
+            SelectedTagFilter = AllTags.Contains(currentTag) ? currentTag : allStr;
         }
         
         /// <summary>

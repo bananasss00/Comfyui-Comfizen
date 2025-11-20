@@ -118,6 +118,15 @@ namespace Comfizen
     public class GlobalPreset
     {
         public string Name { get; set; }
+        
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string Description { get; set; }
+
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string Category { get; set; }
+
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public List<string> Tags { get; set; } = new List<string>();
 
         /// <summary>
         /// Maps a Group ID to a list of the names of the active presets (Snippets or Layouts) for that group.
@@ -125,6 +134,20 @@ namespace Comfizen
         public Dictionary<Guid, List<string>> GroupStates { get; set; } = new Dictionary<Guid, List<string>>();
 
         public override string ToString() => Name;
+        
+        public GlobalPreset Clone()
+        {
+            return new GlobalPreset
+            {
+                Name = this.Name,
+                Description = this.Description,
+                Category = this.Category,
+                Tags = this.Tags != null ? new List<string>(this.Tags) : new List<string>(),
+                GroupStates = this.GroupStates.ToDictionary(
+                    entry => entry.Key,
+                    entry => new List<string>(entry.Value))
+            };
+        }
     }
     
     public class ScriptCollection
