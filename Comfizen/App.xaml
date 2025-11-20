@@ -1048,8 +1048,7 @@
                            VerticalAlignment="Center" 
                            Foreground="{StaticResource TextSecondaryBrush}" 
                            Margin="0,0,10,0"
-                           Visibility="{Binding HasPresets, Converter={StaticResource BooleanToVisibilityConverter}}"
-                           ToolTipService.InitialShowDelay="0">
+                           Visibility="{Binding HasPresets, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <!-- START OF NEW TOOLTIP -->
                     <TextBlock.ToolTip>
                         <ToolTip>
@@ -1351,8 +1350,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="{x:Type local:GroupPresetViewModel}">
                                                 <Button Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}" CommandParameter="{Binding}" 
-                                                        HorizontalContentAlignment="Stretch"
-                                                        ToolTipService.InitialShowDelay="0">
+                                                        HorizontalContentAlignment="Stretch">
                                                     <Button.ToolTip>
                                                         <ToolTip MaxWidth="400">
                                                             <StackPanel>
@@ -1460,8 +1458,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="{x:Type local:GroupPresetViewModel}">
                                                 <Button Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}" CommandParameter="{Binding}" 
-                                                        HorizontalContentAlignment="Stretch"
-                                                        ToolTipService.InitialShowDelay="0">
+                                                        HorizontalContentAlignment="Stretch">
                                                     <Button.ToolTip>
                                                         <ToolTip MaxWidth="400">
                                                              <StackPanel>

@@ -1047,9 +1047,7 @@
                                                     <DataTemplate DataType="{x:Type local:QueueItemDetailViewModel}">
                                                         <TextBlock FontSize="11"
                                                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   ToolTipService.InitialShowDelay="0"
-                                                                   ToolTipService.ShowDuration="20000">
+                                                                   TextTrimming="CharacterEllipsis">
                                                             <TextBlock.ToolTip>
                                                                 <ToolTip>
                                                                     <TextBlock Text="{Binding NewValue}" MaxWidth="500"
