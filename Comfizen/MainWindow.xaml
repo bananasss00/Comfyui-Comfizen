@@ -882,7 +882,12 @@
                                                                                                         Grid.Column="2"
                                                                                                         Orientation="Horizontal"
                                                                                         HorizontalAlignment="Right"
-                                                                                        Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
+                                                                                        Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}"
+                                                                                                        MouseLeftButtonDown="StopRoutedEventPropagation"
+                                                                                                        MouseLeftButtonUp="StopRoutedEventPropagation"
+                                                                                                        ButtonBase.Click="StopRoutedEventPropagation"
+                                                                                                        ToggleButton.Checked="StopRoutedEventPropagation"
+                                                                                                        ToggleButton.Unchecked="StopRoutedEventPropagation">
 
                                                                                                         <ContentPresenter
                                                                                                             Content="{Binding}"

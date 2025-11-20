@@ -1041,7 +1041,12 @@
         
         <!-- ADD: Reusable template for group preset controls -->
         <DataTemplate x:Key="GroupHeaderPresetControls">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                        MouseLeftButtonDown="StopRoutedEventPropagation"
+                        MouseLeftButtonUp="StopRoutedEventPropagation"
+                        ButtonBase.Click="StopRoutedEventPropagation"
+                        ToggleButton.Checked="StopRoutedEventPropagation"
+                        ToggleButton.Unchecked="StopRoutedEventPropagation">
                 
                 <!-- Status Text -->
                 <TextBlock Text="{Binding CurrentStateStatus}" 
