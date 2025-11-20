@@ -926,9 +926,9 @@ namespace Comfizen
                 targetTab = group.Tabs.FirstOrDefault();
                 if (targetTab == null)
                 {
-                targetTab = new WorkflowGroupTab { Name = "Controls" };
-                group.Tabs.Add(targetTab);
-            }
+                    targetTab = new WorkflowGroupTab { Name = "Controls" };
+                    group.Tabs.Add(targetTab);
+                }
             }
 
             string baseName = "New Field";
@@ -953,15 +953,36 @@ namespace Comfizen
             {
                 Name = newName,
                 Type = type,
-                Path = $"virtual_{type.ToString().ToLower()}_{Guid.NewGuid()}"
+                Path = $"virtual_{type.ToString().ToLower()}_{Guid.NewGuid()}",
+                IsSelected = true 
             };
 
             if (type == FieldType.Markdown)
             {
                 newField.DefaultValue = "# " + newName + "\n\nEdit this text.";
             }
+            
+            var lastSelectedField = targetTab.Fields.LastOrDefault(f => f.IsSelected);
+            
+            if (lastSelectedField != null)
+            {
+                int index = targetTab.Fields.IndexOf(lastSelectedField);
+                
+                lastSelectedField.IsSelected = false;
 
-            targetTab.Fields.Add(newField);
+                if (index >= 0 && index < targetTab.Fields.Count)
+                {
+                    targetTab.Fields.Insert(index + 1, newField);
+                }
+                else
+                {
+                    targetTab.Fields.Add(newField);
+                }
+            }
+            else
+            {
+                targetTab.Fields.Add(newField);
+            }
         }
         
         // --- SCRIPTING METHODS ---

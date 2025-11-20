@@ -141,6 +141,8 @@ namespace Comfizen
         public string NodeTitle { get; set; }
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string NodeType { get; set; }
+        [JsonIgnore]
+        public bool IsSelected { get; set; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         

@@ -490,6 +490,7 @@
                                                                                      PreviewMouseWheel="FieldList_PreviewMouseWheel">
                                                                                 <ListBox.ItemContainerStyle>
                                                                                     <Style TargetType="ListBoxItem">
+                                                                                        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
                                                                                         <Setter Property="Template">
                                                                                             <Setter.Value>
                                                                                                 <ControlTemplate TargetType="ListBoxItem">
