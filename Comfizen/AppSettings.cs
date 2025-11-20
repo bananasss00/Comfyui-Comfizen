@@ -31,6 +31,7 @@ namespace Comfizen
         public bool SavePromptWithFile { get; set; } = true;
         
         public bool RemoveBase64OnSave { get; set; } = false;
+        public bool SaveImagesFlat { get; set; } = false;
         public ImageSaveFormat SaveFormat { get; set; } = ImageSaveFormat.Jpg;
         public int PngCompressionLevel { get; set; } = 6;
         public int WebpQuality { get; set; } = 83;

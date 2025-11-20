@@ -396,5 +396,7 @@
   "UIConstructor_Preset_SearchPlaceholder": "Поиск пресетов...",
   "UIConstructor_Preset_ShowAll": "Показать все типы",
   "UIConstructor_Field_ItemsTooltip": "Введите значения, каждое с новой строки.\nДля разделения имени и значения API используйте ' :: '.\nПример: 'Красивое имя :: api_value'\nЕсли разделителя нет, имя будет равно значению.",
-  "Presets_Category_General": "Общее"
+  "Presets_Category_General": "Общее",
+  "Settings_SaveImagesFlat": "Сохранять файлы в корень (игнорировать подпапки)",
+  "Settings_SaveImagesFlatTooltip": "Если отмечено, все изображения будут сохраняться прямо в указанную папку сохранения без создания вложенных папок по категориям."
 }

@@ -62,11 +62,25 @@ namespace Comfizen
                 }
                 return (bytes, ext);
             });
+            
 
-            var desiredPath = Path.Combine(saveDirectory, relativeFilePath);
-            var targetDirectory = Path.GetDirectoryName(desiredPath);
+            string targetDirectory;
+            string fileName;
+
+            if (settings.SaveImagesFlat)
+            {
+                targetDirectory = saveDirectory;
+                fileName = Path.GetFileName(relativeFilePath);
+            }
+            else
+            {
+                var fullRelativePath = Path.Combine(saveDirectory, relativeFilePath);
+                targetDirectory = Path.GetDirectoryName(fullRelativePath);
+                fileName = Path.GetFileName(relativeFilePath);
+            }
+
             Directory.CreateDirectory(targetDirectory);
-
+            var desiredPath = Path.Combine(targetDirectory, fileName);
             desiredPath = Path.ChangeExtension(desiredPath, extension);
             var finalSavePath = await Utils.GetUniqueFilePathAsync(desiredPath, finalImageBytes);
 
@@ -89,10 +103,23 @@ namespace Comfizen
         
         public async Task<bool> SaveVideoFileAsync(string saveDirectory, string relativeFilePath, byte[] videoBytes, string prompt)
         {
-            var desiredPath = Path.Combine(saveDirectory, relativeFilePath);
-            var targetDirectory = Path.GetDirectoryName(desiredPath);
+            string targetDirectory;
+            string fileName;
+
+            if (_settings.SaveImagesFlat)
+            {
+                targetDirectory = saveDirectory;
+                fileName = Path.GetFileName(relativeFilePath);
+            }
+            else
+            {
+                var fullRelativePath = Path.Combine(saveDirectory, relativeFilePath);
+                targetDirectory = Path.GetDirectoryName(fullRelativePath);
+                fileName = Path.GetFileName(relativeFilePath);
+            }
+
             Directory.CreateDirectory(targetDirectory);
-    
+            var desiredPath = Path.Combine(targetDirectory, fileName);
             var processedVideoBytes = await Utils.StripVideoMetadataAsync(videoBytes, relativeFilePath);
             
             string promptToProcess = prompt;
