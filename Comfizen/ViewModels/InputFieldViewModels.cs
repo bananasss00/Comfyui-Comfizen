@@ -116,7 +116,8 @@ namespace Comfizen
         // --- START OF CHANGES: New editing properties ---
         public string EditingDescription { get; set; }
         public string EditingCategory { get; set; }
-        public string EditingTags { get; set; }
+        public ObservableCollection<string> EditingTags { get; set; } = new ObservableCollection<string>();
+        public ObservableCollection<string> AllTags { get; } = new ObservableCollection<string>();
         
         public ICollectionView FilteredPresetsView { get; private set; }
         public ObservableCollection<string> AllCategories { get; } = new ObservableCollection<string>();
@@ -131,7 +132,7 @@ namespace Comfizen
         private readonly Action<GlobalPreset> _saveCallback;
         private readonly Action<GlobalPreset> _deleteCallback;
         private readonly Func<Dictionary<Guid, List<string>>> _getCurrentStateCallback;
-
+        
         public GlobalPresetEditorViewModel(
             ObservableCollection<GlobalPreset> globalPresets,
             IEnumerable<WorkflowGroupViewModel> allGroups,
@@ -149,11 +150,12 @@ namespace Comfizen
             FilteredPresetsView.GroupDescriptions.Clear(); 
             FilteredPresetsView.SortDescriptions.Clear();
 
-            FilteredPresetsView.GroupDescriptions.Add(new PropertyGroupDescription("Category"));
-            FilteredPresetsView.SortDescriptions.Add(new SortDescription("Category", ListSortDirection.Ascending));
+            FilteredPresetsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(GlobalPreset.DisplayCategory)));
+            FilteredPresetsView.SortDescriptions.Add(new SortDescription(nameof(GlobalPreset.DisplayCategory), ListSortDirection.Ascending));
             FilteredPresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
             
             UpdateCategories();
+            UpdateTags();
 
             foreach (var group in allGroups.OrderBy(g => g.Name))
             {
@@ -177,6 +179,13 @@ namespace Comfizen
             AllCategories.Clear();
             foreach (var cat in categories) AllCategories.Add(cat);
         }
+        
+        private void UpdateTags()
+        {
+            var tags = GlobalPresets.SelectMany(p => p.Tags ?? new List<string>()).Distinct().OrderBy(t => t);
+            AllTags.Clear();
+            foreach (var t in tags) AllTags.Add(t);
+        }
 
         public void LoadCurrentStateIntoEditor()
         {
@@ -186,7 +195,7 @@ namespace Comfizen
             EditingPresetName = "";
             EditingDescription = "";
             EditingCategory = "";
-            EditingTags = "";
+            EditingTags.Clear();
             // --- END OF CHANGES ---
             
             SelectedPreset = null; // Deselect from the list
@@ -218,7 +227,11 @@ namespace Comfizen
             // --- START OF CHANGES: Load new fields ---
             EditingDescription = preset.Description;
             EditingCategory = preset.Category;
-            EditingTags = preset.Tags != null ? string.Join(", ", preset.Tags) : "";
+            EditingTags.Clear();
+            if (preset.Tags != null)
+            {
+                foreach (var t in preset.Tags) EditingTags.Add(t);
+            }
             // --- END OF CHANGES ---
 
             foreach (var groupState in GroupStates)
@@ -244,7 +257,7 @@ namespace Comfizen
             // --- START OF CHANGES: Clear fields ---
             EditingDescription = "";
             EditingCategory = ""; // Optionally preserve last used category here
-            EditingTags = "";
+            EditingTags.Clear();
             // --- END OF CHANGES ---
             
             foreach (var groupState in GroupStates)
@@ -261,10 +274,7 @@ namespace Comfizen
                 Name = EditingPresetName,
                 Description = EditingDescription,
                 Category = EditingCategory,
-                Tags = EditingTags?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(t => t.Trim())
-                    .Where(t => !string.IsNullOrWhiteSpace(t))
-                    .ToList() ?? new List<string>()
+                Tags = EditingTags.ToList() 
             };
             // --- END OF CHANGES ---
 
@@ -282,6 +292,7 @@ namespace Comfizen
             
             // Refresh categories list
             UpdateCategories();
+            UpdateTags();
             FilteredPresetsView.Refresh();
         }
 
@@ -306,55 +317,55 @@ namespace Comfizen
         public bool IsHooksSectionVisible => ImplementedHooks.Any();
         public ObservableCollection<HookToggleViewModel> ImplementedHooks { get; } = new();
         
-        // english: Combined visibility logic
         public bool IsSeedSectionVisible { get; set; } = false;
         public bool IsPresetsSectionVisible => true;
         public bool IsVisible => IsSeedSectionVisible || IsPresetsSectionVisible || IsHooksSectionVisible;
 
-        // english: From former GlobalSettingsViewModel
         public long WildcardSeed { get; set; } = Utils.GenerateSeed(0, 4294967295L);
         public bool IsSeedLocked { get; set; } = false;
         
-        // Rebuilt global preset properties
         public ObservableCollection<GlobalPreset> GlobalPresets { get; } = new();
-        private readonly Action<GlobalPreset> _applyPresetAction;
+        
         private GlobalPreset _selectedGlobalPreset;
-        private bool _isInternalSet = false;
-
         public GlobalPreset SelectedGlobalPreset
         {
             get => _selectedGlobalPreset;
             set
             {
                 if (_selectedGlobalPreset == value) return;
-                
                 _selectedGlobalPreset = value;
                 OnPropertyChanged(nameof(SelectedGlobalPreset));
-
-                if (!_isInternalSet && value != null)
-                {
-                    _applyPresetAction?.Invoke(value);
-                }
-            }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string name)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-            // Add cascading notifications for the main visibility property
-            if (name == nameof(IsSeedSectionVisible) || name == nameof(IsPresetsSectionVisible) || name == nameof(IsHooksSectionVisible))
-            {
-                OnPropertyChanged(nameof(IsVisible));
+                OnPropertyChanged(nameof(CurrentStateStatus));
             }
         }
         
-        public bool IsGlobalPresetEditorOpen { get; set; }
         public ICommand OpenGlobalPresetEditorCommand { get; set; }
-        
-        public ICollectionView GroupedGlobalPresetsView { get; private set; }
-        
-        public ObservableCollection<GlobalPreset> FilteredGlobalPresets { get; } = new();
+
+        public string CurrentStateStatus 
+        {
+            get
+            {
+                if (SelectedGlobalPreset == null) return LocalizationService.Instance["Presets_State_Unsaved"];
+                return SelectedGlobalPreset.Name;
+            }
+        }
+
+
+        private bool _isPresetPanelOpen;
+        public bool IsPresetPanelOpen
+        {
+            get => _isPresetPanelOpen;
+            set
+            {
+                if (_isPresetPanelOpen == value) return;
+                _isPresetPanelOpen = value;
+                OnPropertyChanged(nameof(IsPresetPanelOpen));
+                if (value) OnPropertyChanged(nameof(CurrentPresetSortOption));
+            }
+        }
+
+        public string PresetSearchFilter { get; set; }
+        public PresetSortOption CurrentPresetSortOption { get; set; } = PresetSortOption.Alphabetical;
         
         public ObservableCollection<string> AllCategories { get; } = new();
         public string SelectedCategoryFilter { get; set; }
@@ -362,98 +373,266 @@ namespace Comfizen
         public ObservableCollection<string> AllTags { get; } = new();
         public string SelectedTagFilter { get; set; }
         
-        public ICommand ClearFiltersCommand { get; }
+        public ICollectionView FilteredGlobalPresetsView { get; private set; }
 
-        public GlobalControlsViewModel(Action<GlobalPreset> applyPresetAction)
+        private bool _isSavePresetPopupOpen;
+        public bool IsSavePresetPopupOpen
+        {
+            get => _isSavePresetPopupOpen;
+            set
+            {
+                if (_isSavePresetPopupOpen == value) return;
+                
+                if (value)
+                {
+                    if (!IsUpdateMode)
+                    {
+                        // Pre-fill with last used values for a new preset
+                        NewPresetName = _lastUsedName;
+                        NewPresetDescription = _lastUsedDescription;
+                        NewPresetCategory = _lastUsedCategory;
+                        NewPresetTags.Clear();
+                        if (_lastUsedTags != null)
+                        {
+                            foreach (var t in _lastUsedTags) NewPresetTags.Add(t);
+                        }
+                    }
+                }
+                else
+                {
+                    _presetToUpdateName = null;
+                    OnPropertyChanged(nameof(IsUpdateMode));
+                }
+
+                _isSavePresetPopupOpen = value;
+                OnPropertyChanged(nameof(IsSavePresetPopupOpen));
+            }
+        }
+        
+        public bool IsUpdateMode => !string.IsNullOrEmpty(_presetToUpdateName);
+        private string _presetToUpdateName;
+
+        public string NewPresetName { get; set; }
+        public string NewPresetDescription { get; set; }
+        public string NewPresetCategory { get; set; }
+        public ObservableCollection<string> NewPresetTags { get; set; } = new ObservableCollection<string>();
+
+        public ICommand ClearFiltersCommand { get; }
+        public ICommand ToggleFavoriteCommand { get; }
+        public ICommand ApplyPresetCommand { get; }
+        public ICommand DeletePresetCommand { get; }
+        public ICommand StartUpdatePresetCommand { get; }
+        public ICommand SavePresetCommand { get; }
+        
+        private readonly Action<GlobalPreset> _applyPresetAction;
+        private readonly Func<Dictionary<Guid, List<string>>> _getCurrentStateCallback;
+        private readonly Action<GlobalPreset> _saveCallback;
+        private readonly Action<GlobalPreset> _deleteCallback;
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+            if (name == nameof(IsSeedSectionVisible) || name == nameof(IsPresetsSectionVisible) || name == nameof(IsHooksSectionVisible))
+            {
+                OnPropertyChanged(nameof(IsVisible));
+            }
+        }
+        
+        private string _lastUsedName = "";
+        private string _lastUsedDescription = "";
+        private string _lastUsedCategory = "";
+        private List<string> _lastUsedTags = new List<string>();
+
+        public GlobalControlsViewModel(
+            Action<GlobalPreset> applyPresetAction, 
+            Func<Dictionary<Guid, List<string>>> getCurrentStateCallback,
+            Action<GlobalPreset> saveCallback,
+            Action<GlobalPreset> deleteCallback)
         {
             _applyPresetAction = applyPresetAction;
+            _getCurrentStateCallback = getCurrentStateCallback;
+            _saveCallback = saveCallback;
+            _deleteCallback = deleteCallback;
             
             GlobalPresets.CollectionChanged += (s, e) => 
             {
                 OnPropertyChanged(nameof(IsPresetsSectionVisible));
-                RefreshFilteredList(rebuildCategories: true); 
+                PopulateCategoriesAndTags();
+                FilteredGlobalPresetsView?.Refresh();
             };
             
             ImplementedHooks.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsHooksSectionVisible));
             
             ClearFiltersCommand = new RelayCommand(_ =>
             {
-                SelectedCategoryFilter = AllCategories.FirstOrDefault();
-                SelectedTagFilter = AllTags.FirstOrDefault();
+                SelectedCategoryFilter = "[ All ]";
+                SelectedTagFilter = "[ All ]";
+                PresetSearchFilter = "";
             });
             
+            ToggleFavoriteCommand = new RelayCommand(p =>
+            {
+                if (p is GlobalPreset preset)
+                {
+                    preset.IsFavorite = !preset.IsFavorite;
+                    FilteredGlobalPresetsView?.Refresh();
+                    _saveCallback(null);
+                }
+            });
+
+            ApplyPresetCommand = new RelayCommand(p =>
+            {
+                if (p is GlobalPreset preset)
+                {
+                    SelectedGlobalPreset = preset;
+                    _applyPresetAction?.Invoke(preset);
+                    IsPresetPanelOpen = false;
+                }
+            });
+
+            DeletePresetCommand = new RelayCommand(p =>
+            {
+                if (p is GlobalPreset preset)
+                {
+                     _deleteCallback(preset);
+                }
+            });
+            
+            StartUpdatePresetCommand = new RelayCommand(p =>
+            {
+                if (p is GlobalPreset preset)
+                {
+                    _presetToUpdateName = preset.Name;
+                    OnPropertyChanged(nameof(IsUpdateMode));
+                    
+                    NewPresetName = preset.Name;
+                    NewPresetDescription = preset.Description;
+                    NewPresetCategory = preset.Category;
+                    NewPresetTags.Clear();
+                    if (preset.Tags != null) foreach(var t in preset.Tags) NewPresetTags.Add(t);
+                    
+                    IsSavePresetPopupOpen = true;
+                    IsPresetPanelOpen = false;
+                }
+            });
+
+            SavePresetCommand = new RelayCommand(_ => SaveChanges(), _ => !string.IsNullOrWhiteSpace(NewPresetName));
+            
+            // Initialize View
+            FilteredGlobalPresetsView = CollectionViewSource.GetDefaultView(GlobalPresets);
+            FilteredGlobalPresetsView.Filter = FilterPresets;
+            FilteredGlobalPresetsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(GlobalPreset.DisplayCategory)));
+            UpdateSortDescriptions();
+
             this.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(SelectedCategoryFilter) || 
-                    e.PropertyName == nameof(SelectedTagFilter))
+                    e.PropertyName == nameof(SelectedTagFilter) ||
+                    e.PropertyName == nameof(PresetSearchFilter))
                 {
-                    RefreshFilteredList(rebuildCategories: false);
+                    FilteredGlobalPresetsView?.Refresh();
                 }
+                if (e.PropertyName == nameof(CurrentPresetSortOption))
+                {
+                    UpdateSortDescriptions();
+                }
+                // if (e.PropertyName == nameof(IsSavePresetPopupOpen) && !IsSavePresetPopupOpen)
+                // {
+                //     _presetToUpdateName = null;
+                //     OnPropertyChanged(nameof(IsUpdateMode));
+                // }
             };
             
-            RefreshFilteredList(rebuildCategories: true);
+            PopulateCategoriesAndTags();
         }
-        
-        private void RefreshFilteredList(bool rebuildCategories = false)
+
+        private void UpdateSortDescriptions()
         {
-            if (rebuildCategories)
-            {
-                PopulateCategoriesAndTags();
-            }
+            FilteredGlobalPresetsView.SortDescriptions.Clear();
+            FilteredGlobalPresetsView.SortDescriptions.Add(new SortDescription("IsFavorite", ListSortDirection.Descending));
+            FilteredGlobalPresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+        }
 
-            FilteredGlobalPresets.Clear();
-            
-            var query = GlobalPresets.AsEnumerable();
-            
-            if (!string.IsNullOrEmpty(SelectedCategoryFilter) && SelectedCategoryFilter != "[ All ]")
-            {
-                query = query.Where(p => p.Category == SelectedCategoryFilter);
-            }
-            
-            if (!string.IsNullOrEmpty(SelectedTagFilter) && SelectedTagFilter != "[ All ]")
-            {
-                query = query.Where(p => p.Tags != null && p.Tags.Contains(SelectedTagFilter));
-            }
+        private bool FilterPresets(object item)
+        {
+            if (item is not GlobalPreset preset) return false;
 
-            foreach (var preset in query.OrderBy(p => p.Category).ThenBy(p => p.Name))
+            if (SelectedCategoryFilter != "[ All ]" && !string.IsNullOrEmpty(SelectedCategoryFilter) && preset.Category != SelectedCategoryFilter) return false;
+            if (SelectedTagFilter != "[ All ]" && !string.IsNullOrEmpty(SelectedTagFilter) && (preset.Tags == null || !preset.Tags.Contains(SelectedTagFilter))) return false;
+
+            if (!string.IsNullOrWhiteSpace(PresetSearchFilter))
             {
-                FilteredGlobalPresets.Add(preset);
+                var terms = PresetSearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var term in terms)
+                {
+                    bool matchName = preset.Name?.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool matchDesc = preset.Description?.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!matchName && !matchDesc) return false;
+                }
             }
+            return true;
         }
 
         private void PopulateCategoriesAndTags()
         {
-            var allStr = "[ All ]";
-            
             var currentCat = SelectedCategoryFilter;
             var currentTag = SelectedTagFilter;
-
+            
+            var allStr = "[ All ]";
             AllCategories.Clear();
             AllCategories.Add(allStr);
-            
-            if (GlobalPresets != null)
-            {
-                var cats = GlobalPresets
-                    .Select(p => p.Category)
-                    .Where(c => !string.IsNullOrEmpty(c))
-                    .Distinct()
-                    .OrderBy(c => c);
-                
-                foreach (var c in cats) AllCategories.Add(c);
+            foreach (var c in GlobalPresets.Select(p => p.Category).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x=>x)) AllCategories.Add(c);
 
-                AllTags.Clear();
-                AllTags.Add(allStr);
-                
-                var tags = GlobalPresets
-                    .SelectMany(p => p.Tags ?? new List<string>())
-                    .Distinct()
-                    .OrderBy(t => t);
-                
-                foreach (var t in tags) AllTags.Add(t);
-            }
+            AllTags.Clear();
+            AllTags.Add(allStr);
+            foreach (var t in GlobalPresets.SelectMany(p => p.Tags ?? new List<string>()).Distinct().OrderBy(x=>x)) AllTags.Add(t);
 
             SelectedCategoryFilter = AllCategories.Contains(currentCat) ? currentCat : allStr;
             SelectedTagFilter = AllTags.Contains(currentTag) ? currentTag : allStr;
+        }
+        
+        private void SaveChanges()
+        {
+            var currentState = _getCurrentStateCallback();
+            
+            if (IsUpdateMode && !string.Equals(_presetToUpdateName, NewPresetName, StringComparison.OrdinalIgnoreCase))
+            {
+                 var old = GlobalPresets.FirstOrDefault(p => p.Name == _presetToUpdateName);
+                 if (old != null) GlobalPresets.Remove(old);
+            }
+            else 
+            {
+                var existing = GlobalPresets.FirstOrDefault(p => p.Name == NewPresetName);
+                if (existing != null) GlobalPresets.Remove(existing);
+            }
+
+            var newPreset = new GlobalPreset
+            {
+                Name = NewPresetName,
+                Description = NewPresetDescription,
+                Category = NewPresetCategory,
+                Tags = NewPresetTags.ToList(),
+            };
+            
+            _lastUsedName = NewPresetName;
+            _lastUsedDescription = NewPresetDescription;
+            _lastUsedCategory = NewPresetCategory;
+            _lastUsedTags = NewPresetTags.ToList();
+            
+            foreach (var kvp in currentState)
+            {
+                newPreset.GroupStates[kvp.Key] = kvp.Value;
+            }
+
+            GlobalPresets.Add(newPreset);
+            
+            _saveCallback(newPreset);
+
+            SelectedGlobalPreset = newPreset;
+            IsSavePresetPopupOpen = false;
+            NewPresetName = "";
+            NewPresetDescription = "";
         }
         
         /// <summary>
@@ -501,9 +680,9 @@ namespace Comfizen
         /// </summary>
         public void SetSelectedPresetSilently(GlobalPreset preset)
         {
-            _isInternalSet = true;
-            SelectedGlobalPreset = preset;
-            _isInternalSet = false;
+             _selectedGlobalPreset = preset;
+             OnPropertyChanged(nameof(SelectedGlobalPreset));
+             OnPropertyChanged(nameof(CurrentStateStatus));
         }
     }
 
@@ -513,6 +692,10 @@ namespace Comfizen
         public GroupPreset Model { get; }
         public string Name => Model.Name;
         public bool IsLayout => Model.IsLayout;
+        
+        public string DisplayCategory => string.IsNullOrWhiteSpace(Model.Category) 
+            ? LocalizationService.Instance["Presets_Category_General"] 
+            : Model.Category;
         
         // --- START OF FIX 1: Expose IsFavorite via the ViewModel ---
         public bool IsFavorite
@@ -786,9 +969,12 @@ namespace Comfizen
         
         private readonly AppSettings _settings;
         
-        private string _lastUsedCategory = "";
-        private string _lastUsedTags = "";
-        private HashSet<string> _lastSelectedFieldPaths = null;
+        private static string _lastUsedPresetName = "";
+        private static string _lastUsedDescription = "";
+        private static string _lastUsedCategory = "";
+        private static List<string> _lastUsedTags = new List<string>();
+        private static SavePresetType _lastUsedType = SavePresetType.Snippet;
+        private static HashSet<string> _lastSelectedFieldPaths = new HashSet<string>();
         public bool IsUpdateMode => !string.IsNullOrEmpty(_presetToUpdateName);
         
         public WorkflowGroup Model => _model;
@@ -1040,65 +1226,83 @@ namespace Comfizen
             {
                 if (_isSavePresetPopupOpen == value) return;
                 
-                // If we are opening the popup...
                 if (value)
                 {
-                    // ...and we are NOT in update mode (i.e., we are creating a NEW preset)
+                    // Creation mode (New Preset)
                     if (string.IsNullOrEmpty(_presetToUpdateName))
                     {
-                        // Then prepare a blank form.
-                        NewPresetName = "";
-                        NewPresetDescription = "";
-                        NewPresetCategory = _lastUsedCategory; // Pre-fill category
-                        NewPresetTags = _lastUsedTags;         // Pre-fill tags
-                        NewPresetType = ActiveLayers.Any() ? SavePresetType.Layout : SavePresetType.Snippet;
+                        // Restore metadata (Name, Desc, etc.) from static history
+                        NewPresetName = _lastUsedPresetName;
+                        NewPresetDescription = _lastUsedDescription;
+                        NewPresetCategory = _lastUsedCategory;
+                        
+                        NewPresetTags.Clear();
+                        if (_lastUsedTags != null)
+                        {
+                            foreach(var t in _lastUsedTags) NewPresetTags.Add(t);
+                        }
+                        
+                        if (ActiveLayers.Any())
+                        {
+                             NewPresetType = SavePresetType.Layout;
+                        }
+                        else
+                        {
+                             NewPresetType = _lastUsedType;
+                        }
 
+                        // Restore field selection based on paths found in history
                         FieldsForPresetSelection.Clear();
+                        
+                        // Check if we have any history recorded
+                        bool hasHistory = _lastSelectedFieldPaths != null && _lastSelectedFieldPaths.Count > 0;
+
                         foreach (var tabVm in Tabs)
                         {
                             var savableFieldsInTab = tabVm.Model.Fields
                                 .Where(f => f.Type != FieldType.ScriptButton &&
                                             f.Type != FieldType.Label &&
-                                            f.Type != FieldType.Separator);
+                                            f.Type != FieldType.Separator)
+                                .OrderBy(f => f.Name);
                     
                             foreach (var field in savableFieldsInTab)
                             {
+                                // If history exists, strictly check if this path was selected last time.
+                                // If history is empty (first run), select everything by default.
+                                bool isSelected = !hasHistory || _lastSelectedFieldPaths.Contains(field.Path);
+
                                 FieldsForPresetSelection.Add(new PresetFieldSelectionViewModel
                                 {
                                     Name = field.Name,
                                     Path = field.Path,
-                                    IsSelected = true, 
+                                    IsSelected = isSelected, 
                                     TabName = tabVm.Name
                                 });
                             }
                         }
-                        
-                        if (_lastSelectedFieldPaths != null)
-                        {
-                            // If we have a saved selection, apply it
-                            foreach (var fieldVM in FieldsForPresetSelection)
-                            {
-                                fieldVM.IsSelected = _lastSelectedFieldPaths.Contains(fieldVM.Path);
-                            }
-                        }
+                    }
+                    // Update mode (Editing existing preset)
+                    else 
+                    {
+                         // Logic for update mode remains the same (loading from existing preset)
+                         // ... (omitted for brevity, no changes needed here) ...
                     }
                 }
-                // If we are closing the popup (for any reason)
                 else
                 {
-                    // Reset the update mode flag.
                     _presetToUpdateName = null;
-                    OnPropertyChanged(nameof(IsUpdateMode)); // Notify UI
+                    OnPropertyChanged(nameof(IsUpdateMode)); 
                 }
 
                 _isSavePresetPopupOpen = value;
                 OnPropertyChanged(nameof(IsSavePresetPopupOpen));
             }
         }
+
         public string NewPresetName { get; set; }
         public string NewPresetDescription { get; set; }
         public string NewPresetCategory { get; set; }
-        public string NewPresetTags { get; set; }
+        public ObservableCollection<string> NewPresetTags { get; set; } = new ObservableCollection<string>();
 
         
         public enum SavePresetType { Snippet, Layout }
@@ -1248,7 +1452,11 @@ namespace Comfizen
                     NewPresetName = existingPresetVm.Name;
                     NewPresetDescription = existingPresetVm.Model.Description;
                     NewPresetCategory = existingPresetVm.Model.Category;
-                    NewPresetTags = existingPresetVm.Model.Tags != null ? string.Join(", ", existingPresetVm.Model.Tags) : "";
+                    NewPresetTags.Clear();
+                    if (existingPresetVm.Model.Tags != null)
+                    {
+                        foreach(var t in existingPresetVm.Model.Tags) NewPresetTags.Add(t);
+                    }
 
                     NewPresetType = existingPresetVm.IsLayout ? SavePresetType.Layout : SavePresetType.Snippet;
 
@@ -1300,9 +1508,6 @@ namespace Comfizen
             {
                 if (string.IsNullOrWhiteSpace(NewPresetName)) return;
 
-                // If we were in update mode AND the name has changed, it's a "Save As" operation.
-                // We should NOT remove the old preset.
-                // If the name is the same, or we weren't in update mode, we remove the old one to perform a replace.
                 if (!string.IsNullOrEmpty(_presetToUpdateName) && _presetToUpdateName.Equals(NewPresetName, StringComparison.OrdinalIgnoreCase))
                 {
                     if (_workflow.Presets.TryGetValue(Id, out var presets))
@@ -1310,20 +1515,27 @@ namespace Comfizen
                         presets.RemoveAll(p => p.Name.Equals(_presetToUpdateName, StringComparison.OrdinalIgnoreCase));
                     }
                 }
-                
+    
                 var selectedFields = FieldsForPresetSelection.Where(f => f.IsSelected).ToList();
                 SaveCurrentStateAsPreset(NewPresetName, selectedFields, NewPresetType == SavePresetType.Layout);
-                
+    
+                // Update static metadata history
+                _lastUsedPresetName = NewPresetName;
+                _lastUsedDescription = NewPresetDescription;
                 _lastUsedCategory = NewPresetCategory;
-                _lastUsedTags = NewPresetTags;
+                _lastUsedTags = NewPresetTags.ToList();
+                _lastUsedType = NewPresetType;
+    
+                // Update static field path history
+                // We replace the set completely with the currently selected paths
                 _lastSelectedFieldPaths = new HashSet<string>(selectedFields.Select(f => f.Path));
 
                 _presetToUpdateName = null;
-                OnPropertyChanged(nameof(IsUpdateMode)); // Notify UI that we are leaving update mode
+                OnPropertyChanged(nameof(IsUpdateMode));
                 IsSavePresetPopupOpen = false;
                 NewPresetName = string.Empty;
 
-                LoadPresets(); // This will also rebuild active layers
+                LoadPresets();
                 PresetsModified?.Invoke();
 
             }, _ => !string.IsNullOrWhiteSpace(NewPresetName));
@@ -1627,7 +1839,7 @@ namespace Comfizen
             if (FilteredSnippetsView.CanGroup)
             {
                 FilteredSnippetsView.GroupDescriptions.Clear();
-                FilteredSnippetsView.GroupDescriptions.Add(new PropertyGroupDescription("Model.Category"));
+                FilteredSnippetsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(GroupPresetViewModel.DisplayCategory)));
             }
             
             // For Layouts
@@ -1636,7 +1848,7 @@ namespace Comfizen
             if (FilteredLayoutsView.CanGroup)
             {
                 FilteredLayoutsView.GroupDescriptions.Clear();
-                FilteredLayoutsView.GroupDescriptions.Add(new PropertyGroupDescription("Model.Category"));
+                FilteredLayoutsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(GroupPresetViewModel.DisplayCategory)));
             }
 
             // Manually refresh sorting
@@ -1867,10 +2079,7 @@ namespace Comfizen
             
             newPreset.Description = NewPresetDescription;
             newPreset.Category = NewPresetCategory;
-            newPreset.Tags = NewPresetTags?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                                     .Select(t => t.Trim())
-                                     .Where(t => !string.IsNullOrWhiteSpace(t))
-                                     .ToList() ?? new List<string>();
+            newPreset.Tags = NewPresetTags.ToList();
 
             if (isLayout)
             {

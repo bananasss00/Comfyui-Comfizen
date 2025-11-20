@@ -233,8 +233,7 @@
                                           Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <StackPanel Margin="5">
                                         <!-- Seed Controls -->
-                                        <Grid
-                                            Visibility="{Binding IsSeedSectionVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <Grid Visibility="{Binding IsSeedSectionVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
@@ -258,90 +257,267 @@
                                         <!-- Preset Controls -->
                                         <Grid Visibility="{Binding IsPresetsSectionVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
                                               Margin="0,5,0,0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            
-                                            <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,5">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <ComboBox Grid.Column="0" Margin="0,0,5,0"
-                                                          ItemsSource="{Binding AllCategories}"
-                                                          SelectedItem="{Binding SelectedCategoryFilter, Mode=TwoWay}"
-                                                          ToolTip="Filter by Category"/>
-                                                <ComboBox Grid.Column="1" Margin="0,0,5,0"
-                                                          ItemsSource="{Binding AllTags}"
-                                                          SelectedItem="{Binding SelectedTagFilter, Mode=TwoWay}"
-                                                          ToolTip="Filter by Tag"/>
-                                                <Button Grid.Column="2" 
-                                                        Content="&#xE711;"
-                                                        Style="{StaticResource IconButton}"
-                                                        Width="20" Height="20"
-                                                        Command="{Binding ClearFiltersCommand}"
-                                                        ToolTip="{local:Translate Presets_ClearFilters}"/>
-                                            </Grid>
 
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{local:Translate GlobalPresets_Label}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                            <TextBlock Grid.Column="0" Text="{local:Translate GlobalPresets_Label}" VerticalAlignment="Center"/>
                                             
-                                            <local:FilterableComboBox Grid.Row="1" Grid.Column="1"
-                                                                      ItemsSource="{Binding FilteredGlobalPresets}"
-                                                                      SelectedItem="{Binding SelectedGlobalPreset, Mode=TwoWay}"
-                                                                      PlaceholderText="{local:Translate Presets_LoadPlaceholder}"
-                                                                      GroupBy="Category">
-                                                
-                                                <local:FilterableComboBox.GroupStyle>
-                                                    <GroupStyle>
-                                                        <GroupStyle.HeaderTemplate>
-                                                            <DataTemplate>
-                                                                <TextBlock Text="{Binding Name, TargetNullValue='General'}" 
-                                                                           FontWeight="Bold" 
-                                                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                                                           Margin="2,5,0,2"
-                                                                           FontSize="11"/>
-                                                            </DataTemplate>
-                                                        </GroupStyle.HeaderTemplate>
-                                                    </GroupStyle>
-                                                </local:FilterableComboBox.GroupStyle>
-                                                
-                                                <local:FilterableComboBox.ItemTemplate>
-                                                    <DataTemplate DataType="{x:Type local:GlobalPreset}">
-                                                        <StackPanel>
-                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" 
-                                                                       Visibility="{Binding Description, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"
-                                                                       TextTrimming="CharacterEllipsis"/>
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </local:FilterableComboBox.ItemTemplate>
-                                                <local:FilterableComboBox.Style>
-                                                    <Style TargetType="local:FilterableComboBox">
-                                                        <Setter Property="IsEnabled" Value="True" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger
-                                                                Binding="{Binding FilteredGlobalPresets.Count}"
-                                                                Value="0">
-                                                                <Setter Property="IsEnabled" Value="False" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </local:FilterableComboBox.Style>
-                                            </local:FilterableComboBox>
+                                            <!-- Status Text (Shows current preset name) -->
+                                            <TextBlock Grid.Column="1" Text="{Binding CurrentStateStatus}" 
+                                                       VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="10,0,10,0"
+                                                       TextTrimming="CharacterEllipsis"/>
 
-                                            <Button Grid.Row="1" Grid.Column="2" Content="&#xE713;" Style="{StaticResource IconButton}"
-                                                    Command="{Binding OpenGlobalPresetEditorCommand}"
-                                                    Width="24" Height="24" Margin="5,0,0,0"
-                                                    ToolTip="{local:Translate Presets_ManageTooltip}"/>
+                                            <!-- Buttons Container -->
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                                
+                                                <!-- 1. PRESET SELECTION PANEL BUTTON -->
+                                                <Grid>
+                                                    <ToggleButton x:Name="GlobalPresetPanelToggle" 
+                                                                  Content="&#xE8B4;" 
+                                                                  FontFamily="Segoe MDL2 Assets" 
+                                                                  Style="{StaticResource IconToggleButton}" 
+                                                                  Width="24" Height="24"
+                                                                  IsChecked="{Binding IsPresetPanelOpen, Mode=TwoWay}"
+                                                                  ToolTip="{local:Translate Presets_LayersButtonTooltip}"/>
+
+                                                    <Popup StaysOpen="False"
+                                                           PlacementTarget="{Binding ElementName=GlobalPresetPanelToggle}"
+                                                           Placement="Bottom"
+                                                           AllowsTransparency="True">
+                                                        <Popup.IsOpen>
+                                                            <MultiBinding Converter="{StaticResource BooleanAndConverter}">
+                                                                <Binding Path="IsChecked" ElementName="GlobalPresetPanelToggle" Mode="TwoWay"/>
+                                                                <Binding Path="IsVisible" ElementName="GlobalPresetPanelToggle" Mode="OneWay"/>
+                                                            </MultiBinding>
+                                                        </Popup.IsOpen>
+
+                                                        <Border DataContext="{Binding DataContext, ElementName=GlobalPresetPanelToggle}"
+                                                                Background="{StaticResource SecondaryBackground}"
+                                                                BorderBrush="{StaticResource TertiaryBackground}"
+                                                                BorderThickness="1" CornerRadius="3" 
+                                                                Padding="10" Margin="0,2,0,0"
+                                                                MinWidth="350" MaxHeight="600">
+
+                                                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                                                <StackPanel>
+                                                                    <!-- Search and Sorting -->
+                                                                    <Grid Margin="0,0,0,10">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                        </Grid.ColumnDefinitions>
+
+                                                                        <TextBox Grid.Column="0"
+                                                                                 Text="{Binding PresetSearchFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                 local:TextBoxExtensions.PlaceholderText="{local:Translate Presets_SearchPlaceholder}"/>
+
+                                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,0,0,0" VerticalAlignment="Center">
+                                                                            <RadioButton Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="GlobalSort"
+                                                                                         IsChecked="{Binding CurrentPresetSortOption, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:PresetSortOption.Alphabetical}}"
+                                                                                         ToolTip="{local:Translate Presets_SortAlphabetical}">
+                                                                                <TextBlock Text="A-Z" FontFamily="Segoe UI Symbol"/>
+                                                                            </RadioButton>
+                                                                            <!-- Note: Using Alphabetical for both for now as GlobalPreset usually lacks DateModified in legacy code, can be added later -->
+                                                                        </StackPanel>
+                                                                    </Grid>
+
+                                                                    <!-- Filters -->
+                                                                    <Grid Margin="0,0,0,5">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <ComboBox Grid.Column="0" Margin="0,0,5,0"
+                                                                                  ItemsSource="{Binding AllCategories}"
+                                                                                  SelectedItem="{Binding SelectedCategoryFilter, Mode=TwoWay}"/>
+                                                                        <ComboBox Grid.Column="1" Margin="0,0,5,0"
+                                                                                  ItemsSource="{Binding AllTags}"
+                                                                                  SelectedItem="{Binding SelectedTagFilter, Mode=TwoWay}"/>
+                                                                        <Button Grid.Column="2" 
+                                                                                Content="&#xE711;"
+                                                                                Style="{StaticResource IconButton}"
+                                                                                Width="24" Height="24"
+                                                                                Command="{Binding ClearFiltersCommand}"
+                                                                                ToolTip="{local:Translate Presets_ClearFilters}"/>
+                                                                    </Grid>
+
+                                                                    <!-- List of Global Presets -->
+                                                                    <ItemsControl ItemsSource="{Binding FilteredGlobalPresetsView}" Margin="0,5,0,0">
+                                                                        <ItemsControl.GroupStyle>
+                                                                            <GroupStyle>
+                                                                                <GroupStyle.HeaderTemplate>
+                                                                                    <DataTemplate>
+                                                                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="0,5,0,2" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                                                   Visibility="{Binding Name, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                                                    </DataTemplate>
+                                                                                </GroupStyle.HeaderTemplate>
+                                                                            </GroupStyle>
+                                                                        </ItemsControl.GroupStyle>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate DataType="{x:Type local:GlobalPreset}">
+                                                                                <Button Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}" 
+                                                                                        CommandParameter="{Binding}" 
+                                                                                        HorizontalContentAlignment="Stretch">
+                                                                                    <Button.ToolTip>
+                                                                                        <ToolTip MaxWidth="400">
+                                                                                            <StackPanel>
+                                                                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="0,0,0,5"/>
+                                                                                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontStyle="Italic"
+                                                                                                           Visibility="{Binding Description, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"/>
+                                                                                                <TextBlock Margin="0,5,0,0" Visibility="{Binding Tags.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                                                                                                    <Run Text="Tags:" FontWeight="SemiBold"/>
+                                                                                                    <Run Text="{Binding Tags, Converter={StaticResource StringListConverter}}"/>
+                                                                                                </TextBlock>
+                                                                                            </StackPanel>
+                                                                                        </ToolTip>
+                                                                                    </Button.ToolTip>
+                                                                                    
+                                                                                    <Grid Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Button}}">
+                                                                                        <Grid.ColumnDefinitions>
+                                                                                            <ColumnDefinition Width="Auto"/>
+                                                                                            <ColumnDefinition Width="*"/>
+                                                                                            <ColumnDefinition Width="Auto"/>
+                                                                                        </Grid.ColumnDefinitions>
+                                                                                        
+                                                                                        <ToggleButton Grid.Column="0" Content="&#xE734;" 
+                                                                                                      IsChecked="{Binding IsFavorite, Mode=OneWay}"
+                                                                                                      Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=Popup}}" 
+                                                                                                      CommandParameter="{Binding}"
+                                                                                                      Width="20" Height="20">
+                                                                                            <ToggleButton.Style>
+                                                                                                <Style TargetType="ToggleButton" BasedOn="{StaticResource IconToggleButton}">
+                                                                                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                                                                    <Style.Triggers>
+                                                                                                        <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                                            <Setter Property="Foreground" Value="Gold"/>
+                                                                                                            <Setter Property="Content" Value="&#xE735;"/>
+                                                                                                        </DataTrigger>
+                                                                                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                                        </DataTrigger>
+                                                                                                    </Style.Triggers>
+                                                                                                </Style>
+                                                                                            </ToggleButton.Style>
+                                                                                        </ToggleButton>
+
+                                                                                        <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" Margin="5,0,0,0" TextWrapping="Wrap"/>
+
+                                                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                            <Button Content="&#xE70F;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_UpdateTooltip}"
+                                                                                                    Command="{Binding DataContext.StartUpdatePresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                                                                                    CommandParameter="{Binding}"/>
+                                                                                            <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_DeleteTooltip}"
+                                                                                                    Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                                                                                    CommandParameter="{Binding}"/>
+                                                                                            <StackPanel.Style>
+                                                                                                <Style TargetType="StackPanel">
+                                                                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                                                                    <Style.Triggers>
+                                                                                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                                        </DataTrigger>
+                                                                                                    </Style.Triggers>
+                                                                                                </Style>
+                                                                                            </StackPanel.Style>
+                                                                                        </StackPanel>
+                                                                                    </Grid>
+                                                                                </Button>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </StackPanel>
+                                                            </ScrollViewer>
+                                                        </Border>
+                                                    </Popup>
+                                                </Grid>
+
+                                                <!-- 2. SAVE/UPDATE BUTTON -->
+                                                <Grid>
+                                                    <ToggleButton x:Name="GlobalSavePresetToggle" 
+                                                                  Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" 
+                                                                  Style="{StaticResource IconToggleButton}" Width="24" Height="24"
+                                                                  IsChecked="{Binding IsSavePresetPopupOpen, Mode=TwoWay}"
+                                                                  ToolTip="{local:Translate Presets_SaveButton}"/>
+
+                                                    <Popup PlacementTarget="{Binding ElementName=GlobalSavePresetToggle}"
+                                                           StaysOpen="False"
+                                                           Placement="Bottom"
+                                                           AllowsTransparency="True">
+                                                        <Popup.IsOpen>
+                                                            <MultiBinding Converter="{StaticResource BooleanAndConverter}">
+                                                                <Binding Path="IsChecked" ElementName="GlobalSavePresetToggle" Mode="TwoWay"/>
+                                                                <Binding Path="IsVisible" ElementName="GlobalSavePresetToggle" Mode="OneWay"/>
+                                                            </MultiBinding>
+                                                        </Popup.IsOpen>
+
+                                                        <Border Background="{StaticResource SecondaryBackground}"
+                                                                BorderBrush="{StaticResource TertiaryBackground}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="3" Padding="10"
+                                                                Margin="0,2,0,0">
+                                                            <StackPanel MinWidth="300">
+                                                                <TextBlock FontWeight="Bold" Margin="0,0,0,10">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Text" Value="{local:Translate Presets_SaveCurrentState}"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsUpdateMode}" Value="True">
+                                                                                    <Setter Property="Text" Value="{local:Translate Presets_UpdatePreset}"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+
+                                                                <!-- Name -->
+                                                                <TextBlock Text="Name" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
+                                                                <TextBox Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+
+                                                                <!-- Description -->
+                                                                <TextBlock Text="Description" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
+                                                                <TextBox Text="{Binding NewPresetDescription, UpdateSourceTrigger=PropertyChanged}" MinLines="2" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Margin="0,0,0,8"/>
+
+                                                                <!-- Category -->
+                                                                <TextBlock Text="Category" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
+                                                                <ComboBox IsEditable="True" ItemsSource="{Binding AllCategories}" 
+                                                                          Text="{Binding NewPresetCategory, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+
+                                                                <!-- Tags -->
+                                                                <TextBlock Text="Tags" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
+                                                                <local:TagEditor Tags="{Binding NewPresetTags}" 
+                                                                                 AvailableTags="{Binding AllTags}"
+                                                                                 Margin="0,0,0,8"/>
+
+                                                                <!-- Save Button -->
+                                                                <Button Command="{Binding SavePresetCommand}"
+                                                                        HorizontalAlignment="Right"
+                                                                        IsDefault="True" Margin="0,5,0,0">
+                                                                    <Button.Style>
+                                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                            <Setter Property="Content" Value="{local:Translate Presets_SaveButton}"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsUpdateMode}" Value="True">
+                                                                                    <Setter Property="Content" Value="{local:Translate Presets_UpdateButton}"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Button.Style>
+                                                                </Button>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </Popup>
+                                                </Grid>
+                                            </StackPanel>
                                         </Grid>
 
+                                        <!-- Hooks Section (Unchanged) -->
                                         <Border Margin="0,5,0,0" Padding="0,5,0,0" BorderThickness="0,1,0,0"
                                                 BorderBrush="{StaticResource TertiaryBackground}"
                                                 Visibility="{Binding IsHooksSectionVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -443,8 +619,11 @@
                                                               Margin="0,2,0,0"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                                                    <TextBlock Text="Tags (comma separated)" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                                    <TextBox Text="{Binding EditingTags, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="Tags" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    
+                                                    <local:TagEditor Tags="{Binding EditingTags}" 
+                                                                     AvailableTags="{Binding AllTags}"
+                                                                     Margin="0,2,0,0"/>
                                                 </StackPanel>
                                             </Grid>
                                             

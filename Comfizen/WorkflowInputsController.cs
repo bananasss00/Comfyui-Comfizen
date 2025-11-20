@@ -201,7 +201,15 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         });
         
-        GlobalControls = new GlobalControlsViewModel(ApplyGlobalPreset);
+
+        GlobalControls = new GlobalControlsViewModel(
+            ApplyGlobalPreset,       // Argument 1: Apply
+            GetCurrentGlobalState,   // Argument 2: Get State (Callback defined below)
+            SaveGlobalPreset,        // Argument 3: Save
+            DeleteGlobalPreset       // Argument 4: Delete
+        );
+        
+
         GlobalControls.OpenGlobalPresetEditorCommand = new RelayCommand(_ => OpenGlobalPresetEditor());
         
         this.PropertyChanged += (s, e) => {
@@ -272,6 +280,15 @@ public class WorkflowInputsController : INotifyPropertyChanged
         });
     }
     
+    // Helper for constructor
+    private Dictionary<Guid, List<string>> GetCurrentGlobalState()
+    {
+        var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
+        return allGroups
+            .Where(g => g.ActiveLayers.Any())
+            .ToDictionary(g => g.Id, g => g.ActiveLayers.Select(l => l.Name).ToList());
+    }
+    
     private void OpenGlobalPresetEditor()
     {
         var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
@@ -281,57 +298,48 @@ public class WorkflowInputsController : INotifyPropertyChanged
             allGroups,
             SaveGlobalPreset,
             DeleteGlobalPreset,
-            () => // Pass a function to get the current state
-            {
-                return allGroups
-                    .Where(g => g.ActiveLayers.Any())
-                    .ToDictionary(g => g.Id, g => g.ActiveLayers.Select(l => l.Name).ToList());
-            }
+            GetCurrentGlobalState // Use the same helper
         );
 
-        // Load the current UI state into the editor when it opens
         GlobalPresetEditor.LoadCurrentStateIntoEditor();
-
         IsGlobalPresetEditorOpen = true;
     }
 
     private void SaveGlobalPreset(GlobalPreset presetToSave)
     {
-        // Remove old version if it exists
-        var existing = _workflow.GlobalPresets.FirstOrDefault(p => p.Name == presetToSave.Name);
-        if (existing != null)
+        if (presetToSave != null)
         {
-            _workflow.GlobalPresets.Remove(existing);
+            var existing = _workflow.GlobalPresets.FirstOrDefault(p => p.Name == presetToSave.Name);
+            if (existing != null) _workflow.GlobalPresets.Remove(existing);
+            
+            _workflow.GlobalPresets.Add(presetToSave);
+            
+            GlobalControls.SelectedGlobalPreset = presetToSave;
         }
-        
-        _workflow.GlobalPresets.Add(presetToSave);
-        
-        // Notify the parent tab to trigger a workflow file save
         PresetsModifiedInGroup?.Invoke();
-        
-        // Reload the presets in the UI
-        LoadGlobalPresets();
-        
-        // Reselect the saved preset
-        GlobalControls.SelectedGlobalPreset = presetToSave;
     }
 
     private void DeleteGlobalPreset(GlobalPreset presetToDelete)
     {
-        if (MessageBox.Show(
-            string.Format(LocalizationService.Instance["Presets_DeleteConfirmMessage"], presetToDelete.Name),
-            LocalizationService.Instance["Presets_DeleteConfirmTitle"],
-            MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
-        {
-            return;
-        }
+        bool proceed = !_settings.ShowPresetDeleteConfirmation ||
+                       (MessageBox.Show(
+                           string.Format(LocalizationService.Instance["Presets_DeleteConfirmMessage"], presetToDelete.Name),
+                           LocalizationService.Instance["Presets_DeleteConfirmTitle"],
+                           MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
+
+        if (!proceed) return;
 
         var existing = _workflow.GlobalPresets.FirstOrDefault(p => p.Name == presetToDelete.Name);
         if (existing != null)
         {
             _workflow.GlobalPresets.Remove(existing);
+            
+            if (GlobalControls.GlobalPresets.Contains(presetToDelete))
+            {
+                GlobalControls.GlobalPresets.Remove(presetToDelete);
+            }
+            
             PresetsModifiedInGroup?.Invoke();
-            LoadGlobalPresets();
         }
     }
     

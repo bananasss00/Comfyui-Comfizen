@@ -1610,8 +1610,10 @@
                                           local:TextBoxExtensions.PlaceholderText="Выберите или создайте категорию"/>
 
                                 <!-- Tags -->
-                                <TextBlock Text="Tags (Optional, comma-separated)" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
-                                <TextBox Text="{Binding NewPresetTags, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                                <TextBlock Text="Tags" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
+                                <local:TagEditor Tags="{Binding NewPresetTags}" 
+                                                 AvailableTags="{Binding AllTags}"
+                                                 Margin="0,0,0,8"/>
 
                                 <Grid>
                                     <Grid.RowDefinitions>

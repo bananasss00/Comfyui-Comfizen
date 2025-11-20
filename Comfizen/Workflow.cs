@@ -124,6 +124,15 @@ namespace Comfizen
 
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string Category { get; set; }
+        
+        [JsonIgnore]
+        public string DisplayCategory => string.IsNullOrWhiteSpace(Category) 
+            ? LocalizationService.Instance["Presets_Category_General"] 
+            : Category;
+        
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(false)]
+        public bool IsFavorite { get; set; }
 
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public List<string> Tags { get; set; } = new List<string>();
@@ -142,6 +151,7 @@ namespace Comfizen
                 Name = this.Name,
                 Description = this.Description,
                 Category = this.Category,
+                IsFavorite = this.IsFavorite,
                 Tags = this.Tags != null ? new List<string>(this.Tags) : new List<string>(),
                 GroupStates = this.GroupStates.ToDictionary(
                     entry => entry.Key,

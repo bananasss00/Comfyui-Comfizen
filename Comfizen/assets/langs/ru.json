@@ -272,7 +272,7 @@
   "Presets_SelectAll": "Выбрать все",
   "Presets_DeselectAll": "Снять все",
   "GlobalPresets_Header": "Глобальные пресеты",
-  "GlobalPresets_Label": "Применить пресет:",
+  "GlobalPresets_Label": "Глобальные пресеты",
   "Tab_PauseQueue": "Поставить очередь на паузу (текущая задача завершится)",
   "Tab_ResumeQueue": "Возобновить очередь",
   "Tab_InterruptGeneration": "Прервать генерацию на сервере",
@@ -395,5 +395,6 @@
   "UIConstructor_Preset_Tooltip": "Выбрать пресет диапазона",
   "UIConstructor_Preset_SearchPlaceholder": "Поиск пресетов...",
   "UIConstructor_Preset_ShowAll": "Показать все типы",
-  "UIConstructor_Field_ItemsTooltip": "Введите значения, каждое с новой строки.\nДля разделения имени и значения API используйте ' :: '.\nПример: 'Красивое имя :: api_value'\nЕсли разделителя нет, имя будет равно значению."
+  "UIConstructor_Field_ItemsTooltip": "Введите значения, каждое с новой строки.\nДля разделения имени и значения API используйте ' :: '.\nПример: 'Красивое имя :: api_value'\nЕсли разделителя нет, имя будет равно значению.",
+  "Presets_Category_General": "Общее"
 }
