@@ -1438,5 +1438,82 @@ namespace Comfizen
         {
             e.Handled = true;
         }
+        private void AddLayerCombo_ItemClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is ComboBoxItem item && item.DataContext is string presetName)
+            {
+                var frameworkElement = item as FrameworkElement;
+                var parentItemsControl = FindVisualParent<ItemsControl>(frameworkElement);
+                
+                if (parentItemsControl != null && parentItemsControl.DataContext is GlobalPresetConfigurationItem configItem)
+                {
+                    if (configItem.AddLayerCommand.CanExecute(presetName))
+                    {
+                        configItem.AddLayerCommand.Execute(presetName);
+                        
+                        if (parentItemsControl is ComboBox comboBox)
+                        {
+                            comboBox.IsDropDownOpen = false;
+                            comboBox.SelectedItem = null;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Closes the "Add Layer" popup when an item is clicked inside the global preset editor.
+        /// </summary>
+        private void AddLayerPopupItem_Click(object sender, RoutedEventArgs e)
+        {
+            // Find the ToggleButton that owns the Popup and uncheck it to close the popup
+            if (sender is DependencyObject dep)
+            {
+                // The visual tree inside a Popup is disconnected, so we traverse up to the Popup content root
+                // However, simpler approach: find the ToggleButton by navigating logical parent of the popup placement target?
+                // Or just set IsOpen=false if we can find the popup.
+                
+                // Easier way: Find the parent ItemsControl, then find the Popup or ToggleButton in visual tree? No.
+                
+                // Best way given the XAML structure: 
+                // The Button is inside ItemsControl -> ScrollViewer -> Grid -> Border -> Popup.
+                // But standard VisualTreeHelper doesn't walk out of a Popup.
+                
+                // Alternative: We bind Popup.IsOpen to ToggleButton.IsChecked.
+                // We can find the ToggleButton via the PlacementTarget of the Popup, 
+                // but we need reference to the Popup first.
+                
+                // Let's just close any open ToggleButton in the visual tree of this specific scope if possible.
+                // Or, since we are in a specific context, we can try to find the parent Popup from the sender.
+                
+                var parentPopup = FindParentPopup(dep);
+                if (parentPopup != null)
+                {
+                     parentPopup.IsOpen = false;
+                }
+            }
+        }
+
+        private Popup FindParentPopup(DependencyObject child)
+        {
+            DependencyObject parent = child;
+            while (parent != null)
+            {
+                if (parent is Popup p) return p;
+                if (parent is FrameworkElement fe && fe.Parent is Popup pp) return pp; // Logical parent check
+                
+                // VisualTreeHelper works within the popup content
+                var nextParent = VisualTreeHelper.GetParent(parent);
+                
+                // If we hit null, try Logical parent (needed for Popup content sometimes)
+                if (nextParent == null && parent is FrameworkElement f)
+                {
+                    nextParent = f.Parent;
+                }
+                
+                parent = nextParent;
+            }
+            return null;
+        }
     }
 }

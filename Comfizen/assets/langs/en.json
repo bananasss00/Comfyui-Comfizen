@@ -405,5 +405,14 @@
   "GlobalPresets_NoPresets": "No active presets",
   "GlobalPresets_HelpText": "Select which groups to affect and what state (local preset) they should switch to.",
   "GlobalPresets_GroupColumn": "Group",
-  "GlobalPresets_PresetColumn": "State (Preset)"
+  "GlobalPresets_PresetColumn": "State (Preset)",
+  "GlobalPresets_AddLayerTooltip": "Add layer...",
+  "GlobalPresets_RemoveLayerTooltip": "Remove layer",
+  "GlobalPresets_FilterCategoryTooltip": "Filter by Category",
+  "GlobalPresets_FilterTagTooltip": "Filter by Tag",
+  "GlobalPresets_NoMatchingPresets": "No matching presets found",
+  "Presets_FieldsInPreset": "Fields in preset:",
+  "Presets_Info_Description": "Description:",
+  "Presets_Info_Category": "Category:",
+  "Presets_Info_Tags": "Tags:"
 }

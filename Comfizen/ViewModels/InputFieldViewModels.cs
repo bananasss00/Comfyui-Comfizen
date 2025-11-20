@@ -305,31 +305,157 @@ namespace Comfizen
         }
     }
     
+    public class GlobalPresetTooltipGroup
+    {
+        public string GroupName { get; set; }
+        public List<ActiveLayerDetail> Layers { get; set; }
+    }
+    
+    public class ActiveLayerDetail
+    {
+        public string LayerName { get; set; }
+        public bool IsLayout { get; set; }
+        public List<PresetFieldInfo> Fields { get; set; }
+    }
+    
     [AddINotifyPropertyChangedInterface]
     public class GlobalPresetConfigurationItem
     {
         public string GroupName { get; set; }
         public Guid GroupId { get; set; }
-    
-        /// <summary>
-        /// Checked by default if the group has active layers.
-        /// </summary>
         public bool IsSelected { get; set; }
-    
-        /// <summary>
-        /// Can be selected only if there are active presets to save.
-        /// </summary>
         public bool IsEnabled { get; set; }
 
-        /// <summary>
-        /// Display text showing what will be saved (e.g., "High Quality" or "Snippet A + Snippet B")
-        /// </summary>
-        public string StateDescription { get; set; }
-    
-        /// <summary>
-        /// The actual data to be saved for this group.
-        /// </summary>
-        public List<string> ActiveLayerNames { get; set; }
+        public ObservableCollection<string> ActiveLayers { get; set; } = new ObservableCollection<string>();
+
+        // --- LOGIC FOR ADVANCED PICKER ---
+        
+        public ObservableCollection<GroupPresetViewModel> AllPresetsSource { get; private set; }
+        public ICollectionView FilteredPresetsView { get; private set; }
+
+        public string SearchFilter { get; set; }
+        public ObservableCollection<string> FilterCategories { get; } = new ObservableCollection<string>();
+        public string SelectedCategory { get; set; } = "[ All ]";
+        
+        public ObservableCollection<string> FilterTags { get; } = new ObservableCollection<string>();
+        public string SelectedTag { get; set; } = "[ All ]";
+
+        public ICommand RemoveLayerCommand { get; }
+        public ICommand AddLayerCommand { get; }
+        public ICommand ClearFiltersCommand { get; }
+        
+        public ObservableCollection<ActiveLayerDetail> DetailedStateInfo { get; } = new ObservableCollection<ActiveLayerDetail>();
+
+        public GlobalPresetConfigurationItem(IEnumerable<GroupPresetViewModel> availablePresets)
+        {
+            AllPresetsSource = new ObservableCollection<GroupPresetViewModel>(availablePresets);
+            
+            FilteredPresetsView = CollectionViewSource.GetDefaultView(AllPresetsSource);
+            FilteredPresetsView.Filter = FilterPredicate;
+            
+            FilteredPresetsView.SortDescriptions.Add(new SortDescription("IsLayout", ListSortDirection.Ascending));
+            FilteredPresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+
+            PopulateFilters();
+            
+            ActiveLayers.CollectionChanged += (s, e) => UpdateDetailedState();
+            
+            UpdateDetailedState();
+            
+            RemoveLayerCommand = new RelayCommand(param =>
+            {
+                if (param is string layerName && ActiveLayers.Contains(layerName))
+                {
+                    ActiveLayers.Remove(layerName);
+                    FilteredPresetsView.Refresh(); 
+                }
+            });
+
+            AddLayerCommand = new RelayCommand(param =>
+            {
+                string layerName = null;
+                if (param is GroupPresetViewModel vm) layerName = vm.Name;
+                else if (param is string s) layerName = s;
+
+                if (!string.IsNullOrEmpty(layerName) && !ActiveLayers.Contains(layerName))
+                {
+                    ActiveLayers.Add(layerName);
+                    IsSelected = true;
+                    FilteredPresetsView.Refresh();
+                }
+            });
+            
+            ClearFiltersCommand = new RelayCommand(_ =>
+            {
+                SearchFilter = "";
+                SelectedCategory = "[ All ]";
+                SelectedTag = "[ All ]";
+            });
+        }
+
+        private void UpdateDetailedState()
+        {
+            DetailedStateInfo.Clear();
+            
+            foreach (var layerName in ActiveLayers)
+            {
+                var preset = AllPresetsSource.FirstOrDefault(p => p.Name == layerName);
+                if (preset != null)
+                {
+                    DetailedStateInfo.Add(new ActiveLayerDetail
+                    {
+                        LayerName = layerName,
+                        IsLayout = preset.IsLayout,
+                        Fields = preset.FieldDetails 
+                    });
+                }
+            }
+        }
+
+        private void PopulateFilters()
+        {
+            var allStr = "[ All ]";
+            
+            FilterCategories.Add(allStr);
+            var cats = AllPresetsSource.Select(p => p.Model.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c);
+            foreach (var c in cats) FilterCategories.Add(c);
+
+            FilterTags.Add(allStr);
+            var tags = AllPresetsSource.SelectMany(p => p.Model.Tags ?? new List<string>()).Distinct().OrderBy(t => t);
+            foreach (var t in tags) FilterTags.Add(t);
+        }
+
+        private bool FilterPredicate(object obj)
+        {
+            if (obj is not GroupPresetViewModel preset) return false;
+
+            if (ActiveLayers.Contains(preset.Name)) return false; 
+
+            if (SelectedCategory != "[ All ]" && preset.Model.Category != SelectedCategory) return false;
+            if (SelectedTag != "[ All ]" && (preset.Model.Tags == null || !preset.Model.Tags.Contains(SelectedTag))) return false;
+
+            if (!string.IsNullOrWhiteSpace(SearchFilter))
+            {
+                var terms = SearchFilter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var term in terms)
+                {
+                    bool matchName = preset.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!matchName) return false;
+                }
+            }
+
+            return true;
+        }
+
+        public void OnPropertyChanged(string propertyName, object before, object after)
+        {
+            if (propertyName == nameof(SearchFilter) || 
+                propertyName == nameof(SelectedCategory) || 
+                propertyName == nameof(SelectedTag))
+            {
+                FilteredPresetsView?.Refresh();
+            }
+        }
     }
     
     /// <summary>
@@ -338,6 +464,8 @@ namespace Comfizen
     [AddINotifyPropertyChangedInterface]
     public class GlobalControlsViewModel : INotifyPropertyChanged
     {
+        private bool _isInternalUpdate = false; 
+        
         public string Header { get; set; } = LocalizationService.Instance["GlobalSettings_Header"];
         public bool IsExpanded { get; set; } = true;
         
@@ -363,7 +491,50 @@ namespace Comfizen
                 _selectedGlobalPreset = value;
                 OnPropertyChanged(nameof(SelectedGlobalPreset));
                 OnPropertyChanged(nameof(CurrentStateStatus));
+                OnPropertyChanged(nameof(CurrentPresetTooltipData)); 
             }
+        }
+        
+        public IEnumerable<GlobalPresetTooltipGroup> CurrentPresetTooltipData => GetTooltipDataForPreset(SelectedGlobalPreset);
+
+        public IEnumerable<GlobalPresetTooltipGroup> GetTooltipDataForPreset(GlobalPreset preset)
+        {
+            if (preset == null) return null;
+
+            var result = new List<GlobalPresetTooltipGroup>();
+
+            foreach (var groupState in preset.GroupStates)
+            {
+                var groupVm = _allAvailableGroups.FirstOrDefault(g => g.Id == groupState.Key);
+                if (groupVm == null) continue;
+
+                var layerDetails = new List<ActiveLayerDetail>();
+
+                foreach (var layerName in groupState.Value)
+                {
+                    var presetVm = groupVm.AllPresets.FirstOrDefault(p => p.Name == layerName);
+                    if (presetVm != null)
+                    {
+                        layerDetails.Add(new ActiveLayerDetail
+                        {
+                            LayerName = layerName,
+                            IsLayout = presetVm.IsLayout,
+                            Fields = presetVm.FieldDetails
+                        });
+                    }
+                }
+
+                if (layerDetails.Any())
+                {
+                    result.Add(new GlobalPresetTooltipGroup
+                    {
+                        GroupName = groupVm.Name,
+                        Layers = layerDetails
+                    });
+                }
+            }
+
+            return result.OrderBy(x => x.GroupName).ToList();
         }
         
         public ICommand OpenGlobalPresetEditorCommand { get; set; }
@@ -494,6 +665,8 @@ namespace Comfizen
             
             GlobalPresets.CollectionChanged += (s, e) => 
             {
+                if (_isInternalUpdate) return;
+                
                 OnPropertyChanged(nameof(IsPresetsSectionVisible));
                 PopulateCategoriesAndTags();
                 FilteredGlobalPresetsView?.Refresh();
@@ -620,51 +793,52 @@ namespace Comfizen
         {
             PresetConfigurationItems.Clear();
 
-            // If we are updating an existing preset, we need to know which groups were originally included
             var existingPreset = IsUpdateMode ? GlobalPresets.FirstOrDefault(p => p.Name == _presetToUpdateName) : null;
             
             foreach (var group in _allAvailableGroups.OrderBy(g => g.Name))
             {
-                var activeLayerNames = group.ActiveLayers.Select(l => l.Name).ToList();
-                bool hasActiveLayers = activeLayerNames.Any();
-                
-                // Determine if this group should be checked by default
-                bool isSelected;
-                if (IsUpdateMode && existingPreset != null)
+                List<string> layersToLoad;
+                bool shouldBeSelected;
+
+                bool isGroupInSavedPreset = IsUpdateMode && existingPreset != null && existingPreset.GroupStates.ContainsKey(group.Id);
+
+                if (isGroupInSavedPreset)
                 {
-                    // If updating, select only if it was part of the original preset
-                    isSelected = existingPreset.GroupStates.ContainsKey(group.Id);
+                    layersToLoad = existingPreset.GroupStates[group.Id].ToList();
+                    shouldBeSelected = true;
+                }
+                else
+                {
+                    layersToLoad = group.ActiveLayers.Select(l => l.Name).ToList();
                     
-                    // Edge case: If the group was in the preset but currently has no layers, 
-                    // we can't select it (because there is nothing to save), unless we want to save an "empty" state?
-                    // Usually global presets enforce specific presets. If no preset is active, we disable it.
-                    if (!hasActiveLayers) isSelected = false; 
+                    if (IsUpdateMode)
+                    {
+                        shouldBeSelected = false;
+                    }
+                    else
+                    {
+                        shouldBeSelected = layersToLoad.Any();
+                    }
                 }
-                else
-                {
-                    // New preset: select everything that has something active
-                    isSelected = hasActiveLayers;
-                }
+                
+                var allGroupPresets = group.AllPresets; // Передаем коллекцию целиком
 
-                string stateDesc;
-                if (!hasActiveLayers)
-                {
-                    stateDesc = LocalizationService.Instance["GlobalPresets_NoPresets"];
-                }
-                else
-                {
-                    stateDesc = string.Join(" + ", activeLayerNames);
-                }
-
-                PresetConfigurationItems.Add(new GlobalPresetConfigurationItem
+                var item = new GlobalPresetConfigurationItem(allGroupPresets)
                 {
                     GroupName = group.Name,
                     GroupId = group.Id,
-                    IsSelected = isSelected,
-                    IsEnabled = hasActiveLayers, // Cannot include a group if it has no active presets
-                    StateDescription = stateDesc,
-                    ActiveLayerNames = activeLayerNames
-                });
+                    IsSelected = shouldBeSelected,
+                    IsEnabled = group.AllPresets.Any() 
+                };
+
+                foreach (var layer in layersToLoad)
+                {
+                    item.ActiveLayers.Add(layer);
+                }
+                
+                item.FilteredPresetsView.Refresh();
+                
+                PresetConfigurationItems.Add(item);
             }
         }
 
@@ -688,50 +862,66 @@ namespace Comfizen
         
         private void SaveChanges()
         {
-            // var currentState = _getCurrentStateCallback(); // <-- DELETE OR COMMENT OUT THIS OLD LINE
-        
-            if (IsUpdateMode && !string.Equals(_presetToUpdateName, NewPresetName, StringComparison.OrdinalIgnoreCase))
-            {
-                var old = GlobalPresets.FirstOrDefault(p => p.Name == _presetToUpdateName);
-                if (old != null) GlobalPresets.Remove(old);
-            }
-            else 
-            {
-                var existing = GlobalPresets.FirstOrDefault(p => p.Name == NewPresetName);
-                if (existing != null) GlobalPresets.Remove(existing);
-            }
+            var safeName = NewPresetName;
+            var safeDescription = NewPresetDescription;
+            var safeCategory = NewPresetCategory;
+            var safeTags = NewPresetTags.ToList();
 
-            var newPreset = new GlobalPreset
+            _isInternalUpdate = true;
+            
+            try
             {
-                Name = NewPresetName,
-                Description = NewPresetDescription,
-                Category = NewPresetCategory,
-                Tags = NewPresetTags.ToList(),
-            };
-        
-            // --- CHANGED: Build GroupStates from our configuration items ---
-            foreach (var item in PresetConfigurationItems)
-            {
-                if (item.IsSelected && item.IsEnabled)
+                if (IsUpdateMode && !string.Equals(_presetToUpdateName, safeName, StringComparison.OrdinalIgnoreCase))
                 {
-                    newPreset.GroupStates[item.GroupId] = item.ActiveLayerNames;
+                     var old = GlobalPresets.FirstOrDefault(p => p.Name == _presetToUpdateName);
+                     if (old != null) GlobalPresets.Remove(old);
                 }
-            }
-            // -------------------------------------------------------------
-        
-            _lastUsedName = NewPresetName;
-            _lastUsedDescription = NewPresetDescription;
-            _lastUsedCategory = NewPresetCategory;
-            _lastUsedTags = NewPresetTags.ToList();
-        
-            GlobalPresets.Add(newPreset);
-        
-            _saveCallback(newPreset);
+                else 
+                {
+                    var existing = GlobalPresets.FirstOrDefault(p => p.Name == safeName);
+                    if (existing != null) GlobalPresets.Remove(existing);
+                }
 
-            SelectedGlobalPreset = newPreset;
-            IsSavePresetPopupOpen = false;
-            NewPresetName = "";
-            NewPresetDescription = "";
+                var newPreset = new GlobalPreset
+                {
+                    Name = safeName,
+                    Description = safeDescription,
+                    Category = safeCategory,
+                    Tags = safeTags,
+                };
+                
+                foreach (var item in PresetConfigurationItems)
+                {
+                    if (item.IsSelected && item.ActiveLayers.Any())
+                    {
+                        newPreset.GroupStates[item.GroupId] = item.ActiveLayers.ToList();
+                    }
+                }
+                
+                _lastUsedName = safeName;
+                _lastUsedDescription = safeDescription;
+                _lastUsedCategory = safeCategory;
+                _lastUsedTags = safeTags;
+                
+                GlobalPresets.Add(newPreset);
+                
+                _saveCallback(newPreset);
+
+                SelectedGlobalPreset = newPreset;
+            }
+            finally
+            {
+                _isInternalUpdate = false;
+                
+                OnPropertyChanged(nameof(IsPresetsSectionVisible));
+                PopulateCategoriesAndTags();
+                FilteredGlobalPresetsView?.Refresh();
+                
+                IsSavePresetPopupOpen = false;
+                NewPresetName = "";
+                NewPresetDescription = "";
+                NewPresetCategory = "";
+            }
         }
         
         /// <summary>

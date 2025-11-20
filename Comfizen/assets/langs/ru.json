@@ -404,5 +404,14 @@
   "GlobalPresets_NoPresets": "Нет активных пресетов",
   "GlobalPresets_HelpText": "Выберите, какие группы затронет этот пресет и в какое состояние (локальный пресет) они должны перейти.",
   "GlobalPresets_GroupColumn": "Группа",
-  "GlobalPresets_PresetColumn": "Состояние (Пресет)"
+  "GlobalPresets_PresetColumn": "Состояние (Пресет)",
+  "GlobalPresets_AddLayerTooltip": "Добавить слой...",
+  "GlobalPresets_RemoveLayerTooltip": "Удалить слой",
+  "GlobalPresets_FilterCategoryTooltip": "Фильтр по категориям",
+  "GlobalPresets_FilterTagTooltip": "Фильтр по тегам",
+  "GlobalPresets_NoMatchingPresets": "Подходящих пресетов не найдено",
+  "Presets_FieldsInPreset": "Поля в пресете:",
+  "Presets_Info_Description": "Описание:",
+  "Presets_Info_Category": "Категория:",
+  "Presets_Info_Tags": "Теги:"
 }

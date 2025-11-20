@@ -32,7 +32,30 @@
         <local:WorkflowTemplateSelector x:Key="WorkflowTemplateSelector"
                                         WorkflowTemplate="{StaticResource WorkflowItemTemplate}"
                                         HeaderTemplate="{StaticResource WorkflowHeaderTemplate}" />
-
+        
+        <Style x:Key="TextToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}">
+                            <TextBlock Text="{TemplateBinding Content}" 
+                                       TextDecorations="Underline" 
+                                       HorizontalAlignment="Left" 
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryAccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -266,10 +289,121 @@
                                             <TextBlock Grid.Column="0" Text="{local:Translate GlobalPresets_Label}" VerticalAlignment="Center"/>
                                             
                                             <!-- Status Text (Shows current preset name) -->
-                                            <TextBlock Grid.Column="1" Text="{Binding CurrentStateStatus}" 
-                                                       VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="10,0,10,0"
-                                                       TextTrimming="CharacterEllipsis"/>
+                                            <Grid Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,10,0" MaxWidth="350">
+                                                <ToggleButton x:Name="GlobalPresetInfoToggle" Cursor="Hand" Background="Transparent" BorderThickness="0" Padding="0">
+                                                    <ToggleButton.Template>
+                                                        <ControlTemplate TargetType="ToggleButton">
+                                                            <Border Background="Transparent">
+                                                                <TextBlock Text="{Binding CurrentStateStatus}" 
+                                                                           Foreground="{StaticResource TextSecondaryBrush}" 
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           TextDecorations="Underline">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Style.Triggers>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                                                                </Trigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </ToggleButton.Template>
+                                                </ToggleButton>
+
+                                                <Popup IsOpen="{Binding IsChecked, ElementName=GlobalPresetInfoToggle, Mode=TwoWay}"
+                                                       StaysOpen="False"
+                                                       PlacementTarget="{Binding ElementName=GlobalPresetInfoToggle}"
+                                                       Placement="Bottom"
+                                                       AllowsTransparency="True"
+                                                       PopupAnimation="Fade">
+                                                    
+                                                    <Border Background="{StaticResource SecondaryBackground}" 
+                                                            BorderBrush="{StaticResource TertiaryBackground}" 
+                                                            BorderThickness="1" 
+                                                            CornerRadius="3" 
+                                                            Padding="10" 
+                                                            Margin="0,2,0,0"
+                                                            MouseLeftButtonDown="StopEventPropagation">
+                                                        
+                                                        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500" BorderThickness="0" Padding="0,0,10,0">
+                                                            <StackPanel MaxWidth="500" Visibility="{Binding SelectedGlobalPreset, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}">
+                                                                
+                                                                <Grid Margin="0,0,0,10">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="{Binding SelectedGlobalPreset.Name}" FontWeight="Bold" FontSize="14" TextWrapping="Wrap"/>
+                                                                        <TextBlock Text="{Binding SelectedGlobalPreset.Description}" FontStyle="Italic" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"
+                                                                                   Visibility="{Binding SelectedGlobalPreset.Description, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"/>
+                                                                    </StackPanel>
+
+                                                                    <ToggleButton IsChecked="{Binding IsChecked, ElementName=GlobalPresetInfoToggle, Mode=TwoWay}"
+                                                                                  Style="{StaticResource IconToggleButton}"
+                                                                                  Content="&#xE711;"
+                                                                                  Width="24" Height="24"
+                                                                                  VerticalAlignment="Top"
+                                                                                  Margin="10,0,0,0"/>
+                                                                </Grid>
+
+                                                                <Separator Background="#40FFFFFF" Margin="0,0,0,10"/>
+
+                                                                <ItemsControl ItemsSource="{Binding CurrentPresetTooltipData}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <Border Background="#15FFFFFF" CornerRadius="3" Padding="8" Margin="0,0,0,8" BorderBrush="#30FFFFFF" BorderThickness="1">
+                                                                                <StackPanel>
+                                                                                    <TextBlock Text="{Binding GroupName}" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6" FontSize="12"/>
+                                                                                    <ItemsControl ItemsSource="{Binding Layers}">
+                                                                                        <ItemsControl.ItemTemplate>
+                                                                                            <DataTemplate>
+                                                                                                <StackPanel Margin="0,0,0,6">
+                                                                                                    <Grid Margin="0,0,0,2">
+                                                                                                        <Grid.ColumnDefinitions>
+                                                                                                            <ColumnDefinition Width="*"/>
+                                                                                                            <ColumnDefinition Width="Auto"/>
+                                                                                                        </Grid.ColumnDefinitions>
+                                                                                                        <StackPanel Orientation="Horizontal">
+                                                                                                            <TextBlock Text="↳" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,5,0"/>
+                                                                                                            <TextBlock Text="{Binding LayerName}" FontWeight="SemiBold" Foreground="{StaticResource PrimaryAccentBrush}"/>
+                                                                                                        </StackPanel>
+                                                                                                        <Border Grid.Column="1" Background="#40FFFFFF" CornerRadius="2" Padding="3,0" 
+                                                                                                                Visibility="{Binding IsLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                                                            <TextBlock Text="Layout" FontSize="9"/>
+                                                                                                        </Border>
+                                                                                                    </Grid>
+                                                                                                    <ItemsControl ItemsSource="{Binding Fields}" Margin="15,0,0,0">
+                                                                                                        <ItemsControl.ItemTemplate>
+                                                                                                            <DataTemplate>
+                                                                                                                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
+                                                                                                                    <Run Text="• "/>
+                                                                                                                    <Run Text="{Binding FieldName}"/>
+                                                                                                                    <Run Text=": "/>
+                                                                                                                    <Run Text="{Binding FieldValue}" Foreground="#E6DB74"/>
+                                                                                                                </TextBlock>
+                                                                                                            </DataTemplate>
+                                                                                                        </ItemsControl.ItemTemplate>
+                                                                                                    </ItemsControl>
+                                                                                                </StackPanel>
+                                                                                            </DataTemplate>
+                                                                                        </ItemsControl.ItemTemplate>
+                                                                                    </ItemsControl>
+                                                                                </StackPanel>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                                
+                                                            </StackPanel>
+                                                        </ScrollViewer>
+                                                    </Border>
+                                                </Popup>
+                                            </Grid>
 
                                             <!-- Buttons Container -->
                                             <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -368,7 +502,11 @@
                                                                                             <StackPanel>
                                                                                                 <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="0,0,0,5"/>
                                                                                                 <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontStyle="Italic"
-                                                                                                           Visibility="{Binding Description, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"/>
+                                                                                                           Visibility="{Binding Description, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                                                                <TextBlock Margin="0,5,0,0" Visibility="{Binding Category, Converter={StaticResource StringToVisibilityConverter}}">
+                                                                                                    <Run Text="{local:Translate Presets_Info_Category}" FontWeight="SemiBold"/>
+                                                                                                    <Run Text="{Binding Category}"/>
+                                                                                                </TextBlock>
                                                                                                 <TextBlock Margin="0,5,0,0" Visibility="{Binding Tags.Count, Converter={StaticResource CountToVisibilityConverter}}">
                                                                                                     <Run Text="Tags:" FontWeight="SemiBold"/>
                                                                                                     <Run Text="{Binding Tags, Converter={StaticResource StringListConverter}}"/>
@@ -410,17 +548,140 @@
                                                                                         <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" Margin="5,0,0,0" TextWrapping="Wrap"/>
 
                                                                                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                            
+                                                                                            <ToggleButton x:Name="InfoBtn" 
+                                                                                                          Content="&#xE946;" 
+                                                                                                          Style="{StaticResource IconToggleButton}" 
+                                                                                                          Width="20" Height="20" 
+                                                                                                          Margin="0,0,2,0"
+                                                                                                          ToolTip="Details">
+                                                                                                <ToggleButton.Triggers>
+                                                                                                     <EventTrigger RoutedEvent="ToggleButton.Click">
+                                                                                                         
+                                                                                                     </EventTrigger>
+                                                                                                </ToggleButton.Triggers>
+                                                                                            </ToggleButton>
+
+                                                                                            <!-- POPUP INFO -->
+                                                                                            <Popup IsOpen="{Binding IsChecked, ElementName=InfoBtn, Mode=TwoWay}"
+                                                                                                   StaysOpen="False"
+                                                                                                   PlacementTarget="{Binding ElementName=InfoBtn}"
+                                                                                                   Placement="Left"
+                                                                                                   AllowsTransparency="True"
+                                                                                                   PopupAnimation="Fade">
+                                                                                                
+                                                                                                <Border Background="{StaticResource SecondaryBackground}" 
+                                                                                                        BorderBrush="{StaticResource PrimaryAccentBrush}" 
+                                                                                                        BorderThickness="1" 
+                                                                                                        CornerRadius="3" 
+                                                                                                        Padding="10" 
+                                                                                                        MinWidth="300" MaxWidth="450"
+                                                                                                        MouseLeftButtonDown="StopEventPropagation">
+                                                                                                    
+                                                                                                    <ScrollViewer MaxHeight="500" VerticalScrollBarVisibility="Auto">
+                                                                                                        <StackPanel>
+                                                                                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="16" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                                                                                                            
+                                                                                                            <TextBlock Text="{local:Translate Presets_Info_Description}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" 
+                                                                                                                       Visibility="{Binding Description, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"/>
+                                                                                                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontStyle="Italic" Margin="0,0,0,8"
+                                                                                                                       Visibility="{Binding Description, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"/>
+
+                                                                                                            <Grid Margin="0,0,0,8">
+                                                                                                                <Grid.ColumnDefinitions>
+                                                                                                                     <ColumnDefinition Width="*"/>
+                                                                                                                     <ColumnDefinition Width="*"/>
+                                                                                                                </Grid.ColumnDefinitions>
+                                                                                                                
+                                                                                                                <StackPanel Grid.Column="0" Visibility="{Binding Category, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}">
+                                                                                                                    <TextBlock Text="{local:Translate Presets_Info_Category}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                    <TextBlock Text="{Binding Category}" TextWrapping="Wrap"/>
+                                                                                                                </StackPanel>
+                                                                                                                
+                                                                                                                <StackPanel Grid.Column="1" Visibility="{Binding Tags.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                                                                                                                    <TextBlock Text="{local:Translate Presets_Info_Tags}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                    <TextBlock Text="{Binding Tags, Converter={StaticResource StringListConverter}}" TextWrapping="Wrap"/>
+                                                                                                                </StackPanel>
+                                                                                                            </Grid>
+
+                                                                                                            <Separator Background="{StaticResource TertiaryBackground}" Margin="0,0,0,5"/>
+
+                                                                                                            <!-- Контент (Группы и Слои) -->
+                                                                                                            <TextBlock Text="{local:Translate GlobalPresets_ConfigurationHeader}" FontWeight="Bold" Margin="0,0,0,5"/>
+                                                                                                            
+                                                                                                            <ItemsControl>
+                                                                                                                <ItemsControl.ItemsSource>
+                                                                                                                    <MultiBinding Converter="{StaticResource GlobalPresetDetailConverter}">
+                                                                                                                        <Binding Path="." />
+                                                                                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=Popup, AncestorLevel=2}"/> 
+                                                                                                                    </MultiBinding>
+                                                                                                                </ItemsControl.ItemsSource>
+                                                                                                                
+                                                                                                                <ItemsControl.ItemTemplate>
+                                                                                                                    <DataTemplate>
+                                                                                                                        <Border Background="#15FFFFFF" CornerRadius="3" Padding="8" Margin="0,0,0,8" BorderBrush="#30FFFFFF" BorderThickness="1">
+                                                                                                                            <StackPanel>
+                                                                                                                                <TextBlock Text="{Binding GroupName}" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6" FontSize="12"/>
+                                                                                                                                <ItemsControl ItemsSource="{Binding Layers}">
+                                                                                                                                    <ItemsControl.ItemTemplate>
+                                                                                                                                        <DataTemplate>
+                                                                                                                                            <StackPanel Margin="0,0,0,6">
+                                                                                                                                                <Grid Margin="0,0,0,2">
+                                                                                                                                                    <Grid.ColumnDefinitions>
+                                                                                                                                                        <ColumnDefinition Width="*"/>
+                                                                                                                                                        <ColumnDefinition Width="Auto"/>
+                                                                                                                                                    </Grid.ColumnDefinitions>
+                                                                                                                                                    <StackPanel Orientation="Horizontal">
+                                                                                                                                                        <TextBlock Text="↳" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,5,0"/>
+                                                                                                                                                        <TextBlock Text="{Binding LayerName}" FontWeight="SemiBold" Foreground="{StaticResource PrimaryAccentBrush}"/>
+                                                                                                                                                    </StackPanel>
+                                                                                                                                                    <Border Grid.Column="1" Background="#40FFFFFF" CornerRadius="2" Padding="3,0" 
+                                                                                                                                                            Visibility="{Binding IsLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                                                                                                        <TextBlock Text="Layout" FontSize="9"/>
+                                                                                                                                                    </Border>
+                                                                                                                                                </Grid>
+                                                                                                                                                <ItemsControl ItemsSource="{Binding Fields}" Margin="15,0,0,0">
+                                                                                                                                                    <ItemsControl.ItemTemplate>
+                                                                                                                                                        <DataTemplate>
+                                                                                                                                                            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
+                                                                                                                                                                <Run Text="• "/>
+                                                                                                                                                                <Run Text="{Binding FieldName}"/>
+                                                                                                                                                                <Run Text=": "/>
+                                                                                                                                                                <Run Text="{Binding FieldValue}" Foreground="#E6DB74"/>
+                                                                                                                                                            </TextBlock>
+                                                                                                                                                        </DataTemplate>
+                                                                                                                                                    </ItemsControl.ItemTemplate>
+                                                                                                                                                </ItemsControl>
+                                                                                                                                            </StackPanel>
+                                                                                                                                        </DataTemplate>
+                                                                                                                                    </ItemsControl.ItemTemplate>
+                                                                                                                                </ItemsControl>
+                                                                                                                            </StackPanel>
+                                                                                                                        </Border>
+                                                                                                                    </DataTemplate>
+                                                                                                                </ItemsControl.ItemTemplate>
+                                                                                                            </ItemsControl>
+                                                                                                        </StackPanel>
+                                                                                                    </ScrollViewer>
+                                                                                                </Border>
+                                                                                            </Popup>
+
                                                                                             <Button Content="&#xE70F;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_UpdateTooltip}"
                                                                                                     Command="{Binding DataContext.StartUpdatePresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
                                                                                                     CommandParameter="{Binding}"/>
+                                                                                            
                                                                                             <Button Content="&#xE74D;" Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="{local:Translate Presets_DeleteTooltip}"
                                                                                                     Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Popup}}"
                                                                                                     CommandParameter="{Binding}"/>
+                                                                                            
                                                                                             <StackPanel.Style>
                                                                                                 <Style TargetType="StackPanel">
                                                                                                     <Setter Property="Visibility" Value="Hidden"/>
                                                                                                     <Style.Triggers>
                                                                                                         <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                                        </DataTrigger>
+                                                                                                        <DataTrigger Binding="{Binding IsChecked, ElementName=InfoBtn}" Value="True">
                                                                                                             <Setter Property="Visibility" Value="Visible"/>
                                                                                                         </DataTrigger>
                                                                                                     </Style.Triggers>
@@ -569,39 +830,349 @@
                                                                                 <ItemsControl.ItemTemplate>
                                                                                     <DataTemplate>
                                                                                         <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,0,0,1" Padding="0,4">
-                                                                                            <Grid ToolTip="{local:Translate GlobalPresets_IncludeTooltip}" Background="Transparent">
+                                                                                            <Grid Background="Transparent">
                                                                                                 <Grid.ColumnDefinitions>
                                                                                                     <ColumnDefinition Width="40"/>
                                                                                                     <ColumnDefinition Width="150"/>
                                                                                                     <ColumnDefinition Width="*"/>
                                                                                                 </Grid.ColumnDefinitions>
                                                                                                 
+                                                                                                <!-- 1. Checkbox -->
                                                                                                 <CheckBox Grid.Column="0" 
                                                                                                           IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                                                                                           IsEnabled="{Binding IsEnabled}"
-                                                                                                          HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0"/> <!-- VerticalAlignment Top для красивого выравнивания при многострочном тексте -->
+                                                                                                          HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,6,0,0"/>
                                                                                                 
-                                                                                                <TextBlock Grid.Column="1" Text="{Binding GroupName}" 
-                                                                                                           VerticalAlignment="Top" TextWrapping="Wrap"
-                                                                                                           Padding="5,4,5,4"/>
+                                                                                                <!-- 2. Group Name (Теперь ToggleButton с Popup) -->
+                                                                                                <Grid Grid.Column="1" VerticalAlignment="Top" Margin="0,6,0,0">
+                                                                                                    <ToggleButton x:Name="GroupInfoToggle"
+                                                                                                                  Style="{StaticResource TextToggleButtonStyle}"
+                                                                                                                  Content="{Binding GroupName}"
+                                                                                                                  ToolTip="{local:Translate GlobalPresets_IncludeTooltip}"/>
+                                                                                                    
+                                                                                                    <Popup IsOpen="{Binding IsChecked, ElementName=GroupInfoToggle, Mode=TwoWay}"
+                                                                                                           StaysOpen="False"
+                                                                                                           PlacementTarget="{Binding ElementName=GroupInfoToggle}"
+                                                                                                           Placement="Right"
+                                                                                                           AllowsTransparency="True"
+                                                                                                           PopupAnimation="Fade">
+                                                                                                        
+                                                                                                        <Border Background="{StaticResource SecondaryBackground}" 
+                                                                                                                BorderBrush="{StaticResource PrimaryAccentBrush}" 
+                                                                                                                BorderThickness="1" 
+                                                                                                                CornerRadius="3" 
+                                                                                                                Padding="10" 
+                                                                                                                MinWidth="250" MaxWidth="400"
+                                                                                                                MouseLeftButtonDown="StopEventPropagation">
+                                                                                                            
+                                                                                                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                                                                                                            <StackPanel>
+                                                                                                                <TextBlock Text="{Binding GroupName}" FontWeight="Bold" FontSize="14" Margin="0,0,0,5"/>
+                                                                                                                <Separator Background="{StaticResource TertiaryBackground}" Margin="0,0,0,5"/>
+                                                                                                                
+                                                                                                                <StackPanel Visibility="{Binding ActiveLayers.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                                                                                                                    <TextBlock Text="{local:Translate Presets_ActiveLayers}" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                                                                                                                    <ItemsControl ItemsSource="{Binding DetailedStateInfo}">
+                                                                                                                        <ItemsControl.ItemTemplate>
+                                                                                                                            <DataTemplate>
+                                                                                                                                <Border Background="#20FFFFFF" CornerRadius="3" Padding="6" Margin="0,0,0,6" BorderBrush="#40FFFFFF" BorderThickness="1">
+                                                                                                                                    <StackPanel>
+                                                                                                                                        <Grid Margin="0,0,0,4">
+                                                                                                                                            <Grid.ColumnDefinitions>
+                                                                                                                                                <ColumnDefinition Width="*"/>
+                                                                                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                                                                            </Grid.ColumnDefinitions>
+                                                                                                                                            <TextBlock Text="{Binding LayerName}" FontWeight="Bold" Foreground="{StaticResource PrimaryAccentBrush}"/>
+                                                                                                                                            <Border Grid.Column="1" Background="#40FFFFFF" CornerRadius="2" Padding="3,0" 
+                                                                                                                                                    Visibility="{Binding IsLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                                                                                                <TextBlock Text="Layout" FontSize="9"/>
+                                                                                                                                            </Border>
+                                                                                                                                        </Grid>
+
+                                                                                                                                        <ItemsControl ItemsSource="{Binding Fields}">
+                                                                                                                                            <ItemsControl.ItemTemplate>
+                                                                                                                                                <DataTemplate>
+                                                                                                                                                    <TextBlock TextWrapping="Wrap" Margin="0,1" FontSize="11">
+                                                                                                                                                        <Run Text="• " Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                                                        <Run Text="{Binding FieldName}" FontWeight="SemiBold"/>
+                                                                                                                                                        <TextBlock Text="{Binding TabName, StringFormat=' ({0})'}" Foreground="{StaticResource TextSecondaryBrush}" FontStyle="Italic">
+                                                                                                                                                            <TextBlock.Style>
+                                                                                                                                                                <Style TargetType="TextBlock">
+                                                                                                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                                                                                    <Style.Triggers>
+                                                                                                                                                                        <DataTrigger Binding="{Binding ShowTabName}" Value="True">
+                                                                                                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                                                                                                        </DataTrigger>
+                                                                                                                                                                    </Style.Triggers>
+                                                                                                                                                                </Style>
+                                                                                                                                                            </TextBlock.Style>
+                                                                                                                                                        </TextBlock>
+                                                                                                                                                        <Run Text=": " Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                                                        <Run Text="{Binding FieldValue}" Foreground="#E6DB74"/>
+                                                                                                                                                    </TextBlock>
+                                                                                                                                                </DataTemplate>
+                                                                                                                                            </ItemsControl.ItemTemplate>
+                                                                                                                                        </ItemsControl>
+                                                                                                                                    </StackPanel>
+                                                                                                                                </Border>
+                                                                                                                            </DataTemplate>
+                                                                                                                        </ItemsControl.ItemTemplate>
+                                                                                                                    </ItemsControl>
+                                                                                                                </StackPanel>
+                                                                                                                
+                                                                                                                <TextBlock Text="No active presets selected" FontStyle="Italic" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                                                                           Visibility="{Binding ActiveLayers.Count, Converter={StaticResource CountToBooleanConverter}, ConverterParameter=Invert}"/>
+                                                                                                            </StackPanel>
+                                                                                                            </ScrollViewer>
+                                                                                                        </Border>
+                                                                                                    </Popup>
+                                                                                                </Grid>
                                                                                                 
-                                                                                                <!-- ИЗМЕНЕНО: Добавлен TextWrapping и убрано Trimming -->
-                                                                                                <TextBlock Grid.Column="2" Text="{Binding StateDescription}" 
-                                                                                                           VerticalAlignment="Top" 
-                                                                                                           TextWrapping="Wrap"
-                                                                                                           Padding="5,4,15,4"> <!-- Увеличенный отступ справа -->
-                                                                                                    <TextBlock.Style>
-                                                                                                        <Style TargetType="TextBlock">
-                                                                                                            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                                                                                                            <Style.Triggers>
-                                                                                                                <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                                                                                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-                                                                                                                    <Setter Property="FontStyle" Value="Italic"/>
-                                                                                                                </DataTrigger>
-                                                                                                            </Style.Triggers>
-                                                                                                        </Style>
-                                                                                                    </TextBlock.Style>
-                                                                                                </TextBlock>
+                                                                                                <Grid Grid.Column="2" IsEnabled="{Binding IsEnabled}" Background="Transparent">
+                                                                                                    <WrapPanel Orientation="Horizontal" Margin="0,2">
+                                                                                                        <!-- Existing Layers as Chips -->
+                                                                                                        <ItemsControl ItemsSource="{Binding ActiveLayers}">
+                                                                                                            <ItemsControl.ItemsPanel>
+                                                                                                                <ItemsPanelTemplate>
+                                                                                                                    <WrapPanel Orientation="Horizontal"/>
+                                                                                                                </ItemsPanelTemplate>
+                                                                                                            </ItemsControl.ItemsPanel>
+                                                                                                            <ItemsControl.ItemTemplate>
+                                                                                                                <DataTemplate>
+                                                                                                                    <Border Background="{StaticResource PrimaryAccentBrush}" 
+                                                                                                                            CornerRadius="3" 
+                                                                                                                            Margin="0,2,5,2" 
+                                                                                                                            Padding="6,2">
+                                                                                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                                                            <TextBlock Text="{Binding}" VerticalAlignment="Center" Foreground="White" FontSize="11"/>
+                                                                                                                            <Button Content="✕" 
+                                                                                                                                Style="{StaticResource TextButtonStyle}"
+                                                                                                                                Foreground="#AAFFFFFF"
+                                                                                                                                FontSize="10"
+                                                                                                                                FontWeight="Bold"
+                                                                                                                                Margin="5,0,0,0"
+                                                                                                                                VerticalAlignment="Center"
+                                                                                                                                Command="{Binding DataContext.RemoveLayerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                                                                                CommandParameter="{Binding}"/>
+                                                                                                                        </StackPanel>
+                                                                                                                    </Border>
+                                                                                                                </DataTemplate>
+                                                                                                            </ItemsControl.ItemTemplate>
+                                                                                                        </ItemsControl>
+
+                                                                                                        <Grid Margin="0,2,0,2">
+                                                                                                            <ToggleButton x:Name="AddLayerToggle"
+                                                                                                                         Content="&#xE710;"
+                                                                                                                         FontSize="12"
+                                                                                                                         Width="24" Height="24"
+                                                                                                                         Style="{StaticResource IconToggleButton}"
+                                                                                                                         ToolTip="{local:Translate GlobalPresets_AddLayerTooltip}">
+                                                                                                            </ToggleButton>
+
+                                                                                                            <Popup IsOpen="{Binding IsChecked, ElementName=AddLayerToggle, Mode=TwoWay}"
+                                                                                                                   StaysOpen="False"
+                                                                                                                  PlacementTarget="{Binding ElementName=AddLayerToggle}"
+                                                                                                                  Placement="Bottom"
+                                                                                                                  AllowsTransparency="True">
+                                                                                                                  <!-- ... Внутри Popup идет Border -> Grid -> List ... -->
+                                                                                                                <Border Background="{StaticResource SecondaryBackground}"
+                                                                                                                        BorderBrush="{StaticResource TertiaryBackground}"
+                                                                                                                        BorderThickness="1" CornerRadius="3"
+                                                                                                                        Padding="8" Margin="0,2,0,0"
+                                                                                                                        Width="300" MaxHeight="400"
+                                                                                                                        MouseLeftButtonDown="StopEventPropagation">
+                                                                                                                    
+                                                                                                                    <Grid>
+                                                                                                                        <Grid.RowDefinitions>
+                                                                                                                            <RowDefinition Height="Auto"/> <!-- Search -->
+                                                                                                                            <RowDefinition Height="Auto"/> <!-- Filters -->
+                                                                                                                            <RowDefinition Height="*"/>    <!-- List -->
+                                                                                                                        </Grid.RowDefinitions>
+
+                                                                                                                        <!-- 1. Search Box -->
+                                                                                                                        <Grid Grid.Row="0" Margin="0,0,0,5">
+                                                                                                                            <TextBox Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                                                                                                     local:TextBoxExtensions.PlaceholderText="{local:Translate Presets_SearchPlaceholder}"/>
+                                                                                                                        </Grid>
+
+                                                                                                                        <!-- 2. Filters (Category / Tags) -->
+                                                                                                                        <Grid Grid.Row="1" Margin="0,0,0,5">
+                                                                                                                            <Grid.ColumnDefinitions>
+                                                                                                                                <ColumnDefinition Width="*"/>
+                                                                                                                                <ColumnDefinition Width="*"/>
+                                                                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                                                            </Grid.ColumnDefinitions>
+                                                                                                                            
+                                                                                                                            <ComboBox Grid.Column="0" Margin="0,0,2,0"
+                                                                                                                                      ItemsSource="{Binding FilterCategories}"
+                                                                                                                                      SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                                                                                                                                      ToolTip="{local:Translate GlobalPresets_FilterCategoryTooltip}"/>
+                                                                                                                            
+                                                                                                                            <ComboBox Grid.Column="1" Margin="2,0,2,0"
+                                                                                                                                      ItemsSource="{Binding FilterTags}"
+                                                                                                                                      SelectedItem="{Binding SelectedTag, Mode=TwoWay}"
+                                                                                                                                      ToolTip="{local:Translate GlobalPresets_FilterTagTooltip}"/>
+                                                                                                                            
+                                                                                                                            <Button Grid.Column="2" Content="&#xE711;" 
+                                                                                                                                    Style="{StaticResource IconButton}"
+                                                                                                                                    Width="20" Height="20"
+                                                                                                                                    Command="{Binding ClearFiltersCommand}"
+                                                                                                                                    ToolTip="{local:Translate Presets_ClearFilters}"/>
+                                                                                                                        </Grid>
+
+                                                                                                                        <!-- 3. Presets List -->
+                                                                                                                          <Border Grid.Row="2" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1" CornerRadius="2">
+                                                                                                                              <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="250">
+                                                                                                                                  <ItemsControl ItemsSource="{Binding FilteredPresetsView}">
+                                                                                                                                      <ItemsControl.ItemTemplate>
+                                                                                                                                          <DataTemplate>
+                                                                                                                                              <Grid Margin="0,1">
+                                                                                                                                                  <Grid.ColumnDefinitions>
+                                                                                                                                                      <ColumnDefinition Width="*"/>
+                                                                                                                                                      <ColumnDefinition Width="Auto"/>
+                                                                                                                                                  </Grid.ColumnDefinitions>
+                                                                                                                                                  
+                                                                                                                                                  <!-- ADD BUTTON (Clicking Name selects it) -->
+                                                                                                                                                  <Button Grid.Column="0"
+                                                                                                                                                          Command="{Binding DataContext.AddLayerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                                                                                                          CommandParameter="{Binding}"
+                                                                                                                                                          HorizontalContentAlignment="Stretch"
+                                                                                                                                                          Background="Transparent"
+                                                                                                                                                          BorderThickness="0"
+                                                                                                                                                          Padding="5,3"
+                                                                                                                                                          Margin="0">
+                                                                                                                                                      <Button.Style>
+                                                                                                                                                          <Style TargetType="Button">
+                                                                                                                                                              <Setter Property="Template">
+                                                                                                                                                                  <Setter.Value>
+                                                                                                                                                                      <ControlTemplate TargetType="Button">
+                                                                                                                                                                          <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                                                                                                                                                                              <ContentPresenter Margin="{TemplateBinding Padding}"/>
+                                                                                                                                                                          </Border>
+                                                                                                                                                                          <ControlTemplate.Triggers>
+                                                                                                                                                                              <Trigger Property="IsMouseOver" Value="True">
+                                                                                                                                                                                  <Setter TargetName="Bd" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                                                                                                                                                              </Trigger>
+                                                                                                                                                                          </ControlTemplate.Triggers>
+                                                                                                                                                                      </ControlTemplate>
+                                                                                                                                                                  </Setter.Value>
+                                                                                                                                                              </Setter>
+                                                                                                                                                          </Style>
+                                                                                                                                                      </Button.Style>
+                                                                                                                                                      
+                                                                                                                                                      <Grid>
+                                                                                                                                                          <Grid.ColumnDefinitions>
+                                                                                                                                                              <ColumnDefinition Width="*"/>
+                                                                                                                                                              <ColumnDefinition Width="Auto"/>
+                                                                                                                                                          </Grid.ColumnDefinitions>
+                                                                                                                                                          <TextBlock Grid.Column="0" Text="{Binding Name}" Foreground="{StaticResource TextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                                                                                                                          
+                                                                                                                                                          <Border Grid.Column="1" Background="#30FFFFFF" CornerRadius="2" Padding="3,0" Margin="5,0,0,0"
+                                                                                                                                                                  Visibility="{Binding IsLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                                                                                                              <TextBlock Text="Layout" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                                                          </Border>
+                                                                                                                                                      </Grid>
+                                                                                                                                                  </Button>
+                                                                                                                                                  
+                                                                                                                                                  <!-- INFO BUTTON & POPUP -->
+                                                                                                                                                  <ToggleButton Grid.Column="1" 
+                                                                                                                                                                x:Name="InfoToggle"
+                                                                                                                                                                Style="{StaticResource IconToggleButton}"
+                                                                                                                                                                Content="&#xE946;"
+                                                                                                                                                                Width="24" Height="24"
+                                                                                                                                                                Margin="2,0"
+                                                                                                                                                                ToolTip="Show Details"/>
+                                                                                                                                                                
+                                                                                                                                                  <Popup IsOpen="{Binding IsChecked, ElementName=InfoToggle, Mode=TwoWay}"
+                                                                                                                                                         StaysOpen="False"
+                                                                                                                                                         PlacementTarget="{Binding ElementName=InfoToggle}"
+                                                                                                                                                         Placement="Right"
+                                                                                                                                                         AllowsTransparency="True"
+                                                                                                                                                         PopupAnimation="Fade">
+                                                                                                                                                         
+                                                                                                                                                      <Border Background="{StaticResource SecondaryBackground}" 
+                                                                                                                                                              BorderBrush="{StaticResource PrimaryAccentBrush}" 
+                                                                                                                                                              BorderThickness="1" 
+                                                                                                                                                              CornerRadius="3" 
+                                                                                                                                                              Padding="10" 
+                                                                                                                                                              MinWidth="250" MaxWidth="350"
+                                                                                                                                                              MouseLeftButtonDown="StopEventPropagation">
+                                                                                                                                                          
+                                                                                                                                                          <ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto">
+                                                                                                                                                              <StackPanel>
+                                                                                                                                                                  <!-- Header -->
+                                                                                                                                                                  <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="14" TextWrapping="Wrap"/>
+                                                                                                                                                                  
+                                                                                                                                                                  <StackPanel Orientation="Horizontal" Margin="0,2,0,8">
+                                                                                                                                                                      <Border Background="#30FFFFFF" CornerRadius="2" Padding="4,1" Margin="0,0,5,0" 
+                                                                                                                                                                              Visibility="{Binding IsLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                                                                                                                          <TextBlock Text="Layout" FontSize="10"/>
+                                                                                                                                                                      </Border>
+                                                                                                                                                                      <Border Background="#20FFFFFF" CornerRadius="2" Padding="4,1" 
+                                                                                                                                                                              Visibility="{Binding IsFavorite, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                                                                                                                          <TextBlock Text="Favorite ★" FontSize="10" Foreground="Gold"/>
+                                                                                                                                                                      </Border>
+                                                                                                                                                                  </StackPanel>
+
+                                                                                                                                                                  <!-- Description -->
+                                                                                                                                                                  <TextBlock Text="{local:Translate Presets_Info_Description}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" 
+                                                                                                                                                                             Visibility="{Binding Model.Description, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"/>
+                                                                                                                                                                  <TextBlock Text="{Binding Model.Description}" TextWrapping="Wrap" FontStyle="Italic" Margin="0,0,0,8"
+                                                                                                                                                                             Visibility="{Binding Model.Description, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}"/>
+
+                                                                                                                                                                  <!-- Category & Tags -->
+                                                                                                                                                                  <Grid Margin="0,0,0,8">
+                                                                                                                                                                      <Grid.ColumnDefinitions>
+                                                                                                                                                                           <ColumnDefinition Width="*"/>
+                                                                                                                                                                           <ColumnDefinition Width="*"/>
+                                                                                                                                                                      </Grid.ColumnDefinitions>
+                                                                                                                                                                      
+                                                                                                                                                                      <StackPanel Grid.Column="0" Visibility="{Binding Model.Category, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}">
+                                                                                                                                                                          <TextBlock Text="{local:Translate Presets_Info_Category}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                                                                          <TextBlock Text="{Binding Model.Category}" TextWrapping="Wrap"/>
+                                                                                                                                                                      </StackPanel>
+                                                                                                                                                                      
+                                                                                                                                                                      <StackPanel Grid.Column="1" Visibility="{Binding Model.Tags.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                                                                                                                                                                          <TextBlock Text="{local:Translate Presets_Info_Tags}" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                                                                          <TextBlock Text="{Binding Model.Tags, Converter={StaticResource StringListConverter}}" TextWrapping="Wrap"/>
+                                                                                                                                                                      </StackPanel>
+                                                                                                                                                                  </Grid>
+
+                                                                                                                                                                  <Separator Background="{StaticResource TertiaryBackground}" Margin="0,0,0,5"/>
+
+                                                                                                                                                                  <!-- Fields List -->
+                                                                                                                                                                  <TextBlock Text="{local:Translate Presets_FieldsInPreset}" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                                                                                                                                                  <ItemsControl ItemsSource="{Binding FieldDetails}">
+                                                                                                                                                                      <ItemsControl.ItemTemplate>
+                                                                                                                                                                          <DataTemplate>
+                                                                                                                                                                              <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,1">
+                                                                                                                                                                                  <Run Text="•" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                                                                                  <Run Text="{Binding FieldName}" FontWeight="SemiBold"/>
+                                                                                                                                                                                  <Run Text=": " Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                                                                                  <Run Text="{Binding FieldValue}" Foreground="#E6DB74"/>
+                                                                                                                                                                              </TextBlock>
+                                                                                                                                                                          </DataTemplate>
+                                                                                                                                                                      </ItemsControl.ItemTemplate>
+                                                                                                                                                                  </ItemsControl>
+                                                                                                                                                              </StackPanel>
+                                                                                                                                                          </ScrollViewer>
+                                                                                                                                                      </Border>
+                                                                                                                                                  </Popup>
+                                                                                                                                              </Grid>
+                                                                                                                                          </DataTemplate>
+                                                                                                                                      </ItemsControl.ItemTemplate>
+                                                                                                                                  </ItemsControl>
+                                                                                                                              </ScrollViewer>
+                                                                                                                          </Border>
+                                                                                                                          
+                                                                                                                      </Grid>
+                                                                                                                  </Border>
+                                                                                                           </Popup>
+                                                                                                        </Grid>
+                                                                                                    </WrapPanel>
+                                                                                                </Grid>
+                                                                                                
                                                                                             </Grid>
                                                                                         </Border>
                                                                                     </DataTemplate>

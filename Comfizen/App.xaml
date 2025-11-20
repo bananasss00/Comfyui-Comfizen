@@ -41,6 +41,7 @@
         <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <local:BoolToStringConverter x:Key="BoolToStringConverter"/>
         <local:SliderPresetsFilterConverter x:Key="SliderPresetsFilterConverter"/>
+        <local:GlobalPresetDetailConverter x:Key="GlobalPresetDetailConverter"/>
         
         
         
