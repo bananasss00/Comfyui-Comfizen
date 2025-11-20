@@ -169,6 +169,7 @@ namespace Comfizen
         
         // A reference to the floating window for the queue controls.
         private Window _undockedQueueControlsWindow;
+        public Window UndockedQueueWindow => _undockedQueueControlsWindow;
         
         public ICollectionView FilteredPendingQueueItemsView { get; }
         public string QueueSearchText { get; set; }
@@ -2580,6 +2581,18 @@ namespace Comfizen
                     else
                     {
                         window.Show();
+                    }
+                }
+                
+                if (UndockedQueueWindow != null)
+                {
+                    if (isFullScreen)
+                    {
+                        UndockedQueueWindow.Hide();
+                    }
+                    else
+                    {
+                        UndockedQueueWindow.Show();
                     }
                 }
             }

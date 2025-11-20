@@ -820,6 +820,7 @@ namespace Comfizen
                     {
                         window.Hide();
                     }
+                    viewModel.UndockedQueueWindow?.Hide();
                 }
                 else // Restored to Normal or Maximized
                 {
@@ -830,6 +831,14 @@ namespace Comfizen
                         if (window.WindowState == WindowState.Minimized)
                         {
                             window.WindowState = WindowState.Normal;
+                        }
+                    }
+                    if (viewModel.UndockedQueueWindow != null)
+                    {
+                        viewModel.UndockedQueueWindow.Show();
+                        if (viewModel.UndockedQueueWindow.WindowState == WindowState.Minimized)
+                        {
+                            viewModel.UndockedQueueWindow.WindowState = WindowState.Normal;
                         }
                     }
                 }
