@@ -110,6 +110,12 @@ namespace Comfizen
         
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string DefaultValue { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// Custom tooltip text defined by the user in the UI Designer.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string Tooltip { get; set; }
 
         /// <summary>
         /// For Markdown fields, specifies the maximum number of lines to display before a scrollbar appears.
@@ -174,6 +180,7 @@ namespace Comfizen
                 Separator = this.Separator,
                 ActionName = this.ActionName,
                 DefaultValue = this.DefaultValue,
+                Tooltip = this.Tooltip,
                 MaxDisplayLines = this.MaxDisplayLines,
                 BypassNodeIds = new ObservableCollection<string>(this.BypassNodeIds), // Create a new collection
                 AdvancedPrompt = this.AdvancedPrompt,

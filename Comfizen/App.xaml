@@ -2151,19 +2151,34 @@
                           </Border>
                           
                           <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,10,0" VerticalAlignment="Top">
-                              <TextBlock Text="{Binding Name}">
-                                  <TextBlock.ToolTip>
-                                      <ToolTip>
-                                          <TextBlock>
-                                              <Run Text="{Binding NodeTitle, Mode=OneWay, StringFormat='Node: {0}'}" FontWeight="Bold"/>
-                                              <LineBreak/>
-                                              <Run Text="{Binding NodeType, Mode=OneWay, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                              <LineBreak/>
-                                              <Run Text="{Binding Path, Mode=OneWay, StringFormat='Path: {0}'}"/>
-                                          </TextBlock>
-                                      </ToolTip>
-                                  </TextBlock.ToolTip>
-                              </TextBlock>
+                                <TextBlock Text="{Binding Name}">
+                                    <TextBlock.ToolTip>
+                                        <ToolTip>
+                                            <StackPanel MaxWidth="400">
+                                                <!-- Custom Tooltip Section -->
+                                                <TextBlock Text="{Binding FieldModel.Tooltip}" 
+                                                           TextWrapping="Wrap" 
+                                                           FontWeight="SemiBold"
+                                                           Margin="0,0,0,5"
+                                                           Visibility="{Binding FieldModel.Tooltip, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                
+                                                <!-- Separator (only visible if custom tooltip exists) -->
+                                                <Separator Background="{StaticResource TextSecondaryBrush}" 
+                                                           Margin="0,0,0,5"
+                                                           Visibility="{Binding FieldModel.Tooltip, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                
+                                                <!-- Technical Info Section (Existing) -->
+                                                <TextBlock>
+                                                    <Run Text="{Binding NodeTitle, Mode=OneWay, StringFormat='Node: {0}'}" FontWeight="Bold"/>
+                                                    <LineBreak/>
+                                                    <Run Text="{Binding NodeType, Mode=OneWay, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <LineBreak/>
+                                                    <Run Text="{Binding Path, Mode=OneWay, StringFormat='Path: {0}'}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </ToolTip>
+                                    </TextBlock.ToolTip>
+                                </TextBlock>
                               <TextBlock Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
                                   <TextBlock.Style>
                                       <Style TargetType="TextBlock">

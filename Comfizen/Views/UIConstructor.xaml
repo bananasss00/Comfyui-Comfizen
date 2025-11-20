@@ -586,7 +586,63 @@
                                                                                             <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=Explicit}" Style="{StaticResource InlineEditTextBox}" Visibility="{Binding IsRenaming, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                                                             
                                                                                             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                                                                <StackPanel Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                                                                <Grid Margin="0,0,5,0" VerticalAlignment="Center">
+                                                                                                    <ToggleButton x:Name="TooltipToggleButton" 
+                                                                                                                  Style="{StaticResource IconToggleButton}"
+                                                                                                                  Width="24" Height="24"
+                                                                                                                  ToolTip="Edit Tooltip">
+                                                                                                        <ToggleButton.Content>
+                                                                                                            <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets"/> <!-- Icon: Info -->
+                                                                                                        </ToggleButton.Content>
+                                                                                                        
+                                                                                                        <!-- Change appearance if tooltip exists -->
+                                                                                                        <ToggleButton.Template>
+                                                                                                            <ControlTemplate TargetType="ToggleButton">
+                                                                                                                <Border x:Name="Border" Background="Transparent" CornerRadius="3" BorderThickness="1" BorderBrush="Transparent">
+                                                                                                                    <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" 
+                                                                                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                                                               Foreground="{StaticResource TextSecondaryBrush}"/> <!-- Default Gray -->
+                                                                                                                </Border>
+                                                                                                                <ControlTemplate.Triggers>
+                                                                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                                                                                                                    </Trigger>
+                                                                                                                    <Trigger Property="IsChecked" Value="True">
+                                                                                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                                                                                        <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                                                                                    </Trigger>
+                                                                                                                    <!-- If Tooltip text is not empty, make icon Accent Color to indicate content -->
+                                                                                                                    <DataTrigger Binding="{Binding Tooltip, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}" Value="True">
+                                                                                                                        <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                                                                                        <Setter TargetName="Border" Property="Background" Value="#20007ACC"/> <!-- Slight tint -->
+                                                                                                                    </DataTrigger>
+                                                                                                                </ControlTemplate.Triggers>
+                                                                                                            </ControlTemplate>
+                                                                                                        </ToggleButton.Template>
+                                                                                                    </ToggleButton>
+
+                                                                                                    <Popup IsOpen="{Binding IsChecked, ElementName=TooltipToggleButton, Mode=TwoWay}" 
+                                                                                                           StaysOpen="False" 
+                                                                                                           PlacementTarget="{Binding ElementName=TooltipToggleButton}" 
+                                                                                                           Placement="Bottom" 
+                                                                                                           AllowsTransparency="True">
+                                                                                                        <Border Background="{StaticResource SecondaryBackground}" 
+                                                                                                                BorderBrush="{StaticResource TertiaryBackground}" 
+                                                                                                                BorderThickness="1" 
+                                                                                                                CornerRadius="3" 
+                                                                                                                Padding="8" Margin="0,2,0,0" Width="250">
+                                                                                                            <StackPanel>
+                                                                                                                <TextBlock Text="Custom Tooltip" FontWeight="Bold" Margin="0,0,0,5"/>
+                                                                                                                <TextBox Text="{Binding Tooltip, UpdateSourceTrigger=PropertyChanged}" 
+                                                                                                                         AcceptsReturn="True" TextWrapping="Wrap" 
+                                                                                                                         MinHeight="60" MaxHeight="150"
+                                                                                                                         local:FocusBehavior.FocusOnOpen="True"/>
+                                                                                                            </StackPanel>
+                                                                                                        </Border>
+                                                                                                    </Popup>
+                                                                                                </Grid>
+                                                                                                
+                                                                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,0" VerticalAlignment="Center">
                                                                                                 <StackPanel.Style>
                                                                                                     <Style TargetType="StackPanel">
                                                                                                         <Setter Property="Visibility" Value="Collapsed"/>
