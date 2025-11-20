@@ -2137,85 +2137,89 @@
        <DataTemplate x:Key="FieldDataTemplate">
               <DataTemplate.Resources>
                   <ControlTemplate x:Key="NormalFieldLayoutTemplate" TargetType="ContentControl">
-                      <Grid Margin="0,4">
-                          <Grid.ColumnDefinitions>
-                              <ColumnDefinition Width="Auto"/>
-                              <ColumnDefinition Width="Auto" MinWidth="120"/>
-                              <ColumnDefinition Width="*" />
-                          </Grid.ColumnDefinitions>
-                          
-                          <Border Grid.Column="0" Width="3" CornerRadius="1.5" HorizontalAlignment="Left">
-                              <Border.Background>
-                                  <Binding Path="HighlightColor" Converter="{StaticResource HexToBrushConverter}"/>
-                              </Border.Background>
-                          </Border>
-                          
-                          <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,10,0" VerticalAlignment="Top">
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto" MinWidth="120"/>
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            
+                            <Border Grid.Column="0" Width="3" CornerRadius="1.5" HorizontalAlignment="Left">
+                                <Border.Background>
+                                    <Binding Path="HighlightColor" Converter="{StaticResource HexToBrushConverter}"/>
+                                </Border.Background>
+                            </Border>
+                            
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,10,0" VerticalAlignment="Top">
+                                
                                 <TextBlock Text="{Binding Name}">
                                     <TextBlock.ToolTip>
                                         <ToolTip>
-                                            <StackPanel MaxWidth="400">
-                                                <!-- Custom Tooltip Section -->
-                                                <TextBlock Text="{Binding FieldModel.Tooltip}" 
-                                                           TextWrapping="Wrap" 
-                                                           FontWeight="SemiBold"
-                                                           Margin="0,0,0,5"
-                                                           Visibility="{Binding FieldModel.Tooltip, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                                
-                                                <!-- Separator (only visible if custom tooltip exists) -->
-                                                <Separator Background="{StaticResource TextSecondaryBrush}" 
-                                                           Margin="0,0,0,5"
-                                                           Visibility="{Binding FieldModel.Tooltip, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                                
-                                                <!-- Technical Info Section (Existing) -->
-                                                <TextBlock>
-                                                    <Run Text="{Binding NodeTitle, Mode=OneWay, StringFormat='Node: {0}'}" FontWeight="Bold"/>
-                                                    <LineBreak/>
-                                                    <Run Text="{Binding NodeType, Mode=OneWay, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                                    <LineBreak/>
-                                                    <Run Text="{Binding Path, Mode=OneWay, StringFormat='Path: {0}'}"/>
-                                                </TextBlock>
-                                            </StackPanel>
+                                            <TextBlock>
+                                                <Run Text="{Binding NodeTitle, Mode=OneWay, StringFormat='Node: {0}'}" FontWeight="Bold"/>
+                                                <LineBreak/>
+                                                <Run Text="{Binding NodeType, Mode=OneWay, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <LineBreak/>
+                                                <Run Text="{Binding Path, Mode=OneWay, StringFormat='Path: {0}'}"/>
+                                            </TextBlock>
                                         </ToolTip>
                                     </TextBlock.ToolTip>
                                 </TextBlock>
-                              <TextBlock Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
-                                  <TextBlock.Style>
-                                      <Style TargetType="TextBlock">
-                                          <Style.Triggers>
-                                              <DataTrigger Binding="{Binding Type}" Value="Seed"><Setter Property="Text" Value="🎲"/></DataTrigger>
-                                              <DataTrigger Binding="{Binding Type}" Value="WildcardSupportPrompt"><Setter Property="Text" Value="💡"/></DataTrigger>
-                                          </Style.Triggers>
-                                      </Style>
-                                  </TextBlock.Style>
-                              </TextBlock>
-                          </StackPanel>
-                          <ContentPresenter Grid.Column="2" Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" VerticalAlignment="Top" />
 
-                          <!-- english: This border is now last, so it will be drawn on top of the other elements. -->
-                          <Border x:Name="HighlightOverlay"
-                                  Grid.Column="0" Grid.ColumnSpan="3"
-                                  Background="{StaticResource PrimaryAccentBrush}"
-                                  Opacity="0"
-                                  CornerRadius="3"
-                                  IsHitTestVisible="False"/>
-                      </Grid>
-                      <!-- english: Trigger for the highlight animation. -->
-                      <ControlTemplate.Triggers>
-                          <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
-                              <DataTrigger.EnterActions>
-                                  <BeginStoryboard>
-                                      <Storyboard>
-                                          <DoubleAnimation Storyboard.TargetName="HighlightOverlay"
-                                                           Storyboard.TargetProperty="Opacity"
-                                                           From="0" To="0.3" Duration="0:0:0.2"
-                                                           AutoReverse="True" RepeatBehavior="2x" />
-                                      </Storyboard>
-                                  </BeginStoryboard>
-                              </DataTrigger.EnterActions>
-                          </DataTrigger>
-                      </ControlTemplate.Triggers>
-                  </ControlTemplate>
+                                <Border Background="Transparent" 
+                                        Margin="5,0,0,0" 
+                                        VerticalAlignment="Center"
+                                        ToolTipService.InitialShowDelay="0"
+                                        Visibility="{Binding FieldModel.Tooltip, Converter={StaticResource StringToVisibilityConverter}}">
+                                    <TextBlock Text="&#xE946;" 
+                                               FontFamily="Segoe MDL2 Assets" 
+                                               Foreground="{StaticResource PrimaryAccentBrush}"
+                                               FontSize="12"
+                                               Cursor="Help"/>
+                                    <Border.ToolTip>
+                                        <ToolTip>
+                                            <TextBlock Text="{Binding FieldModel.Tooltip}" MaxWidth="300" TextWrapping="Wrap"/>
+                                        </ToolTip>
+                                    </Border.ToolTip>
+                                </Border>
+                                
+                                <TextBlock Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Type}" Value="Seed"><Setter Property="Text" Value="🎲"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Type}" Value="WildcardSupportPrompt"><Setter Property="Text" Value="💡"/></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                            
+                            <ContentPresenter Grid.Column="2" Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" VerticalAlignment="Top" />
+
+                            <Border x:Name="HighlightOverlay"
+                                    Grid.Column="0" Grid.ColumnSpan="3"
+                                    Background="{StaticResource PrimaryAccentBrush}"
+                                    Opacity="0"
+                                    CornerRadius="3"
+                                    IsHitTestVisible="False"/>
+                        </Grid>
+                        
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HighlightOverlay"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             From="0" To="0.3" Duration="0:0:0.2"
+                                                             AutoReverse="True" RepeatBehavior="2x" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
                   <ControlTemplate x:Key="InpaintLayoutTemplate" TargetType="ContentControl">
                       <Grid>
                           <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
