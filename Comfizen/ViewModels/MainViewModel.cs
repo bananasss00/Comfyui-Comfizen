@@ -1477,6 +1477,7 @@ namespace Comfizen
                                 scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
                                 tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
                                 presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
+                                globalPresets = tab.Workflow.GlobalPresets.Any() ? tab.Workflow.GlobalPresets : null,
                                 nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null,
                                 advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null
                             };
@@ -1530,6 +1531,7 @@ namespace Comfizen
                     scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
                     tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
                     presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
+                    globalPresets = tab.Workflow.GlobalPresets.Any() ? tab.Workflow.GlobalPresets : null,
                     nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null,
                     advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null
                 };
