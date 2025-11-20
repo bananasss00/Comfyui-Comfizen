@@ -908,6 +908,12 @@ public class WorkflowInputsController : INotifyPropertyChanged
 
         if (sender is InputFieldViewModel fieldVm)
         {
+            if (fieldVm is MarkdownFieldViewModel)
+            {
+                PresetsModifiedInGroup?.Invoke(); // trigger save wf on disk with new value markdown
+                return; 
+            }
+
             var groupVm = FindGroupForField(fieldVm);
             if (groupVm != null)
             {
