@@ -602,6 +602,16 @@ namespace Comfizen
             e.Handled = true;
         }
         
+        private void StopEventPropagation(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+        }
+        
+        private void StopRoutedEventPropagation(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+        }
+        
         #region Window Resizing and Maximizing Code
         
         [DllImport("user32.dll")]

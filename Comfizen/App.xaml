@@ -1047,7 +1047,9 @@
                 <TextBlock Text="{Binding CurrentStateStatus}" 
                            VerticalAlignment="Center" 
                            Foreground="{StaticResource TextSecondaryBrush}" 
-                           Margin="0,0,10,0"
+                           TextTrimming="CharacterEllipsis"
+                           TextWrapping="NoWrap"
+                           HorizontalAlignment="Right"
                            Visibility="{Binding HasPresets, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <!-- START OF NEW TOOLTIP -->
                     <TextBlock.ToolTip>
@@ -1134,7 +1136,8 @@
                                 BorderThickness="1" CornerRadius="3" 
                                 Padding="10" Margin="0,2,0,0"
                                 MinWidth="350" MaxHeight="600"
-                                MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Expander}}">
+                                MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Expander}}"
+                                MouseLeftButtonDown="StopEventPropagation">
                     
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel>

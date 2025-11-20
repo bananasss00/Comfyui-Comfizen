@@ -817,6 +817,8 @@ public class WorkflowInputsController : INotifyPropertyChanged
             groupVm.RebuildActiveLayersFromState();
         }
 
+        GlobalControls.UpdateAvailableGroups(groupVmLookup.Values);
+            
         // --- START OF NEW LOGIC ---
         // After all tab layouts are created, select the active one.
         WorkflowUITabLayoutViewModel tabToSelect = null;
@@ -965,7 +967,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
             GlobalControls.GlobalPresets.Add(preset);
         }
     }
-
+    
     /// <summary>
     /// Checks if the current state of all active layers across all groups matches
     /// any of the defined global presets and updates the UI accordingly.
@@ -1006,15 +1008,8 @@ public class WorkflowInputsController : INotifyPropertyChanged
         {
             bool isMatch = true;
             // 3. Check if the set of groups in the preset matches the set of groups with active layers.
-            var presetGroupIds = globalPreset.GroupStates.Keys.ToHashSet();
-            var currentStateGroupIds = currentState.Where(kvp => kvp.Value.Any()).Select(kvp => kvp.Key).ToHashSet();
+            // NOTE: We only check groups DEFINED in the global preset. Other groups are ignored.
             
-            if (!presetGroupIds.SetEquals(currentStateGroupIds))
-            {
-                continue; // The set of active groups is different.
-            }
-
-            // 4. For each group defined in the preset, resolve its layers and compare with the current state.
             foreach (var requiredState in globalPreset.GroupStates)
             {
                 var groupId = requiredState.Key;
@@ -1044,6 +1039,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 }
 
                 // Compare the resolved snippets with the current state's active snippets for this group.
+                // If the group is missing from current state (empty) but required by preset, it's a mismatch.
                 if (!currentState.TryGetValue(groupId, out var currentSnippets) || !requiredSnippets.SetEquals(currentSnippets))
                 {
                     isMatch = false;
@@ -1074,13 +1070,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         {
             var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
 
-            // First, clear all layers from all groups to ensure a clean slate.
-            foreach (var groupVm in allGroups)
-            {
-                groupVm.ClearActiveLayers();
-            }
-
-            // Now, apply the presets defined in the global preset.
+            // Apply presets ONLY to groups defined in the global preset.
             foreach (var groupState in preset.GroupStates)
             {
                 var groupId = groupState.Key;
@@ -1089,6 +1079,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 var groupVmToApply = allGroups.FirstOrDefault(g => g.Id == groupId);
                 if (groupVmToApply == null) continue;
                 
+                // Clear existing layers for this group to ensure clean application
+                groupVmToApply.ClearActiveLayers();
+
                 // Apply all presets listed for this group.
                 foreach (var presetName in presetNames)
                 {

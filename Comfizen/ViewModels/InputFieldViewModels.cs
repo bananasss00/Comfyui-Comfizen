@@ -305,6 +305,33 @@ namespace Comfizen
         }
     }
     
+    [AddINotifyPropertyChangedInterface]
+    public class GlobalPresetConfigurationItem
+    {
+        public string GroupName { get; set; }
+        public Guid GroupId { get; set; }
+    
+        /// <summary>
+        /// Checked by default if the group has active layers.
+        /// </summary>
+        public bool IsSelected { get; set; }
+    
+        /// <summary>
+        /// Can be selected only if there are active presets to save.
+        /// </summary>
+        public bool IsEnabled { get; set; }
+
+        /// <summary>
+        /// Display text showing what will be saved (e.g., "High Quality" or "Snippet A + Snippet B")
+        /// </summary>
+        public string StateDescription { get; set; }
+    
+        /// <summary>
+        /// The actual data to be saved for this group.
+        /// </summary>
+        public List<string> ActiveLayerNames { get; set; }
+    }
+    
     /// <summary>
     /// A ViewModel for the combined global controls section, managing both wildcard seed and global presets.
     /// </summary>
@@ -382,9 +409,12 @@ namespace Comfizen
             set
             {
                 if (_isSavePresetPopupOpen == value) return;
-                
+            
                 if (value)
                 {
+                    // --- CHANGED: Populate configuration items when opening ---
+                    PopulateConfigurationItems();
+
                     if (!IsUpdateMode)
                     {
                         // Pre-fill with last used values for a new preset
@@ -443,7 +473,12 @@ namespace Comfizen
         private string _lastUsedDescription = "";
         private string _lastUsedCategory = "";
         private List<string> _lastUsedTags = new List<string>();
-
+        
+        private List<WorkflowGroupViewModel> _allAvailableGroups = new();
+        public ObservableCollection<GlobalPresetConfigurationItem> PresetConfigurationItems { get; } = new();
+        
+        public ICommand CancelSavePresetCommand { get; } 
+        
         public GlobalControlsViewModel(
             Action<GlobalPreset> applyPresetAction, 
             Func<Dictionary<Guid, List<string>>> getCurrentStateCallback,
@@ -454,6 +489,8 @@ namespace Comfizen
             _getCurrentStateCallback = getCurrentStateCallback;
             _saveCallback = saveCallback;
             _deleteCallback = deleteCallback;
+            
+            CancelSavePresetCommand = new RelayCommand(_ => IsSavePresetPopupOpen = false);
             
             GlobalPresets.CollectionChanged += (s, e) => 
             {
@@ -546,6 +583,11 @@ namespace Comfizen
             
             PopulateCategoriesAndTags();
         }
+        
+        public void UpdateAvailableGroups(IEnumerable<WorkflowGroupViewModel> groups)
+        {
+            _allAvailableGroups = groups.ToList();
+        }
 
         private void UpdateSortDescriptions()
         {
@@ -573,6 +615,58 @@ namespace Comfizen
             }
             return true;
         }
+        
+        private void PopulateConfigurationItems()
+        {
+            PresetConfigurationItems.Clear();
+
+            // If we are updating an existing preset, we need to know which groups were originally included
+            var existingPreset = IsUpdateMode ? GlobalPresets.FirstOrDefault(p => p.Name == _presetToUpdateName) : null;
+            
+            foreach (var group in _allAvailableGroups.OrderBy(g => g.Name))
+            {
+                var activeLayerNames = group.ActiveLayers.Select(l => l.Name).ToList();
+                bool hasActiveLayers = activeLayerNames.Any();
+                
+                // Determine if this group should be checked by default
+                bool isSelected;
+                if (IsUpdateMode && existingPreset != null)
+                {
+                    // If updating, select only if it was part of the original preset
+                    isSelected = existingPreset.GroupStates.ContainsKey(group.Id);
+                    
+                    // Edge case: If the group was in the preset but currently has no layers, 
+                    // we can't select it (because there is nothing to save), unless we want to save an "empty" state?
+                    // Usually global presets enforce specific presets. If no preset is active, we disable it.
+                    if (!hasActiveLayers) isSelected = false; 
+                }
+                else
+                {
+                    // New preset: select everything that has something active
+                    isSelected = hasActiveLayers;
+                }
+
+                string stateDesc;
+                if (!hasActiveLayers)
+                {
+                    stateDesc = LocalizationService.Instance["GlobalPresets_NoPresets"];
+                }
+                else
+                {
+                    stateDesc = string.Join(" + ", activeLayerNames);
+                }
+
+                PresetConfigurationItems.Add(new GlobalPresetConfigurationItem
+                {
+                    GroupName = group.Name,
+                    GroupId = group.Id,
+                    IsSelected = isSelected,
+                    IsEnabled = hasActiveLayers, // Cannot include a group if it has no active presets
+                    StateDescription = stateDesc,
+                    ActiveLayerNames = activeLayerNames
+                });
+            }
+        }
 
         private void PopulateCategoriesAndTags()
         {
@@ -594,12 +688,12 @@ namespace Comfizen
         
         private void SaveChanges()
         {
-            var currentState = _getCurrentStateCallback();
-            
+            // var currentState = _getCurrentStateCallback(); // <-- DELETE OR COMMENT OUT THIS OLD LINE
+        
             if (IsUpdateMode && !string.Equals(_presetToUpdateName, NewPresetName, StringComparison.OrdinalIgnoreCase))
             {
-                 var old = GlobalPresets.FirstOrDefault(p => p.Name == _presetToUpdateName);
-                 if (old != null) GlobalPresets.Remove(old);
+                var old = GlobalPresets.FirstOrDefault(p => p.Name == _presetToUpdateName);
+                if (old != null) GlobalPresets.Remove(old);
             }
             else 
             {
@@ -614,19 +708,24 @@ namespace Comfizen
                 Category = NewPresetCategory,
                 Tags = NewPresetTags.ToList(),
             };
-            
+        
+            // --- CHANGED: Build GroupStates from our configuration items ---
+            foreach (var item in PresetConfigurationItems)
+            {
+                if (item.IsSelected && item.IsEnabled)
+                {
+                    newPreset.GroupStates[item.GroupId] = item.ActiveLayerNames;
+                }
+            }
+            // -------------------------------------------------------------
+        
             _lastUsedName = NewPresetName;
             _lastUsedDescription = NewPresetDescription;
             _lastUsedCategory = NewPresetCategory;
             _lastUsedTags = NewPresetTags.ToList();
-            
-            foreach (var kvp in currentState)
-            {
-                newPreset.GroupStates[kvp.Key] = kvp.Value;
-            }
-
+        
             GlobalPresets.Add(newPreset);
-            
+        
             _saveCallback(newPreset);
 
             SelectedGlobalPreset = newPreset;

@@ -399,5 +399,11 @@
   "UIConstructor_Field_ItemsTooltip": "Enter items, one per line.\nTo separate Display Name and API Value use ' :: '.\nExample: 'Nice Name :: api_value'\nIf no separator is used, the name will equal the value.",
   "Presets_Category_General": "General",
   "Settings_SaveImagesFlat": "Save files to root folder (ignore subdirectories)",
-  "Settings_SaveImagesFlatTooltip": "If checked, all images will be saved directly to the Save Directory without creating subfolders based on node categories."
+  "Settings_SaveImagesFlatTooltip": "If checked, all images will be saved directly to the Save Directory without creating subfolders based on node categories.",
+  "GlobalPresets_ConfigurationHeader": "Groups & States Configuration",
+  "GlobalPresets_IncludeTooltip": "Include this group in the global preset",
+  "GlobalPresets_NoPresets": "No active presets",
+  "GlobalPresets_HelpText": "Select which groups to affect and what state (local preset) they should switch to.",
+  "GlobalPresets_GroupColumn": "Group",
+  "GlobalPresets_PresetColumn": "State (Preset)"
 }

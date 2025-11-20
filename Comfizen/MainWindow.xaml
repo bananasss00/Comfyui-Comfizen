@@ -446,7 +446,8 @@
                                                                   IsChecked="{Binding IsSavePresetPopupOpen, Mode=TwoWay}"
                                                                   ToolTip="{local:Translate Presets_SaveButton}"/>
 
-                                                    <Popup PlacementTarget="{Binding ElementName=GlobalSavePresetToggle}"
+                                                    <Popup x:Name="GlobalSavePresetPopup"
+                                                           PlacementTarget="{Binding ElementName=GlobalSavePresetToggle}"
                                                            StaysOpen="False"
                                                            Placement="Bottom"
                                                            AllowsTransparency="True">
@@ -460,10 +461,20 @@
                                                         <Border Background="{StaticResource SecondaryBackground}"
                                                                 BorderBrush="{StaticResource TertiaryBackground}"
                                                                 BorderThickness="1"
-                                                                CornerRadius="3" Padding="10"
-                                                                Margin="0,2,0,0">
-                                                            <StackPanel MinWidth="300">
-                                                                <TextBlock FontWeight="Bold" Margin="0,0,0,10">
+                                                                CornerRadius="3" Padding="15"
+                                                                Margin="0,2,0,0"
+                                                                MaxHeight="700" MinWidth="450">
+                                                            
+                                                            <Grid>
+                                                                <Grid.RowDefinitions>
+                                                                    <RowDefinition Height="Auto"/> <!-- Header -->
+                                                                    <RowDefinition Height="Auto"/> <!-- Metadata Inputs -->
+                                                                    <RowDefinition Height="*"/>    <!-- Configuration Table -->
+                                                                    <RowDefinition Height="Auto"/> <!-- Footer Buttons -->
+                                                                </Grid.RowDefinitions>
+
+                                                                <!-- Header -->
+                                                                <TextBlock Grid.Row="0" FontWeight="Bold" FontSize="16" Margin="0,0,0,15">
                                                                     <TextBlock.Style>
                                                                         <Style TargetType="TextBlock">
                                                                             <Setter Property="Text" Value="{local:Translate Presets_SaveCurrentState}"/>
@@ -476,41 +487,152 @@
                                                                     </TextBlock.Style>
                                                                 </TextBlock>
 
-                                                                <!-- Name -->
-                                                                <TextBlock Text="Name" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
-                                                                <TextBox Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                                                                <!-- Metadata Inputs -->
+                                                                <StackPanel Grid.Row="1">
+                                                                    <!-- Name -->
+                                                                    <TextBlock Text="Name" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
+                                                                    <TextBox Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
 
-                                                                <!-- Description -->
-                                                                <TextBlock Text="Description" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
-                                                                <TextBox Text="{Binding NewPresetDescription, UpdateSourceTrigger=PropertyChanged}" MinLines="2" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Margin="0,0,0,8"/>
+                                                                    <!-- Description -->
+                                                                    <TextBlock Text="Description" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
+                                                                    <TextBox Text="{Binding NewPresetDescription, UpdateSourceTrigger=PropertyChanged}" 
+                                                                             MinLines="2" MaxLines="4" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
 
-                                                                <!-- Category -->
-                                                                <TextBlock Text="Category" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
-                                                                <ComboBox IsEditable="True" ItemsSource="{Binding AllCategories}" 
-                                                                          Text="{Binding NewPresetCategory, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                                                                    <Grid Margin="0,0,0,10">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="10"/>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        
+                                                                        <!-- Category -->
+                                                                        <StackPanel Grid.Column="0">
+                                                                            <TextBlock Text="Category" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
+                                                                            <ComboBox IsEditable="True" ItemsSource="{Binding AllCategories}" 
+                                                                                      Text="{Binding NewPresetCategory, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                        </StackPanel>
+                                                                        
+                                                                        <!-- Tags -->
+                                                                        <StackPanel Grid.Column="2">
+                                                                            <TextBlock Text="Tags" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
+                                                                            <local:TagEditor Tags="{Binding NewPresetTags}" 
+                                                                                             AvailableTags="{Binding AllTags}"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </StackPanel>
 
-                                                                <!-- Tags -->
-                                                                <TextBlock Text="Tags" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2"/>
-                                                                <local:TagEditor Tags="{Binding NewPresetTags}" 
-                                                                                 AvailableTags="{Binding AllTags}"
-                                                                                 Margin="0,0,0,8"/>
+                                                                                
+                                                                <!-- Configuration Table -->
+                                                                <Grid Grid.Row="2" Margin="0,5,0,15">
+                                                                    <Grid.RowDefinitions>
+                                                                        <RowDefinition Height="Auto"/>
+                                                                        <RowDefinition Height="*"/>
+                                                                    </Grid.RowDefinitions>
 
-                                                                <!-- Save Button -->
-                                                                <Button Command="{Binding SavePresetCommand}"
-                                                                        HorizontalAlignment="Right"
-                                                                        IsDefault="True" Margin="0,5,0,0">
-                                                                    <Button.Style>
-                                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                                            <Setter Property="Content" Value="{local:Translate Presets_SaveButton}"/>
-                                                                            <Style.Triggers>
-                                                                                <DataTrigger Binding="{Binding IsUpdateMode}" Value="True">
-                                                                                    <Setter Property="Content" Value="{local:Translate Presets_UpdateButton}"/>
-                                                                                </DataTrigger>
-                                                                            </Style.Triggers>
-                                                                        </Style>
-                                                                    </Button.Style>
-                                                                </Button>
-                                                            </StackPanel>
+                                                                    <!-- Используем StackPanel, чтобы текст шел друг за другом вертикально -->
+                                                                    <StackPanel Grid.Row="0" Margin="0,0,0,5">
+                                                                        <TextBlock Text="{local:Translate GlobalPresets_ConfigurationHeader}" 
+                                                                                   FontWeight="SemiBold" Margin="0,0,0,3"/>
+                                                                        
+                                                                        <TextBlock Text="{local:Translate GlobalPresets_HelpText}" 
+                                                                                   FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" 
+                                                                                   TextWrapping="Wrap"/> <!-- TextWrapping важен, чтобы длинный текст не уходил за край -->
+                                                                    </StackPanel>
+
+                                                                    <Border Grid.Row="1" Background="{StaticResource SecondaryBackground}"
+                                                                            BorderBrush="{StaticResource TertiaryBackground}"
+                                                                            BorderThickness="1"
+                                                                            CornerRadius="3" Padding="15"
+                                                                            Margin="0,2,0,0"
+                                                                            MaxHeight="700" 
+                                                                            Width="700"> 
+                                                                        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="300">
+                                                                            <ItemsControl ItemsSource="{Binding PresetConfigurationItems}">
+                                                                                <!-- Header Row (без изменений) -->
+                                                                                <ItemsControl.Template>
+                                                                                    <ControlTemplate TargetType="ItemsControl">
+                                                                                        <StackPanel>
+                                                                                            <Grid Background="{StaticResource TertiaryBackground}" Margin="0,0,0,1">
+                                                                                                <Grid.ColumnDefinitions>
+                                                                                                    <ColumnDefinition Width="40"/>
+                                                                                                    <ColumnDefinition Width="150"/>
+                                                                                                    <ColumnDefinition Width="*"/>
+                                                                                                </Grid.ColumnDefinitions>
+                                                                                                <TextBlock Grid.Column="1" Text="{local:Translate GlobalPresets_GroupColumn}" FontWeight="Bold" Padding="5" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                                <TextBlock Grid.Column="2" Text="{local:Translate GlobalPresets_PresetColumn}" FontWeight="Bold" Padding="5" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                                            </Grid>
+                                                                                            <ItemsPresenter/>
+                                                                                        </StackPanel>
+                                                                                    </ControlTemplate>
+                                                                                </ItemsControl.Template>
+                                                                                
+                                                                                <ItemsControl.ItemTemplate>
+                                                                                    <DataTemplate>
+                                                                                        <Border BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,0,0,1" Padding="0,4">
+                                                                                            <Grid ToolTip="{local:Translate GlobalPresets_IncludeTooltip}" Background="Transparent">
+                                                                                                <Grid.ColumnDefinitions>
+                                                                                                    <ColumnDefinition Width="40"/>
+                                                                                                    <ColumnDefinition Width="150"/>
+                                                                                                    <ColumnDefinition Width="*"/>
+                                                                                                </Grid.ColumnDefinitions>
+                                                                                                
+                                                                                                <CheckBox Grid.Column="0" 
+                                                                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                                                          IsEnabled="{Binding IsEnabled}"
+                                                                                                          HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0"/> <!-- VerticalAlignment Top для красивого выравнивания при многострочном тексте -->
+                                                                                                
+                                                                                                <TextBlock Grid.Column="1" Text="{Binding GroupName}" 
+                                                                                                           VerticalAlignment="Top" TextWrapping="Wrap"
+                                                                                                           Padding="5,4,5,4"/>
+                                                                                                
+                                                                                                <!-- ИЗМЕНЕНО: Добавлен TextWrapping и убрано Trimming -->
+                                                                                                <TextBlock Grid.Column="2" Text="{Binding StateDescription}" 
+                                                                                                           VerticalAlignment="Top" 
+                                                                                                           TextWrapping="Wrap"
+                                                                                                           Padding="5,4,15,4"> <!-- Увеличенный отступ справа -->
+                                                                                                    <TextBlock.Style>
+                                                                                                        <Style TargetType="TextBlock">
+                                                                                                            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                                                                                            <Style.Triggers>
+                                                                                                                <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                                                                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                                                                                    <Setter Property="FontStyle" Value="Italic"/>
+                                                                                                                </DataTrigger>
+                                                                                                            </Style.Triggers>
+                                                                                                        </Style>
+                                                                                                    </TextBlock.Style>
+                                                                                                </TextBlock>
+                                                                                            </Grid>
+                                                                                        </Border>
+                                                                                    </DataTemplate>
+                                                                                </ItemsControl.ItemTemplate>
+                                                                            </ItemsControl>
+                                                                        </ScrollViewer>
+                                                                    </Border>
+                                                                </Grid>
+                                                                
+                                                                <!-- Footer Buttons -->
+                                                                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                                    <!-- Кнопка Cancel теперь использует команду из ViewModel -->
+                                                                    <Button Content="{local:Translate Settings_Cancel}" 
+                                                                            Command="{Binding CancelSavePresetCommand}"
+                                                                            IsCancel="True" Margin="0,0,10,0"/>
+                                                                    
+                                                                    <Button Command="{Binding SavePresetCommand}"
+                                                                            IsDefault="True" Padding="20,5">
+                                                                        <Button.Style>
+                                                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                                <Setter Property="Content" Value="{local:Translate Presets_SaveButton}"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsUpdateMode}" Value="True">
+                                                                                        <Setter Property="Content" Value="{local:Translate Presets_UpdateButton}"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Button.Style>
+                                                                    </Button>
+                                                                </StackPanel>
+                                                            </Grid>
                                                         </Border>
                                                     </Popup>
                                                 </Grid>
@@ -544,7 +666,6 @@
                         </DockPanel.Resources>
                         <ContentControl DockPanel.Dock="Top" Content="{Binding SelectedTab.WorkflowInputsController.GlobalControls}" />
 
-                        <!-- НАЧАЛО ИЗМЕНЕНИЯ: Всплывающее окно редактора -->
                         <Popup IsOpen="{Binding SelectedTab.WorkflowInputsController.IsGlobalPresetEditorOpen, Mode=TwoWay}"
                                StaysOpen="False"
                                Placement="Center"
@@ -760,19 +881,20 @@
                                                                                                     <StackPanel
                                                                                                         Grid.Column="2"
                                                                                                         Orientation="Horizontal"
-                                                                                                        HorizontalAlignment="Right"
+                                                                                        HorizontalAlignment="Right"
                                                                                         Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}">
 
                                                                                                         <ContentPresenter
                                                                                                             Content="{Binding}"
                                                                                             ContentTemplate="{StaticResource GroupHeaderPresetControls}"
-                                                                                                            VerticalAlignment="Center" />
-                                                                                                        
-                                                                                                        <Grid>
-                                                                                                            <ToggleButton x:Name="MoreOptionsButton"
-                                                                                                                Style="{StaticResource IconToggleButton}"
-                                                                                                                Content="&#xE712;"
-                                                                                                                Width="24" Height="24" Margin="5,0,0,0"
+                                                                                            VerticalAlignment="Center"
+                                                                                            MaxWidth="400"/> 
+    
+                                                                                        <Grid>
+                                                                                            <ToggleButton x:Name="MoreOptionsButton"
+                                                                                                Style="{StaticResource IconToggleButton}"
+                                                                                                Content="&#xE712;"
+                                                                                                Width="24" Height="24" Margin="5,0,0,0"
                                                                                                                 ToolTip="{local:Translate ContextMenu_MoreOptions}"/>
                                                                                                             
                                                                                                             <Popup IsOpen="{Binding IsChecked, ElementName=MoreOptionsButton, Mode=TwoWay}"
