@@ -128,21 +128,39 @@ namespace Comfizen
             ExecuteHook("on_workflow_load", Workflow.LoadedApi);
         }
         
-        private void ApplyGridConfig(JObject gridConfig)
+         private void ApplyGridConfig(JObject gridConfig)
         {
             var controller = this.WorkflowInputsController;
             try
             {
                 controller.IsXyGridEnabled = true;
 
-                string xAxisIdentifier = gridConfig["x_axis_identifier"]?.ToString();
-                string xAxisSourceType = gridConfig["x_axis_source_type"]?.ToString();
-                string yAxisIdentifier = gridConfig["y_axis_identifier"]?.ToString();
-                string yAxisSourceType = gridConfig["y_axis_source_type"]?.ToString();
+                // Restore checkbox values
+                controller.XyGridCreateGridImage = gridConfig["CreateGridImage"]?.Value<bool>() ?? true;
+                controller.XyGridShowIndividualImages = gridConfig["ShowIndividualImages"]?.Value<bool>() ?? false;
+                controller.XyGridLimitCellSize = gridConfig["LimitCellSize"]?.Value<bool>() ?? false;
+                controller.XyGridMaxMegapixels = gridConfig["MaxMegapixels"]?.Value<double>() ?? 4.0;
+                
+                // Restore Grid Mode
+                if (gridConfig["GridMode"] != null && Enum.TryParse<XYGridMode>(gridConfig["GridMode"].ToString(), out var gridMode))
+                {
+                    controller.GridMode = gridMode;
+                }
+                controller.VideoGridFrames = gridConfig["VideoGridFrames"]?.Value<int>() ?? 4;
+
+                // Restore axes
+                string xAxisIdentifier = gridConfig["XAxisIdentifier"]?.ToString();
+                string xAxisSourceType = gridConfig["XAxisSourceType"]?.ToString();
+                string yAxisIdentifier = gridConfig["YAxisIdentifier"]?.ToString();
+                string yAxisSourceType = gridConfig["YAxisSourceType"]?.ToString();
                     
                 if (!string.IsNullOrEmpty(xAxisIdentifier))
                 {
-                    if (xAxisSourceType == "PresetGroup")
+                    if (xAxisSourceType == "GlobalPreset")
+                    {
+                        controller.SelectedXSource = controller.GridableSources.FirstOrDefault(s => (s.Source as string) == "GlobalPresetsSourceMarker");
+                    }
+                    else if (xAxisSourceType == "PresetGroup")
                     {
                         controller.SelectedXSource = controller.GridableSources.FirstOrDefault(s => (s.Source as WorkflowGroupViewModel)?.Id.ToString() == xAxisIdentifier);
                     }
@@ -154,7 +172,11 @@ namespace Comfizen
 
                 if (!string.IsNullOrEmpty(yAxisIdentifier))
                 {
-                    if (yAxisSourceType == "PresetGroup")
+                    if (yAxisSourceType == "GlobalPreset")
+                    {
+                        controller.SelectedYSource = controller.GridableSources.FirstOrDefault(s => (s.Source as string) == "GlobalPresetsSourceMarker");
+                    }
+                    else if (yAxisSourceType == "PresetGroup")
                     {
                         controller.SelectedYSource = controller.GridableSources.FirstOrDefault(s => (s.Source as WorkflowGroupViewModel)?.Id.ToString() == yAxisIdentifier);
                     }
@@ -163,9 +185,10 @@ namespace Comfizen
                         controller.SelectedYSource = controller.GridableSources.FirstOrDefault(s => (s.Source as InputFieldViewModel)?.Path == yAxisIdentifier);
                     }
                 }
-
-                controller.XValues = string.Join(Environment.NewLine, gridConfig["x_values"]?.ToObject<List<string>>() ?? new List<string>());
-                controller.YValues = string.Join(Environment.NewLine, gridConfig["y_values"]?.ToObject<List<string>>() ?? new List<string>());
+                
+                // Restore values
+                controller.XValues = string.Join(Environment.NewLine, gridConfig["XValues"]?.ToObject<List<string>>() ?? new List<string>());
+                controller.YValues = string.Join(Environment.NewLine, gridConfig["YValues"]?.ToObject<List<string>>() ?? new List<string>());
             }
             catch (Exception ex)
             {

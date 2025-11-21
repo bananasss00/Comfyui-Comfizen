@@ -152,6 +152,25 @@ namespace Comfizen
 
         #endregion
         
+        #region PlaceholderItem Dependency Property
+        public static readonly DependencyProperty PlaceholderItemProperty =
+            DependencyProperty.Register("PlaceholderItem", typeof(object), typeof(FilterableComboBox), new PropertyMetadata(null, OnPlaceholderItemChanged));
+
+        public object PlaceholderItem
+        {
+            get => GetValue(PlaceholderItemProperty);
+            set => SetValue(PlaceholderItemProperty, value);
+        }
+        
+        private static void OnPlaceholderItemChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is FilterableComboBox control)
+            {
+                control.ValidateSelectedItem();
+            }
+        }
+        #endregion
+        
         #region Property Changed Callbacks
 
         private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -222,6 +241,13 @@ namespace Comfizen
         
         private void ValidateSelectedItem()
         {
+            // If the selected item is the designated placeholder, it is always valid.
+            if (SelectedItem != null && PlaceholderItem != null && SelectedItem.Equals(PlaceholderItem))
+            {
+                IsValueValid = true;
+                return;
+            }
+
             if (ItemsSource == null || SelectedItem == null)
             {
                 IsValueValid = true;

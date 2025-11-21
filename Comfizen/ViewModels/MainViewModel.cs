@@ -286,6 +286,7 @@ namespace Comfizen
             public string YAxisSourceType { get; set; }
             public IReadOnlyList<string> YValues { get; set; }
             public bool CreateGridImage { get; set; }
+            public bool ShowIndividualImages { get; set; }
             public bool LimitCellSize { get; set; }
             public double MaxMegapixels { get; set; }
             public XYGridMode GridMode { get; set; }
@@ -1289,7 +1290,7 @@ namespace Comfizen
             }
         }
         
-        private async Task<List<PromptTask>> CreatePromptTasks(WorkflowTabViewModel tab)
+        public async Task<List<PromptTask>> CreatePromptTasks(WorkflowTabViewModel tab)
         {
             var tasks = new List<PromptTask>();
             var controller = tab.WorkflowInputsController;
@@ -1327,13 +1328,19 @@ namespace Comfizen
                     YAxisField = controller.SelectedYSource?.DisplayName,
                     YValues = yValuesList,
                     CreateGridImage = controller.XyGridCreateGridImage,
+                    ShowIndividualImages = controller.XyGridShowIndividualImages,
                     LimitCellSize = controller.XyGridLimitCellSize,
                     MaxMegapixels = controller.XyGridMaxMegapixels,
                     GridMode = controller.GridMode,
                     VideoGridFrames = controller.VideoGridFrames
                 };
 
-                if (controller.SelectedXSource?.Source is InputFieldViewModel xField)
+                if (controller.IsXSourceGlobalPreset)
+                {
+                    gridConfigForBatch.XAxisSourceType = "GlobalPreset";
+                    gridConfigForBatch.XAxisIdentifier = "global";
+                }
+                else if (controller.SelectedXSource?.Source is InputFieldViewModel xField)
                 {
                     gridConfigForBatch.XAxisIdentifier = xField.Path;
                     gridConfigForBatch.XAxisSourceType = "Field";
@@ -1344,7 +1351,12 @@ namespace Comfizen
                     gridConfigForBatch.XAxisSourceType = "PresetGroup";
                 }
 
-                if (controller.SelectedYSource?.Source is InputFieldViewModel yField)
+                if (controller.IsYSourceGlobalPreset)
+                {
+                    gridConfigForBatch.YAxisSourceType = "GlobalPreset";
+                    gridConfigForBatch.YAxisIdentifier = "global";
+                }
+                else if (controller.SelectedYSource?.Source is InputFieldViewModel yField)
                 {
                     gridConfigForBatch.YAxisIdentifier = yField.Path;
                     gridConfigForBatch.YAxisSourceType = "Field";
@@ -1376,8 +1388,11 @@ namespace Comfizen
                             var apiPromptForTask = tab.Workflow.JsonClone();
 
                             // Apply X value
-                            var xSource = controller.SelectedXSource.Source;
-                            if (xSource is WorkflowGroupViewModel xGroupVm)
+                            if (controller.IsXSourceGlobalPreset)
+                            {
+                                controller.ApplyGlobalPresetToJObject(apiPromptForTask, xValue);
+                            }
+                            else if (controller.SelectedXSource.Source is WorkflowGroupViewModel xGroupVm)
                             {
                                 var groupVmInstance = allGroupVms.FirstOrDefault(g => g.Id == xGroupVm.Id);
                                 if (groupVmInstance != null)
@@ -1414,15 +1429,18 @@ namespace Comfizen
                             {
                                 xBypassVmInstance.IsEnabled = ConvertStringToBool(xValue);
                             }
-                            else if (xSource is InputFieldViewModel xFieldVm)
+                            else if (controller.SelectedXSource.Source is InputFieldViewModel xFieldVm)
                             {
                                 var xProp = Utils.GetJsonPropertyByPath(apiPromptForTask, xFieldVm.Path);
                                 if (xProp != null) xProp.Value = ConvertValueToJToken(xValue, xFieldVm);
                             }
 
                             // Apply Y value
-                            var ySource = controller.SelectedYSource?.Source;
-                            if (ySource is WorkflowGroupViewModel yGroupVm)
+                            if (controller.IsYSourceGlobalPreset)
+                            {
+                                controller.ApplyGlobalPresetToJObject(apiPromptForTask, yValue);
+                            }
+                            else if (controller.SelectedYSource?.Source is WorkflowGroupViewModel yGroupVm)
                             {
                                 var groupVmInstance = allGroupVms.FirstOrDefault(g => g.Id == yGroupVm.Id);
                                 if (groupVmInstance != null)
@@ -1459,12 +1477,12 @@ namespace Comfizen
                             {
                                 yBypassVmInstance.IsEnabled = ConvertStringToBool(yValue);
                             }
-                            else if (ySource is InputFieldViewModel yFieldVm)
+                            else if (controller.SelectedYSource?.Source is InputFieldViewModel yFieldVm)
                             {
                                 var yProp = Utils.GetJsonPropertyByPath(apiPromptForTask, yFieldVm.Path);
                                 if (yProp != null) yProp.Value = ConvertValueToJToken(yValue, yFieldVm);
                             }
-    
+
                             var advancedPromptOriginalTexts = GetAdvancedPromptOriginalTexts(apiPromptForTask);
 
                             await tab.WorkflowInputsController.ProcessSpecialFieldsAsync(apiPromptForTask, pathsToIgnore);
@@ -1958,15 +1976,8 @@ namespace Comfizen
                     try
                     {
                         var workflowJson = JObject.Parse(firstTaskResult.Prompt);
-                        var gridConfigData = new JObject
-                        {
-                            ["x_axis_identifier"] = gridConfig.XAxisIdentifier,
-                            ["x_axis_source_type"] = gridConfig.XAxisSourceType,
-                            ["x_values"] = JArray.FromObject(gridConfig.XValues),
-                            ["y_axis_identifier"] = gridConfig.YAxisIdentifier,
-                            ["y_axis_source_type"] = gridConfig.YAxisSourceType,
-                            ["y_values"] = JArray.FromObject(gridConfig.YValues)
-                        };
+                        
+                        var gridConfigData = JObject.FromObject(gridConfig);
 
                         var compositePrompt = new JObject
                         {

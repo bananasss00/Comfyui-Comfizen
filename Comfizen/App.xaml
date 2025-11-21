@@ -2522,7 +2522,8 @@
                                 <local:FilterableComboBox Margin="0,0,0,5"
                                                           ItemsSource="{Binding SelectedTab.WorkflowInputsController.GridableSources}"
                                                           SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedXSource, Mode=TwoWay}"
-                                                          ShowCycleButtons="False">
+                                                          ShowCycleButtons="False"
+                                                          PlaceholderItem="{x:Static local:NullGridAxisSource.Instance}">
                                     <local:FilterableComboBox.ItemTemplate>
                                         <DataTemplate DataType="{x:Type local:GridAxisSource}">
                                             <StackPanel Orientation="Horizontal">
@@ -2607,6 +2608,31 @@
                                     </local:FilterableComboBox.ItemTemplate>
                                 </local:FilterableComboBox>
 
+                                <!-- Global Presets ComboBox (for X-Axis) -->
+                                <local:FilterableComboBox
+                                    ItemsSource="{Binding SelectedTab.WorkflowInputsController.XSourceGlobalPresetsView}"
+                                    PlaceholderText="{local:Translate XYGrid_AddValuePlaceholder}"
+                                    Margin="0,0,0,5"
+                                    ShowCycleButtons="False"
+                                    ItemSelectedCommand="{Binding SelectedTab.WorkflowInputsController.AddGlobalPresetValueToGridCommand}"
+                                    ItemSelectedCommandParameter="X">
+                                    <local:FilterableComboBox.Style>
+                                        <Style TargetType="local:FilterableComboBox">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedTab.WorkflowInputsController.IsXSourceGlobalPreset}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </local:FilterableComboBox.Style>
+                                    <local:FilterableComboBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type local:GlobalPreset}">
+                                            <TextBlock Text="{Binding Name}" />
+                                        </DataTemplate>
+                                    </local:FilterableComboBox.ItemTemplate>
+                                </local:FilterableComboBox>
+
                                 <TextBlock Text="{local:Translate XYGrid_XValues}" Margin="0,0,0,2" />
                                 <TextBox Margin="0,0,0,10" MinHeight="60"
                                          Text="{Binding SelectedTab.WorkflowInputsController.XValues, UpdateSourceTrigger=PropertyChanged}"
@@ -2619,7 +2645,8 @@
                                 <local:FilterableComboBox Margin="0,0,0,5"
                                                           ItemsSource="{Binding SelectedTab.WorkflowInputsController.GridableSources}"
                                                           SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedYSource, Mode=TwoWay}"
-                                                          ShowCycleButtons="False">
+                                                          ShowCycleButtons="False"
+                                                          PlaceholderItem="{x:Static local:NullGridAxisSource.Instance}">
                                     <local:FilterableComboBox.ItemTemplate>
                                         <DataTemplate DataType="{x:Type local:GridAxisSource}">
                                             <StackPanel Orientation="Horizontal">
@@ -2699,6 +2726,31 @@
                                     </local:FilterableComboBox.GroupStyle>
                                     <local:FilterableComboBox.ItemTemplate>
                                         <DataTemplate DataType="{x:Type local:GroupPresetViewModel}">
+                                            <TextBlock Text="{Binding Name}" />
+                                        </DataTemplate>
+                                    </local:FilterableComboBox.ItemTemplate>
+                                </local:FilterableComboBox>
+
+                                <!-- Global Presets ComboBox (for Y-Axis) -->
+                                <local:FilterableComboBox
+                                    ItemsSource="{Binding SelectedTab.WorkflowInputsController.YSourceGlobalPresetsView}"
+                                    PlaceholderText="{local:Translate XYGrid_AddValuePlaceholder}"
+                                    Margin="0,0,0,5"
+                                    ShowCycleButtons="False"
+                                    ItemSelectedCommand="{Binding SelectedTab.WorkflowInputsController.AddGlobalPresetValueToGridCommand}"
+                                    ItemSelectedCommandParameter="Y">
+                                    <local:FilterableComboBox.Style>
+                                        <Style TargetType="local:FilterableComboBox">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedTab.WorkflowInputsController.IsYSourceGlobalPreset}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </local:FilterableComboBox.Style>
+                                    <local:FilterableComboBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type local:GlobalPreset}">
                                             <TextBlock Text="{Binding Name}" />
                                         </DataTemplate>
                                     </local:FilterableComboBox.ItemTemplate>

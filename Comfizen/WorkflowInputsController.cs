@@ -135,6 +135,18 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 XSourcePresetsView = null;
             }
             OnPropertyChanged(nameof(XSourcePresetsView));
+            
+            OnPropertyChanged(nameof(IsXSourceGlobalPreset));
+            if (IsXSourceGlobalPreset)
+            {
+                XSourceGlobalPresetsView = CollectionViewSource.GetDefaultView(GlobalControls.GlobalPresets);
+                XSourceGlobalPresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            }
+            else
+            {
+                XSourceGlobalPresetsView = null;
+            }
+            OnPropertyChanged(nameof(XSourceGlobalPresetsView));
         }
     }
     public string XValues { get; set; }
@@ -164,6 +176,18 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 YSourcePresetsView = null;
             }
             OnPropertyChanged(nameof(YSourcePresetsView));
+            
+            OnPropertyChanged(nameof(IsYSourceGlobalPreset));
+            if (IsYSourceGlobalPreset)
+            {
+                YSourceGlobalPresetsView = CollectionViewSource.GetDefaultView(GlobalControls.GlobalPresets);
+                YSourceGlobalPresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            }
+            else
+            {
+                YSourceGlobalPresetsView = null;
+            }
+            OnPropertyChanged(nameof(YSourceGlobalPresetsView));
         }
     }
     public string YValues { get; set; }
@@ -185,6 +209,12 @@ public class WorkflowInputsController : INotifyPropertyChanged
     public bool IsGlobalPresetEditorOpen { get; set; }
 
     public ICommand AddPresetValueToGridCommand { get; }
+    public ICommand AddGlobalPresetValueToGridCommand { get; }
+    
+    public bool IsXSourceGlobalPreset => (SelectedXSource?.Source as string) == "GlobalPresetsSourceMarker";
+    public ICollectionView XSourceGlobalPresetsView { get; private set; }
+    public bool IsYSourceGlobalPreset => (SelectedYSource?.Source as string) == "GlobalPresetsSourceMarker";
+    public ICollectionView YSourceGlobalPresetsView { get; private set; }
     
     public WorkflowInputsController(Workflow workflow, AppSettings settings, ModelService modelService, WorkflowTabViewModel parentTab)
     {
@@ -278,6 +308,25 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 YValues = string.IsNullOrEmpty(YValues) ? selectedValue : YValues + Environment.NewLine + selectedValue;
             }
         });
+        
+        AddGlobalPresetValueToGridCommand = new RelayCommand(param =>
+        {
+            if (param is not Tuple<object, object> tuple || tuple.Item1 is not GlobalPreset preset || tuple.Item2 is not string axis)
+            {
+                return;
+            }
+
+            string selectedValue = preset.Name;
+
+            if (axis == "X")
+            {
+                XValues = string.IsNullOrEmpty(XValues) ? selectedValue : XValues + Environment.NewLine + selectedValue;
+            }
+            else if (axis == "Y")
+            {
+                YValues = string.IsNullOrEmpty(YValues) ? selectedValue : YValues + Environment.NewLine + selectedValue;
+            }
+        });
     }
     
     // Helper for constructor
@@ -287,6 +336,58 @@ public class WorkflowInputsController : INotifyPropertyChanged
         return allGroups
             .Where(g => g.ActiveLayers.Any())
             .ToDictionary(g => g.Id, g => g.ActiveLayers.Select(l => l.Name).ToList());
+    }
+    
+    public void ApplyGlobalPresetToJObject(JObject prompt, string presetName)
+    {
+        var preset = GlobalControls.GlobalPresets.FirstOrDefault(p => p.Name == presetName);
+        if (preset == null) return;
+
+        var allGroupVms = TabLayoouts.SelectMany(t => t.Groups).ToList();
+
+        foreach (var groupState in preset.GroupStates)
+        {
+            var groupId = groupState.Key;
+            var presetNames = groupState.Value;
+
+            var groupVm = allGroupVms.FirstOrDefault(g => g.Id == groupId);
+            if (groupVm == null) continue;
+
+            foreach (var groupPresetName in presetNames)
+            {
+                var groupPreset = groupVm.AllPresets.FirstOrDefault(p => p.Name == groupPresetName);
+                if (groupPreset != null)
+                {
+                    if (groupPreset.IsLayout)
+                    {
+                        foreach (var snippetName in groupPreset.Model.SnippetNames ?? new List<string>())
+                        {
+                            var snippet = groupVm.AllPresets.FirstOrDefault(s => s.Name == snippetName);
+                            if (snippet != null)
+                            {
+                                ApplySnippetValuesToJObject(prompt, snippet.Model);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ApplySnippetValuesToJObject(prompt, groupPreset.Model);
+                    }
+                }
+            }
+        }
+    }
+    
+    private void ApplySnippetValuesToJObject(JObject prompt, GroupPreset snippet)
+    {
+        foreach (var valuePair in snippet.Values)
+        {
+            var prop = Utils.GetJsonPropertyByPath(prompt, valuePair.Key);
+            if (prop != null)
+            {
+                prop.Value = valuePair.Value.DeepClone();
+            }
+        }
     }
     
     private void OpenGlobalPresetEditor()
@@ -803,11 +904,12 @@ public class WorkflowInputsController : INotifyPropertyChanged
             }
         }
         
-        PopulateGridableSources();
-        
         await Task.WhenAll(comboBoxLoadTasks);
         
+        // --- FIX: Load global presets BEFORE populating grid sources ---
         LoadGlobalPresets(); 
+        
+        PopulateGridableSources();
         
         SyncGlobalPresetFromGroups();
         
@@ -893,6 +995,17 @@ public class WorkflowInputsController : INotifyPropertyChanged
                     processedGroups.Add(groupVm);
                 }
             }
+        }
+        
+        // 3. Add Global Presets as a source
+        if (GlobalControls.GlobalPresets.Any())
+        {
+            GridableSources.Add(new GridAxisSource
+            {
+                DisplayName = $"[Global Presets]",
+                Source = "GlobalPresetsSourceMarker", // A unique identifier
+                GroupName = "Global"
+            });
         }
         
         if (selectedX != null)
