@@ -1595,8 +1595,7 @@ namespace Comfizen
                             var savableFieldsInTab = tabVm.Model.Fields
                                 .Where(f => f.Type != FieldType.ScriptButton &&
                                             f.Type != FieldType.Label &&
-                                            f.Type != FieldType.Separator)
-                                .OrderBy(f => f.Name);
+                                            f.Type != FieldType.Separator);
                     
                             foreach (var field in savableFieldsInTab)
                             {
@@ -1812,14 +1811,13 @@ namespace Comfizen
                         selectedPaths = new HashSet<string>(existingPresetVm.Model.Values.Keys);
                     }
 
-                    // START OF CHANGE: Correctly iterate through tabs and their fields to populate the selection list
+                    // Iterate through tabs and their fields in their defined order.
                     foreach (var tabVm in Tabs)
                     {
                         var savableFieldsInTab = tabVm.Model.Fields
                             .Where(f => f.Type != FieldType.ScriptButton &&
                                         f.Type != FieldType.Label &&
-                                        f.Type != FieldType.Separator)
-                            .OrderBy(f => f.Name);
+                                        f.Type != FieldType.Separator);
 
                         foreach (var fieldModel in savableFieldsInTab)
                         {
@@ -1832,7 +1830,6 @@ namespace Comfizen
                             });
                         }
                     }
-                    // END OF CHANGE
                     
                     IsSavePresetPopupOpen = true;
                 }
@@ -1960,10 +1957,9 @@ namespace Comfizen
         private void PopulateFieldsForPresetFilter()
         {
             FieldsForPresetFilter.Clear();
-            // Use the same logic as for saving presets (order, tab names)
+            // Iterate through tabs and their fields in their defined order
             foreach (var tabVm in Tabs)
             {
-                // We can include all savable fields here
                 var savableFieldsInTab = tabVm.Model.Fields
                     .Where(f => f.Type != FieldType.ScriptButton &&
                                 f.Type != FieldType.Label &&
@@ -1982,8 +1978,8 @@ namespace Comfizen
                     fieldVm.PropertyChanged += (s, e) => {
                         if (e.PropertyName == nameof(PresetFieldSelectionViewModel.IsSelected) && IsFilterByFieldsActive)
                         {
-                           FilteredSnippetsView?.Refresh();
-                           FilteredLayoutsView?.Refresh();
+                            FilteredSnippetsView?.Refresh();
+                            FilteredLayoutsView?.Refresh();
                         }
                     };
                     FieldsForPresetFilter.Add(fieldVm);
