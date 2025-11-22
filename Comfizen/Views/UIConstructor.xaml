@@ -104,7 +104,12 @@
                             Command="{Binding PastePresetsMergeCommand}"
                             CommandParameter="{Binding PopupTarget}" Margin="0,5,0,0"
                             Click="ClosePopupOnClick"/>
-
+                    <Separator Margin="0,5"/>
+                    <Button Content="Clear Group Presets"
+                            Command="{Binding ClearGroupPresetsCommand}"
+                            CommandParameter="{Binding PopupTarget}"
+                            Click="ClosePopupOnClick"
+                            Background="{StaticResource ErrorBrush}"/>
                 </StackPanel>
             </Border>
         </Popup>
