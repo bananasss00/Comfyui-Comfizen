@@ -1002,23 +1002,25 @@ namespace Comfizen
         
         public List<PresetFieldInfo> FieldDetails { get; private set; } = new List<PresetFieldInfo>();
 
-        public void GenerateToolTip(WorkflowGroupViewModel parentGroup)
+       public void GenerateToolTip(WorkflowGroupViewModel parentGroup, Dictionary<string, InputFieldViewModel> fieldLookup)
         {
             var details = new List<PresetFieldInfo>();
-            var allUiFields = parentGroup.Tabs.SelectMany(t => t.Fields).ToList();
+            // 'fieldLookup' allows finding a field by its Path instantly.
+            
             var showTabNames = parentGroup.Tabs.Count > 1;
 
             // Helper to process a single field-value pair
             void AddFieldDetail(string fieldPath, JToken val)
             {
-                var field = allUiFields.FirstOrDefault(f => f.Path == fieldPath);
-                if (field != null)
+                // Fast lookup instead of LINQ FirstOrDefault
+                if (fieldLookup.TryGetValue(fieldPath, out var field))
                 {
+                    // Find tab name (this loop is still needed but tabs are few)
+                    // Optimization: Pass a second dictionary for Field->TabName if needed, but this is usually fast enough.
                     var tab = parentGroup.Tabs.FirstOrDefault(t => t.Fields.Contains(field));
                     
                     string displayValue;
 
-                    // --- START OF CHANGE: Handle ComboBox friendly names ---
                     if (field is ComboBoxFieldViewModel comboVm)
                     {
                         displayValue = comboVm.GetDisplayLabelForValue(val);
@@ -1027,7 +1029,6 @@ namespace Comfizen
                     {
                         displayValue = FormatJTokenForDisplay(val);
                     }
-                    // --- END OF CHANGE ---
 
                     details.Add(new PresetFieldInfo
                     {
@@ -2165,11 +2166,25 @@ namespace Comfizen
             var hadPresetsBefore = AllPresets.Any(); // Check state before modification
 
             AllPresets.Clear();
+            
+            var fieldLookup = new Dictionary<string, InputFieldViewModel>();
+            foreach (var tab in Tabs)
+            {
+                foreach (var field in tab.Fields)
+                {
+                    if (!string.IsNullOrEmpty(field.Path) && !fieldLookup.ContainsKey(field.Path))
+                    {
+                        fieldLookup[field.Path] = field;
+                    }
+                }
+            }
+            
             if (_workflow.Presets.TryGetValue(Id, out var presets))
             {
                 foreach (var preset in presets)
                 {
                     var presetVM = new GroupPresetViewModel(preset);
+                    presetVM.GenerateToolTip(this, fieldLookup);
                     AllPresets.Add(presetVM);
                 }
             }
@@ -2180,12 +2195,6 @@ namespace Comfizen
             if (hadPresetsBefore != hasPresetsAfter)
             {
                 OnPropertyChanged(nameof(HasPresets));
-            }
-            
-            // Generate tooltips for all presets after they have been loaded.
-            foreach (var presetVM in AllPresets)
-            {
-                presetVM.GenerateToolTip(this);
             }
             
             PopulateCategoriesAndTags();
