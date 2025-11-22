@@ -414,5 +414,7 @@
   "Presets_FieldsInPreset": "Fields in preset:",
   "Presets_Info_Description": "Description:",
   "Presets_Info_Category": "Category:",
-  "Presets_Info_Tags": "Tags:"
+  "Presets_Info_Tags": "Tags:",
+  "GlobalPresets_CreateSnapshot": "Create snapshot in all groups",
+  "GlobalPresets_CreateSnapshotTooltip": "Automatically create a local preset with this name in EVERY group, capturing all current values."
 }

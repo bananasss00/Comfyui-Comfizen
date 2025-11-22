@@ -798,6 +798,13 @@
                                                                         <TextBlock Text="{local:Translate GlobalPresets_HelpText}" 
                                                                                    FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" 
                                                                                    TextWrapping="Wrap"/> <!-- TextWrapping важен, чтобы длинный текст не уходил за край -->
+                                                                        
+                                                                        <CheckBox Content="{local:Translate GlobalPresets_CreateSnapshot}"
+                                                                            ToolTip="{local:Translate GlobalPresets_CreateSnapshotTooltip}"
+                                                                            IsChecked="{Binding CreateSnapshotInAllGroups}"
+                                                                            Margin="0,8,0,0"
+                                                                            FontWeight="SemiBold"
+                                                                            Foreground="{StaticResource PrimaryAccentBrush}"/>
                                                                     </StackPanel>
 
                                                                     <Border Grid.Row="1" Background="{StaticResource SecondaryBackground}"
@@ -806,7 +813,17 @@
                                                                             CornerRadius="3" Padding="15"
                                                                             Margin="0,2,0,0"
                                                                             MaxHeight="700" 
-                                                                            Width="700"> 
+                                                                            Width="700">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding CreateSnapshotInAllGroups}" Value="True">
+                                                                                        <Setter Property="Opacity" Value="0.4"/>
+                                                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style> 
                                                                         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="300">
                                                                             <ItemsControl ItemsSource="{Binding PresetConfigurationItems}">
                                                                                 <!-- Header Row (без изменений) -->

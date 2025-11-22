@@ -413,5 +413,7 @@
   "Presets_FieldsInPreset": "Поля в пресете:",
   "Presets_Info_Description": "Описание:",
   "Presets_Info_Category": "Категория:",
-  "Presets_Info_Tags": "Теги:"
+  "Presets_Info_Tags": "Теги:",
+  "GlobalPresets_CreateSnapshot": "Создать снапшот во всех группах",
+  "GlobalPresets_CreateSnapshotTooltip": "Автоматически создать локальный пресет с этим именем в КАЖДОЙ группе, сохранив все текущие значения."
 }

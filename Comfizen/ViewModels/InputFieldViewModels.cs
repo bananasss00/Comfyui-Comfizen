@@ -548,7 +548,6 @@ namespace Comfizen
             }
         }
 
-
         private bool _isPresetPanelOpen;
         public bool IsPresetPanelOpen
         {
@@ -572,6 +571,8 @@ namespace Comfizen
         public string SelectedTagFilter { get; set; }
         
         public ICollectionView FilteredGlobalPresetsView { get; private set; }
+        
+        public bool CreateSnapshotInAllGroups { get; set; } = false;
 
         private bool _isSavePresetPopupOpen;
         public bool IsSavePresetPopupOpen
@@ -583,12 +584,13 @@ namespace Comfizen
             
                 if (value)
                 {
-                    // --- CHANGED: Populate configuration items when opening ---
                     PopulateConfigurationItems();
+                    
+                    // Reset snapshot checkbox on open
+                    CreateSnapshotInAllGroups = false;
 
                     if (!IsUpdateMode)
                     {
-                        // Pre-fill with last used values for a new preset
                         NewPresetName = _lastUsedName;
                         NewPresetDescription = _lastUsedDescription;
                         NewPresetCategory = _lastUsedCategory;
@@ -624,6 +626,7 @@ namespace Comfizen
         public ICommand DeletePresetCommand { get; }
         public ICommand StartUpdatePresetCommand { get; }
         public ICommand SavePresetCommand { get; }
+        public ICommand CancelSavePresetCommand { get; }
         
         private readonly Action<GlobalPreset> _applyPresetAction;
         private readonly Func<Dictionary<Guid, List<string>>> _getCurrentStateCallback;
@@ -647,8 +650,6 @@ namespace Comfizen
         
         private List<WorkflowGroupViewModel> _allAvailableGroups = new();
         public ObservableCollection<GlobalPresetConfigurationItem> PresetConfigurationItems { get; } = new();
-        
-        public ICommand CancelSavePresetCommand { get; } 
         
         public GlobalControlsViewModel(
             Action<GlobalPreset> applyPresetAction, 
@@ -747,11 +748,6 @@ namespace Comfizen
                 {
                     UpdateSortDescriptions();
                 }
-                // if (e.PropertyName == nameof(IsSavePresetPopupOpen) && !IsSavePresetPopupOpen)
-                // {
-                //     _presetToUpdateName = null;
-                //     OnPropertyChanged(nameof(IsUpdateMode));
-                // }
             };
             
             PopulateCategoriesAndTags();
@@ -821,7 +817,7 @@ namespace Comfizen
                     }
                 }
                 
-                var allGroupPresets = group.AllPresets; // Передаем коллекцию целиком
+                var allGroupPresets = group.AllPresets;
 
                 var item = new GlobalPresetConfigurationItem(allGroupPresets)
                 {
@@ -890,13 +886,32 @@ namespace Comfizen
                     Tags = safeTags,
                 };
                 
-                foreach (var item in PresetConfigurationItems)
+                // --- START OF CHANGES: Snapshot Logic ---
+                if (CreateSnapshotInAllGroups)
                 {
-                    if (item.IsSelected && item.ActiveLayers.Any())
+                    // In snapshot mode, we iterate ALL groups, create/update local presets,
+                    // and automatically add them to the new Global Preset.
+                    foreach (var groupVm in _allAvailableGroups)
                     {
-                        newPreset.GroupStates[item.GroupId] = item.ActiveLayers.ToList();
+                        // 1. Create local preset in the group
+                        groupVm.CreateOrUpdateSnapshot(safeName, safeDescription, safeCategory, safeTags);
+                        
+                        // 2. Register it in the global preset
+                        newPreset.GroupStates[groupVm.Id] = new List<string> { safeName };
                     }
                 }
+                else
+                {
+                    // Standard logic: use selected checkboxes
+                    foreach (var item in PresetConfigurationItems)
+                    {
+                        if (item.IsSelected && item.ActiveLayers.Any())
+                        {
+                            newPreset.GroupStates[item.GroupId] = item.ActiveLayers.ToList();
+                        }
+                    }
+                }
+                // --- END OF CHANGES ---
                 
                 _lastUsedName = safeName;
                 _lastUsedDescription = safeDescription;
@@ -2364,6 +2379,88 @@ namespace Comfizen
             layerVM.State = ActiveLayerViewModel.LayerState.Normal;
             OnPropertyChanged(nameof(CurrentStateStatus));
             }
+        
+        /// <summary>
+        /// Creates a new preset (Snippet) that includes all savable fields in the group with their current values.
+        /// Overwrites any existing preset with the same name.
+        /// </summary>
+        public void CreateOrUpdateSnapshot(string name, string description, string category, List<string> tags)
+        {
+            // 1. Gather all valid fields
+            var allSavableFields = Tabs.SelectMany(t => t.Fields)
+                .Where(f => f.Type != FieldType.ScriptButton &&
+                            f.Type != FieldType.Label &&
+                            f.Type != FieldType.Separator)
+                .Select(f => new PresetFieldSelectionViewModel { Path = f.Path }) // Create minimal view model for reusability
+                .ToList();
+
+            if (!allSavableFields.Any()) return;
+
+            // 2. Use existing save logic, but inject parameters
+            // Note: SaveCurrentStateAsPreset reads from NewPresetDescription/Category/Tags properties of the ViewModel.
+            // We need to temporarily set them or refactor SaveCurrentStateAsPreset to accept them.
+            // Refactoring SaveCurrentStateAsPreset to be pure is cleaner.
+            
+            // Let's do it manually here to avoid side effects on the UI state.
+            
+            var newPreset = new GroupPreset
+            {
+                Name = name,
+                IsLayout = false, // Snapshots are always snippets
+                LastModified = DateTime.UtcNow,
+                Description = description,
+                Category = category,
+                Tags = tags != null ? new List<string>(tags) : new List<string>(),
+                Values = new Dictionary<string, JToken>()
+            };
+
+            foreach (var field in Tabs.SelectMany(t => t.Fields))
+            {
+                // Should match logic in SaveCurrentStateAsPreset
+                if (field.Type == FieldType.ScriptButton || field.Type == FieldType.Label || field.Type == FieldType.Separator) continue;
+
+                if (field is MarkdownFieldViewModel markdownVm)
+                {
+                    newPreset.Values[field.Path] = new JValue(markdownVm.Value);
+                }
+                else if (field is NodeBypassFieldViewModel bypassVm)
+                {
+                    newPreset.Values[field.Path] = new JValue(bypassVm.IsEnabled);
+                }
+                else if (field.Property != null)
+                {
+                    var prop = _workflow.GetPropertyByPath(field.Path);
+                    if (prop != null)
+                    {
+                        newPreset.Values[field.Path] = prop.Value.DeepClone();
+                    }
+                }
+            }
+
+            // 3. Save to workflow
+            if (!_workflow.Presets.ContainsKey(Id))
+            {
+                _workflow.Presets[Id] = new List<GroupPreset>();
+            }
+
+            // Overwrite
+            _workflow.Presets[Id].RemoveAll(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            _workflow.Presets[Id].Add(newPreset);
+
+            // 4. Refresh UI
+            LoadPresets();
+            PresetsModified?.Invoke();
+            
+            // 5. Update active layers to reflect this new snapshot
+            // Since a snapshot covers everything, it will likely become the only active layer.
+            // We need to "apply" it logically (without changing values, since they match) so it shows up as active.
+            var newPresetVm = AllPresets.FirstOrDefault(p => p.Name == name);
+            if (newPresetVm != null)
+            {
+                // This adds it to ActiveLayers list
+                ApplyPreset(newPresetVm); 
+            }
+        }
 
         
         private void SaveCurrentStateAsPreset(string name, IEnumerable<PresetFieldSelectionViewModel> selectedFields, bool isLayout)
@@ -2387,28 +2484,28 @@ namespace Comfizen
             else
             {
                 newPreset.Values.Clear();
-            var selectedFieldPaths = new HashSet<string>(selectedFields.Select(f => f.Path));
-            foreach (var field in Tabs.SelectMany(t => t.Fields))
-            {
+                var selectedFieldPaths = new HashSet<string>(selectedFields.Select(f => f.Path));
+                foreach (var field in Tabs.SelectMany(t => t.Fields))
+                {
                     if (!selectedFieldPaths.Contains(field.Path)) continue;
                 
-                if (field is MarkdownFieldViewModel markdownVm)
-                {
-                    newPreset.Values[field.Path] = new JValue(markdownVm.Value);
-                }
+                    if (field is MarkdownFieldViewModel markdownVm)
+                    {
+                        newPreset.Values[field.Path] = new JValue(markdownVm.Value);
+                    }
                     else if (field is NodeBypassFieldViewModel bypassVm)
                     {
                         newPreset.Values[field.Path] = new JValue(bypassVm.IsEnabled);
                     }
-                else if (field.Property != null)
-                {
-                    var prop = _workflow.GetPropertyByPath(field.Path);
-                    if (prop != null)
+                    else if (field.Property != null)
                     {
-                        newPreset.Values[field.Path] = prop.Value.DeepClone();
+                        var prop = _workflow.GetPropertyByPath(field.Path);
+                        if (prop != null)
+                        {
+                            newPreset.Values[field.Path] = prop.Value.DeepClone();
+                        }
                     }
                 }
-            }
             }
 
             if (!_workflow.Presets.ContainsKey(Id))
