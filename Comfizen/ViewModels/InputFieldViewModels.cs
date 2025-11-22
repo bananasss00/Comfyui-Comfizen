@@ -669,7 +669,7 @@ namespace Comfizen
                 if (_isInternalUpdate) return;
                 
                 OnPropertyChanged(nameof(IsPresetsSectionVisible));
-                PopulateCategoriesAndTags();
+                // PopulateCategoriesAndTags();
                 FilteredGlobalPresetsView?.Refresh();
             };
             
@@ -842,15 +842,43 @@ namespace Comfizen
         {
             var currentCat = SelectedCategoryFilter;
             var currentTag = SelectedTagFilter;
-            
             var allStr = "[ All ]";
+
+            // --- START OF OPTIMIZATION ---
+            // Use HashSet for efficient collection of unique items.
+            // This is significantly faster than LINQ's Distinct() on large collections.
+            var categories = new HashSet<string>();
+            var tags = new HashSet<string>();
+
+            foreach (var preset in GlobalPresets)
+            {
+                if (!string.IsNullOrEmpty(preset.Category))
+                {
+                    categories.Add(preset.Category);
+                }
+                if (preset.Tags != null)
+                {
+                    foreach (var tag in preset.Tags)
+                    {
+                        tags.Add(tag);
+                    }
+                }
+            }
+
+            // Sort the results once after collecting them.
+            var sortedCategories = categories.OrderBy(c => c).ToList();
+            var sortedTags = tags.OrderBy(t => t).ToList();
+
+            // Bulk update the ObservableCollections to minimize UI notifications.
+            // Instead of Clear() + many Add() calls, this approach is much cleaner and faster.
             AllCategories.Clear();
             AllCategories.Add(allStr);
-            foreach (var c in GlobalPresets.Select(p => p.Category).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x=>x)) AllCategories.Add(c);
+            foreach (var c in sortedCategories) AllCategories.Add(c);
 
             AllTags.Clear();
             AllTags.Add(allStr);
-            foreach (var t in GlobalPresets.SelectMany(p => p.Tags ?? new List<string>()).Distinct().OrderBy(x=>x)) AllTags.Add(t);
+            foreach (var t in sortedTags) AllTags.Add(t);
+            // --- END OF OPTIMIZATION ---
 
             SelectedCategoryFilter = AllCategories.Contains(currentCat) ? currentCat : allStr;
             SelectedTagFilter = AllTags.Contains(currentTag) ? currentTag : allStr;
