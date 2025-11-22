@@ -205,7 +205,6 @@ namespace Comfizen
         public ICommand CopyPresetsCommand { get; }
         public ICommand PastePresetsCommand { get; }
         public ICommand PastePresetsMergeCommand { get; }
-        public ICommand ClearGroupPresetsCommand { get; }
         
         public object PopupTarget { get; set; }
         
@@ -408,8 +407,7 @@ namespace Comfizen
             CopyPresetsCommand = new RelayCommand(CopyPresets, param => param is WorkflowGroupViewModel groupVm && groupVm.AllPresets.Any()); // CHANGED: Presets -> AllPresets
             PastePresetsCommand = new RelayCommand(param => PastePresets(param, merge: false), param => param is WorkflowGroupViewModel && _presetClipboard.Any());
             PastePresetsMergeCommand = new RelayCommand(param => PastePresets(param, merge: true), param => param is WorkflowGroupViewModel && _presetClipboard.Any());
-            ClearGroupPresetsCommand = new RelayCommand(ClearGroupPresets, param => param is WorkflowGroupViewModel groupVm && groupVm.AllPresets.Any());
-            
+
             // Attach event handlers
             this.PropertyChanged += (s, e) => {
                 if (e.PropertyName == nameof(SelectedHookName)) OnSelectedHookChanged();
@@ -503,27 +501,6 @@ namespace Comfizen
                             && t != FieldType.Label && t != FieldType.Separator));
 
         public event PropertyChangedEventHandler? PropertyChanged;
-        
-        private void ClearGroupPresets(object parameter)
-        {
-            if (parameter is not WorkflowGroupViewModel groupVm) return;
-
-            if (MessageBox.Show($"Are you sure you want to clear all presets for group '{groupVm.Name}'? This is useful if the API has changed.", 
-                    "Clear Presets", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
-            {
-                // 1. Remove from Workflow Data (Persistence)
-                if (Workflow.Presets.ContainsKey(groupVm.Id))
-                {
-                    Workflow.Presets[groupVm.Id].Clear();
-                }
-
-                // 2. Update ViewModel (UI)
-                // This method will also clear ActiveLayers and notify UI
-                groupVm.ReloadPresetsAndNotify();
-                
-                Logger.LogToConsole($"Cleared all presets for group '{groupVm.Name}'.");
-            }
-        }
 
         private void InitializeGroupViewModels()
         {

@@ -106,10 +106,20 @@
                             Click="ClosePopupOnClick"/>
                     <Separator Margin="0,5"/>
                     <Button Content="Clear Group Presets"
-                            Command="{Binding ClearGroupPresetsCommand}"
-                            CommandParameter="{Binding PopupTarget}"
+                            Command="{Binding PopupTarget.ClearGroupPresetsCommand}"
                             Click="ClosePopupOnClick"
-                            Background="{StaticResource ErrorBrush}"/>
+                            Background="{StaticResource ErrorBrush}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding PopupTarget.ClearGroupPresetsCommand}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </StackPanel>
             </Border>
         </Popup>

@@ -1488,29 +1488,35 @@
                                                                                                 Style="{StaticResource IconToggleButton}"
                                                                                                 Content="&#xE712;"
                                                                                                 Width="24" Height="24" Margin="5,0,0,0"
-                                                                                                                ToolTip="{local:Translate ContextMenu_MoreOptions}"/>
-                                                                                                            
-                                                                                                            <Popup IsOpen="{Binding IsChecked, ElementName=MoreOptionsButton, Mode=TwoWay}"
-                                                                                                                PlacementTarget="{Binding ElementName=MoreOptionsButton}"
-                                                                                                                Placement="Bottom"
-                                                                                                                StaysOpen="False"
-                                                                                                                AllowsTransparency="True">
-                                                                                                                
-                                                                                                                <Border DataContext="{Binding DataContext, ElementName=MoreOptionsButton}"
-                                                                                                                    Background="{StaticResource SecondaryBackground}"
-                                                                                                                    BorderBrush="{StaticResource TertiaryBackground}"
-                                                                                                                    BorderThickness="1"
-                                                                                                                    CornerRadius="3"
-                                                                                                                    Margin="0,2,0,0">
-                                                                                                                    
-                                                                                                                    <StackPanel>
-                                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ExportPresets}"
-                                                                                                                            Command="{Binding ExportPresetsCommand}" />
-                                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ImportPresets}"
-                                                                                                                            Command="{Binding ImportPresetsCommand}" />
-                                                                                                                    </StackPanel>
-                                                                                                                </Border>
-                                                                                                            </Popup>
+                                                                                                ToolTip="{local:Translate ContextMenu_MoreOptions}"
+                                                                                                Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"/>
+    
+                                                                                            <Popup IsOpen="{Binding IsChecked, ElementName=MoreOptionsButton, Mode=TwoWay}"
+                                                                                                PlacementTarget="{Binding ElementName=MoreOptionsButton}"
+                                                                                                Placement="Bottom"
+                                                                                                StaysOpen="False"
+                                                                                                AllowsTransparency="True">
+        
+                                                                                                <Border DataContext="{Binding DataContext, ElementName=MoreOptionsButton}"
+                                                                                                    Background="{StaticResource SecondaryBackground}"
+                                                                                                    BorderBrush="{StaticResource TertiaryBackground}"
+                                                                                                    BorderThickness="1"
+                                                                                                    CornerRadius="3"
+                                                                                                    Margin="0,2,0,0">
+            
+                                                                                                    <StackPanel>
+                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ExportPresets}"
+                                                                                                            Command="{Binding ExportPresetsCommand}" />
+                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ImportPresets}"
+                                                                                                            Command="{Binding ImportPresetsCommand}" />
+                
+                                                                                                        <Separator />
+                                                                                                        
+                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ClearPresets}"
+                                                                                                            Command="{Binding ClearGroupPresetsCommand}"/>
+                                                                                                    </StackPanel>
+                                                                                                </Border>
+                                                                                            </Popup>
                                                                                                         </Grid>
                                                                                                         
                                                                                                         <Button

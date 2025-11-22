@@ -1644,6 +1644,7 @@ namespace Comfizen
         public ICommand RemoveSelectedTabCommand { get; }
         public ICommand ExportPresetsCommand { get; }
         public ICommand ImportPresetsCommand { get; }
+        public ICommand ClearGroupPresetsCommand { get; }
 
         
         /// <summary>
@@ -1899,7 +1900,29 @@ namespace Comfizen
             }, _ => SelectedTab != null && Tabs.Count > 1);
             ExportPresetsCommand = new RelayCommand(ExportPresets);
             ImportPresetsCommand = new RelayCommand(ImportPresets);
+            ClearGroupPresetsCommand = new RelayCommand(ClearGroupPresets, _ => AllPresets.Any());
         }
+        
+        private void ClearGroupPresets(object obj)
+        {
+            var message = string.Format(LocalizationService.Instance["UIConstructor_ConfirmClearPresetsMessage"], Name);
+            var title = LocalizationService.Instance["UIConstructor_ConfirmClearPresetsTitle"];
+
+            if (MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            {
+                // 1. Remove from Workflow Data (Persistence)
+                if (_workflow.Presets.ContainsKey(Id))
+                {
+                    _workflow.Presets[Id].Clear();
+                }
+
+                // 2. Update ViewModel (UI)
+                ReloadPresetsAndNotify();
+                
+                Logger.LogToConsole(string.Format(LocalizationService.Instance["UIConstructor_PresetsClearedMessage"], Name));
+            }
+        }
+        
         
         public void ClearActiveLayers()
         {
