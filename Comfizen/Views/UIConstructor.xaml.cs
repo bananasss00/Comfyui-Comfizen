@@ -1013,17 +1013,35 @@ namespace Comfizen
 
             Logger.Log($"--- Testing script action: '{SelectedActionName.Name}' ---");
 
-            // Для теста мы создаем контекст с текущим состоянием workflow.
-            // Если workflow не загружен, API будет null, что тоже является валидным тестовым случаем.
+            // For testing, we provide mock actions that log their calls to the console.
+            Action<JObject> testQueuePrompt = (prompt) =>
+            {
+                Logger.LogToConsole($"[Py Test] ctx.queue() was called.");
+            };
+
+            Action<string> testApplyGlobalPreset = (presetName) =>
+            {
+                Logger.LogToConsole($"[Py Test] ctx.apply_global_preset called with: '{presetName}'");
+            };
+
+            Action<string, string> testApplyGroupPreset = (groupName, presetName) =>
+            {
+                Logger.LogToConsole($"[Py Test] ctx.apply_group_preset called for group '{groupName}' with preset: '{presetName}'");
+            };
+
+            // Create a script context with the current workflow state and the mock actions.
             var context = new ScriptContext(
-                Workflow.LoadedApi, 
-                new Dictionary<string, object>(), // Состояние state для теста пустое
-                _settings, 
-                null // output недоступен вне реального запуска
+                Workflow.LoadedApi,
+                new Dictionary<string, object>(), // State is empty for tests
+                _settings,
+                testQueuePrompt,
+                testApplyGlobalPreset,
+                testApplyGroupPreset,
+                null // output is not available outside the on_output_received hook
             );
-            
+
             PythonScriptingService.Instance.Execute(SelectedActionScript.Text, context);
-            
+
             Logger.Log($"--- Test finished for: '{SelectedActionName.Name}' ---");
         }
         

@@ -26,6 +26,7 @@ class AppSettings:
     MaxQueueSize: int
     ShowDeleteConfirmation: bool
     ShowPresetDeleteConfirmation: bool
+    ShowUndoRedoButtons: bool
     LastSeedControlState: str  # "Fixed", "Increment", "Decrement", "Randomize"
     MaxRecentWorkflows: int
     RecentWorkflows: List[str]
@@ -104,6 +105,24 @@ class ScriptContext:
             new_prompt = dict(ctx.prompt)
             new_prompt["3"]["inputs"]["steps"] = 50
             ctx.queue(new_prompt)
+        """
+        ...
+
+    def apply_global_preset(self, preset_name: str) -> None:
+        """
+        Applies a global preset by its name across all relevant groups.
+        This changes the UI and the underlying values for the next generation.
+        Example:
+            ctx.apply_global_preset("4K Upscale")
+        """
+        ...
+
+    def apply_group_preset(self, group_name: str, preset_name: str) -> None:
+        """
+        Applies a local preset (Snippet or Layout) to a specific group.
+        This changes the UI and the underlying values for the next generation.
+        Example:
+            ctx.apply_group_preset("Sampler Settings", "High Quality")
         """
         ...
 

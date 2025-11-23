@@ -336,7 +336,47 @@ namespace Comfizen
                 return; 
             }
 
-            var context = new ScriptContext(prompt, _scriptState, _settings, QueuePromptFromScript, output);
+            Action<string> applyGlobalPreset = (presetName) =>
+            {
+                var preset = WorkflowInputsController.GlobalControls.GlobalPresets.FirstOrDefault(p => p.Name == presetName);
+                if (preset != null)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        WorkflowInputsController.GlobalControls.SelectedGlobalPreset = preset;
+                    });
+                }
+                else
+                {
+                    Logger.LogToConsole($"[Py] Global preset '{presetName}' not found.");
+                }
+            };
+            
+            Action<string, string> applyGroupPreset = (groupName, presetName) =>
+            {
+                var groupVm = WorkflowInputsController.TabLayoouts.SelectMany(t => t.Groups).FirstOrDefault(g => g.Name == groupName);
+                if (groupVm != null)
+                {
+                    var presetVm = groupVm.AllPresets.FirstOrDefault(p => p.Name == presetName);
+                    if (presetVm != null)
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            groupVm.ApplyPreset(presetVm);
+                        });
+                    }
+                    else
+                    {
+                        Logger.LogToConsole($"[Py] Preset '{presetName}' not found in group '{groupName}'.");
+                    }
+                }
+                else
+                {
+                    Logger.LogToConsole($"[Py] Group '{groupName}' not found.");
+                }
+            };
+
+            var context = new ScriptContext(prompt, _scriptState, _settings, QueuePromptFromScript, applyGlobalPreset, applyGroupPreset, output);
             PythonScriptingService.Instance.Execute(script, context);
         }
         

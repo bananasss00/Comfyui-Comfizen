@@ -30,8 +30,14 @@ namespace Comfizen
         public AppSettings settings { get; }
         public ImageOutput output { get; }
         private readonly Action<JObject> _queue_prompt_action;
+        private readonly Action<string> _apply_global_preset_action;
+        private readonly Action<string, string> _apply_group_preset_action;
 
-        public ScriptContext(JObject prompt, Dictionary<string, object> state, AppSettings settings, Action<JObject> queue_prompt_action, ImageOutput output = null)
+        public ScriptContext(JObject prompt, Dictionary<string, object> state, AppSettings settings, 
+            Action<JObject> queue_prompt_action, 
+            Action<string> applyGlobalPresetAction,
+            Action<string, string> applyGroupPresetAction,
+            ImageOutput output = null)
         {
             this.prompt = ConvertJObjectToPythonDict(prompt);
             this.state = state;
@@ -46,6 +52,37 @@ namespace Comfizen
             };
             this.output = output;
             this._queue_prompt_action = queue_prompt_action;
+            this._apply_global_preset_action = applyGlobalPresetAction;
+            this._apply_group_preset_action = applyGroupPresetAction;
+        }
+        
+        /// <summary>
+        /// Applies a global preset by its name.
+        /// </summary>
+        /// <param name="preset_name">The name of the global preset to apply.</param>
+        public void apply_global_preset(string preset_name)
+        {
+            if (string.IsNullOrEmpty(preset_name))
+            {
+                log("Error: apply_global_preset was called with an empty name.");
+                return;
+            }
+            _apply_global_preset_action?.Invoke(preset_name);
+        }
+
+        /// <summary>
+        /// Applies a local group preset (Snippet or Layout) by its name.
+        /// </summary>
+        /// <param name="group_name">The name of the group that owns the preset.</param>
+        /// <param name="preset_name">The name of the preset to apply.</param>
+        public void apply_group_preset(string group_name, string preset_name)
+        {
+            if (string.IsNullOrEmpty(group_name) || string.IsNullOrEmpty(preset_name))
+            {
+                log("Error: apply_group_preset was called with an empty group or preset name.");
+                return;
+            }
+            _apply_group_preset_action?.Invoke(group_name, preset_name);
         }
         
         /// <summary>

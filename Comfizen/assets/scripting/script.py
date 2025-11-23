@@ -17,6 +17,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    # Make sure your IDE is configured to find this stub file (e.g., in .vscode/comfizen_api.pyi)
     from comfizen_api import ScriptContext
 
 # Initialize 'ctx' to enable IntelliSense throughout the script.
@@ -25,12 +26,10 @@ ctx: ScriptContext = None
 
 
 # --- .NET Assembly Imports ---
-# For advanced operations like HTTP requests, you may need to load .NET assemblies.
-import clr
-clr.AddReference('System.Net.Http')
-
-from System.Text import Encoding
-from System.Net.Http import StringContent
+# No longer required for basic HTTP requests as they are now built into the ctx object.
+# You may still need to import other .NET assemblies for advanced functionality.
+# import clr
+# clr.AddReference('System.Net.Http')
 
 
 # ----------------------------------------------------------------------------------------
@@ -90,64 +89,48 @@ def example_persistent_counter():
 
 
 # ----------------------------------------------------------------------------------------
-# --- Example 3: Making a POST Request with a JSON Payload ---
+# --- Example 3: Making a POST Request (Simplified) ---
 # ----------------------------------------------------------------------------------------
 def example_post_request():
     """
-    Demonstrates how to send a POST request with a JSON payload to an external API.
+    Demonstrates how to send a POST request with a JSON payload using the built-in ctx.post() method.
     This example posts data to httpbin.org, a free service for testing requests.
     """
-    ctx.log("--- Running Example 3: POST Request ---")
+    ctx.log("--- Running Example 3: POST Request (Simplified) ---")
     
     url = "https://httpbin.org/post"
     
     # Create a Python dictionary for your JSON data.
+    # The `ctx.post` method will automatically serialize it to JSON.
     data_to_send = {
         "user": "Comfizen",
-        "action": "test_post",
+        "action": "test_post_simplified",
         "workflow_node_count": len(ctx.prompt)
     }
     
-    # Convert the Python dictionary to a JSON string.
-    # Note: IronPython 2.7 doesn't have a built-in 'json' module.
-    # We use Newtonsoft.Json, which is available in the host application.
-    # A simple string-based approach is often easier for simple JSON.
-    payload_string = "{"
-    payload_string += f"\"user\": \"{data_to_send['user']}\", "
-    payload_string += f"\"action\": \"{data_to_send['action']}\", "
-    payload_string += f"\"workflow_node_count\": {data_to_send['workflow_node_count']}"
-    payload_string += "}"
-
     try:
-        ctx.log(f"Sending POST request to {url} with payload: {payload_string}")
+        ctx.log(f"Sending POST request to {url}...")
         
-        # Create StringContent with the correct encoding and content type.
-        content = StringContent(payload_string, Encoding.UTF8, "application/json")
+        # Call the built-in post method and synchronously wait for the result.
+        response_content = ctx.post(url, data_to_send).Result
         
-        # Send the POST request and wait for the result synchronously.
-        response = ctx.http.PostAsync(url, content).Result
-        
-        # Read the response content as a string.
-        response_content = response.Content.ReadAsStringAsync().Result
-        
-        ctx.log(f"POST request completed with status: {response.StatusCode}")
-        
-        if response.IsSuccessStatusCode:
-            ctx.log("Server response from httpbin.org:")
-            print(response_content) # Use print() for multi-line, formatted output
+        if response_content:
+            ctx.log("POST request successful. Server response from httpbin.org:")
+            # Use print() for multi-line, formatted output
+            print(response_content)
         else:
-            ctx.log(f"Server returned an error: {response_content}")
+            ctx.log("POST request failed or returned no content.")
             
     except Exception as e:
         ctx.log(f"Error during POST request: {e}")
 
 
 # ----------------------------------------------------------------------------------------
-# --- Example 4: Making a GET Request (ComfyUI Manager Reboot) ---
+# --- Example 4: Making a GET Request (Simplified) ---
 # ----------------------------------------------------------------------------------------
 def example_get_request_reboot_server():
     """
-    Demonstrates sending a GET request to a local ComfyUI API endpoint.
+    Demonstrates sending a GET request using the built-in ctx.get() method.
     This specific example triggers a server reboot via the ComfyUI-Manager custom node.
     
     Note: Requires ComfyUI-Manager to be installed.
@@ -159,8 +142,8 @@ def example_get_request_reboot_server():
     try:
         ctx.log(f"Sending GET request to {url} ...")
         
-        # GetStringAsync is a simple way to make a GET request and read the response.
-        response_text = ctx.http.GetStringAsync(url).Result
+        # Call the built-in get method and synchronously wait for the result.
+        response_text = ctx.get(url).Result
         
         ctx.log("GET request successful. Server response:")
         print(response_text)
@@ -190,6 +173,36 @@ def example_read_settings():
 
 
 # ----------------------------------------------------------------------------------------
+# --- Example 6: Applying Presets Programmatically (NEW) ---
+# ----------------------------------------------------------------------------------------
+def example_apply_presets():
+    """
+    Demonstrates how to apply global and local group presets from a script.
+    This is powerful for automating complex UI state changes.
+    """
+    ctx.log("--- Running Example 6: Applying Presets ---")
+    
+    try:
+        # Example 1: Apply a local preset to a specific group.
+        # This will activate the "High Quality" preset within the "Sampler Settings" group.
+        group_to_change = "Sampler Settings"
+        preset_to_apply = "High Quality"
+        ctx.log(f"Applying preset '{preset_to_apply}' to group '{group_to_change}'...")
+        ctx.apply_group_preset(group_to_change, preset_to_apply)
+        
+        # Example 2: Apply a global preset.
+        # This will activate a state across multiple groups as defined in the global preset.
+        global_preset_name = "4K Upscale"
+        ctx.log(f"Applying global preset '{global_preset_name}'...")
+        ctx.apply_global_preset(global_preset_name)
+        
+        ctx.log("Preset application commands sent successfully.")
+        
+    except Exception as e:
+        ctx.log(f"An error occurred while applying presets: {e}")
+
+
+# ----------------------------------------------------------------------------------------
 # --- Main Entry Point ---
 # ----------------------------------------------------------------------------------------
 def main():
@@ -205,6 +218,7 @@ def main():
     # example_post_request()
     # example_get_request_reboot_server()
     # example_read_settings()
+    # example_apply_presets()
 
 
 # --- Execute the main function when the script is run ---
