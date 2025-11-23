@@ -410,7 +410,8 @@ namespace Comfizen
                             Name = $"{title}::{input.Name}",
                             Path = input.Path,
                             NodeTitle = title,
-                            NodeType = classType // Save the class_type
+                            NodeType = classType, // Save the class_type
+                            NodeId = property.Name // Save the node ID
                         }));
                 }
             }

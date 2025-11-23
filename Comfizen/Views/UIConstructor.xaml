@@ -21,7 +21,56 @@
 
         <local:NodeIdsToInfoConverter x:Key="NodeIdsToInfoConverter"/>
         <local:AvailableNodesConverter  x:Key="AvailableNodesConverter"/>
-
+        
+        <Style x:Key="PopupToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#FF3C90D1"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.6"/></Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <Style TargetType="GroupBox" x:Key="AutoLayoutStyleGroup">
+            <Setter Property="BorderBrush" Value="{StaticResource TertiaryBackground}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupBox">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Background="{StaticResource TertiaryBackground}" Padding="5" CornerRadius="3,3,0,0">
+                                <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" />
+                            </Border>
+                            <Border Grid.Row="1" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0,1,0,0" Padding="{TemplateBinding Padding}" CornerRadius="0,0,3,3">
+                                <ContentPresenter/>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
         <Popup x:Key="UniversalContextMenuPopup"
                StaysOpen="False"
                Placement="MousePoint"
@@ -314,19 +363,23 @@
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
                                                 <Border x:Name="backgroundBorder" Background="{StaticResource TertiaryBackground}" CornerRadius="3" Margin="0,2" Padding="8">
-                                                    <TextBlock Text="{Binding Name}">
-                                                        <TextBlock.ToolTip>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Name}"/>
+                                                        <TextBlock Text="{Binding NodeId, StringFormat=' [{0}]'}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                        <StackPanel.ToolTip>
                                                             <ToolTip>
                                                                 <TextBlock>
                                                                     <Run Text="{Binding NodeTitle, StringFormat='Node: {0}'}" FontWeight="Bold"/>
+                                                                    <LineBreak/>
+                                                                    <Run Text="{Binding NodeId, StringFormat='ID: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
                                                                     <LineBreak/>
                                                                     <Run Text="{Binding NodeType, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
                                                                     <LineBreak/>
                                                                     <Run Text="{Binding Path, StringFormat='Path: {0}'}"/>
                                                                 </TextBlock>
                                                             </ToolTip>
-                                                        </TextBlock.ToolTip>
-                                                    </TextBlock>
+                                                        </StackPanel.ToolTip>
+                                                    </StackPanel>
                                                 </Border>
                                                 <DataTemplate.Triggers>
                                                     <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
@@ -356,6 +409,41 @@
                         <DockPanel Margin="10" AllowDrop="True" Drop="TabContent_Drop" DragEnter="TabContent_DragEnter">
                             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
                                 <Button Content="{local:Translate UIConstructor_AddGroup}" Command="{Binding AddGroupCommand}" HorizontalAlignment="Left"/>
+                                
+                                <Grid>
+                                    <ToggleButton x:Name="AutoLayoutToggle" Content="{local:Translate AutoLayout_Button}" Style="{StaticResource PopupToggleButtonStyle}"
+                                                  IsChecked="{Binding IsAutoLayoutPopupOpen, Mode=TwoWay}"
+                                                  HorizontalAlignment="Left" Margin="5,0,0,0"
+                                                  ToolTip="{local:Translate AutoLayout_Tooltip}"/>
+                                    
+                                    <Popup IsOpen="{Binding IsChecked, ElementName=AutoLayoutToggle}" StaysOpen="False" AllowsTransparency="True"
+                                           PlacementTarget="{Binding ElementName=AutoLayoutToggle}" Placement="Bottom">
+                                        <Border Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1"
+                                                CornerRadius="3" Padding="10" Margin="0,2,0,0">
+                                            <StackPanel Width="300">
+                                                <TextBlock Text="{local:Translate AutoLayout_PopupTitle}" FontWeight="Bold" Margin="0,0,0,5"/>
+                                                <TextBlock Text="{local:Translate AutoLayout_Description}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,10"/>
+
+                                                <GroupBox Header="{local:Translate AutoLayout_SortBy}" Padding="8,5" Style="{StaticResource AutoLayoutStyleGroup}">
+                                                    <StackPanel>
+                                                        <RadioButton Content="{local:Translate AutoLayout_SortBy_Api}" GroupName="AutoLayoutSort"
+                                                                     IsChecked="{Binding AutoLayoutSortStrategy, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:AutoLayoutSortStrategy.ApiOrder}}"/>
+                                                        <RadioButton Content="{local:Translate AutoLayout_SortBy_Alphabetical}" GroupName="AutoLayoutSort" Margin="0,5,0,0"
+                                                                     IsChecked="{Binding AutoLayoutSortStrategy, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:AutoLayoutSortStrategy.Alphabetical}}"/>
+                                                        <RadioButton Content="{local:Translate AutoLayout_SortBy_Type}" GroupName="AutoLayoutSort" Margin="0,5,0,0"
+                                                                     IsChecked="{Binding AutoLayoutSortStrategy, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:AutoLayoutSortStrategy.ByType}}"/>
+                                                    </StackPanel>
+                                                </GroupBox>
+
+                                                <CheckBox Content="{local:Translate AutoLayout_IncludeNodeId}" IsChecked="{Binding AutoLayoutIncludeNodeId, Mode=TwoWay}" Margin="5,8,0,0"/>
+                                                <CheckBox Content="{local:Translate AutoLayout_StripPrefix}" IsChecked="{Binding AutoLayoutStripPrefix, Mode=TwoWay}" Margin="5,5,0,0"/>
+
+                                                <Button Content="{local:Translate AutoLayout_RunButton}" Command="{Binding AutoLayoutCommand}" HorizontalAlignment="Right" Margin="0,15,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+
                                 <TextBlock Text="{Binding SelectedTab.Name, StringFormat='{}{0}'}" FontWeight="Bold" FontSize="16" Margin="15,0" VerticalAlignment="Center"/>
                             </StackPanel>
 

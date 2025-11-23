@@ -157,6 +157,8 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string NodeTitle { get; set; }
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string NodeId { get; set; }
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string NodeType { get; set; }
         [JsonIgnore]
         public bool IsSelected { get; set; }
@@ -198,7 +200,8 @@ namespace Comfizen
                 AdvancedPrompt = this.AdvancedPrompt,
                 SeparatorStyle = this.SeparatorStyle,
                 NodeTitle = this.NodeTitle,
-                NodeType = this.NodeType
+                NodeType = this.NodeType,
+                NodeId = this.NodeId
                 // IsRenaming and IsInvalid are runtime states and are not cloned.
             };
         }

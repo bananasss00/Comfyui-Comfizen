@@ -27,6 +27,13 @@ using Formatting = Newtonsoft.Json.Formatting;
 
 namespace Comfizen
 {
+    public enum AutoLayoutSortStrategy
+    {
+        ApiOrder,
+        Alphabetical,
+        ByType
+    }
+    
     public class BindingProxy : Freezable
     {
         protected override Freezable CreateInstanceCore()
@@ -195,6 +202,11 @@ namespace Comfizen
         
         public ICommand AddTabCommand { get; }
         public ICommand RemoveTabCommand { get; }
+        public ICommand AutoLayoutCommand { get; }
+        public bool IsAutoLayoutPopupOpen { get; set; }
+        public AutoLayoutSortStrategy AutoLayoutSortStrategy { get; set; } = AutoLayoutSortStrategy.ApiOrder;
+        public bool AutoLayoutIncludeNodeId { get; set; } = true;
+        public bool AutoLayoutStripPrefix { get; set; } = true;
         
         private List<object> _clipboard = new List<object>();
         private List<GroupPreset> _presetClipboard = new List<GroupPreset>();
@@ -281,6 +293,7 @@ namespace Comfizen
                 _ => TestSelectedScript(),
                 _ => SelectedActionName != null && !string.IsNullOrWhiteSpace(SelectedActionScript.Text)
             );
+            AutoLayoutCommand = new RelayCommand(AutoLayout, _ => AvailableFields.Any());
 
             // --- Other initializations ---
             AddMarkdownFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Markdown));
@@ -513,6 +526,118 @@ namespace Comfizen
                 AllGroupViewModels.Add(new WorkflowGroupViewModel(groupModel, Workflow, _settings));
             }
             UpdateGroupAssignments();
+        }
+        
+        private int GetFieldTypeSortRank(WorkflowField field)
+        {
+            // If it has a specific UI type, use that.
+            switch (field.Type)
+            {
+                case FieldType.NodeBypass: return 0;
+                case FieldType.Seed: return 1;
+                case FieldType.SliderInt: return 10;
+                case FieldType.SliderFloat: return 11;
+                case FieldType.Model: return 20;
+                case FieldType.Sampler: return 21;
+                case FieldType.Scheduler: return 22;
+                case FieldType.ComboBox: return 23;
+                case FieldType.FilePath: return 30; // Path strings
+                case FieldType.WildcardSupportPrompt: return 31; // Prompt strings
+                // Any is special, we need to check the actual data type.
+                case FieldType.Any:
+                    var prop = Workflow.GetPropertyByPath(field.Path);
+                    if (prop != null)
+                    {
+                        switch (prop.Value.Type)
+                        {
+                            case JTokenType.Boolean: return 0;
+                            case JTokenType.Integer: return 10;
+                            case JTokenType.Float: return 11;
+                            default: return 32; // Other strings
+                        }
+                    }
+                    return 100; // Fallback for 'Any' without property
+                default:
+                    return 100; // Other/virtual types at the end.
+            }
+        }
+
+        private void AutoLayout(object obj)
+        {
+            if (!AvailableFields.Any()) return;
+
+            var createdGroupNames = new HashSet<string>(AllGroupViewModels.Select(g => g.Name));
+
+            var fieldsByNodeId = AvailableFields
+                .Where(f => !string.IsNullOrEmpty(f.Path) && !f.Path.StartsWith("virtual_"))
+                .GroupBy(f => f.NodeId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var group in fieldsByNodeId)
+            {
+                var nodeId = group.Key;
+                var fields = group.Value;
+                var firstField = fields.First();
+                var nodeTitle = firstField.NodeTitle;
+
+                string groupName;
+                if (AutoLayoutIncludeNodeId)
+                {
+                    groupName = $"{nodeTitle} [{nodeId}]";
+                }
+                else
+                {
+                    groupName = nodeTitle;
+                    int counter = 2;
+                    while (createdGroupNames.Contains(groupName))
+                    {
+                        groupName = $"{nodeTitle} ({counter++})";
+                    }
+                }
+                createdGroupNames.Add(groupName);
+
+                var groupVm = AllGroupViewModels.FirstOrDefault(g => g.Name.Equals(groupName, StringComparison.OrdinalIgnoreCase));
+                if (groupVm == null)
+                {
+                    var newGroupModel = new WorkflowGroup { Name = groupName };
+                    var defaultTab = new WorkflowGroupTab { Name = "Controls" };
+                    newGroupModel.Tabs.Add(defaultTab);
+                    Workflow.Groups.Add(newGroupModel);
+                    groupVm = AllGroupViewModels.Last();
+                    
+                    if (SelectedTab != null && !SelectedTab.GroupIds.Contains(groupVm.Id))
+                    {
+                        SelectedTab.GroupIds.Add(groupVm.Id);
+                    }
+                }
+                
+                var targetTab = groupVm.Model.Tabs.FirstOrDefault() ?? groupVm.Model.Tabs.First();
+                
+                IEnumerable<WorkflowField> sortedFields = fields;
+                switch (AutoLayoutSortStrategy)
+                {
+                    case AutoLayoutSortStrategy.Alphabetical:
+                        sortedFields = fields.OrderBy(f => f.Name);
+                        break;
+                    case AutoLayoutSortStrategy.ByType:
+                        sortedFields = fields.OrderBy(f => GetFieldTypeSortRank(f)).ThenBy(f => f.Name);
+                        break;
+                }
+
+                foreach (var field in sortedFields)
+                {
+                    var fieldToAdd = field.Clone(); // Create a safe copy to modify
+                    if (AutoLayoutStripPrefix && fieldToAdd.Name.Contains("::"))
+                    {
+                        fieldToAdd.Name = fieldToAdd.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1];
+                    }
+                    AddFieldToSubTabAtIndex(fieldToAdd, targetTab);
+                }
+            }
+            
+            UpdateGroupAssignments();
+            UpdateAvailableFields();
+            IsAutoLayoutPopupOpen = false;
         }
         
         private void ToggleNodePrefix(object param)
@@ -851,7 +976,15 @@ namespace Comfizen
             
             foreach (var field in fields)
             {
-                AddFieldToSubTabAtIndex(field, targetTabVm.Model, targetIndex);
+                var fieldToAdd = field.Clone(); // Create a safe copy
+                
+                // For manual drag-drop, use the global setting
+                if (!this.UseNodeTitlePrefix && fieldToAdd.Name.Contains("::"))
+                {
+                    fieldToAdd.Name = fieldToAdd.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1];
+                }
+
+                AddFieldToSubTabAtIndex(fieldToAdd, targetTabVm.Model, targetIndex);
                 if (targetIndex != -1) targetIndex++;
             }
         }
@@ -1800,7 +1933,7 @@ namespace Comfizen
                     f.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0));
             }
             AvailableFields.Clear();
-            foreach (var field in available.OrderBy(f => f.Name)) AvailableFields.Add(field);
+            foreach (var field in available) AvailableFields.Add(field);
         }
 
         public void AddFieldToGroupAtIndex(WorkflowField field, WorkflowGroupViewModel groupVm, int targetIndex = -1)
@@ -1835,16 +1968,13 @@ namespace Comfizen
         {
             if (field == null || targetTab == null || targetTab.Fields.Any(f => f.Path == field.Path)) return;
 
-            var newField = new WorkflowField { Name = field.Name, Path = field.Path, Type = FieldType.Any, NodeTitle = field.NodeTitle, NodeType = field.NodeType };
+            // The passed 'field' object is now a clone with the name already processed by the caller.
+            // This method just handles defaults and insertion.
+            var newField = field; 
 
-            if (!this.UseNodeTitlePrefix && newField.Name.Contains("::"))
-            {
-                newField.Name = newField.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1];
-            }
-
-            var rawFieldName = field.Name.Contains("::")
-                ? field.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1]
-                : field.Name;
+            var rawFieldName = newField.Name.Contains("::")
+                ? newField.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1]
+                : newField.Name;
 
             if (_sliderDefaultsService.TryGetDefaults(newField.NodeType, rawFieldName, out var defaults))
             {
