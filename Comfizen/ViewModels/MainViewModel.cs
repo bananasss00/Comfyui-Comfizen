@@ -1676,7 +1676,37 @@ namespace Comfizen
                 SelectedTab = existingHelpTab;
                 return;
             }
-            
+
+            // --- START OF CHANGE: Load documentation from external .md file ---
+            string markdownContent;
+            try
+            {
+                string langCode = LocalizationService.Instance.CurrentLanguage.TwoLetterISOLanguageName;
+                string docPath = Path.Combine("langs", $"help_{langCode}.md");
+
+                // Fallback to English if the localized documentation doesn't exist.
+                if (!File.Exists(docPath))
+                {
+                    docPath = Path.Combine("langs", "help_en.md");
+                }
+
+                if (File.Exists(docPath))
+                {
+                    markdownContent = File.ReadAllText(docPath);
+                }
+                else
+                {
+                    // Fallback message if no documentation files are found at all.
+                    markdownContent = "# Documentation Not Found\n\nPlease ensure the `langs` folder with `help_en.md` exists.";
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to load documentation file.");
+                markdownContent = $"# Error\n\nCould not load documentation file: {ex.Message}";
+            }
+            // --- END OF CHANGE ---
+
             var helpWorkflow = new Workflow();
             
             var helpGroup = new WorkflowGroup { Name = "Comfizen Help" };
@@ -1684,7 +1714,7 @@ namespace Comfizen
             {
                 Name = helpTabHeader,
                 Type = FieldType.Markdown,
-                DefaultValue = LocalizationService.Instance["Help_Content"],
+                DefaultValue = markdownContent,
                 MaxDisplayLines = null,
                 Path = "virtual_help_markdown_doc" 
             };
