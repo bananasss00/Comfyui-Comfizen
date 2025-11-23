@@ -2203,6 +2203,7 @@
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding Type}" Value="Seed"><Setter Property="Text" Value="🎲"/></DataTrigger>
                                                 <DataTrigger Binding="{Binding Type}" Value="WildcardSupportPrompt"><Setter Property="Text" Value="💡"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Type}" Value="FilePath"><Setter Property="Text" Value="📜"/></DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>

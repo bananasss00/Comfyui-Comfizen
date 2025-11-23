@@ -11,6 +11,13 @@ using Newtonsoft.Json;
 
 namespace Comfizen
 {
+    public enum FilePathSlashStyle
+    {
+        System,
+        Forward,
+        Backward
+        
+    }
     [AddINotifyPropertyChangedInterface]
     public class WorkflowField : INotifyPropertyChanged
     {
@@ -28,6 +35,10 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         [DefaultValue(4294967295L)] // A common 32-bit unsigned max, good default
         public long? MaxSeedValue { get; set; } = 4294967295L;
+        
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(FilePathSlashStyle.System)]
+        public FilePathSlashStyle SlashStyle { get; set; } = FilePathSlashStyle.System;
         
         /// <summary>
         /// The highlight color for the field in HEX format (e.g., #RRGGBB).
@@ -170,6 +181,7 @@ namespace Comfizen
                 Path = this.Path,
                 Type = this.Type,
                 IsSeedLocked = this.IsSeedLocked,
+                SlashStyle = this.SlashStyle,
                 HighlightColor = this.HighlightColor,
                 MinValue = this.MinValue,
                 MaxValue = this.MaxValue,

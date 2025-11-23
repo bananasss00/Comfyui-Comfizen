@@ -871,6 +871,24 @@
                                                                                                 MaxHeight="80"
                                                                                                 ToolTip="{local:Translate UIConstructor_Field_ItemsTooltip}"/>
                                                                                         </StackPanel>
+                                                                                        
+                                                                                        <StackPanel Grid.Row="2" Margin="0,5,0,0">
+                                                                                            <StackPanel.Style>
+                                                                                                <Style TargetType="StackPanel">
+                                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                    <Style.Triggers>
+                                                                                                        <DataTrigger Binding="{Binding Type}" Value="FilePath">
+                                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                                        </DataTrigger>
+                                                                                                    </Style.Triggers>
+                                                                                                </Style>
+                                                                                            </StackPanel.Style>
+                                                                                            <TextBlock Text="{local:Translate UIConstructor_Field_SlashStyle}"/>
+                                                                                            <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:FilePathSlashStyle}}}"
+                                                                                                      SelectedItem="{Binding SlashStyle, Mode=TwoWay}"
+                                                                                                      Margin="0,2,0,0"/>
+                                                                                        </StackPanel>
+                                                                                        
                                                                                         <StackPanel Grid.Row="2" Margin="0,5,0,0">
                                                                                             <StackPanel.Style>
                                                                                                 <Style TargetType="StackPanel">

@@ -152,7 +152,8 @@ namespace Comfizen
             {
                 if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
                 {
-                    viewModel.Value = string.Join(Environment.NewLine, files);
+                    var styledFiles = files.Select(f => ApplySlashStyle(f, viewModel.FieldModel.SlashStyle));
+                    viewModel.Value = string.Join(Environment.NewLine, styledFiles);
                     e.Handled = true;
                 }
                 return;
@@ -188,7 +189,8 @@ namespace Comfizen
                         var filePaths = Clipboard.GetFileDropList();
                         if (filePaths != null && filePaths.Count > 0)
                         {
-                            viewModel.Value = string.Join(Environment.NewLine, filePaths.Cast<string>());
+                            var styledFiles = filePaths.Cast<string>().Select(f => ApplySlashStyle(f, viewModel.FieldModel.SlashStyle));
+                            viewModel.Value = string.Join(Environment.NewLine, styledFiles);
                             e.Handled = true;
                             return; // Stop processing, we've handled it.
                         }
@@ -203,6 +205,19 @@ namespace Comfizen
                     viewModel.UpdateWithImageData(imageBytes);
                     e.Handled = true;
                 }
+            }
+        }
+        
+        private string ApplySlashStyle(string path, FilePathSlashStyle style)
+        {
+            switch (style)
+            {
+                case FilePathSlashStyle.Forward:
+                    return path.Replace('\\', '/');
+                case FilePathSlashStyle.Backward:
+                    return path.Replace('/', '\\');
+                default: // System
+                    return path;
             }
         }
 
