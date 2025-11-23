@@ -32,13 +32,8 @@ namespace Comfizen
                 ComboBoxFieldViewModel => ComboBoxTemplate,
                 CheckBoxFieldViewModel => CheckBoxTemplate,
                 TextFieldViewModel vm when vm.Type == FieldType.WildcardSupportPrompt => WildcardTemplate,
-                // ========================================================== //
-                //     НАЧАЛО ИЗМЕНЕНИЯ                                       //
-                // ========================================================== //
                 TextFieldViewModel vm when vm.Type == FieldType.Any => AnyTypeTemplate,
-                // ========================================================== //
-                //     КОНЕЦ ИЗМЕНЕНИЯ                                        //
-                // ========================================================== //
+                TextFieldViewModel vm when vm.Type == FieldType.FilePath => AnyTypeTemplate,
                 ScriptButtonFieldViewModel => ScriptButtonTemplate,
                 NodeBypassFieldViewModel => NodeBypassTemplate,
                 TextFieldViewModel => TextTemplate,

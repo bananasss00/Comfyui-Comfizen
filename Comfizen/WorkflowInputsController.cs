@@ -1266,6 +1266,9 @@ public class WorkflowInputsController : INotifyPropertyChanged
                  _wildcardPropertyPaths.Add(prop.Path);
                  return new TextFieldViewModel(field, prop, nodeTitle, nodeType);
             
+            case FieldType.FilePath:
+                return new TextFieldViewModel(field, prop, nodeTitle, nodeType);
+            
             case FieldType.Any: 
                  if (prop.Value.Type == JTokenType.Boolean)
                  {

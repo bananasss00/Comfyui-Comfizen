@@ -5,7 +5,7 @@
     WildcardSupportPrompt,
     Sampler,
     Scheduler,
-    ImageInput, 
+    ImageInput,
     MaskInput,
     SliderInt,
     SliderFloat,
@@ -14,6 +14,7 @@
     Markdown,
     ScriptButton,
     NodeBypass,
+    FilePath,
     Label,
     Separator
 }

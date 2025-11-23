@@ -148,6 +148,16 @@ namespace Comfizen
         {
             if (sender is not TextBox textBox || textBox.DataContext is not TextFieldViewModel viewModel) return;
 
+            if (viewModel.Type == FieldType.FilePath)
+            {
+                if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+                {
+                    viewModel.Value = string.Join(Environment.NewLine, files);
+                    e.Handled = true;
+                }
+                return;
+            }
+
             byte[] imageBytes = null;
             if (e.Data.GetData(typeof(ImageOutput)) is ImageOutput imageOutput)
             {
@@ -171,6 +181,22 @@ namespace Comfizen
 
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.V)
             {
+                if (viewModel.Type == FieldType.FilePath)
+                {
+                    if (Clipboard.ContainsFileDropList())
+                    {
+                        var filePaths = Clipboard.GetFileDropList();
+                        if (filePaths != null && filePaths.Count > 0)
+                        {
+                            viewModel.Value = string.Join(Environment.NewLine, filePaths.Cast<string>());
+                            e.Handled = true;
+                            return; // Stop processing, we've handled it.
+                        }
+                    }
+                    // If it's not a file drop, allow default text paste to proceed by returning.
+                    return;
+                }
+
                 byte[] imageBytes = GetImageBytesFromClipboard();
                 if (imageBytes != null)
                 {
