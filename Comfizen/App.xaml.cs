@@ -148,6 +148,7 @@ namespace Comfizen
         {
             if (sender is not TextBox textBox || textBox.DataContext is not TextFieldViewModel viewModel) return;
 
+            // Handle FilePath type explicitly first
             if (viewModel.Type == FieldType.FilePath)
             {
                 if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
@@ -159,19 +160,55 @@ namespace Comfizen
                 return;
             }
 
-            byte[] imageBytes = null;
+            // Check for Shift key modifier to force path insertion
+            bool isShiftPressed = (e.KeyStates & DragDropKeyStates.ShiftKey) == DragDropKeyStates.ShiftKey;
+
+            // Smart handling for 'Any' type
+            if (viewModel.Type == FieldType.Any && e.Data.GetData(DataFormats.FileDrop) is string[] droppedFiles && droppedFiles.Length > 0)
+            {
+                // FORCE PATH: If Shift is pressed, always insert file paths.
+                if (isShiftPressed)
+                {
+                    var styledFiles = droppedFiles.Select(f => ApplySlashStyle(f, viewModel.FieldModel.SlashStyle));
+                    viewModel.Value = string.Join(Environment.NewLine, styledFiles);
+                    e.Handled = true;
+                    return;
+                }
+
+                // DEFAULT (no Shift): Prioritize inserting image Base64 content.
+                var firstImagePath = droppedFiles.FirstOrDefault(f => GetImageBytesFromFile(f) != null);
+                if (firstImagePath != null)
+                {
+                    var imageBytes = GetImageBytesFromFile(firstImagePath);
+                    if (imageBytes != null)
+                    {
+                        viewModel.UpdateWithImageData(imageBytes);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                
+                // Fallback: If no images were found, insert all file paths.
+                var styledPaths = droppedFiles.Select(f => ApplySlashStyle(f, viewModel.FieldModel.SlashStyle));
+                viewModel.Value = string.Join(Environment.NewLine, styledPaths);
+                e.Handled = true;
+                return;
+            }
+
+            // Legacy handling for non-'Any' types or non-file drops
+            byte[] legacyImageBytes = null;
             if (e.Data.GetData(typeof(ImageOutput)) is ImageOutput imageOutput)
             {
-                imageBytes = imageOutput.ImageBytes;
+                legacyImageBytes = imageOutput.ImageBytes;
             }
             else if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
             {
-                imageBytes = GetImageBytesFromFile(files[0]);
+                legacyImageBytes = GetImageBytesFromFile(files[0]);
             }
 
-            if (imageBytes != null)
+            if (legacyImageBytes != null)
             {
-                viewModel.UpdateWithImageData(imageBytes);
+                viewModel.UpdateWithImageData(legacyImageBytes);
                 e.Handled = true;
             }
         }
@@ -179,30 +216,70 @@ namespace Comfizen
         private void TextBox_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (sender is not TextBox textBox || textBox.DataContext is not TextFieldViewModel viewModel) return;
-
-            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.V)
+            
+            // NEW: Handle Ctrl+Shift+V to force paste file paths
+            if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.V)
             {
+                if (viewModel.Type == FieldType.Any || viewModel.Type == FieldType.FilePath)
+                {
+                    var filePaths = GetFilePathsFromClipboard();
+                    if (filePaths != null && filePaths.Any())
+                    {
+                        var styledFiles = filePaths.Select(f => ApplySlashStyle(f, viewModel.FieldModel.SlashStyle));
+                        viewModel.Value = string.Join(Environment.NewLine, styledFiles);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+            // Handle standard Ctrl+V
+            else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.V)
+            {
+                // Smart handling for 'Any' type on Paste
+                if (viewModel.Type == FieldType.Any)
+                {
+                    // Priority 1: Check for image data in the clipboard first.
+                    byte[] imageBytes = GetImageBytesFromClipboard();
+                    if (imageBytes != null)
+                    {
+                        viewModel.UpdateWithImageData(imageBytes);
+                        e.Handled = true;
+                        return;
+                    }
+                    
+                    // Priority 2: If no image, check for a file list.
+                    var filePaths = GetFilePathsFromClipboard();
+                    if (filePaths != null && filePaths.Any())
+                    {
+                        var styledFiles = filePaths.Select(f => ApplySlashStyle(f, viewModel.FieldModel.SlashStyle));
+                        viewModel.Value = string.Join(Environment.NewLine, styledFiles);
+                        e.Handled = true;
+                        return;
+                    }
+
+                    // If neither, allow default text paste to proceed.
+                    return;
+                }
+
                 if (viewModel.Type == FieldType.FilePath)
                 {
-                    if (Clipboard.ContainsFileDropList())
+                    var filePaths = GetFilePathsFromClipboard();
+                    if (filePaths != null && filePaths.Any())
                     {
-                        var filePaths = Clipboard.GetFileDropList();
-                        if (filePaths != null && filePaths.Count > 0)
-                        {
-                            var styledFiles = filePaths.Cast<string>().Select(f => ApplySlashStyle(f, viewModel.FieldModel.SlashStyle));
-                            viewModel.Value = string.Join(Environment.NewLine, styledFiles);
-                            e.Handled = true;
-                            return; // Stop processing, we've handled it.
-                        }
+                        var styledFiles = filePaths.Select(f => ApplySlashStyle(f, viewModel.FieldModel.SlashStyle));
+                        viewModel.Value = string.Join(Environment.NewLine, styledFiles);
+                        e.Handled = true;
+                        return; // Stop processing, we've handled it.
                     }
                     // If it's not a file drop, allow default text paste to proceed by returning.
                     return;
                 }
 
-                byte[] imageBytes = GetImageBytesFromClipboard();
-                if (imageBytes != null)
+                // Legacy handling for non-'Any' types
+                byte[] legacyImageBytes = GetImageBytesFromClipboard();
+                if (legacyImageBytes != null)
                 {
-                    viewModel.UpdateWithImageData(imageBytes);
+                    viewModel.UpdateWithImageData(legacyImageBytes);
                     e.Handled = true;
                 }
             }
@@ -399,6 +476,19 @@ namespace Comfizen
                 var result = FindVisualChild<T>(child, childName);
                 if (result != null)
                     return result;
+            }
+            return null;
+        }
+        
+        private List<string> GetFilePathsFromClipboard()
+        {
+            if (Clipboard.ContainsFileDropList())
+            {
+                var fileDropList = Clipboard.GetFileDropList();
+                if (fileDropList != null && fileDropList.Count > 0)
+                {
+                    return fileDropList.Cast<string>().ToList();
+                }
             }
             return null;
         }
