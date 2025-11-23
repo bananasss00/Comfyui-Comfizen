@@ -46,6 +46,9 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         public bool ShowPresetDeleteConfirmation { get; set; } = true;
         public SeedControl LastSeedControlState { get; set; } = SeedControl.Fixed;
+        [DefaultValue(true)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool ShowUndoRedoButtons { get; set; } = true;
         public List<string> ModelExtensions { get; set; }
         
         public bool IsConsoleVisible { get; set; } = false;

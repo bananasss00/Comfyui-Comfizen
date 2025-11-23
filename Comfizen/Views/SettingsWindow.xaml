@@ -251,6 +251,9 @@
                                 <CheckBox Content="{local:Translate Settings_ConfirmPresetDelete}"
                                           IsChecked="{Binding ShowPresetDeleteConfirmation}" 
                                           Margin="0,5,0,0"/>
+                                <CheckBox Content="{local:Translate Settings_ShowUndoRedoButtons}"
+                                          IsChecked="{Binding ShowUndoRedoButtons}" 
+                                          Margin="0,5,0,0"/>
                             </StackPanel>
                         </GroupBox>
                         

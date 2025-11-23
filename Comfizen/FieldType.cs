@@ -14,9 +14,9 @@
     Markdown,
     ScriptButton,
     NodeBypass,
-    FilePath,
     Label,
-    Separator
+    Separator,
+    FilePath,
 }
 
 public enum SeparatorStyle
