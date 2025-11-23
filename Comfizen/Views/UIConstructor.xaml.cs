@@ -357,6 +357,8 @@ namespace Comfizen
                     }
                 }
             });
+            
+            ToggleNodePrefixCommand = new RelayCommand(ToggleNodePrefix);
 
             RemoveBypassNodeIdCommand = new RelayCommand(param =>
             {
@@ -487,6 +489,7 @@ namespace Comfizen
         public ICommand ClearHighlightColorCommand { get; }
         public ICommand RemoveBypassNodeIdCommand { get; }
         public ICommand AddBypassNodeIdCommand { get; }
+        public ICommand ToggleNodePrefixCommand { get; }
         public ObservableCollection<ColorInfo> ColorPalette { get; }
 
         public string NewWorkflowName { get; set; }
@@ -510,6 +513,24 @@ namespace Comfizen
                 AllGroupViewModels.Add(new WorkflowGroupViewModel(groupModel, Workflow, _settings));
             }
             UpdateGroupAssignments();
+        }
+        
+        private void ToggleNodePrefix(object param)
+        {
+            if (param is not WorkflowField field) return;
+            if (string.IsNullOrEmpty(field.NodeTitle)) return;
+
+            string prefix = $"{field.NodeTitle}::";
+            if (field.Name.StartsWith(prefix))
+            {
+                // Remove prefix
+                field.Name = field.Name.Substring(prefix.Length);
+            }
+            else
+            {
+                // Add prefix
+                field.Name = $"{prefix}{field.Name}";
+            }
         }
         
         private bool CanDelete(object parameter)

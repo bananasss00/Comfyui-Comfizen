@@ -603,9 +603,9 @@
                                                                                             <StackPanel Grid.Column="1" Orientation="Horizontal">
                                                                                                 <Grid Margin="0,0,5,0" VerticalAlignment="Center">
                                                                                                     <ToggleButton x:Name="TooltipToggleButton" 
-                                                                                                                  Style="{StaticResource IconToggleButton}"
-                                                                                                                  Width="24" Height="24"
-                                                                                                                  ToolTip="Edit Tooltip">
+                                                                                                        Style="{StaticResource IconToggleButton}"
+                                                                                                        Width="24" Height="24"
+                                                                                                        ToolTip="{local:Translate UIConstructor_EditTooltipTooltip}">
                                                                                                         <ToggleButton.Content>
                                                                                                             <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets"/> <!-- Icon: Info -->
                                                                                                         </ToggleButton.Content>
@@ -656,6 +656,11 @@
                                                                                                         </Border>
                                                                                                     </Popup>
                                                                                                 </Grid>
+                                                                                                
+                                                                                                <Button Content="&#xE8AB;" Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                                                    ToolTip="{local:Translate UIConstructor_ToggleNodePrefixTooltip}"
+                                                                                                    Command="{Binding DataContext.ToggleNodePrefixCommand, ElementName=RootGrid}"
+                                                                                                    CommandParameter="{Binding}"/>
                                                                                                 
                                                                                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,0" VerticalAlignment="Center">
                                                                                                 <StackPanel.Style>
