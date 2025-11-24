@@ -920,7 +920,10 @@ namespace Comfizen
                 }
                 else if (e.Key == Key.Escape)
                 {
-                    // On Escape, cancel the edit and switch back without saving
+                    // On Escape, cancel the edit by reverting to the original value
+                    BindingExpression binding = textBox.GetBindingExpression(TextBox.TextProperty);
+                    binding?.UpdateTarget(); // This reverts the text to the source value
+
                     var parentGrid = textBox.Parent as Grid;
                     var textBlock = parentGrid?.Children.OfType<TextBlock>().FirstOrDefault();
                     if (textBlock != null)
