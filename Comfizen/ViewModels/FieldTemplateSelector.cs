@@ -18,6 +18,7 @@ namespace Comfizen
         public DataTemplate NodeBypassTemplate { get; set; }
         public DataTemplate LabelTemplate { get; set; }
         public DataTemplate SeparatorTemplate { get; set; }
+        public DataTemplate SpoilerTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -25,6 +26,7 @@ namespace Comfizen
             {
                 SeparatorFieldViewModel => SeparatorTemplate,
                 LabelFieldViewModel => LabelTemplate,
+                SpoilerFieldViewModel => SpoilerTemplate,
                 MarkdownFieldViewModel => MarkdownTemplate,
                 InpaintFieldViewModel => InpaintTemplate,
                 SeedFieldViewModel => SeedTemplate,

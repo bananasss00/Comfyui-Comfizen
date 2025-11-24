@@ -147,7 +147,11 @@ namespace Comfizen
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         [DefaultValue(SeparatorStyle.Solid)]
         public SeparatorStyle SeparatorStyle { get; set; } = SeparatorStyle.Solid;
-
+        
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(true)]
+        public bool IsSpoilerExpanded { get; set; } = true;
+        
         [JsonIgnore]
         public bool IsRenaming { get; set; } = false;
         

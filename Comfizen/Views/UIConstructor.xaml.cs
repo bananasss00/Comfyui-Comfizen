@@ -170,6 +170,7 @@ namespace Comfizen
         public ICommand AddNodeBypassFieldCommand { get; }
         public ICommand AddLabelFieldCommand { get; }
         public ICommand AddSeparatorFieldCommand { get; }
+        public ICommand AddSpoilerFieldCommand { get; }
         
         // Constructor for a NEW workflow.
         public UIConstructorView() : this(new Workflow(), null) { }
@@ -301,6 +302,7 @@ namespace Comfizen
             AddNodeBypassFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.NodeBypass));
             AddLabelFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Label));
             AddSeparatorFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Separator));
+            AddSpoilerFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Spoiler));
             ColorPalette = new ObservableCollection<ColorInfo>
             {
                 // --- Warm Tones (Reds, Oranges, Browns) ---
@@ -514,7 +516,7 @@ namespace Comfizen
         public ObservableCollection<FieldType> FieldTypes { get; } =
             new(Enum.GetValues(typeof(FieldType)).Cast<FieldType>()
                 .Where(t => t != FieldType.Markdown && t != FieldType.ScriptButton && t != FieldType.NodeBypass
-                            && t != FieldType.Label && t != FieldType.Separator));
+                            && t != FieldType.Label && t != FieldType.Separator && t != FieldType.Spoiler));
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -1083,6 +1085,7 @@ namespace Comfizen
                 case FieldType.NodeBypass: baseName = "New Bypass Switch"; break;
                 case FieldType.Label: baseName = "New Label"; break;
                 case FieldType.Separator: baseName = "Separator"; break;
+                case FieldType.Spoiler: baseName = "New Spoiler"; break;
             }
             string newName = baseName;
             int counter = 1;

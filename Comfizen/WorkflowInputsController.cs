@@ -767,6 +767,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
                             fieldVm = new SeparatorFieldViewModel(field);
                             processedFields.Add(field);
                         }
+                        else if (field.Type == FieldType.Spoiler)
+                        {
+                            fieldVm = new SpoilerFieldViewModel(field);
+                            processedFields.Add(field);
+                        }
                         else if (field.Type == FieldType.ScriptButton)
                         {
                             fieldVm = new ScriptButtonFieldViewModel(field, this.ExecuteActionCommand);

@@ -3463,4 +3463,12 @@ namespace Comfizen
             Type = FieldType.Separator;
         }
     }
+    public class SpoilerFieldViewModel : InputFieldViewModel
+    {
+        public SpoilerFieldViewModel(WorkflowField field) : base(field, null)
+        {
+            Type = FieldType.Spoiler;
+        }
+    }
+    
 }

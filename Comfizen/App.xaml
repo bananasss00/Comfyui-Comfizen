@@ -2010,7 +2010,32 @@
             </DataTemplate.Triggers>
         </DataTemplate>
 
-  
+        <DataTemplate x:Key="SpoilerTemplate" DataType="{x:Type local:InputFieldViewModel}">
+            <ToggleButton IsChecked="{Binding FieldModel.IsSpoilerExpanded, Mode=TwoWay}"
+                          OverridesDefaultStyle="True"
+                          Margin="0,10,0,5">
+                <ToggleButton.Template>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="Transparent" Padding="0,2">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <TextBlock x:Name="Arrow" Grid.Column="0" Text="▼" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="10"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Bold" Foreground="{StaticResource PrimaryAccentBrush}"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="False">
+                                <Setter TargetName="Arrow" Property="Text" Value="▶"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </ToggleButton.Template>
+            </ToggleButton>
+        </DataTemplate>
         
         <Style x:Key="LockToggleButtonStyle" TargetType="ToggleButton">
             <Setter Property="Width" Value="24"/>
@@ -2107,6 +2132,7 @@
                                      NodeBypassTemplate="{StaticResource NodeBypassTemplate}"
                                      LabelTemplate="{StaticResource LabelTemplate}"
                                      SeparatorTemplate="{StaticResource SeparatorTemplate}"
+                                     SpoilerTemplate="{StaticResource SpoilerTemplate}"
         />
         
         <!-- Style for HORIZONTAL splitters (between rows) -->
@@ -2166,15 +2192,28 @@
             </Setter>
         </Style>
         
-       <DataTemplate x:Key="FieldDataTemplate">
-              <DataTemplate.Resources>
-                  <ControlTemplate x:Key="NormalFieldLayoutTemplate" TargetType="ContentControl">
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto" MinWidth="120"/>
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
+        <DataTemplate x:Key="FieldDataTemplate">
+            <DataTemplate.Resources>
+                <!-- Add the converter here so it can be used by templates below -->
+                <local:SpoilerVisibilityConverter x:Key="SpoilerVisibilityConverter"/>
+                
+                <ControlTemplate x:Key="NormalFieldLayoutTemplate" TargetType="ContentControl">
+                    <!-- The visibility binding is now on the root Grid of the template -->
+                    <Grid Margin="0,4">
+                        <Grid.Visibility>
+                            <MultiBinding Converter="{StaticResource SpoilerVisibilityConverter}">
+                                <Binding Path="."/>
+                                <!-- FIX: Bind directly to the ItemsSource of the list, which is the correct collection. -->
+                                <Binding Path="ItemsSource" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                <!-- ADD: This "listener" binding will re-trigger the converter when any spoiler's expanded state changes. -->
+                                <Binding Path="ItemsSource/FieldModel.IsSpoilerExpanded" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                            </MultiBinding>
+                        </Grid.Visibility>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto" MinWidth="120"/>
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                             
                             <Border Grid.Column="0" Width="3" CornerRadius="1.5" HorizontalAlignment="Left">
                                 <Border.Background>
@@ -2253,16 +2292,25 @@
                             </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
-                  <ControlTemplate x:Key="InpaintLayoutTemplate" TargetType="ContentControl">
-                      <Grid>
-                          <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
-                          <!-- english: This border is now last, so it will be drawn on top of the other elements. -->
-                          <Border x:Name="HighlightOverlay"
-                                  Background="{StaticResource PrimaryAccentBrush}"
-                                  Opacity="0"
-                                  CornerRadius="3"
-                                  IsHitTestVisible="False"/>
-                      </Grid>
+                <ControlTemplate x:Key="InpaintLayoutTemplate" TargetType="ContentControl">
+                    <Grid>
+                        <!-- Add the visibility binding here too -->
+                        <Grid.Visibility>
+                            <MultiBinding Converter="{StaticResource SpoilerVisibilityConverter}">
+                                <Binding Path="."/>
+                                <!-- FIX: Bind directly to the ItemsSource of the list, which is the correct collection. -->
+                                <Binding Path="ItemsSource" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                <!-- ADD: This "listener" binding will re-trigger the converter when any spoiler's expanded state changes. -->
+                                <Binding Path="ItemsSource/FieldModel.IsSpoilerExpanded" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                            </MultiBinding>
+                        </Grid.Visibility>
+                        <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
+                        <Border x:Name="HighlightOverlay"
+                                Background="{StaticResource PrimaryAccentBrush}"
+                                Opacity="0"
+                                CornerRadius="3"
+                                IsHitTestVisible="False"/>
+                    </Grid>
                       <!-- english: Trigger for the highlight animation. -->
                       <ControlTemplate.Triggers>
                           <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
@@ -2279,16 +2327,25 @@
                           </DataTrigger>
                       </ControlTemplate.Triggers>
                   </ControlTemplate>
-                  <ControlTemplate x:Key="FullWidthLayoutTemplate" TargetType="ContentControl">
-                          <Grid>
-                          <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" Margin="0,4" />
-                          <!-- english: This border is now last, so it will be drawn on top of the other elements. -->
-                          <Border x:Name="HighlightOverlay"
-                                  Background="{StaticResource PrimaryAccentBrush}"
-                                  Opacity="0"
-                                  CornerRadius="3"
-                                  IsHitTestVisible="False"/>
-                      </Grid>
+                <ControlTemplate x:Key="FullWidthLayoutTemplate" TargetType="ContentControl">
+                    <Grid>
+                        <!-- And here as well -->
+                        <Grid.Visibility>
+                            <MultiBinding Converter="{StaticResource SpoilerVisibilityConverter}">
+                                <Binding Path="."/>
+                                <!-- FIX: Bind directly to the ItemsSource of the list, which is the correct collection. -->
+                                <Binding Path="ItemsSource" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                <!-- ADD: This "listener" binding will re-trigger the converter when any spoiler's expanded state changes. -->
+                                <Binding Path="ItemsSource/FieldModel.IsSpoilerExpanded" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                            </MultiBinding>
+                        </Grid.Visibility>
+                        <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" Margin="0,4" />
+                        <Border x:Name="HighlightOverlay"
+                                Background="{StaticResource PrimaryAccentBrush}"
+                                Opacity="0"
+                                CornerRadius="3"
+                                IsHitTestVisible="False"/>
+                    </Grid>
                       <!-- english: Trigger for the highlight animation. -->
                       <ControlTemplate.Triggers>
                           <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
@@ -2307,29 +2364,33 @@
                   </ControlTemplate>
               </DataTemplate.Resources>
               <ContentControl Content="{Binding}">
-                  <ContentControl.Style>
-                      <Style TargetType="ContentControl">
-                          <Setter Property="Template" Value="{StaticResource NormalFieldLayoutTemplate}"/>
-                          <Style.Triggers>
-                              <DataTrigger Binding="{Binding Converter={StaticResource IsInpaintViewModelConverter}}" Value="True">
-                                  <Setter Property="Template" Value="{StaticResource InpaintLayoutTemplate}"/>
-                              </DataTrigger>
-                              <DataTrigger Binding="{Binding Converter={StaticResource IsMarkdownViewModelConverter}}" Value="True">
-                                  <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
-                              </DataTrigger>
-                              <DataTrigger Binding="{Binding Type}" Value="ScriptButton">
-                                  <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
-                              </DataTrigger>
-                              <DataTrigger Binding="{Binding Type}" Value="Label">
-                                  <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
-                              </DataTrigger>
-                              <DataTrigger Binding="{Binding Type}" Value="Separator">
-                                  <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
-                              </DataTrigger>
-                          </Style.Triggers>
-                      </Style>
-                  </ContentControl.Style>
-              </ContentControl>
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl">
+                        <Setter Property="Template" Value="{StaticResource NormalFieldLayoutTemplate}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Converter={StaticResource IsInpaintViewModelConverter}}" Value="True">
+                                <Setter Property="Template" Value="{StaticResource InpaintLayoutTemplate}"/>
+                            </DataTrigger>
+                            <!-- The trigger for Spoiler needs to use FullWidthLayoutTemplate for correct rendering -->
+                            <DataTrigger Binding="{Binding Type}" Value="Spoiler">
+                                <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Converter={StaticResource IsMarkdownViewModelConverter}}" Value="True">
+                                <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Type}" Value="ScriptButton">
+                                <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Type}" Value="Label">
+                                <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Type}" Value="Separator">
+                                <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+            </ContentControl>
           </DataTemplate>
           
        <DataTemplate x:Key="UndockedGroupTemplate" DataType="{x:Type local:WorkflowGroupViewModel}">

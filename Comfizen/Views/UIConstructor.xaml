@@ -508,6 +508,11 @@
                                                                             ToolTip="{local:Translate UIConstructor_AddSeparatorField}"
                                                                             Command="{Binding DataContext.AddSeparatorFieldCommand, ElementName=RootGrid}"
                                                                             CommandParameter="{Binding}"/>
+                                                                    <Button Content="&#xE76C;" FontFamily="Segoe MDL2 Assets" 
+                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                            ToolTip="Add Spoiler"
+                                                                            Command="{Binding DataContext.AddSpoilerFieldCommand, ElementName=RootGrid}"
+                                                                            CommandParameter="{Binding}"/>
                                                                     <Button Content="&#xE71F;" FontFamily="Segoe MDL2 Assets" 
                                                                             Style="{StaticResource IconButton}" Width="24" Height="24"
                                                                             ToolTip="{local:Translate UIConstructor_AddLabelField}"
@@ -584,16 +589,27 @@
                                                                     <DataTemplate DataType="{x:Type local:WorkflowGroupTabViewModel}">
                                                                         <Grid>
                                                                             <Border Opacity="0.2"
-                                                                                    Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}"/>
-                                                                            
+                                                                                Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}"/>
+                
                                                                             <ListBox ItemsSource="{Binding Model.Fields}" Padding="8"
-                                                                                     SelectionMode="Extended"
-                                                                                     Background="Transparent"
-                                                                                     BorderThickness="0"
-                                                                                     PreviewMouseWheel="FieldList_PreviewMouseWheel">
+                                                                                SelectionMode="Extended"
+                                                                                Background="Transparent"
+                                                                                BorderThickness="0"
+                                                                                PreviewMouseWheel="FieldList_PreviewMouseWheel">
+                                                                                <ListBox.Resources>
+                                                                                    <local:SpoilerVisibilityConverter x:Key="SpoilerVisibilityConverter"/>
+                                                                                </ListBox.Resources>
                                                                                 <ListBox.ItemContainerStyle>
                                                                                     <Style TargetType="ListBoxItem">
                                                                                         <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                                                                                        <Setter Property="Visibility">
+                                                                                            <Setter.Value>
+                                                                                                <MultiBinding Converter="{StaticResource SpoilerVisibilityConverter}">
+                                                                                                    <Binding Path="."/>
+                                                                                                    <Binding Path="DataContext.Model.Fields" RelativeSource="{RelativeSource AncestorType=ListBox}"/>
+                                                                                                </MultiBinding>
+                                                                                            </Setter.Value>
+                                                                                        </Setter>
                                                                                         <Setter Property="Template">
                                                                                             <Setter.Value>
                                                                                                 <ControlTemplate TargetType="ListBoxItem">
