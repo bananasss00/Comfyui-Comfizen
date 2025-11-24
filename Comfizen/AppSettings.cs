@@ -45,6 +45,13 @@ namespace Comfizen
         [DefaultValue(true)]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         public bool ShowPresetDeleteConfirmation { get; set; } = true;
+        [DefaultValue(true)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool ShowGroupDeleteConfirmation { get; set; } = true;
+
+        [DefaultValue(true)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool ShowTabDeleteConfirmation { get; set; } = true;
         public SeedControl LastSeedControlState { get; set; } = SeedControl.Fixed;
         [DefaultValue(true)]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
@@ -215,6 +222,8 @@ namespace Comfizen
             if (settings.RecentWorkflows == null) { settings.RecentWorkflows = new List<string>(); needsResave = true; }
             if (settings.Samplers == null) { settings.Samplers = GetDefaultSamplers(); needsResave = true; }
             if (settings.Schedulers == null) { settings.Schedulers = GetDefaultSchedulers(); needsResave = true; }
+            if (!jsonRead.Contains("\"ShowGroupDeleteConfirmation\"")) { settings.ShowGroupDeleteConfirmation = true; needsResave = true; }
+            if (!jsonRead.Contains("\"ShowTabDeleteConfirmation\"")) { settings.ShowTabDeleteConfirmation = true; needsResave = true; }
             if (settings.LastOpenWorkflows == null) { settings.LastOpenWorkflows = new List<string>(); needsResave = true; }
             if (string.IsNullOrEmpty(settings.ServerAddress)) { settings.ServerAddress = "127.0.0.1:8188"; needsResave = true; }
             if (string.IsNullOrEmpty(settings.Language)) { settings.Language = InitialLanguage(); needsResave = true; }

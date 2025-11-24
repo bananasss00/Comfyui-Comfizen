@@ -1925,21 +1925,36 @@ namespace Comfizen
 
             RemoveSelectedTabCommand = new RelayCommand(_ =>
             {
-                if (SelectedTab == null || Tabs.Count <= 1) return;
-
-                var message = string.Format("Are you sure you want to delete the tab '{0}' and all its fields?", SelectedTab.Name);
-                var caption = "Confirm Deletion";
-
-                if (MessageBox.Show(message, caption, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                if (SelectedTab != null)
                 {
-                    _model.Tabs.Remove(SelectedTab.Model);
-                    Tabs.Remove(SelectedTab);
-                    SelectedTab = Tabs.FirstOrDefault();
+                    RemoveTab(SelectedTab);
                 }
             }, _ => SelectedTab != null && Tabs.Count > 1);
             ExportPresetsCommand = new RelayCommand(ExportPresets);
             ImportPresetsCommand = new RelayCommand(ImportPresets);
             ClearGroupPresetsCommand = new RelayCommand(ClearGroupPresets, _ => AllPresets.Any());
+        }
+        
+        /// <summary>
+        /// Removes a sub-tab from the group, with an optional confirmation check.
+        /// </summary>
+        /// <param name="tabToRemove">The view model of the tab to be removed.</param>
+        public void RemoveTab(WorkflowGroupTabViewModel tabToRemove)
+        {
+            if (tabToRemove == null || Tabs.Count <= 1) return;
+
+            bool proceed = !_settings.ShowTabDeleteConfirmation ||
+                           (MessageBox.Show(
+                               string.Format("Are you sure you want to delete the tab '{0}' and all its fields?", tabToRemove.Name),
+                               "Confirm Deletion",
+                               MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
+
+            if (proceed)
+            {
+                _model.Tabs.Remove(tabToRemove.Model);
+                Tabs.Remove(tabToRemove);
+                SelectedTab = Tabs.FirstOrDefault();
+            }
         }
         
         private void ClearGroupPresets(object obj)

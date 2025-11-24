@@ -189,6 +189,8 @@
   "Settings_MaxRecentWorkflows": "Number of recent workflows in the list:",
   "Settings_ConfirmDelete": "Request confirmation when deleting from the gallery",
   "Settings_ConfirmPresetDelete": "Request confirmation when deleting presets",
+  "Settings_ConfirmGroupDelete": "Request confirmation when deleting groups in the designer",
+  "Settings_ConfirmTabDelete": "Request confirmation when deleting tabs in the designer",
   "Settings_Models": "Models",
   "Settings_ModelExtensions": "Allowed model file extensions (comma-separated):",
   "Settings_SpecialModelValues": "Special values for 'Model' fields (comma-separated):",

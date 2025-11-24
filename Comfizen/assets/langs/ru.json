@@ -188,6 +188,8 @@
   "Settings_MaxRecentWorkflows": "Количество последних воркфлоу в списке:",
   "Settings_ConfirmDelete": "Запрашивать подтверждение при удалении из галереи",
   "Settings_ConfirmPresetDelete": "Запрашивать подтверждение при удалении пресетов",
+  "Settings_ConfirmGroupDelete": "Запрашивать подтверждение при удалении групп в конструкторе",
+  "Settings_ConfirmTabDelete": "Запрашивать подтверждение при удалении вкладок в конструкторе",
   "Settings_Models": "Модели",
   "Settings_ModelExtensions": "Допустимые расширения файлов моделей (через запятую):",
   "Settings_SpecialModelValues": "Специальные значения для полей 'Model' (через запятую):",

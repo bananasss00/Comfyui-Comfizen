@@ -54,6 +54,8 @@ namespace Comfizen
         public int MaxQueueSize { get; set; }
         public bool ShowDeleteConfirmation { get; set; }
         public bool ShowPresetDeleteConfirmation { get; set; }
+        public bool ShowGroupDeleteConfirmation { get; set; }
+        public bool ShowTabDeleteConfirmation { get; set; }
         public bool ShowUndoRedoButtons { get; set; }
         public List<string> ModelExtensions { get; set; }
         public List<string> SpecialModelValues { get; set; }
@@ -113,6 +115,8 @@ namespace Comfizen
             MaxRecentWorkflows = _settings.MaxRecentWorkflows;
             ShowDeleteConfirmation = _settings.ShowDeleteConfirmation;
             ShowPresetDeleteConfirmation = _settings.ShowPresetDeleteConfirmation;
+            ShowGroupDeleteConfirmation = _settings.ShowGroupDeleteConfirmation;
+            ShowTabDeleteConfirmation = _settings.ShowTabDeleteConfirmation;
             ShowUndoRedoButtons = _settings.ShowUndoRedoButtons;
             ModelExtensions = new List<string>(_settings.ModelExtensions);
             SpecialModelValues = new List<string>(_settings.SpecialModelValues);
@@ -219,6 +223,8 @@ namespace Comfizen
                     _settings.ShowDeleteConfirmation = ShowDeleteConfirmation;
                     _settings.ShowUndoRedoButtons = ShowUndoRedoButtons;
                     _settings.ShowPresetDeleteConfirmation = ShowPresetDeleteConfirmation;
+                    _settings.ShowGroupDeleteConfirmation = ShowGroupDeleteConfirmation;
+                    _settings.ShowTabDeleteConfirmation = ShowTabDeleteConfirmation;
                     _settings.ModelExtensions = ModelExtensions;
                     _settings.SpecialModelValues = SpecialModelValues;
                     _settings.Language = Language;

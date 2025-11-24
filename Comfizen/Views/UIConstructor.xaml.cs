@@ -711,17 +711,8 @@ namespace Comfizen
             // Find the owner group of this sub-tab
             var ownerVm = AllGroupViewModels.FirstOrDefault(g => g.Tabs.Contains(subTabVm));
             if (ownerVm == null) return;
-
-            if (MessageBox.Show(
-                    string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteSubTabMessage"], subTabVm.Name, ownerVm.Name),
-                    LocalizationService.Instance["UIConstructor_ConfirmDeleteTitle"],
-                    MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
-            {
-                // Remove from the ViewModel collection (updates UI)
-                ownerVm.Tabs.Remove(subTabVm);
-                // Remove from the Model collection (persists the change)
-                ownerVm.Model.Tabs.Remove(subTabVm.Model);
-            }
+            
+            ownerVm.RemoveTab(subTabVm);
         }
         
         private void CopyPresets(object parameter)
@@ -1774,10 +1765,15 @@ namespace Comfizen
 
         private void RemoveTab(WorkflowTabDefinition tab)
         {
-            if (tab == null || MessageBox.Show(string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteTabMessage"], tab.Name), 
-                LocalizationService.Instance["UIConstructor_ConfirmDeleteTabTitle"],
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-            
+            bool proceed = !_settings.ShowTabDeleteConfirmation || 
+                           MessageBox.Show(
+                               string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteTabMessage"], tab.Name), 
+                               LocalizationService.Instance["UIConstructor_ConfirmDeleteTabTitle"],
+                               MessageBoxButton.YesNo, 
+                               MessageBoxImage.Warning) == MessageBoxResult.Yes;
+
+            if (tab == null || !proceed) return;
+    
             // Find all ViewModels for groups on the tab being deleted.
             var groupVMsToRemove = AllGroupViewModels
                 .Where(vm => tab.GroupIds.Contains(vm.Id))
@@ -1862,9 +1858,13 @@ namespace Comfizen
 
         private void RemoveGroup(WorkflowGroupViewModel groupVm)
         {
-            if (groupVm != null && MessageBox.Show(string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupMessage"], groupVm.Name),
-                    LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupTitle"],
-                    MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            bool proceed = !_settings.ShowGroupDeleteConfirmation ||
+                           (MessageBox.Show(
+                               string.Format(LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupMessage"], groupVm.Name),
+                               LocalizationService.Instance["UIConstructor_ConfirmDeleteGroupTitle"],
+                               MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
+
+            if (groupVm != null && proceed)
             {
                 RemoveGroupInternal(groupVm);
             }
