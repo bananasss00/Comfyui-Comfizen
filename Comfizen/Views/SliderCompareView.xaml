@@ -45,15 +45,23 @@
         <!-- Main container with margins -->
         <Grid Margin="60">
 
-            <!-- The Viewbox is now singular and wraps the entire comparison scene. -->
-            <!-- It will scale the inner Grid while preserving its aspect ratio. -->
-            <Viewbox>
-                <!-- This Grid is our "canvas". Its size is bound to the dimensions of the left image. -->
-                <!-- All child elements (images, slider) will operate within its coordinate system. -->
+            <Grid x:Name="Viewport" ClipToBounds="True" 
+                  PreviewMouseWheel="Viewport_PreviewMouseWheel"
+                  PreviewMouseDown="Viewport_MouseDown"
+                  PreviewMouseUp="Viewport_MouseUp"
+                  PreviewMouseMove="Viewport_MouseMove">
+                
                 <Grid x:Name="ImageCanvas"
                       Width="{Binding ImageLeft.Resolution, Converter={StaticResource ResolutionToWidthConverter}, FallbackValue=1200}"
                       Height="{Binding ImageLeft.Resolution, Converter={StaticResource ResolutionToHeightConverter}, FallbackValue=800}"
-                      AllowDrop="True" Drop="Image_Drop" DragOver="Image_DragOver">
+                      AllowDrop="True" Drop="Image_Drop" DragOver="Image_DragOver"
+                      RenderTransformOrigin="0.5,0.5">
+                    <Grid.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="ZoomTransform"/>
+                            <TranslateTransform x:Name="PanTransform"/>
+                        </TransformGroup>
+                    </Grid.RenderTransform>
 
                     <!-- Right image/video (bottom layer) -->
                     <Grid Tag="Right">
@@ -157,7 +165,7 @@
                         </Slider.Template>
                     </Slider>
                 </Grid>
-            </Viewbox>
+            </Grid>
         </Grid>
         
         <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20" Background="#A0000000" CornerRadius="5" Padding="8,4">

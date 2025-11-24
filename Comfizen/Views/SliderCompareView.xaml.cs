@@ -1,4 +1,6 @@
-﻿using System;
+﻿// SliderCompareView.xaml.cs
+
+using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
@@ -6,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace Comfizen
@@ -15,6 +18,8 @@ namespace Comfizen
         private SliderCompareViewModel _viewModel;
         private readonly DispatcherTimer _timer;
         private bool _isScrubbingPositionSlider = false;
+        private bool _isPanning;
+        private Point _panStartPoint;
 
         public SliderCompareView()
         {
@@ -24,6 +29,20 @@ namespace Comfizen
             // Timer for updating the slider position during playback
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             _timer.Tick += Timer_Tick;
+        }
+        
+        private void ResetTransforms()
+        {
+            if (ImageCanvas == null) return;
+    
+            var transformGroup = (TransformGroup)ImageCanvas.RenderTransform;
+            var scaleTransform = (ScaleTransform)transformGroup.Children[0];
+            var translateTransform = (TranslateTransform)transformGroup.Children[1];
+
+            scaleTransform.ScaleX = 1.0;
+            scaleTransform.ScaleY = 1.0;
+            translateTransform.X = 0.0;
+            translateTransform.Y = 0.0;
         }
 
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -53,7 +72,11 @@ namespace Comfizen
             if (e.PropertyName == nameof(SliderCompareViewModel.IsViewOpen) && _viewModel.IsViewOpen)
             {
                 // Use BeginInvoke to ensure focus is set after the UI has been rendered.
-                Dispatcher.BeginInvoke(new Action(() => RootGrid.Focus()), DispatcherPriority.Input);
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    RootGrid.Focus();
+                    ResetTransforms();
+                }), DispatcherPriority.Input);
             }
             
             switch (e.PropertyName)
@@ -92,6 +115,8 @@ namespace Comfizen
         private void UpdateMediaSources()
         {
             if (_viewModel == null) return;
+            
+            ResetTransforms();
             
             MediaElementLeft.Source = _viewModel.ImageLeft?.Type == FileType.Video ? _viewModel.ImageLeft.GetHttpUri() : null;
             MediaElementRight.Source = _viewModel.ImageRight?.Type == FileType.Video ? _viewModel.ImageRight.GetHttpUri() : null;
@@ -350,6 +375,75 @@ namespace Comfizen
             if (sender is Slider slider && slider.IsMouseCaptured)
             {
                 slider.ReleaseMouseCapture();
+            }
+        }
+        
+        private void Viewport_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (e.Handled) return;
+
+            var transformGroup = (TransformGroup)ImageCanvas.RenderTransform;
+            var scaleTransform = (ScaleTransform)transformGroup.Children[0];
+            var translateTransform = (TranslateTransform)transformGroup.Children[1];
+
+            double zoomFactor = e.Delta > 0 ? 1.1 : 1 / 1.1;
+            double newScale = scaleTransform.ScaleX * zoomFactor;
+    
+            // Clamp the zoom level to avoid getting too small or too large
+            newScale = Math.Max(0.2, Math.Min(newScale, 10.0));
+
+            Point mousePosition = e.GetPosition(Viewport);
+    
+            double oldScale = scaleTransform.ScaleX;
+            
+            // The formula to keep the point under the cursor stationary
+            double newTranslateX = mousePosition.X - (mousePosition.X - translateTransform.X) * (newScale / oldScale);
+            double newTranslateY = mousePosition.Y - (mousePosition.Y - translateTransform.Y) * (newScale / oldScale);
+
+            scaleTransform.ScaleX = newScale;
+            scaleTransform.ScaleY = newScale;
+            translateTransform.X = newTranslateX;
+            translateTransform.Y = newTranslateY;
+
+            e.Handled = true;
+        }
+
+        private void Viewport_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Middle)
+            {
+                _isPanning = true;
+                _panStartPoint = e.GetPosition(Viewport);
+                Viewport.CaptureMouse();
+                Viewport.Cursor = Cursors.ScrollAll;
+                e.Handled = true;
+            }
+        }
+
+        private void Viewport_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Middle && _isPanning)
+            {
+                _isPanning = false;
+                Viewport.ReleaseMouseCapture();
+                Viewport.Cursor = null;
+                e.Handled = true;
+            }
+        }
+
+        private void Viewport_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isPanning && e.MiddleButton == MouseButtonState.Pressed)
+            {
+                var currentPoint = e.GetPosition(Viewport);
+                var delta = currentPoint - _panStartPoint;
+                _panStartPoint = currentPoint;
+
+                var transformGroup = (TransformGroup)ImageCanvas.RenderTransform;
+                var translateTransform = (TranslateTransform)transformGroup.Children[1];
+
+                translateTransform.X += delta.X;
+                translateTransform.Y += delta.Y;
             }
         }
     }
