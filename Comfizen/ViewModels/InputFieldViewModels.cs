@@ -2901,45 +2901,46 @@ namespace Comfizen
             }
             set
             {
-                if (value.StartsWith("[Base64 Image Data:") || value.StartsWith("[Данные изображения Base64:"))
+                if (value != null && (value.StartsWith("[Base64 Image Data:") || value.StartsWith("[Данные изображения Base64:")))
                     return;
 
-                // --- START OF FIX: Allow typing of decimal separators ---
-                // Get the invariant decimal separator, which is '.'
-                string decimalSeparator = CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator;
-                
-                // If the user is typing a number and just typed a decimal point
-                // (e.g., "1."), we need to keep it as a string temporarily.
-                // Otherwise, TryParse would convert "1." to the integer 1, and the dot would disappear.
-                if (value.EndsWith(decimalSeparator))
+                if (value == null)
                 {
-                    // Check if the part before the dot is a valid number.
-                    string valueWithoutSeparator = value.Substring(0, value.Length - 1);
-                    if (double.TryParse(valueWithoutSeparator, NumberStyles.Any, CultureInfo.InvariantCulture, out _))
-                    {
-                        // It's a valid partial number. Store as string and wait for more input.
-                        Property.Value = new JValue(value);
-                        return; // Exit early
-                    }
+                    Property.Value = "";
+                    return;
                 }
-                // --- END OF FIX ---
 
-                // When setting the value, try to parse it as a number using invariant culture.
+                // Attempt to parse the string as a double.
                 if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out double numericValue))
                 {
-                    // If the parsed value is a whole number, store it as an integer to keep the JSON clean.
-                    if (numericValue == Math.Truncate(numericValue))
+                    // Convert the parsed number back to its canonical string representation.
+                    string parsedString = numericValue.ToString("G", CultureInfo.InvariantCulture);
+
+                    // If the original input string is different from the canonical representation
+                    // (e.g., input is "0.0" but parsed becomes "0", or "1.20" vs "1.2"),
+                    // it means the user is likely in the middle of typing a float or wants to preserve formatting.
+                    // In this case, we store the original string value to avoid losing user input.
+                    if (value != parsedString)
                     {
-                        Property.Value = new JValue(Convert.ToInt64(numericValue));
+                        Property.Value = new JValue(value);
                     }
                     else
                     {
-                        Property.Value = new JValue(numericValue);
+                        // The string representation is canonical. We can safely store it as a numeric type.
+                        // Check if it's a whole number.
+                        if (numericValue == Math.Truncate(numericValue))
+                        {
+                            Property.Value = new JValue(Convert.ToInt64(numericValue));
+                        }
+                        else
+                        {
+                            Property.Value = new JValue(numericValue);
+                        }
                     }
                 }
                 else
                 {
-                    // If it cannot be parsed as a number, treat it as a string.
+                    // If it's not a valid number at all, store it as a string.
                     Property.Value = new JValue(value);
                 }
             }
