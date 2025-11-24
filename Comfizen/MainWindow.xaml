@@ -1572,9 +1572,13 @@
                                                 <ContentControl Content="{Binding}">
                                                                 <ContentControl.Resources>
                                                                     <DataTemplate x:Key="SingleTabViewTemplate">
-                                                                        <ItemsControl
-                                                                            ItemsSource="{Binding Tabs[0].Fields}"
-                                                                            ItemTemplate="{StaticResource FieldDataTemplate}" />
+                                                                        <ContentPresenter Content="{Binding Tabs[0]}">
+                                                                            <ContentPresenter.ContentTemplate>
+                                                                                <DataTemplate>
+                                                                                    <ItemsControl ItemsSource="{Binding Fields}" Padding="8" ItemTemplate="{StaticResource FieldDataTemplate}"/>
+                                                                                </DataTemplate>
+                                                                            </ContentPresenter.ContentTemplate>
+                                                                        </ContentPresenter>
                                                                     </DataTemplate>
 
                                                                     <DataTemplate x:Key="MultiTabViewTemplate">
