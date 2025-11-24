@@ -935,6 +935,63 @@ namespace Comfizen
                 }
             }
         }
+        
+
+        /// <summary>
+        /// Handles the initial click on a slider's track to jump to a position and start dragging.
+        /// </summary>
+        private void ValueSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not Slider slider) return;
+        
+            // If the user clicks the thumb, let the default behavior handle it.
+            if (e.OriginalSource is Thumb) return;
+        
+            // Capture the mouse to receive MouseMove events even if the cursor leaves the slider.
+            slider.CaptureMouse();
+        
+            // Calculate and set the new value based on the click position.
+            Point position = e.GetPosition(slider);
+            double newValue = (position.X / slider.ActualWidth) * (slider.Maximum - slider.Minimum) + slider.Minimum;
+            slider.Value = newValue;
+        
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Handles mouse movement while the left button is held down to update the slider's value.
+        /// </summary>
+        private void ValueSlider_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (sender is not Slider slider || !slider.IsMouseCaptured || e.LeftButton != MouseButtonState.Pressed) return;
+
+            // Recalculate and update the value as the mouse moves.
+            Point position = e.GetPosition(slider);
+            double newValue = (position.X / slider.ActualWidth) * (slider.Maximum - slider.Minimum) + slider.Minimum;
+    
+            // Clamp the value to stay within the slider's Minimum and Maximum bounds.
+            if (newValue < slider.Minimum)
+            {
+                newValue = slider.Minimum;
+            }
+            else if (newValue > slider.Maximum)
+            {
+                newValue = slider.Maximum;
+            }
+
+            slider.Value = newValue;
+        }
+
+        /// <summary>
+        /// Releases the mouse capture when the drag operation is finished.
+        /// </summary>
+        private void ValueSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Slider slider && slider.IsMouseCaptured)
+            {
+                slider.ReleaseMouseCapture();
+            }
+        }
     }
 
     /// <summary>

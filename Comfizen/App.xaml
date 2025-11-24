@@ -698,7 +698,60 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
+        
+        <Style x:Key="ValueSliderStyle" TargetType="Slider">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid VerticalAlignment="Center">
+                            <Border x:Name="TrackBackground" VerticalAlignment="Center" Height="4" CornerRadius="2" Background="{StaticResource SecondaryBackground}" />
+                            <Track x:Name="PART_Track" Height="16">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}" Style="{StaticResource {x:Type RepeatButton}}">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4" CornerRadius="2,0,0,2" Background="{StaticResource PrimaryAccentBrush}" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}" Style="{StaticResource {x:Type RepeatButton}}">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="12" Height="12" Background="{StaticResource TextBrush}">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Grid>
+                                                    <Ellipse x:Name="ThumbEllipse" Fill="{TemplateBinding Background}" />
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ThumbEllipse" Property="Fill" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter TargetName="ThumbEllipse" Property="Fill" Value="{StaticResource PrimaryAccentBrush}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
         <!-- Global Tooltip Style -->
         <Style TargetType="ToolTip">
             <Setter Property="Background" Value="{StaticResource SecondaryBackground}"/>
@@ -1851,7 +1904,11 @@
                 <Slider Value="{Binding Value, Mode=TwoWay}"
                         Minimum="{Binding MinValue}" Maximum="{Binding MaxValue}" SmallChange="{Binding StepValue}"
                         MinWidth="150" Margin="0,0,5,0" VerticalAlignment="Center"
-                        IsMoveToPointEnabled="True" />
+                        IsMoveToPointEnabled="False"
+                        PreviewMouseLeftButtonDown="ValueSlider_PreviewMouseLeftButtonDown"
+                        PreviewMouseLeftButtonUp="ValueSlider_PreviewMouseLeftButtonUp"
+                        MouseMove="ValueSlider_MouseMove"
+                        Style="{StaticResource ValueSliderStyle}"/>
                 <Grid MinWidth="50" VerticalAlignment="Center">
                     <TextBlock x:Name="ValueTextBlock" Text="{Binding FormattedValue}" 
                                MouseLeftButtonDown="ValueTextBlock_MouseLeftButtonDown">
