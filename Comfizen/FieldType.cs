@@ -18,6 +18,7 @@
     Separator,
     FilePath,
     Spoiler,
+    SpoilerEnd,
 }
 
 public enum SeparatorStyle

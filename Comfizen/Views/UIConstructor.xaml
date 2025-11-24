@@ -513,6 +513,11 @@
                                                                             ToolTip="Add Spoiler"
                                                                             Command="{Binding DataContext.AddSpoilerFieldCommand, ElementName=RootGrid}"
                                                                             CommandParameter="{Binding}"/>
+                                                                    <Button Content="&#xE768;" FontFamily="Segoe MDL2 Assets" 
+                                                                            Style="{StaticResource IconButton}" Width="24" Height="24"
+                                                                            ToolTip="Add Spoiler End"
+                                                                            Command="{Binding DataContext.AddSpoilerEndFieldCommand, ElementName=RootGrid}"
+                                                                            CommandParameter="{Binding}"/>
                                                                     <Button Content="&#xE71F;" FontFamily="Segoe MDL2 Assets" 
                                                                             Style="{StaticResource IconButton}" Width="24" Height="24"
                                                                             ToolTip="{local:Translate UIConstructor_AddLabelField}"
@@ -921,6 +926,7 @@
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Label"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Separator"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Spoiler"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="SpoilerEnd"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                 </Style.Triggers>
                                                                                                             </Style>
                                                                                                         </TextBlock.Style>
@@ -938,6 +944,7 @@
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Label"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Separator"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Spoiler"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="SpoilerEnd"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                 </Style.Triggers>
                                                                                                             </Style>
                                                                                                         </ComboBox.Style>

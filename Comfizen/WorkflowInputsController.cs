@@ -777,6 +777,11 @@ public class WorkflowInputsController : INotifyPropertyChanged
                                 spoilerVm.SpoilerStateChanged += () => tabVm.RefreshBindings();
                             }
                         }
+                        else if (field.Type == FieldType.SpoilerEnd)
+                        {
+                            fieldVm = new SpoilerEndViewModel(field);
+                            processedFields.Add(field);
+                        }
                         else if (field.Type == FieldType.ScriptButton)
                         {
                             fieldVm = new ScriptButtonFieldViewModel(field, this.ExecuteActionCommand);

@@ -20,9 +20,8 @@ namespace Comfizen
                 return Visibility.Visible;
             }
 
-            // Spoiler headers themselves are always visible.
-            // We access the model through the ViewModel to check its type.
-            if (currentFieldVM.FieldModel.Type == FieldType.Spoiler)
+            // Spoiler headers and SpoilerEnd markers are always visible.
+            if (currentFieldVM.FieldModel.Type == FieldType.Spoiler || currentFieldVM.FieldModel.Type == FieldType.SpoilerEnd)
             {
                 return Visibility.Visible;
             }
@@ -32,16 +31,23 @@ namespace Comfizen
             {
                 return Visibility.Visible;
             }
-
-            // Look backwards from the current field to find the last spoiler header.
+            
+            // Look backwards from the current field.
             for (int i = currentIndex - 1; i >= 0; i--)
             {
-                var precedingFieldVM = allFieldVMs[i];
-                if (precedingFieldVM.FieldModel.Type == FieldType.Spoiler)
+                var precedingFieldModel = allFieldVMs[i];
+        
+                // If we find an end marker before a start marker, this field is not in a spoiler.
+                if (precedingFieldModel.Type == FieldType.SpoilerEnd)
                 {
-                    // If the spoiler we are under is collapsed, this field should be hidden.
-                    // We check the state on the underlying model object.
-                    return precedingFieldVM.FieldModel.IsSpoilerExpanded ? Visibility.Visible : Visibility.Collapsed;
+                    return Visibility.Visible;
+                }
+
+                // If we find the start of a spoiler.
+                if (precedingFieldModel.Type == FieldType.Spoiler)
+                {
+                    // If the spoiler is collapsed, hide this field. Otherwise, show it.
+                    return precedingFieldModel.FieldModel.IsSpoilerExpanded ? Visibility.Visible : Visibility.Collapsed;
                 }
             }
 

@@ -2049,6 +2049,28 @@
             </ToggleButton>
         </DataTemplate>
         
+            
+        <DataTemplate x:Key="SpoilerEndTemplate" DataType="{x:Type local:SpoilerEndViewModel}">
+            <Grid Margin="0,10" Opacity="0.5" Height="16" VerticalAlignment="Center">
+                <!-- The dashed line that stretches across the width -->
+                <Line X1="0" Y1="8" X2="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Grid}}" Y2="8"
+                      Stroke="{StaticResource TertiaryBackground}"
+                      StrokeThickness="1"
+                      StrokeDashArray="4 2"/>
+        
+                <!-- The text block with a solid background to "break" the line -->
+                <TextBlock Text="Spoiler End" 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource TextSecondaryBrush}" 
+                           FontStyle="Italic" 
+                           Background="{StaticResource SecondaryBackground}"
+                           Padding="5,0"/>
+            </Grid>
+        </DataTemplate>
+
+
+        
         <Style x:Key="LockToggleButtonStyle" TargetType="ToggleButton">
             <Setter Property="Width" Value="24"/>
             <Setter Property="Height" Value="24"/>
@@ -2145,6 +2167,7 @@
                                      LabelTemplate="{StaticResource LabelTemplate}"
                                      SeparatorTemplate="{StaticResource SeparatorTemplate}"
                                      SpoilerTemplate="{StaticResource SpoilerTemplate}"
+                                     SpoilerEndTemplate="{StaticResource SpoilerEndTemplate}"
         />
         
         <!-- Style for HORIZONTAL splitters (between rows) -->
@@ -2380,6 +2403,9 @@
                             </DataTrigger>
                             <!-- The trigger for Spoiler needs to use FullWidthLayoutTemplate for correct rendering -->
                             <DataTrigger Binding="{Binding Type}" Value="Spoiler">
+                                <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Type}" Value="SpoilerEnd">
                                 <Setter Property="Template" Value="{StaticResource FullWidthLayoutTemplate}"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Converter={StaticResource IsMarkdownViewModelConverter}}" Value="True">

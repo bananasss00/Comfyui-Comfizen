@@ -171,6 +171,7 @@ namespace Comfizen
         public ICommand AddLabelFieldCommand { get; }
         public ICommand AddSeparatorFieldCommand { get; }
         public ICommand AddSpoilerFieldCommand { get; }
+        public ICommand AddSpoilerEndFieldCommand { get; }
         
         // Constructor for a NEW workflow.
         public UIConstructorView() : this(new Workflow(), null) { }
@@ -303,6 +304,7 @@ namespace Comfizen
             AddLabelFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Label));
             AddSeparatorFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Separator));
             AddSpoilerFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Spoiler));
+            AddSpoilerEndFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.SpoilerEnd));
             ColorPalette = new ObservableCollection<ColorInfo>
             {
                 // --- Warm Tones (Reds, Oranges, Browns) ---
@@ -1086,6 +1088,7 @@ namespace Comfizen
                 case FieldType.Label: baseName = "New Label"; break;
                 case FieldType.Separator: baseName = "Separator"; break;
                 case FieldType.Spoiler: baseName = "New Spoiler"; break;
+                case FieldType.SpoilerEnd: baseName = "Spoiler End"; break;
             }
             string newName = baseName;
             int counter = 1;

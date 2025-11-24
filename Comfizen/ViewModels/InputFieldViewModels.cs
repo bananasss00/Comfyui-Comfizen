@@ -3504,4 +3504,11 @@ namespace Comfizen
         }
     }
     
+    public class SpoilerEndViewModel : InputFieldViewModel
+    {
+        public SpoilerEndViewModel(WorkflowField field) : base(field, null)
+        {
+            Type = FieldType.SpoilerEnd;
+        }
+    }
 }
