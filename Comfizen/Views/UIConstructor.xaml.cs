@@ -3223,8 +3223,18 @@ namespace Comfizen
             {
                 foreach (var newField in newFields)
                 {
-                    _viewModel.AddFieldToSubTabAtIndex(newField, targetTabVm.Model, -1);
-            }
+                    // Clone the field to avoid modifying the original in the available list
+                    var fieldToAdd = newField.Clone();
+
+                    // Respect the "Use Prefix" checkbox setting from the ViewModel
+                    if (!_viewModel.UseNodeTitlePrefix && fieldToAdd.Name.Contains("::"))
+                    {
+                        fieldToAdd.Name = fieldToAdd.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1];
+                    }
+
+                    // Add the potentially modified field to the end of the tab
+                    _viewModel.AddFieldToSubTabAtIndex(fieldToAdd, targetTabVm.Model, -1);
+                }
             }
 
             e.Handled = true;
@@ -3311,9 +3321,17 @@ namespace Comfizen
             {
                 foreach (var newField in newFields)
                 {
-                viewModel.AddFieldToSubTabAtIndex(newField, targetTab, targetIndex);
+                    var fieldToAdd = newField.Clone(); // Create a safe copy to modify name
+
+                    // Respect the "Use Prefix" checkbox setting from the ViewModel
+                    if (!viewModel.UseNodeTitlePrefix && fieldToAdd.Name.Contains("::"))
+                    {
+                        fieldToAdd.Name = fieldToAdd.Name.Split(new[] { "::" }, 2, StringSplitOptions.None)[1];
+                    }
+                    
+                    viewModel.AddFieldToSubTabAtIndex(fieldToAdd, targetTab, targetIndex);
                     if (targetIndex != -1) targetIndex++;
-            }
+                }
             }
 
             HideAllIndicators();
