@@ -2011,7 +2011,6 @@
         </DataTemplate>
 
         <DataTemplate x:Key="SpoilerTemplate" DataType="{x:Type local:InputFieldViewModel}">
-            <!-- Bind the ToggleButton to the IsExpanded property on the ViewModel. -->
             <ToggleButton IsChecked="{Binding IsExpanded, Mode=TwoWay}"
                           OverridesDefaultStyle="True"
                           Margin="0,10,0,5">
@@ -2023,9 +2022,21 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                        
+                                
                                 <TextBlock x:Name="Arrow" Grid.Column="0" Text="▼" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="10"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Bold" Foreground="{StaticResource PrimaryAccentBrush}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Bold">
+                                    <!-- ADD: Apply highlight color to the spoiler text -->
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource PrimaryAccentBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HighlightColor, Converter={StaticResource StringToIsNotNullOrEmptyConverter}}" Value="True">
+                                                    <Setter Property="Foreground" Value="{Binding HighlightColor, Converter={StaticResource HexToBrushConverter}}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
