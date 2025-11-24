@@ -2927,21 +2927,20 @@ namespace Comfizen
                 // Attempt to parse the string as a double.
                 if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out double numericValue))
                 {
-                    // Convert the parsed number back to its canonical string representation.
-                    string parsedString = numericValue.ToString("G", CultureInfo.InvariantCulture);
+                    // Check for non-canonical forms that indicate the user is still typing or wants to preserve formatting.
+                    // Case 1: Ends with a decimal separator (e.g., "123.").
+                    bool endsWithSeparator = value.EndsWith(CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator);
+                    // Case 2: Contains a separator and ends with zero (e.g., "1.0", "1.20").
+                    bool hasTrailingZeros = value.Contains(CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator) && value.EndsWith("0");
 
-                    // If the original input string is different from the canonical representation
-                    // (e.g., input is "0.0" but parsed becomes "0", or "1.20" vs "1.2"),
-                    // it means the user is likely in the middle of typing a float or wants to preserve formatting.
-                    // In this case, we store the original string value to avoid losing user input.
-                    if (value != parsedString)
+                    if (endsWithSeparator || hasTrailingZeros)
                     {
+                        // Preserve the exact string value to allow the user to continue typing.
                         Property.Value = new JValue(value);
                     }
                     else
                     {
-                        // The string representation is canonical. We can safely store it as a numeric type.
-                        // Check if it's a whole number.
+                        // The input is in a canonical form (e.g., "123", "1.25"). Store it as the appropriate numeric type.
                         if (numericValue == Math.Truncate(numericValue))
                         {
                             Property.Value = new JValue(Convert.ToInt64(numericValue));
