@@ -233,6 +233,7 @@ public class WorkflowInputsController : INotifyPropertyChanged
         
 
         GlobalControls = new GlobalControlsViewModel(
+            _workflow,
             ApplyGlobalPreset,       // Argument 1: Apply
             GetCurrentGlobalState,   // Argument 2: Get State (Callback defined below)
             SaveGlobalPreset,        // Argument 3: Save
@@ -1183,10 +1184,14 @@ public class WorkflowInputsController : INotifyPropertyChanged
         {
             var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
 
+            var assignedGroupIds = _workflow.Tabs.SelectMany(t => t.GroupIds).ToHashSet();
+
             // Apply presets ONLY to groups defined in the global preset.
             foreach (var groupState in preset.GroupStates)
             {
                 var groupId = groupState.Key;
+                // Skip this group if it's currently unassigned ---
+                if (!assignedGroupIds.Contains(groupId)) continue;
                 var presetNames = groupState.Value;
 
                 var groupVmToApply = allGroups.FirstOrDefault(g => g.Id == groupId);

@@ -450,12 +450,16 @@
                                                                                  local:TextBoxExtensions.PlaceholderText="{local:Translate Presets_SearchPlaceholder}"/>
 
                                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,0,0,0" VerticalAlignment="Center">
-                                                                            <RadioButton Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="GlobalSort"
-                                                                                         IsChecked="{Binding CurrentPresetSortOption, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:PresetSortOption.Alphabetical}}"
-                                                                                         ToolTip="{local:Translate Presets_SortAlphabetical}">
+                                                                            <RadioButton Tag="First" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="GlobalSort"
+                                                                                IsChecked="{Binding CurrentPresetSortOption, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:PresetSortOption.Alphabetical}}"
+                                                                                ToolTip="{local:Translate Presets_SortAlphabetical}">
                                                                                 <TextBlock Text="A-Z" FontFamily="Segoe UI Symbol"/>
                                                                             </RadioButton>
-                                                                            <!-- Note: Using Alphabetical for both for now as GlobalPreset usually lacks DateModified in legacy code, can be added later -->
+                                                                            <RadioButton Tag="Last" Style="{StaticResource SegmentedRadioButtonStyle}" GroupName="GlobalSort"
+                                                                                IsChecked="{Binding CurrentPresetSortOption, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:PresetSortOption.DateModified}}"
+                                                                                ToolTip="{local:Translate Presets_SortByDate}">
+                                                                                <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets"/>
+                                                                            </RadioButton>
                                                                         </StackPanel>
                                                                     </Grid>
 

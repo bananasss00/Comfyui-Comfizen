@@ -136,6 +136,11 @@ namespace Comfizen
 
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public List<string> Tags { get; set; } = new List<string>();
+        
+        /// <summary>
+        /// The UTC date and time when the preset was last saved or modified.
+        /// </summary>
+        public DateTime LastModified { get; set; } = DateTime.UtcNow;
 
         /// <summary>
         /// Maps a Group ID to a list of the names of the active presets (Snippets or Layouts) for that group.
@@ -153,6 +158,7 @@ namespace Comfizen
                 Category = this.Category,
                 IsFavorite = this.IsFavorite,
                 Tags = this.Tags != null ? new List<string>(this.Tags) : new List<string>(),
+                LastModified = this.LastModified,
                 GroupStates = this.GroupStates.ToDictionary(
                     entry => entry.Key,
                     entry => new List<string>(entry.Value))

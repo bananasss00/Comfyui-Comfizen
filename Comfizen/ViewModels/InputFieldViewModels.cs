@@ -464,6 +464,7 @@ namespace Comfizen
     [AddINotifyPropertyChangedInterface]
     public class GlobalControlsViewModel : INotifyPropertyChanged
     {
+        private readonly Workflow _workflow;
         private bool _isInternalUpdate = false; 
         
         public string Header { get; set; } = LocalizationService.Instance["GlobalSettings_Header"];
@@ -652,11 +653,13 @@ namespace Comfizen
         public ObservableCollection<GlobalPresetConfigurationItem> PresetConfigurationItems { get; } = new();
         
         public GlobalControlsViewModel(
+            Workflow workflow,
             Action<GlobalPreset> applyPresetAction, 
             Func<Dictionary<Guid, List<string>>> getCurrentStateCallback,
             Action<GlobalPreset> saveCallback,
             Action<GlobalPreset> deleteCallback)
         {
+            _workflow = workflow;
             _applyPresetAction = applyPresetAction;
             _getCurrentStateCallback = getCurrentStateCallback;
             _saveCallback = saveCallback;
@@ -760,9 +763,18 @@ namespace Comfizen
 
         private void UpdateSortDescriptions()
         {
+            if (FilteredGlobalPresetsView == null) return;
             FilteredGlobalPresetsView.SortDescriptions.Clear();
             FilteredGlobalPresetsView.SortDescriptions.Add(new SortDescription("IsFavorite", ListSortDirection.Descending));
-            FilteredGlobalPresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            
+            if (CurrentPresetSortOption == PresetSortOption.DateModified)
+            {
+                FilteredGlobalPresetsView.SortDescriptions.Add(new SortDescription(nameof(GlobalPreset.LastModified), ListSortDirection.Descending));
+            }
+            else
+            {
+                FilteredGlobalPresetsView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            }
         }
 
         private bool FilterPresets(object item)
@@ -791,7 +803,11 @@ namespace Comfizen
 
             var existingPreset = IsUpdateMode ? GlobalPresets.FirstOrDefault(p => p.Name == _presetToUpdateName) : null;
             
-            foreach (var group in _allAvailableGroups.OrderBy(g => g.Name))
+            // Get a list of all group IDs that are actually assigned to a UI tab.
+            var assignedGroupIds = _workflow.Tabs.SelectMany(t => t.GroupIds).ToHashSet();
+
+            // Iterate only over the groups that are assigned.
+            foreach (var group in _allAvailableGroups.Where(g => assignedGroupIds.Contains(g.Id)).OrderBy(g => g.Name))
             {
                 List<string> layersToLoad;
                 bool shouldBeSelected;
@@ -912,19 +928,18 @@ namespace Comfizen
                     Description = safeDescription,
                     Category = safeCategory,
                     Tags = safeTags,
+                    LastModified = DateTime.UtcNow
                 };
                 
-                // --- START OF CHANGES: Snapshot Logic ---
                 if (CreateSnapshotInAllGroups)
                 {
-                    // In snapshot mode, we iterate ALL groups, create/update local presets,
-                    // and automatically add them to the new Global Preset.
-                    foreach (var groupVm in _allAvailableGroups)
+                    // Get a list of all group IDs that are actually assigned to a UI tab.
+                    var assignedGroupIds = _workflow.Tabs.SelectMany(t => t.GroupIds).ToHashSet();
+                    
+                    // Iterate only over the groups that are assigned.
+                    foreach (var groupVm in _allAvailableGroups.Where(g => assignedGroupIds.Contains(g.Id)))
                     {
-                        // 1. Create local preset in the group
                         groupVm.CreateOrUpdateSnapshot(safeName, safeDescription, safeCategory, safeTags);
-                        
-                        // 2. Register it in the global preset
                         newPreset.GroupStates[groupVm.Id] = new List<string> { safeName };
                     }
                 }
@@ -939,7 +954,6 @@ namespace Comfizen
                         }
                     }
                 }
-                // --- END OF CHANGES ---
                 
                 _lastUsedName = safeName;
                 _lastUsedDescription = safeDescription;
