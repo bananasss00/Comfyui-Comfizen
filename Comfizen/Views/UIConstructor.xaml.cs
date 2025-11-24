@@ -3019,8 +3019,24 @@ namespace Comfizen
             }
             else if (e.Data.GetData(typeof(Tuple<List<WorkflowField>, WorkflowGroup>)) is Tuple<List<WorkflowField>, WorkflowGroup> draggedData)
             {
-                viewModel.AddFieldToGroupAtIndex(draggedData.Item1, targetGroupVM);
+                // This is a MOVE operation from another group.
+                var sourceGroupModel = draggedData.Item2;
+                var fieldsToMove = draggedData.Item1;
+
+                // Find the source tab for the first field.
+                var sourceTab = sourceGroupModel.Tabs.FirstOrDefault(t => t.Fields.Contains(fieldsToMove.First()));
+                if (sourceTab == null) return;
+
+                // Determine the target tab within the target group.
+                var targetTab = targetGroupVM.SelectedTab?.Model ?? targetGroupVM.Model.Tabs.FirstOrDefault();
+                if (targetTab == null) return; // Can't drop if there's no sub-tab.
+
+                // Move each field.
+                foreach (var field in fieldsToMove)
+                {
+                    viewModel.MoveFieldToSubTab(field, sourceTab, targetTab, -1); // -1 adds to the end.
                 }
+            }
             else if (e.Data.GetData(typeof(List<WorkflowField>)) is List<WorkflowField> newFields)
             {
                 viewModel.AddFieldToGroupAtIndex(newFields, targetGroupVM);
