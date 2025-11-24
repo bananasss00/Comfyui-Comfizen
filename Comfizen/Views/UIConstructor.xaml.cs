@@ -518,7 +518,7 @@ namespace Comfizen
         public ObservableCollection<FieldType> FieldTypes { get; } =
             new(Enum.GetValues(typeof(FieldType)).Cast<FieldType>()
                 .Where(t => t != FieldType.Markdown && t != FieldType.ScriptButton && t != FieldType.NodeBypass
-                            && t != FieldType.Label && t != FieldType.Separator && t != FieldType.Spoiler));
+                            && t != FieldType.Label && t != FieldType.Separator && t != FieldType.Spoiler && t != FieldType.SpoilerEnd));
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

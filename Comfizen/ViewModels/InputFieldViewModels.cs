@@ -1616,7 +1616,9 @@ namespace Comfizen
                             var savableFieldsInTab = tabVm.Model.Fields
                                 .Where(f => f.Type != FieldType.ScriptButton &&
                                             f.Type != FieldType.Label &&
-                                            f.Type != FieldType.Separator);
+                                            f.Type != FieldType.Separator &&
+                                            f.Type != FieldType.Spoiler &&
+                                            f.Type != FieldType.SpoilerEnd);
                     
                             foreach (var field in savableFieldsInTab)
                             {
@@ -1838,7 +1840,9 @@ namespace Comfizen
                         var savableFieldsInTab = tabVm.Model.Fields
                             .Where(f => f.Type != FieldType.ScriptButton &&
                                         f.Type != FieldType.Label &&
-                                        f.Type != FieldType.Separator);
+                                        f.Type != FieldType.Separator &&
+                                        f.Type != FieldType.Spoiler &&
+                                        f.Type != FieldType.SpoilerEnd);
 
                         foreach (var fieldModel in savableFieldsInTab)
                         {
@@ -1999,7 +2003,9 @@ namespace Comfizen
                 var savableFieldsInTab = tabVm.Model.Fields
                     .Where(f => f.Type != FieldType.ScriptButton &&
                                 f.Type != FieldType.Label &&
-                                f.Type != FieldType.Separator);
+                                f.Type != FieldType.Separator &&
+                                f.Type != FieldType.Spoiler &&
+                                f.Type != FieldType.SpoilerEnd);
         
                 foreach (var field in savableFieldsInTab)
                 {
@@ -2473,7 +2479,9 @@ namespace Comfizen
             var allSavableFields = Tabs.SelectMany(t => t.Fields)
                 .Where(f => f.Type != FieldType.ScriptButton &&
                             f.Type != FieldType.Label &&
-                            f.Type != FieldType.Separator)
+                            f.Type != FieldType.Separator &&
+                            f.Type != FieldType.Spoiler &&
+                            f.Type != FieldType.SpoilerEnd)
                 .Select(f => new PresetFieldSelectionViewModel { Path = f.Path }) // Create minimal view model for reusability
                 .ToList();
 
@@ -2500,7 +2508,9 @@ namespace Comfizen
             foreach (var field in Tabs.SelectMany(t => t.Fields))
             {
                 // Should match logic in SaveCurrentStateAsPreset
-                if (field.Type == FieldType.ScriptButton || field.Type == FieldType.Label || field.Type == FieldType.Separator) continue;
+                if (field.Type == FieldType.ScriptButton || field.Type == FieldType.Label || field.Type == FieldType.Separator ||
+                    field.Type != FieldType.Spoiler ||
+                    field.Type != FieldType.SpoilerEnd) continue;
 
                 if (field is MarkdownFieldViewModel markdownVm)
                 {
