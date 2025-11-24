@@ -55,7 +55,7 @@
                       Width="{Binding ImageLeft.Resolution, Converter={StaticResource ResolutionToWidthConverter}, FallbackValue=1200}"
                       Height="{Binding ImageLeft.Resolution, Converter={StaticResource ResolutionToHeightConverter}, FallbackValue=800}"
                       AllowDrop="True" Drop="Image_Drop" DragOver="Image_DragOver"
-                      RenderTransformOrigin="0.5,0.5">
+                      RenderTransformOrigin="0,0">
                     <Grid.RenderTransform>
                         <TransformGroup>
                             <ScaleTransform x:Name="ZoomTransform"/>
@@ -72,7 +72,7 @@
                                 <Binding Path="ActualHeight" ElementName="ImageCanvas"/>
                             </MultiBinding>
                         </Grid.Clip>
-                        <Image Source="{Binding ImageRight.Image}" Stretch="Fill">
+                        <Image Source="{Binding ImageRight.Image}" Stretch="Uniform">
                             <Image.Style>
                                 <Style TargetType="Image">
                                     <Setter Property="Visibility" Value="Visible"/>
@@ -84,7 +84,7 @@
                                 </Style>
                             </Image.Style>
                         </Image>
-                        <MediaElement x:Name="MediaElementRight" Stretch="Fill" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened" MediaEnded="MediaElement_MediaEnded">
+                        <MediaElement x:Name="MediaElementRight" Stretch="Uniform" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened" MediaEnded="MediaElement_MediaEnded">
                             <MediaElement.Style>
                                 <Style TargetType="MediaElement">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -107,7 +107,7 @@
                                 <Binding Path="ActualHeight" ElementName="ImageCanvas"/>
                             </MultiBinding>
                         </Grid.Clip>
-                        <Image Source="{Binding ImageLeft.Image}" Stretch="Fill">
+                        <Image Source="{Binding ImageLeft.Image}" Stretch="Uniform">
                             <Image.Style>
                                 <Style TargetType="Image">
                                     <Setter Property="Visibility" Value="Visible"/>
@@ -119,7 +119,7 @@
                                 </Style>
                             </Image.Style>
                         </Image>
-                        <MediaElement x:Name="MediaElementLeft" Stretch="Fill" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened" MediaEnded="MediaElement_MediaEnded">
+                        <MediaElement x:Name="MediaElementLeft" Stretch="Uniform" LoadedBehavior="Manual" UnloadedBehavior="Stop" IsMuted="True" MediaOpened="MediaElement_MediaOpened" MediaEnded="MediaElement_MediaEnded">
                              <MediaElement.Style>
                                 <Style TargetType="MediaElement">
                                     <Setter Property="Visibility" Value="Collapsed"/>
