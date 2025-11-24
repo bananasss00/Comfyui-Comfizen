@@ -596,20 +596,9 @@
                                                                                 Background="Transparent"
                                                                                 BorderThickness="0"
                                                                                 PreviewMouseWheel="FieldList_PreviewMouseWheel">
-                                                                                <ListBox.Resources>
-                                                                                    <local:SpoilerVisibilityConverter x:Key="SpoilerVisibilityConverter"/>
-                                                                                </ListBox.Resources>
                                                                                 <ListBox.ItemContainerStyle>
                                                                                     <Style TargetType="ListBoxItem">
                                                                                         <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
-                                                                                        <Setter Property="Visibility">
-                                                                                            <Setter.Value>
-                                                                                                <MultiBinding Converter="{StaticResource SpoilerVisibilityConverter}">
-                                                                                                    <Binding Path="."/>
-                                                                                                    <Binding Path="DataContext.Model.Fields" RelativeSource="{RelativeSource AncestorType=ListBox}"/>
-                                                                                                </MultiBinding>
-                                                                                            </Setter.Value>
-                                                                                        </Setter>
                                                                                         <Setter Property="Template">
                                                                                             <Setter.Value>
                                                                                                 <ControlTemplate TargetType="ListBoxItem">
@@ -931,6 +920,7 @@
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="NodeBypass"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Label"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Separator"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="Spoiler"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                                                                                                                 </Style.Triggers>
                                                                                                             </Style>
                                                                                                         </TextBlock.Style>
@@ -947,6 +937,7 @@
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="NodeBypass"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Label"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                     <DataTrigger Binding="{Binding Type}" Value="Separator"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                                                    <DataTrigger Binding="{Binding Type}" Value="Spoiler"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                                                                                                 </Style.Triggers>
                                                                                                             </Style>
                                                                                                         </ComboBox.Style>

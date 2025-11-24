@@ -1270,7 +1270,14 @@ namespace Comfizen
             }
         }
         public ObservableCollection<InputFieldViewModel> Fields { get; } = new();
-
+    
+        public bool BindingTrigger { get; private set; }
+        
+        public void RefreshBindings()
+        {
+            BindingTrigger = !BindingTrigger;
+        }
+        
         public bool IsRenaming
         {
             get => Model.IsRenaming;
@@ -3465,9 +3472,35 @@ namespace Comfizen
     }
     public class SpoilerFieldViewModel : InputFieldViewModel
     {
+        // This event will be fired whenever the spoiler is expanded or collapsed.
+        public event Action SpoilerStateChanged;
+    
+        public bool IsExpanded
+        {
+            get => FieldModel.IsSpoilerExpanded;
+            set
+            {
+                if (FieldModel.IsSpoilerExpanded != value)
+                {
+                    FieldModel.IsSpoilerExpanded = value;
+                    OnPropertyChanged(nameof(IsExpanded));
+                    // Fire the event to notify listeners.
+                    SpoilerStateChanged?.Invoke();
+                }
+            }
+        }
+    
         public SpoilerFieldViewModel(WorkflowField field) : base(field, null)
         {
             Type = FieldType.Spoiler;
+        
+            field.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(WorkflowField.IsSpoilerExpanded))
+                {
+                    OnPropertyChanged(nameof(IsExpanded));
+                }
+            };
         }
     }
     

@@ -2011,7 +2011,8 @@
         </DataTemplate>
 
         <DataTemplate x:Key="SpoilerTemplate" DataType="{x:Type local:InputFieldViewModel}">
-            <ToggleButton IsChecked="{Binding FieldModel.IsSpoilerExpanded, Mode=TwoWay}"
+            <!-- Bind the ToggleButton to the IsExpanded property on the ViewModel. -->
+            <ToggleButton IsChecked="{Binding IsExpanded, Mode=TwoWay}"
                           OverridesDefaultStyle="True"
                           Margin="0,10,0,5">
                 <ToggleButton.Template>
@@ -2022,7 +2023,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                
+                        
                                 <TextBlock x:Name="Arrow" Grid.Column="0" Text="▼" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="10"/>
                                 <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Bold" Foreground="{StaticResource PrimaryAccentBrush}"/>
                             </Grid>
@@ -2203,10 +2204,9 @@
                         <Grid.Visibility>
                             <MultiBinding Converter="{StaticResource SpoilerVisibilityConverter}">
                                 <Binding Path="."/>
-                                <!-- FIX: Bind directly to the ItemsSource of the list, which is the correct collection. -->
                                 <Binding Path="ItemsSource" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
-                                <!-- ADD: This "listener" binding will re-trigger the converter when any spoiler's expanded state changes. -->
-                                <Binding Path="ItemsSource/FieldModel.IsSpoilerExpanded" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                                <!-- FINAL FIX: The listener now binds to our reliable trigger property on the tab's DataContext. -->
+                                <Binding Path="DataContext.BindingTrigger" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
                             </MultiBinding>
                         </Grid.Visibility>
                         <Grid.ColumnDefinitions>
@@ -2294,14 +2294,12 @@
                     </ControlTemplate>
                 <ControlTemplate x:Key="InpaintLayoutTemplate" TargetType="ContentControl">
                     <Grid>
-                        <!-- Add the visibility binding here too -->
                         <Grid.Visibility>
                             <MultiBinding Converter="{StaticResource SpoilerVisibilityConverter}">
                                 <Binding Path="."/>
-                                <!-- FIX: Bind directly to the ItemsSource of the list, which is the correct collection. -->
                                 <Binding Path="ItemsSource" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
-                                <!-- ADD: This "listener" binding will re-trigger the converter when any spoiler's expanded state changes. -->
-                                <Binding Path="ItemsSource/FieldModel.IsSpoilerExpanded" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                                <!-- FINAL FIX: The listener now binds to our reliable trigger property on the tab's DataContext. -->
+                                <Binding Path="DataContext.BindingTrigger" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
                             </MultiBinding>
                         </Grid.Visibility>
                         <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" />
@@ -2329,14 +2327,12 @@
                   </ControlTemplate>
                 <ControlTemplate x:Key="FullWidthLayoutTemplate" TargetType="ContentControl">
                     <Grid>
-                        <!-- And here as well -->
                         <Grid.Visibility>
                             <MultiBinding Converter="{StaticResource SpoilerVisibilityConverter}">
                                 <Binding Path="."/>
-                                <!-- FIX: Bind directly to the ItemsSource of the list, which is the correct collection. -->
                                 <Binding Path="ItemsSource" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
-                                <!-- ADD: This "listener" binding will re-trigger the converter when any spoiler's expanded state changes. -->
-                                <Binding Path="ItemsSource/FieldModel.IsSpoilerExpanded" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                                <!-- FINAL FIX: The listener now binds to our reliable trigger property on the tab's DataContext. -->
+                                <Binding Path="DataContext.BindingTrigger" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
                             </MultiBinding>
                         </Grid.Visibility>
                         <ContentPresenter Content="{Binding}" ContentTemplateSelector="{StaticResource FieldTemplateSelector}" Margin="0,4" />
