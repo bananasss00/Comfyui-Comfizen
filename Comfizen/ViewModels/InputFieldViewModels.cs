@@ -3100,27 +3100,26 @@ namespace Comfizen
                 JToken newValueToken;
                 if (Type == FieldType.SliderInt)
                 {
-                    // For integer sliders, round to the nearest whole number and clamp.
-                    // This ensures the value is stored as an integer (e.g., 4) instead of a float (4.0).
+                    // For integer sliders, round to the nearest whole number.
                     var intValue = Convert.ToInt64(System.Math.Round(snappedValue));
-                    intValue = Math.Max((long)MinValue, Math.Min((long)MaxValue, intValue));
+                    // intValue = Math.Max((long)MinValue, Math.Min((long)MaxValue, intValue));
                     newValueToken = new JValue(intValue);
                 }
                 else // SliderFloat
                 {
-                    // For float sliders, round to the specified precision and clamp.
+                    // For float sliders, round to the specified precision.
                     var precision = _field.Precision ?? 2;
                     var roundedFloatValue = System.Math.Round(snappedValue, precision);
-                    roundedFloatValue = Math.Max(MinValue, Math.Min(MaxValue, roundedFloatValue));
+                    // roundedFloatValue = Math.Max(MinValue, Math.Min(MaxValue, roundedFloatValue));
                     newValueToken = new JValue(roundedFloatValue);
                 }
-                
+        
                 // 3. Update the underlying JObject and notify the UI only if the value has actually changed.
                 // This prevents infinite update loops.
                 if (!JToken.DeepEquals(Property.Value, newValueToken))
                 {
                     Property.Value = newValueToken;
-                    
+            
                     // Notify the UI that both the raw value and the formatted text have changed.
                     // WPF will automatically update the slider's position to the final value.
                     OnPropertyChanged(nameof(Value));
