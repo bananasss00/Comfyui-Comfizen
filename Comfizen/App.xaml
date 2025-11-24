@@ -1845,14 +1845,32 @@
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
-
+        
         <DataTemplate x:Key="SliderTemplate" DataType="{x:Type local:SliderFieldViewModel}">
             <StackPanel Orientation="Horizontal">
                 <Slider Value="{Binding Value, Mode=TwoWay}"
                         Minimum="{Binding MinValue}" Maximum="{Binding MaxValue}" SmallChange="{Binding StepValue}"
                         MinWidth="150" Margin="0,0,5,0" VerticalAlignment="Center"
                         IsMoveToPointEnabled="True" />
-                <TextBlock Text="{Binding FormattedValue}" MinWidth="50" VerticalAlignment="Center" />
+                <Grid MinWidth="50" VerticalAlignment="Center">
+                    <TextBlock x:Name="ValueTextBlock" Text="{Binding FormattedValue}" 
+                               MouseLeftButtonDown="ValueTextBlock_MouseLeftButtonDown">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Cursor" Value="IBeam"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBox x:Name="ValueTextBox" 
+                             Text="{Binding Value, StringFormat={}{0:G}, UpdateSourceTrigger=Explicit}"
+                             Visibility="Collapsed"
+                             LostFocus="ValueTextBox_LostFocus"
+                             KeyDown="ValueTextBox_KeyDown"/>
+                </Grid>
             </StackPanel>
         </DataTemplate>
 

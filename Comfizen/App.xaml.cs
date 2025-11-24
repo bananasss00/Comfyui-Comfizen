@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -850,6 +851,87 @@ namespace Comfizen
         }
         
         #endregion
+
+        private void ValueTextBlock_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // This method activates editing mode on a double-click.
+            if (e.ClickCount == 2 && sender is TextBlock textBlock)
+            {
+                var parentGrid = textBlock.Parent as Grid;
+                var textBox = parentGrid?.Children.OfType<TextBox>().FirstOrDefault();
+                if (textBox != null)
+                {
+                    textBlock.Visibility = Visibility.Collapsed;
+                    textBox.Visibility = Visibility.Visible;
+
+                    // Refresh the TextBox text from the source before editing begins
+                    BindingExpression binding = textBox.GetBindingExpression(TextBox.TextProperty);
+                    binding?.UpdateTarget();
+
+                    // Use the dispatcher to focus and select text after the UI has updated
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        textBox.Focus();
+                        textBox.SelectAll();
+                    }), System.Windows.Threading.DispatcherPriority.Input);
+                }
+            }
+        }
+
+        private void ValueTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // This method saves the change when the TextBox loses focus (e.g., user clicks away).
+            if (sender is TextBox textBox)
+            {
+                // Commit the change by updating the source
+                BindingExpression binding = textBox.GetBindingExpression(TextBox.TextProperty);
+                binding?.UpdateSource();
+
+                // Switch back to the TextBlock view
+                var parentGrid = textBox.Parent as Grid;
+                var textBlock = parentGrid?.Children.OfType<TextBlock>().FirstOrDefault();
+                if (textBlock != null)
+                {
+                    textBox.Visibility = Visibility.Collapsed;
+                    textBlock.Visibility = Visibility.Visible;
+                }
+            }
+        }
+
+        private void ValueTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            // This method handles the Enter and Escape keys during editing.
+            if (sender is TextBox textBox)
+            {
+                if (e.Key == Key.Enter)
+                {
+                    // On Enter, commit the change and switch back
+                    BindingExpression binding = textBox.GetBindingExpression(TextBox.TextProperty);
+                    binding?.UpdateSource();
+
+                    var parentGrid = textBox.Parent as Grid;
+                    var textBlock = parentGrid?.Children.OfType<TextBlock>().FirstOrDefault();
+                    if (textBlock != null)
+                    {
+                        textBox.Visibility = Visibility.Collapsed;
+                        textBlock.Visibility = Visibility.Visible;
+                    }
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Escape)
+                {
+                    // On Escape, cancel the edit and switch back without saving
+                    var parentGrid = textBox.Parent as Grid;
+                    var textBlock = parentGrid?.Children.OfType<TextBlock>().FirstOrDefault();
+                    if (textBlock != null)
+                    {
+                        textBox.Visibility = Visibility.Collapsed;
+                        textBlock.Visibility = Visibility.Visible;
+                    }
+                    e.Handled = true;
+                }
+            }
+        }
     }
 
     /// <summary>
