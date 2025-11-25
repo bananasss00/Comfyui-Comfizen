@@ -49,6 +49,7 @@ namespace Comfizen
         public ICommand MovePreviousCommand { get; set; }
         public ICommand SaveCurrentImageCommand { get; set; }
         public ICommand CopyImageCommand { get; }
+        public ICommand DeleteCurrentImageCommand { get; }
         public bool ShowSaveConfirmation { get; set; }
         public string SaveConfirmationText { get; set; }
         
@@ -178,6 +179,7 @@ namespace Comfizen
             
             PlayPauseCommand = new RelayCommand(TogglePlayPause, x => CurrentFullScreenImage?.Type == FileType.Video);
             CopyImageCommand = new RelayCommand(CopyCurrentImageToClipboard, _ => CurrentFullScreenImage?.Type == FileType.Image);
+            DeleteCurrentImageCommand = new RelayCommand(DeleteCurrentImage, _ => CurrentFullScreenImage != null);
         }
         private void CopyCurrentImageToClipboard(object obj)
         {
@@ -207,6 +209,59 @@ namespace Comfizen
             }
         }
         
+        private void DeleteCurrentImage(object obj)
+        {
+            if (CurrentFullScreenImage == null) return;
+
+            // Use the same confirmation logic as the gallery
+            if (_settings.ShowDeleteConfirmation)
+            {
+                var result = MessageBox.Show(
+                    string.Format(LocalizationService.Instance["ImageProcessing_DeleteConfirmMessageSingle"], CurrentFullScreenImage.FileName),
+                    LocalizationService.Instance["ImageProcessing_DeleteConfirmTitle"],
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (result != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+            }
+            
+            var imageToDelete = CurrentFullScreenImage;
+            int currentIndex = _currentGalleryItems.IndexOf(imageToDelete);
+
+            // Determine the next image to show *before* deleting
+            ImageOutput nextImage = null;
+            if (_currentGalleryItems.Count > 1)
+            {
+                if (currentIndex + 1 < _currentGalleryItems.Count)
+                {
+                    // If there's a next image, select it
+                    nextImage = _currentGalleryItems[currentIndex + 1];
+                }
+                else
+                {
+                    // If it's the last image, select the previous one
+                    nextImage = _currentGalleryItems[currentIndex - 1];
+                }
+            }
+
+            // Remove the image from the source collection, which will update the filtered list
+            _imageProcessing.ImageOutputs.Remove(imageToDelete);
+            
+            // Update the view
+            if (nextImage != null && _currentGalleryItems.Contains(nextImage))
+            {
+                CurrentFullScreenImage = nextImage;
+                IsPlaying = CurrentFullScreenImage.Type == FileType.Video;
+                UpdateIndexAndCount();
+            }
+            else
+            {
+                // No more images left, or next image is no longer in the list, close fullscreen
+                CloseFullScreenCommand.Execute(null);
+            }
+        }
         
         private void TogglePlayPause(object o)
         {

@@ -751,6 +751,14 @@ namespace Comfizen
                 // Mark the event as handled to prevent any default behavior.
                 e.Handled = true;
             }
+            else if (e.Key == Key.Delete)
+            {
+                if (viewModel.FullScreen.DeleteCurrentImageCommand.CanExecute(null))
+                {
+                    viewModel.FullScreen.DeleteCurrentImageCommand.Execute(null);
+                }
+                e.Handled = true;
+            }
         }
 
         private async void MainWindow_OnKeyDown(object sender, KeyEventArgs e)
