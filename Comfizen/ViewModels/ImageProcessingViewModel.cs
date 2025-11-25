@@ -40,12 +40,25 @@ namespace Comfizen
         public double GalleryThumbnailSize { get; set; } = 128.0;
             
         public int SelectedItemsCount { get; set; }
+        public bool IsAnyVideoSelected { get; private set; }
+        
+        public void UpdateSelectionState(IList selectedItems)
+        {
+            if (selectedItems == null)
+            {
+                IsAnyVideoSelected = false;
+                return;
+            }
+            IsAnyVideoSelected = selectedItems.OfType<ImageOutput>().Any(item => item.Type == FileType.Video);
+        }
 
         public ICommand ClearOutputsCommand { get; }
         public ICommand DeleteImageCommand { get; }
         public ICommand DeleteSelectedImagesCommand { get; }
         public ICommand SaveSelectedImagesCommand { get; }
         public ICommand SaveSelectedImagesAsCommand { get; }
+        public ICommand SaveSelectedImagesWithFormatCommand { get; }
+        public ICommand SaveSelectedImagesAsWithFormatCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         
@@ -110,90 +123,81 @@ namespace Comfizen
             SaveSelectedImagesCommand = new AsyncRelayCommand(async param =>
             {
                 if (param is not IList selectedItems || selectedItems.Count == 0) return;
+                await SaveItemsAsync(selectedItems.Cast<ImageOutput>().ToList(), Settings.SavedImagesDirectory);
 
-                var itemsToSave = selectedItems.Cast<ImageOutput>().ToList();
-
-                foreach (var image in itemsToSave)
-                {
-                    // Skip if already saved
-                    if (image.IsSaved) continue;
-
-                    string promptToSave = Settings.SavePromptWithFile ? image.Prompt : null;
-
-                    if (image.Type == FileType.Video)
-                    {
-                        await _comfyuiModel.SaveVideoFileAsync(
-                            Settings.SavedImagesDirectory,
-                            image.FilePath ?? image.FileName,
-                            image.ImageBytes,
-                            promptToSave
-                        );
-                    }
-                    else
-                    {
-                        await _comfyuiModel.SaveImageFileAsync(
-                            Settings.SavedImagesDirectory,
-                            image.FilePath ?? image.FileName,
-                            image.ImageBytes,
-                            promptToSave,
-                            Settings
-                        );
-                    }
-                    // Mark as saved to update the UI
-                    image.IsSaved = true;
-                }
             }, param => param is IList selectedItems && selectedItems.Count > 0);
             
             SaveSelectedImagesAsCommand = new AsyncRelayCommand(async param =>
             {
                 if (param is not IList selectedItems || selectedItems.Count == 0) return;
 
-                // Use a more modern folder browser dialog if possible, or stick to a simple one.
-                // This example uses a placeholder for simplicity. You might need to add a reference
-                // to System.Windows.Forms or use a custom WPF dialog.
                 using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
                 {
                     dialog.Description = "Select a folder to save the selected items";
                     if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
                     {
-                        return; // User cancelled
+                        return;
                     }
-
-                    var targetDirectory = dialog.SelectedPath;
-                    var itemsToSave = selectedItems.Cast<ImageOutput>().ToList();
-                    
-                    foreach (var image in itemsToSave)
-                    {
-                        string promptToSave = Settings.SavePromptWithFile ? image.Prompt : null;
-                        bool success = false;
-
-                        if (image.Type == FileType.Video)
-                        {
-                            success = await _comfyuiModel.SaveVideoFileAsync(
-                                targetDirectory, // Use the selected directory
-                                image.FilePath ?? image.FileName,
-                                image.ImageBytes,
-                                promptToSave
-                            );
-                        }
-                        else
-                        {
-                            success = await _comfyuiModel.SaveImageFileAsync(
-                                targetDirectory, // Use the selected directory
-                                image.FilePath ?? image.FileName,
-                                image.ImageBytes,
-                                promptToSave,
-                                Settings
-                            );
-                        }
-                        
-                        if (success)
-                        {
-                            image.IsSaved = true;
-                        }
-                    }
+                    await SaveItemsAsync(selectedItems.Cast<ImageOutput>().ToList(), dialog.SelectedPath);
                 }
             }, param => param is IList selectedItems && selectedItems.Count > 0);
+
+            SaveSelectedImagesWithFormatCommand = new AsyncRelayCommand(async param =>
+            {
+                if (param is not object[] args || args.Length < 2 || args[0] is not IList selectedItems || args[1] is not ImageSaveFormat format) return;
+                await SaveItemsAsync(selectedItems.Cast<ImageOutput>().ToList(), Settings.SavedImagesDirectory, format);
+
+            }, param => param is object[] args && args.Length >= 2 && args[0] is IList selectedItems && selectedItems.Count > 0);
+
+            SaveSelectedImagesAsWithFormatCommand = new AsyncRelayCommand(async param =>
+            {
+                if (param is not object[] args || args.Length < 2 || args[0] is not IList selectedItems || args[1] is not ImageSaveFormat format) return;
+                
+                using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
+                {
+                    dialog.Description = "Select a folder to save the selected items";
+                    if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                    {
+                        return;
+                    }
+                    await SaveItemsAsync(selectedItems.Cast<ImageOutput>().ToList(), dialog.SelectedPath, format);
+                }
+            }, param => param is object[] args && args.Length >= 2 && args[0] is IList selectedItems && selectedItems.Count > 0);
+        }
+        
+        private async Task SaveItemsAsync(List<ImageOutput> itemsToSave, string targetDirectory, ImageSaveFormat? formatOverride = null)
+        {
+            foreach (var image in itemsToSave)
+            {
+                string promptToSave = Settings.SavePromptWithFile ? image.Prompt : null;
+                bool success = false;
+
+                if (image.Type == FileType.Video)
+                {
+                    success = await _comfyuiModel.SaveVideoFileAsync(
+                        targetDirectory,
+                        image.FilePath ?? image.FileName,
+                        image.ImageBytes,
+                        promptToSave
+                    );
+                }
+                else
+                {
+                    success = await _comfyuiModel.SaveImageFileAsync(
+                        targetDirectory,
+                        image.FilePath ?? image.FileName,
+                        image.ImageBytes,
+                        promptToSave,
+                        Settings,
+                        formatOverride
+                    );
+                }
+                        
+                if (success)
+                {
+                    image.IsSaved = true;
+                }
+            }
         }
             
         private void OnFilterChanged(object sender, PropertyChangedEventArgs e)

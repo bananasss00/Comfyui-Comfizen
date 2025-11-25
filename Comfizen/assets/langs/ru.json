@@ -434,5 +434,10 @@
   "GlobalPresets_CreateSnapshotTooltip": "Автоматически создать локальный пресет с этим именем в КАЖДОЙ группе, сохранив все текущие значения.",
   "ContextMenu_ClearPresets": "Очистить пресеты",
   "UIConstructor_ConfirmClearPresetsMessage": "Вы уверены, что хотите удалить все пресеты для группы '{0}'? Это полезно, если изменился API.",
-  "UIConstructor_PresetsClearedMessage": "Все пресеты для группы '{0}' очищены."
+  "UIConstructor_PresetsClearedMessage": "Все пресеты для группы '{0}' очищены.",
+  "Gallery_SaveAsPng": "Сохранить как PNG",
+  "Gallery_SaveAsJpg": "Сохранить как JPG",
+  "Gallery_SaveAsWebp": "Сохранить как WebP",
+  "Gallery_SaveFormat": "Сохранить",
+  "Gallery_SaveFormatAs": "Сохранить как..."
 }

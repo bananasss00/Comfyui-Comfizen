@@ -26,7 +26,7 @@ namespace Comfizen
             await api.InterruptAsync();
         }
         
-        public async Task<bool> SaveImageFileAsync(string saveDirectory, string relativeFilePath, byte[] sourcePngBytes, string prompt, AppSettings settings)
+        public async Task<bool> SaveImageFileAsync(string saveDirectory, string relativeFilePath, byte[] sourcePngBytes, string prompt, AppSettings settings, ImageSaveFormat? overrideSaveFormat = null)
         {
             string promptToEmbed = settings.SavePromptWithFile ? prompt : null;
 
@@ -34,12 +34,14 @@ namespace Comfizen
             {
                 promptToEmbed = Utils.CleanBase64FromString(promptToEmbed);
             }
+            
+            var saveFormat = overrideSaveFormat ?? settings.SaveFormat;
 
             var (finalImageBytes, extension) = await Task.Run(() =>
             {
                 byte[] bytes;
                 string ext;
-                switch (settings.SaveFormat)
+                switch (saveFormat)
                 {
                     case ImageSaveFormat.Png:
                         var pngEncoder = new PngEncoder { CompressionLevel = (PngCompressionLevel)settings.PngCompressionLevel };

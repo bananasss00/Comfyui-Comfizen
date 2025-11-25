@@ -435,5 +435,10 @@
   "GlobalPresets_CreateSnapshotTooltip": "Automatically create a local preset with this name in EVERY group, capturing all current values.",
   "ContextMenu_ClearPresets": "Clear Presets",
   "UIConstructor_ConfirmClearPresetsMessage": "Are you sure you want to clear all presets for group '{0}'? This is useful if the API has changed.",
-  "UIConstructor_PresetsClearedMessage": "Cleared all presets for group '{0}'."
+  "UIConstructor_PresetsClearedMessage": "Cleared all presets for group '{0}'.",
+  "Gallery_SaveAsPng": "Save as PNG",
+  "Gallery_SaveAsJpg": "Save as JPG",
+  "Gallery_SaveAsWebp": "Save as WebP",
+  "Gallery_SaveFormat": "Save",
+  "Gallery_SaveFormatAs": "Save As..."
 }

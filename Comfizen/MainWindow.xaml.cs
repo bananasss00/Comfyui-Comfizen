@@ -392,6 +392,7 @@ namespace Comfizen
             if (DataContext is MainViewModel vm && sender is ListView lv)
             {
                 vm.ImageProcessing.SelectedItemsCount = lv.SelectedItems.Count;
+                vm.ImageProcessing.UpdateSelectionState(lv.SelectedItems);
             }
         }
         
@@ -1514,6 +1515,12 @@ namespace Comfizen
                 parent = nextParent;
             }
             return null;
+        }
+
+        private void SaveFormatMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            SaveFormatToggle.IsChecked = false;
+            SaveAsFormatToggle.IsChecked = false;
         }
     }
 }

@@ -42,8 +42,8 @@
             <local:BoolToStringConverter x:Key="BoolToStringConverter"/>
             <local:SliderPresetsFilterConverter x:Key="SliderPresetsFilterConverter"/>
             <local:GlobalPresetDetailConverter x:Key="GlobalPresetDetailConverter"/>
-            
-            
+            <local:HideIfEqualConverter x:Key="HideIfEqualConverter"/>
+            <local:SaveButtonTextConverter x:Key="SaveButtonTextConverter"/>
             
             <!-- ScrollBar Thumb Style -->
             <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
@@ -784,7 +784,7 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
                             <Border Background="{TemplateBinding Background}" CornerRadius="3">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
                             </Border>
                         </ControlTemplate>
                     </Setter.Value>
