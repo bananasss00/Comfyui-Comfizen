@@ -2509,8 +2509,8 @@ namespace Comfizen
             {
                 // Should match logic in SaveCurrentStateAsPreset
                 if (field.Type == FieldType.ScriptButton || field.Type == FieldType.Label || field.Type == FieldType.Separator ||
-                    field.Type != FieldType.Spoiler ||
-                    field.Type != FieldType.SpoilerEnd) continue;
+                    field.Type == FieldType.Spoiler ||
+                    field.Type == FieldType.SpoilerEnd) continue;
 
                 if (field is MarkdownFieldViewModel markdownVm)
                 {
