@@ -3117,13 +3117,38 @@ namespace Comfizen
         private readonly WorkflowField _field;
         public string Value
         {
-            get => Property.Value.ToObject<long>().ToString(CultureInfo.InvariantCulture);
+            get
+            {
+                // Safety check: Try to parse the value as a long.
+                var propValue = Property.Value;
+                if (long.TryParse(propValue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var longValue))
+                {
+                    return longValue.ToString(CultureInfo.InvariantCulture);
+                }
+                
+                // If parsing fails, log a warning and return a default value.
+                Logger.Log($"[UI Validation] Seed field '{Name}' has a non-integer value: '{propValue}'. Defaulting to 0.", LogLevel.Warning);
+                return "0";
+            }
             set
             {
-                if (long.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var longValue) && Property.Value.ToObject<long>() != longValue)
+                if (long.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var longValue))
                 {
-                    Property.Value = new JValue(longValue);
-                    OnPropertyChanged(nameof(Value));
+                    // Safely check if the value has actually changed before updating.
+                    bool hasChanged = true;
+                    if (long.TryParse(Property.Value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var currentLongValue))
+                    {
+                        if (currentLongValue == longValue)
+                        {
+                            hasChanged = false;
+                        }
+                    }
+
+                    if (hasChanged)
+                    {
+                        Property.Value = new JValue(longValue);
+                        OnPropertyChanged(nameof(Value));
+                    }
                 }
             }
         }
@@ -3162,7 +3187,19 @@ namespace Comfizen
     {
         public double Value
         {
-            get => Property.Value.ToObject<double>();
+            get
+            {
+                // Safety check: Try to parse the JToken value as a double.
+                var propValue = Property.Value;
+                if (double.TryParse(propValue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleValue))
+                {
+                    return doubleValue;
+                }
+                
+                // If parsing fails, log a warning and return a default value to prevent a crash.
+                Logger.Log($"[UI Validation] Slider field '{Name}' has a non-numeric value: '{propValue}'. Defaulting to 0.0.", LogLevel.Warning);
+                return 0.0;
+            }
             set
             {
                 // 1. Calculate the value snapped to the step
@@ -3201,11 +3238,25 @@ namespace Comfizen
                 }
             }
         }
-
+        
         /// <summary>
-        /// Новое свойство, которое возвращает уже отформатированную строку для отображения.
+        /// A safe property that returns a formatted string for display.
         /// </summary>
-        public string FormattedValue => Property.Value.ToObject<double>().ToString(StringFormat);
+        public string FormattedValue
+        {
+            get
+            {
+                var propValue = Property.Value;
+                // Safely parse the current value.
+                if (double.TryParse(propValue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleValue))
+                {
+                    // If successful, format it.
+                    return doubleValue.ToString(StringFormat);
+                }
+                // If parsing fails, return the original invalid string to make the error visible in the UI without crashing.
+                return propValue.ToString();
+            }
+        }
         
         public double MinValue { get; }
         public double MaxValue { get; }
@@ -3422,10 +3473,39 @@ namespace Comfizen
     {
         public bool IsChecked
         {
-            get => Property.Value.ToObject<bool>();
+            get
+            {
+                var propValue = Property.Value;
+                try
+                {
+                    // JToken's explicit conversion is quite robust for booleans
+                    return propValue.ToObject<bool>();
+                }
+                catch (Exception)
+                {
+                    // If conversion fails (e.g., value is "abc"), log it and default to false.
+                    Logger.Log($"[UI Validation] CheckBox field '{Name}' has a non-boolean value: '{propValue}'. Defaulting to false.", LogLevel.Warning);
+                    return false;
+                }
+            }
             set
             {
-                if (Property.Value.ToObject<bool>() != value)
+                // Safely check if the value has changed.
+                bool hasChanged = true;
+                try
+                {
+                    if (Property.Value.ToObject<bool>() == value)
+                    {
+                        hasChanged = false;
+                    }
+                }
+                catch
+                {
+                    // If the current value isn't a valid boolean, it has definitely changed.
+                    hasChanged = true;
+                }
+
+                if (hasChanged)
                 {
                     Property.Value = new JValue(value);
                     OnPropertyChanged(nameof(IsChecked));
