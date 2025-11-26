@@ -3189,16 +3189,19 @@ namespace Comfizen
         {
             get
             {
-                // Safety check: Try to parse the JToken value as a double.
-                var propValue = Property.Value;
-                if (double.TryParse(propValue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleValue))
+                try
                 {
-                    return doubleValue;
+                    // This is the "ideal" getter, now wrapped in a safety block.
+                    // It correctly handles converting both integers and floats from JSON to a double for the UI slider.
+                    return Property.Value.ToObject<double>();
                 }
-                
-                // If parsing fails, log a warning and return a default value to prevent a crash.
-                Logger.Log($"[UI Validation] Slider field '{Name}' has a non-numeric value: '{propValue}'. Defaulting to 0.0.", LogLevel.Warning);
-                return 0.0;
+                catch (Exception ex) when (ex is FormatException || ex is ArgumentException)
+                {
+                    // If the underlying value is not a number (e.g., "abc"), we catch the error.
+                    Logger.Log($"[UI Validation] Slider field '{Name}' has a non-numeric value: '{Property.Value}'. Defaulting to 0.0 to prevent a crash.", LogLevel.Warning);
+                    // Return a safe default value.
+                    return 0.0;
+                }
             }
             set
             {
@@ -3213,7 +3216,6 @@ namespace Comfizen
                 {
                     // For integer sliders, round to the nearest whole number.
                     var intValue = Convert.ToInt64(System.Math.Round(snappedValue));
-                    // intValue = Math.Max((long)MinValue, Math.Min((long)MaxValue, intValue));
                     newValueToken = new JValue(intValue);
                 }
                 else // SliderFloat
@@ -3221,7 +3223,6 @@ namespace Comfizen
                     // For float sliders, round to the specified precision.
                     var precision = _field.Precision ?? 2;
                     var roundedFloatValue = System.Math.Round(snappedValue, precision);
-                    // roundedFloatValue = Math.Max(MinValue, Math.Min(MaxValue, roundedFloatValue));
                     newValueToken = new JValue(roundedFloatValue);
                 }
         
@@ -3238,7 +3239,7 @@ namespace Comfizen
                 }
             }
         }
-        
+
         /// <summary>
         /// A safe property that returns a formatted string for display.
         /// </summary>
@@ -3246,15 +3247,17 @@ namespace Comfizen
         {
             get
             {
-                var propValue = Property.Value;
-                // Safely parse the current value.
-                if (double.TryParse(propValue.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleValue))
+                try
                 {
-                    // If successful, format it.
-                    return doubleValue.ToString(StringFormat);
+                    return Property.Value.ToObject<double>().ToString(StringFormat);
                 }
-                // If parsing fails, return the original invalid string to make the error visible in the UI without crashing.
-                return propValue.ToString();
+                catch (Exception ex) when (ex is FormatException || ex is ArgumentException)
+                {
+                    // If the underlying value is not a number (e.g., "abc"), we catch the error.
+                    Logger.Log($"[UI Validation] Slider field '{Name}' has a non-numeric value: '{Property.Value}'. Defaulting to 0.0 to prevent a crash.", LogLevel.Warning);
+                    // Return a safe default value.
+                    return 0.0.ToString(StringFormat);
+                }
             }
         }
         
