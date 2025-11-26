@@ -51,6 +51,8 @@ namespace Comfizen
         public string FieldValue { get; set; }
         public string TabName { get; set; }
         public bool ShowTabName { get; set; }
+        public string FieldPath { get; set; }
+        public bool IsModified { get; set; }
     }
     
     /// <summary>
@@ -1059,7 +1061,7 @@ namespace Comfizen
         
         public List<PresetFieldInfo> FieldDetails { get; private set; } = new List<PresetFieldInfo>();
 
-       public void GenerateToolTip(WorkflowGroupViewModel parentGroup, Dictionary<string, InputFieldViewModel> fieldLookup)
+        public void GenerateToolTip(WorkflowGroupViewModel parentGroup, Dictionary<string, InputFieldViewModel> fieldLookup)
         {
             var details = new List<PresetFieldInfo>();
             // 'fieldLookup' allows finding a field by its Path instantly.
@@ -1092,7 +1094,8 @@ namespace Comfizen
                         FieldName = field.Name,
                         FieldValue = displayValue,
                         TabName = tab?.Name,
-                        ShowTabName = showTabNames
+                        ShowTabName = showTabNames,
+                        FieldPath = fieldPath
                     });
                 }
             }
@@ -1169,12 +1172,23 @@ namespace Comfizen
         public string Name { get; }
         public GroupPresetViewModel SourcePreset { get; }
         public LayerState State { get; set; } = LayerState.Normal;
+        
+        public List<PresetFieldInfo> FieldDetails { get; private set; }
 
         public ActiveLayerViewModel(GroupPresetViewModel source)
         {
             Name = source.Name;
             SourcePreset = source;
             State = LayerState.Normal;
+            
+            FieldDetails = source.FieldDetails.Select(fd => new PresetFieldInfo {
+                FieldName = fd.FieldName,
+                FieldValue = fd.FieldValue,
+                TabName = fd.TabName,
+                ShowTabName = fd.ShowTabName,
+                FieldPath = fd.FieldPath,
+                IsModified = false 
+            }).ToList();
         }
     }
     
@@ -2748,11 +2762,39 @@ namespace Comfizen
                 var newState = isNowMatching ? ActiveLayerViewModel.LayerState.Normal : ActiveLayerViewModel.LayerState.Modified;
 
                 if (layer.State != newState)
-                    {
+                {
                     layer.State = newState;
-                            stateChanged = true;
+                    stateChanged = true;
+                }
+
+                // Update modification status for individual fields in the tooltip.
+                if (layer.State == ActiveLayerViewModel.LayerState.Modified)
+                {
+                    var originalValues = layer.SourcePreset.Model.Values;
+                    foreach (var fieldInfo in layer.FieldDetails)
+                    {
+                        // Check if the current state has a value for this field and if the preset also defined a value for it.
+                        if (currentState.TryGetValue(fieldInfo.FieldPath, out var currentValue) && 
+                            originalValues.TryGetValue(fieldInfo.FieldPath, out var originalValue))
+                        {
+                            // If they are not equivalent, mark as modified.
+                            fieldInfo.IsModified = !Utils.AreJTokensEquivalent(currentValue, originalValue);
+                        }
+                        else
+                        {
+                            // If either is missing, it's not a direct modification of a preset value.
+                            fieldInfo.IsModified = false;
                         }
                     }
+                }
+                else // State is Normal, so no fields are modified relative to this layer.
+                {
+                    foreach (var fieldInfo in layer.FieldDetails)
+                    {
+                        fieldInfo.IsModified = false;
+                    }
+                }
+            }
             // --- END OF REWORKED LOGIC ---
 
             if (stateChanged)

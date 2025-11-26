@@ -1359,12 +1359,12 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:ActiveLayerViewModel}">
                                                     <Border CornerRadius="3" Padding="5,3" Margin="0,2">
-                                                        <Border.ToolTip>
+                                                       <Border.ToolTip>
                                                             <ToolTip MaxWidth="400">
                                                                 <StackPanel>
                                                                     <TextBlock Text="{Binding SourcePreset.Name}" FontWeight="Bold" Margin="0,0,0,5"/>
                                                                     <Separator Margin="0,0,0,5"/>
-                                                                    <ItemsControl ItemsSource="{Binding SourcePreset.FieldDetails}">
+                                                                    <ItemsControl ItemsSource="{Binding FieldDetails}">
                                                                         <ItemsControl.ItemTemplate>
                                                                             <DataTemplate DataType="{x:Type local:PresetFieldInfo}">
                                                                                 <TextBlock TextWrapping="Wrap">
@@ -1382,7 +1382,18 @@
                                                                                         </TextBlock.Style>
                                                                                     </TextBlock>
                                                                                     <Run Text=": "/>
-                                                                                    <Run Text="{Binding FieldValue}" Foreground="#E6DB74"/>
+                                                                                    <Run Text="{Binding FieldValue}">
+                                                                                        <Run.Style>
+                                                                                            <Style TargetType="Run">
+                                                                                                <Setter Property="Foreground" Value="#E6DB74"/>
+                                                                                                <Style.Triggers>
+                                                                                                    <DataTrigger Binding="{Binding IsModified}" Value="True">
+                                                                                                        <Setter Property="Foreground" Value="{StaticResource ErrorBrush}"/>
+                                                                                                    </DataTrigger>
+                                                                                                </Style.Triggers>
+                                                                                            </Style>
+                                                                                        </Run.Style>
+                                                                                    </Run>
                                                                                 </TextBlock>
                                                                             </DataTemplate>
                                                                         </ItemsControl.ItemTemplate>
