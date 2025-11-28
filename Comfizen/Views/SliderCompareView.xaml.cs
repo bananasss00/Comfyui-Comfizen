@@ -33,16 +33,53 @@ namespace Comfizen
         
         private void ResetTransforms()
         {
-            if (ImageCanvas == null) return;
+            // Wait for the layout to be updated.
+            if (ImageCanvas == null || Viewport.ActualWidth == 0 || Viewport.ActualHeight == 0) return;
     
             var transformGroup = (TransformGroup)ImageCanvas.RenderTransform;
             var scaleTransform = (ScaleTransform)transformGroup.Children[0];
             var translateTransform = (TranslateTransform)transformGroup.Children[1];
 
-            scaleTransform.ScaleX = 1.0;
-            scaleTransform.ScaleY = 1.0;
-            translateTransform.X = 0.0;
-            translateTransform.Y = 0.0;
+            // Get the full size of the canvas (which is based on the image's resolution).
+            double contentWidth = ImageCanvas.Width;
+            double contentHeight = ImageCanvas.Height;
+            
+            // If the canvas size isn't valid yet, fallback to a default 1.0 scale.
+            if (double.IsNaN(contentWidth) || double.IsNaN(contentHeight) || contentWidth <= 0 || contentHeight <= 0)
+            {
+                scaleTransform.ScaleX = 1.0;
+                scaleTransform.ScaleY = 1.0;
+                translateTransform.X = 0.0;
+                translateTransform.Y = 0.0;
+                return;
+            }
+
+            // Get the available size of the container.
+            double viewportWidth = Viewport.ActualWidth;
+            double viewportHeight = Viewport.ActualHeight;
+
+            // Calculate the uniform scale factor to fit the content inside the viewport.
+            double scaleX = viewportWidth / contentWidth;
+            double scaleY = viewportHeight / contentHeight;
+            double initialScale = Math.Min(scaleX, scaleY);
+
+            // Prevent upscaling if the image is smaller than the viewport.
+            // This displays smaller images at their native 100% resolution.
+            if (initialScale > 1.0)
+            {
+                initialScale = 1.0;
+            }
+
+            // Apply the calculated scale.
+            scaleTransform.ScaleX = initialScale;
+            scaleTransform.ScaleY = initialScale;
+
+            // Calculate the translation needed to center the scaled content.
+            double scaledContentWidth = contentWidth * initialScale;
+            double scaledContentHeight = contentHeight * initialScale;
+
+            translateTransform.X = (viewportWidth - scaledContentWidth) / 2.0;
+            translateTransform.Y = (viewportHeight - scaledContentHeight) / 2.0;
         }
 
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
