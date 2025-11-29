@@ -439,5 +439,6 @@
   "Gallery_SaveAsJpg": "Сохранить как JPG",
   "Gallery_SaveAsWebp": "Сохранить как WebP",
   "Gallery_SaveFormat": "Сохранить",
-  "Gallery_SaveFormatAs": "Сохранить как..."
+  "Gallery_SaveFormatAs": "Сохранить как...",
+  "Gallery_SaveGridElements": "Сохранить элементы грида"
 }

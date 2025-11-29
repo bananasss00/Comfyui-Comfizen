@@ -1162,5 +1162,69 @@ namespace Comfizen
             }
             return distance;
         }
+        
+        /// <summary>
+        /// Creates a safe filename for a grid element by sanitizing and shortening X/Y values.
+        /// </summary>
+        public static string CreateSafeFilenameForGrid(string baseName, string xValue, string yValue)
+        {
+            var extension = Path.GetExtension(baseName);
+            var nameWithoutExt = Path.GetFileNameWithoutExtension(baseName);
+
+            var xPart = SanitizeAndShorten(xValue, 50);
+            var finalName = $"{nameWithoutExt}_X_{xPart}";
+
+            if (!string.IsNullOrEmpty(yValue))
+            {
+                var yPart = SanitizeAndShorten(yValue, 50);
+                finalName += $"_Y_{yPart}";
+            }
+
+            return finalName + extension;
+        }
+
+        /// <summary>
+        /// Removes characters that are invalid in file names.
+        /// </summary>
+        public static string Sanitize(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+            // This regex replaces any character that is not a letter, digit, space, underscore, or hyphen.
+            // You can customize it to allow more characters if needed.
+            return Regex.Replace(input, @"[<>:""/\\|?*]", "_", RegexOptions.None);
+        }
+
+        /// <summary>
+        /// Computes an MD5 hash of a string and returns the first 8 characters.
+        /// </summary>
+        public static string GetShortHash(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+            using (var md5 = MD5.Create())
+            {
+                var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
+                return BitConverter.ToString(hash).Replace("-", "").Substring(0, 8);
+            }
+        }
+
+        /// <summary>
+        /// Sanitizes a string and shortens it if it exceeds a max length, appending a hash for uniqueness.
+        /// </summary>
+        public static string SanitizeAndShorten(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+
+            var sanitized = Sanitize(text);
+
+            if (sanitized.Length > maxLength)
+            {
+                // Keep the start of the string for readability and append a unique hash.
+                var hash = GetShortHash(text); // Hash the original text for better uniqueness
+                int trimLength = maxLength - hash.Length - 1;
+                return sanitized.Substring(0, trimLength) + "_" + hash;
+            }
+
+            return sanitized;
+        }
     }
 }

@@ -1952,6 +1952,25 @@
                                             Command="{Binding CompareSelectedImagesCommand}"
                                                 CommandParameter="{Binding ElementName=lvOutputs, Path=SelectedItems}" />
                                     
+                                    <Button Content="{local:Translate Gallery_SaveGridElements}" Margin="0,0,5,0"
+                                            Command="{Binding ImageProcessing.SaveGridElementsCommand}"
+                                            CommandParameter="{Binding ImageProcessing.SelectedGalleryImage}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding ImageProcessing.SelectedItemsCount}" Value="1"/>
+                                                            <Condition Binding="{Binding ImageProcessing.SelectedGalleryImage.IsGridResult}" Value="True"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    
                                     <!-- Save Button -->
                                     <Grid>
                                         <Grid.ColumnDefinitions>

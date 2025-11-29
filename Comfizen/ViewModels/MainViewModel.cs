@@ -293,6 +293,20 @@ namespace Comfizen
             public int VideoGridFrames { get; set; }
         }
         
+        // Helper classes for serialization
+        public class SerializableImageOutput
+        {
+            public byte[] ImageBytes { get; set; }
+            public string FileName { get; set; }
+        }
+    
+        public class SerializableGridCellResult
+        {
+            public List<SerializableImageOutput> ImageOutputs { get; set; } = new List<SerializableImageOutput>();
+            public string XValue { get; set; }
+            public string YValue { get; set; }
+        }
+        
         public class PromptTask
         {
             /// <summary>
@@ -2027,11 +2041,26 @@ namespace Comfizen
                         var workflowJson = JObject.Parse(firstTaskResult.Prompt);
                         
                         var gridConfigData = JObject.FromObject(gridConfig);
+                        
+                        // NEW: Serialize grid elements to embed them in the final grid image's metadata
+                        var serializableElements = gridResults.Select(r => new SerializableGridCellResult
+                        {
+                            XValue = r.XValue,
+                            YValue = r.YValue,
+                            ImageOutputs = r.ImageOutputs.Select(io => new SerializableImageOutput
+                            {
+                                ImageBytes = io.ImageBytes,
+                                FileName = io.FileName
+                            }).ToList()
+                        }).ToList();
+                        
+                        var gridElementsData = JArray.FromObject(serializableElements);
 
                         var compositePrompt = new JObject
                         {
                             ["workflow"] = workflowJson,
-                            ["grid_config"] = gridConfigData
+                            ["grid_config"] = gridConfigData,
+                            ["grid_elements"] = gridElementsData // Embed the elements here
                         };
                         promptForGrid = compositePrompt.ToString(Formatting.None);
                     }

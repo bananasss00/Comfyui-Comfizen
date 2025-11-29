@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Newtonsoft.Json.Linq;
 using PropertyChanged;
 
 namespace Comfizen
@@ -59,6 +60,7 @@ namespace Comfizen
         public ICommand SaveSelectedImagesAsCommand { get; }
         public ICommand SaveSelectedImagesWithFormatCommand { get; }
         public ICommand SaveSelectedImagesAsWithFormatCommand { get; }
+        public ICommand SaveGridElementsCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         
@@ -163,6 +165,61 @@ namespace Comfizen
                     await SaveItemsAsync(selectedItems.Cast<ImageOutput>().ToList(), dialog.SelectedPath, format);
                 }
             }, param => param is object[] args && args.Length >= 2 && args[0] is IList selectedItems && selectedItems.Count > 0);
+            
+            SaveGridElementsCommand = new AsyncRelayCommand(SaveGridElementsAsync, param => param is ImageOutput);
+        }
+        
+        /// <summary>
+        /// Re-generates and saves each individual element from a composite XY Grid image.
+        /// </summary>
+        private async Task SaveGridElementsAsync(object parameter)
+        {
+            if (parameter is not ImageOutput gridImage || !gridImage.IsGridResult) return;
+        
+            try
+            {
+                var compositePrompt = JObject.Parse(gridImage.Prompt);
+                
+                // NEW: Read the embedded grid elements directly from the prompt metadata
+                var gridElementsToken = compositePrompt["grid_elements"];
+
+                if (gridElementsToken == null)
+                {
+                    MessageBox.Show("This grid image does not contain embedded element data and cannot be saved this way.", "Missing Data", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var gridElements = gridElementsToken.ToObject<List<MainViewModel.SerializableGridCellResult>>();
+                
+                Logger.Log($"Starting to save {gridElements.Count} grid elements from cached data...");
+
+                foreach (var cell in gridElements)
+                {
+                    foreach (var element in cell.ImageOutputs)
+                    {
+                        var safeFileName = Utils.CreateSafeFilenameForGrid(element.FileName, cell.XValue, cell.YValue);
+                        
+                        var fileType = ImageOutput.GetFileTypeFromExtension(element.FileName);
+
+                        if (fileType == FileType.Video)
+                        {
+                            await _comfyuiModel.SaveVideoFileAsync(Settings.SavedImagesDirectory, safeFileName, element.ImageBytes, null);
+                        }
+                        else
+                        {
+                            await _comfyuiModel.SaveImageFileAsync(Settings.SavedImagesDirectory, safeFileName, element.ImageBytes, null, Settings);
+                        }
+                    }
+                }
+                
+                Logger.Log("Finished saving all grid elements.", LogLevel.Info);
+                MessageBox.Show("All grid elements have been successfully saved.", "Save Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to save grid elements.");
+                MessageBox.Show($"An error occurred while saving grid elements: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         
         private async Task SaveItemsAsync(List<ImageOutput> itemsToSave, string targetDirectory, ImageSaveFormat? formatOverride = null)

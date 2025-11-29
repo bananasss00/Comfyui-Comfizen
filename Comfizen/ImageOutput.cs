@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Comfizen
 {
@@ -57,8 +58,51 @@ namespace Comfizen
         /// A 64-bit perceptual hash of the image, used for similarity comparison.
         /// </summary>
         public ulong PerceptualHash { get; set; }
+        
+        private bool? _isGridResult;
+        /// <summary>
+        /// Returns true if the image output is a composite grid image.
+        /// This is determined by checking for a 'grid_config' key in its prompt metadata.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsGridResult
+        {
+            get
+            {
+                if (_isGridResult.HasValue)
+                {
+                    return _isGridResult.Value;
+                }
+
+                if (string.IsNullOrEmpty(Prompt))
+                {
+                    _isGridResult = false;
+                    return false;
+                }
+
+                try
+                {
+                    var promptJson = JObject.Parse(Prompt);
+                    _isGridResult = promptJson["grid_config"] != null;
+                }
+                catch (JsonReaderException)
+                {
+                    // Not a valid JSON, so it cannot be a grid result.
+                    _isGridResult = false;
+                }
+                return _isGridResult.Value;
+            }
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
+        
+        public static FileType GetFileTypeFromExtension(string fileName)
+        {
+            return VideoExtensions.Any(ext => fileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                ? FileType.Video
+                : FileType.Image;
+        }
+        
         
         /// <summary>
         /// Asynchronously calculates the perceptual hash for this output if it hasn't been calculated yet.
@@ -112,9 +156,7 @@ namespace Comfizen
             }
         }
         
-        public FileType Type => VideoExtensions.Any(ext => FileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-            ? FileType.Video
-            : FileType.Image;
+        public FileType Type => GetFileTypeFromExtension(FileName);
         
         private BitmapImage _image;
         private bool _isImageLoading = false;

@@ -440,5 +440,6 @@
   "Gallery_SaveAsJpg": "Save as JPG",
   "Gallery_SaveAsWebp": "Save as WebP",
   "Gallery_SaveFormat": "Save",
-  "Gallery_SaveFormatAs": "Save As..."
+  "Gallery_SaveFormatAs": "Save As...",
+  "Gallery_SaveGridElements": "Save Grid Elements"
 }
