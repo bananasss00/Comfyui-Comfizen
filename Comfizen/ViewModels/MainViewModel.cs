@@ -1967,14 +1967,33 @@ namespace Comfizen
                 byte[] gridImageBytes = null;
                 if (gridConfig.GridMode == XYGridMode.Video)
                 {
-                    if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type != FileType.Video))
+                    // Filter results to include only video outputs.
+                    // This creates a new list of results where each cell's output list contains only videos,
+                    // and then it removes any cells that became empty as a result.
+                    var videoOnlyResults = gridResults
+                        .Select(r => new Utils.GridCellResult
+                        {
+                            ImageOutputs = r.ImageOutputs.Where(io => io.Type == FileType.Video).ToList(),
+                            XValue = r.XValue,
+                            YValue = r.YValue
+                        })
+                        .Where(r => r.ImageOutputs.Any())
+                        .ToList();
+
+                    if (!videoOnlyResults.Any())
                     {
-                        Logger.Log("XY Grid (Video Mode) was skipped because some outputs were images, not videos.", LogLevel.Warning);
+                        Logger.Log("XY Grid (Video Mode) was skipped because no video outputs were found in the results.", LogLevel.Warning);
                     }
                     else
                     {
+                        // Log if any non-video outputs were present in the original results and were therefore ignored.
+                        if (gridResults.SelectMany(r => r.ImageOutputs).Any(io => io.Type != FileType.Video))
+                        {
+                            Logger.Log("XY Grid (Video Mode): Ignored non-video outputs while creating video grid.", LogLevel.Info);
+                        }
+
                         gridImageBytes = await Utils.CreateVideoGridAsync(
-                            gridResults,
+                            videoOnlyResults,
                             gridConfig.XAxisField, gridConfig.XValues,
                             gridConfig.YAxisField, gridConfig.YValues,
                             gridConfig.VideoGridFrames,
