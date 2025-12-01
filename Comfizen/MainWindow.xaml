@@ -83,8 +83,7 @@
         <Border Grid.Row="0" Background="{StaticResource SecondaryBackground}" Margin="5,5,5,0" CornerRadius="5,5,0,0">
             <DockPanel Margin="8">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="10,0,0,0">
-                    <Button Content="&#xE70F;" Style="{StaticResource IconButton}"
-                            Command="{Binding EditWorkflowCommand}" ToolTip="{local:Translate Toolbar_EditWorkflow}" />
+                    <!-- Global App Buttons -->
                     <Button Content="&#xE710;" Style="{StaticResource IconButton}"
                             Command="{Binding OpenConstructorCommand}" Margin="5,0,0,0"
                             ToolTip="{local:Translate Toolbar_NewWorkflow}" />
@@ -100,7 +99,21 @@
                     <Button Content="&#xE897;" Style="{StaticResource IconButton}" Command="{Binding OpenHelpCommand}"
                             Margin="5,0,0,0" ToolTip="{local:Translate Toolbar_Help}" />
                 </StackPanel>
-
+                
+                <!-- NEW: Contextual buttons for the active tab -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="10,0" />
+                    <Button Content="&#xE70F;" Style="{StaticResource IconButton}"
+                            Command="{Binding EditWorkflowCommand}" CommandParameter="{Binding SelectedTab}" 
+                            ToolTip="{local:Translate Toolbar_EditWorkflow}" />
+                    <Button Content="&#xE74E;" Style="{StaticResource IconButton}"
+                            Command="{Binding SaveChangesToWorkflowCommand}" CommandParameter="{Binding SelectedTab}" 
+                            ToolTip="{local:Translate Toolbar_SaveChangesTooltip}" Margin="5,0,0,0"/>
+                    <Button Content="&#xE8AB;" Style="{StaticResource IconButton}"
+                            Command="{Binding ExportCurrentStateCommand}" CommandParameter="{Binding SelectedTab}" 
+                            ToolTip="{local:Translate Toolbar_ExportStateTooltip}" Margin="5,0,0,0"/>
+                </StackPanel>
+                
                 <local:FilterableComboBox
                     ItemsSource="{Binding WorkflowDisplayList}"
                     SelectedItem="{Binding SelectedWorkflow, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FileNameTrimmerConverter}}"

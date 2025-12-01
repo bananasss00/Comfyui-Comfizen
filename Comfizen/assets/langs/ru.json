@@ -450,5 +450,7 @@
   "UIConstructor_ExportFileButton": "Экспорт файла...",
   "UIConstructor_RemoveAttachmentButton": "Удалить",
   "UIConstructor_ConfirmAttachmentRemovalTitle": "Подтвердите удаление",
-  "UIConstructor_ConfirmAttachmentRemovalMessage": "Вы уверены, что хотите удалить прикрепленный файл рабочего процесса?"
+  "UIConstructor_ConfirmAttachmentRemovalMessage": "Вы уверены, что хотите удалить прикрепленный файл рабочего процесса?",
+  "Toolbar_SaveChangesTooltip": "Сохранить текущие значения в файл воркфлоу",
+  "Toolbar_ExportStateTooltip": "Экспортировать текущее состояние для ComfyUI"
 }

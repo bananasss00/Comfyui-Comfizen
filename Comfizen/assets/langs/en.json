@@ -451,5 +451,7 @@
   "UIConstructor_ExportFileButton": "Export Attached File...",
   "UIConstructor_RemoveAttachmentButton": "Remove",
   "UIConstructor_ConfirmAttachmentRemovalTitle": "Confirm Removal",
-  "UIConstructor_ConfirmAttachmentRemovalMessage": "Are you sure you want to remove the attached workflow file?"
+  "UIConstructor_ConfirmAttachmentRemovalMessage": "Are you sure you want to remove the attached workflow file?",
+  "Toolbar_SaveChangesTooltip": "Save current values to the workflow file",
+  "Toolbar_ExportStateTooltip": "Export current state for ComfyUI"
 }
