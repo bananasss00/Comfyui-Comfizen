@@ -443,5 +443,13 @@
   "Gallery_SaveFormatAs": "Save As...",
   "Gallery_SaveGridElements": "Save Grid Elements",
   "ContextMenu_DuplicateTab": "Duplicate Tab",
-  "Tab_VirtualTooltip": "Virtual Workflow (not saved to a file): {0}"
+  "Tab_VirtualTooltip": "Virtual Workflow (not saved to a file): {0}",
+  "UIConstructor_AttachmentsHeader": "Attachments",
+  "UIConstructor_AttachmentsDescription": "Here you can attach the full ComfyUI workflow file (.json) which includes node positions, groups, and other visual data. This file will be saved inside your Comfizen workflow, making it easy to export and edit in ComfyUI later.",
+  "UIConstructor_AttachedFileLabel": "Attached File:",
+  "UIConstructor_AttachFileButton": "Attach File...",
+  "UIConstructor_ExportFileButton": "Export Attached File...",
+  "UIConstructor_RemoveAttachmentButton": "Remove",
+  "UIConstructor_ConfirmAttachmentRemovalTitle": "Confirm Removal",
+  "UIConstructor_ConfirmAttachmentRemovalMessage": "Are you sure you want to remove the attached workflow file?"
 }

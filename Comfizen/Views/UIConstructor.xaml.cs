@@ -173,6 +173,10 @@ namespace Comfizen
         public ICommand AddSpoilerFieldCommand { get; }
         public ICommand AddSpoilerEndFieldCommand { get; }
         
+        public ICommand AttachFullWorkflowCommand { get; }
+        public ICommand ExportAttachedWorkflowCommand { get; }
+        public ICommand RemoveAttachedWorkflowCommand { get; }
+        
         // Constructor for a NEW workflow.
         public UIConstructorView() : this(new Workflow(), null) { }
 
@@ -305,6 +309,11 @@ namespace Comfizen
             AddSeparatorFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Separator));
             AddSpoilerFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.Spoiler));
             AddSpoilerEndFieldCommand = new RelayCommand(param => AddVirtualField(param as WorkflowGroupViewModel, FieldType.SpoilerEnd));
+            
+            AttachFullWorkflowCommand = new RelayCommand(AttachFullWorkflow);
+            ExportAttachedWorkflowCommand = new RelayCommand(ExportAttachedWorkflow, _ => Workflow.AttachedFullWorkflow != null);
+            RemoveAttachedWorkflowCommand = new RelayCommand(RemoveAttachedWorkflow, _ => Workflow.AttachedFullWorkflow != null);
+            
             ColorPalette = new ObservableCollection<ColorInfo>
             {
                 // --- Warm Tones (Reds, Oranges, Browns) ---
@@ -521,7 +530,64 @@ namespace Comfizen
                             && t != FieldType.Label && t != FieldType.Separator && t != FieldType.Spoiler && t != FieldType.SpoilerEnd));
 
         public event PropertyChangedEventHandler? PropertyChanged;
+        
+        private void ExportAttachedWorkflow(object obj)
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = "ComfyUI Workflow (*.json)|*.json",
+                FileName = Workflow.AttachedFullWorkflowName ?? "workflow.json"
+            };
 
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    var jsonContent = Workflow.AttachedFullWorkflow.ToString(Formatting.Indented);
+                    File.WriteAllText(dialog.FileName, jsonContent);
+                    Logger.LogToConsole($"Exported attached workflow to '{dialog.FileName}'.");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, "Failed to export attached workflow.");
+                }
+            }
+        }
+
+        private void RemoveAttachedWorkflow(object obj)
+        {
+            if (MessageBox.Show(LocalizationService.Instance["UIConstructor_ConfirmAttachmentRemovalMessage"], 
+                    LocalizationService.Instance["UIConstructor_ConfirmAttachmentRemovalTitle"], 
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            {
+                Workflow.AttachedFullWorkflow = null;
+                Workflow.AttachedFullWorkflowName = null;
+            }
+        }
+
+        private void AttachFullWorkflow(object obj)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "ComfyUI Workflow (*.json)|*.json|All Files (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    var jsonContent = File.ReadAllText(dialog.FileName);
+                    Workflow.AttachedFullWorkflow = JObject.Parse(jsonContent);
+                    Workflow.AttachedFullWorkflowName = Path.GetFileName(dialog.FileName);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, "Failed to attach workflow file.");
+                    MessageBox.Show($"Error attaching file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        
         private void InitializeGroupViewModels()
         {
             AllGroupViewModels.Clear();

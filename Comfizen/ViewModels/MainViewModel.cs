@@ -837,6 +837,8 @@ namespace Comfizen
             var nodeConnectionSnapshots = workflowData["nodeConnectionSnapshots"]?.ToObject<Dictionary<string, JObject>>() ?? new Dictionary<string, JObject>();
             var globalPresets = workflowData["globalPresets"]?.ToObject<ObservableCollection<GlobalPreset>>() ?? new ObservableCollection<GlobalPreset>();
             var advancedPromptOriginalTexts = workflowData["advancedPromptOriginalTexts"]?.ToObject<Dictionary<string, string>>();
+            var attachedFullWorkflow = workflowData["attachedFullWorkflow"] as JObject;
+            var attachedFullWorkflowName = workflowData["attachedFullWorkflowName"]?.ToString();
             
             if (promptData == null || uiDefinition == null)
             {
@@ -848,7 +850,7 @@ namespace Comfizen
             
             // Create a new in-memory Workflow object.
             var importedWorkflow = new Workflow();
-            importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets, nodeConnectionSnapshots, globalPresets);
+            importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets, nodeConnectionSnapshots, globalPresets, attachedFullWorkflow, attachedFullWorkflowName);
             
             // Create a new "virtual" tab using the new constructor.
             var newTab = new WorkflowTabViewModel(
@@ -1514,7 +1516,9 @@ namespace Comfizen
                                 presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
                                 globalPresets = tab.Workflow.GlobalPresets.Any() ? tab.Workflow.GlobalPresets : null,
                                 nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null,
-                                advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null
+                                advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null,
+                                attachedFullWorkflow = tab.Workflow.AttachedFullWorkflow,
+                                attachedFullWorkflowName = tab.Workflow.AttachedFullWorkflowName
                             };
                             string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
 
@@ -1561,14 +1565,16 @@ namespace Comfizen
                 // This ensures that the state we save to metadata is identical to what's used for generation.
                 var fullStateForThisTask = new
                 {
-                    prompt = apiPromptForTask, // Use the modified prompt here
+                    prompt = apiPromptForTask,
                     promptTemplate = tab.Workflow.Groups,
                     scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
                     tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
                     presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
                     globalPresets = tab.Workflow.GlobalPresets.Any() ? tab.Workflow.GlobalPresets : null,
                     nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null,
-                    advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null
+                    advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null,
+                    attachedFullWorkflow = tab.Workflow.AttachedFullWorkflow,
+                    attachedFullWorkflowName = tab.Workflow.AttachedFullWorkflowName
                 };
             
                 // 4. Serialize this complete and correct state for embedding.

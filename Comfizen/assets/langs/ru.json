@@ -442,5 +442,13 @@
   "Gallery_SaveFormatAs": "Сохранить как...",
   "Gallery_SaveGridElements": "Сохранить элементы грида",
   "ContextMenu_DuplicateTab": "Дублировать вкладку",
-  "Tab_VirtualTooltip": "Виртуальный воркфлоу (не сохранен в файл): {0}"
+  "Tab_VirtualTooltip": "Виртуальный воркфлоу (не сохранен в файл): {0}",
+  "UIConstructor_AttachmentsHeader": "Вложения",
+  "UIConstructor_AttachmentsDescription": "Здесь вы можете прикрепить полный файл рабочего процесса ComfyUI (.json), который включает позиции узлов, группы и другие визуальные данные. Этот файл будет сохранен внутри вашего воркфлоу Comfizen, что позволит легко экспортировать и редактировать его в ComfyUI в будущем.",
+  "UIConstructor_AttachedFileLabel": "Прикрепленный файл:",
+  "UIConstructor_AttachFileButton": "Прикрепить файл...",
+  "UIConstructor_ExportFileButton": "Экспорт файла...",
+  "UIConstructor_RemoveAttachmentButton": "Удалить",
+  "UIConstructor_ConfirmAttachmentRemovalTitle": "Подтвердите удаление",
+  "UIConstructor_ConfirmAttachmentRemovalMessage": "Вы уверены, что хотите удалить прикрепленный файл рабочего процесса?"
 }

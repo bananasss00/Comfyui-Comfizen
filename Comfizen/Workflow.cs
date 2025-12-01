@@ -217,6 +217,19 @@ namespace Comfizen
         // --- END OF NEW PROPERTY ---
         public ObservableCollection<WorkflowGroup> Groups { get; set; } = new();
         
+        /// <summary>
+        /// The full, original ComfyUI workflow JSON, stored as an attachment.
+        /// This includes node positions, groups, etc., for easier editing in ComfyUI.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public JObject AttachedFullWorkflow { get; set; }
+
+        /// <summary>
+        /// The original filename of the attached full workflow.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string AttachedFullWorkflowName { get; set; }
+        
         public ScriptCollection Scripts { get; set; } = new ScriptCollection();
         [JsonIgnore]
         public HashSet<string> BlockedNodeIds { get; set; } = new HashSet<string>();
@@ -252,7 +265,7 @@ namespace Comfizen
         }
         
         // New public method to initialize a workflow object from parts.
-        public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts, ObservableCollection<WorkflowTabDefinition> tabs, Dictionary<Guid, List<GroupPreset>> presets, Dictionary<string, JObject> nodeConnectionSnapshots, ObservableCollection<GlobalPreset> globalPresets)
+        public void SetWorkflowData(JObject prompt, ObservableCollection<WorkflowGroup> promptTemplate, ScriptCollection scripts, ObservableCollection<WorkflowTabDefinition> tabs, Dictionary<Guid, List<GroupPreset>> presets, Dictionary<string, JObject> nodeConnectionSnapshots, ObservableCollection<GlobalPreset> globalPresets, JObject attachedFullWorkflow, string attachedFullWorkflowName)
         {
             OriginalApi = prompt;
             LoadedApi = prompt?.DeepClone() as JObject;
@@ -265,6 +278,8 @@ namespace Comfizen
             Presets = presets ?? new Dictionary<Guid, List<GroupPreset>>();
             NodeConnectionSnapshots = nodeConnectionSnapshots ?? new Dictionary<string, JObject>();
             GlobalPresets = globalPresets ?? new ObservableCollection<GlobalPreset>();
+            AttachedFullWorkflow = attachedFullWorkflow;
+            AttachedFullWorkflowName = attachedFullWorkflowName;
             
             // Run the migration logic here as well to handle older imported formats.
             if (LoadedApi != null)
@@ -362,7 +377,9 @@ namespace Comfizen
                 globalPresets = GlobalPresets.Any() ? GlobalPresets : null,
                 // --- ADDED: Save tabs information ---
                 tabs = Tabs.Any() ? Tabs : null,
-                nodeConnectionSnapshots = NodeConnectionSnapshots.Any() ? NodeConnectionSnapshots : null
+                nodeConnectionSnapshots = NodeConnectionSnapshots.Any() ? NodeConnectionSnapshots : null,
+                attachedFullWorkflow = AttachedFullWorkflow,
+                attachedFullWorkflowName = AttachedFullWorkflowName
             };
 
             var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
@@ -381,7 +398,9 @@ namespace Comfizen
                 presets = Presets.Any() ? Presets : null,
                 globalPresets = GlobalPresets.Any() ? GlobalPresets : null,
                 tabs = Tabs.Any() ? Tabs : null,
-                nodeConnectionSnapshots = NodeConnectionSnapshots.Any() ? NodeConnectionSnapshots : null
+                nodeConnectionSnapshots = NodeConnectionSnapshots.Any() ? NodeConnectionSnapshots : null,
+                attachedFullWorkflow = AttachedFullWorkflow,
+                attachedFullWorkflowName = AttachedFullWorkflowName
             };
 
             var jsonString = JsonConvert.SerializeObject(data, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.Indented });
@@ -436,7 +455,9 @@ namespace Comfizen
                 globalPresets = default(ObservableCollection<GlobalPreset>),
                 // --- ADDED: Load tabs information ---
                 tabs = default(ObservableCollection<WorkflowTabDefinition>),
-                nodeConnectionSnapshots = default(Dictionary<string, JObject>)
+                nodeConnectionSnapshots = default(Dictionary<string, JObject>),
+                attachedFullWorkflow = default(JObject),
+                attachedFullWorkflowName = default(string)
             });
 
             OriginalApi = data.prompt;
@@ -444,12 +465,14 @@ namespace Comfizen
 
             Groups.Clear();
             if (data.promptTemplate != null) { foreach (var group in data.promptTemplate) Groups.Add(group); }
-            
+    
             Tabs = data.tabs ?? new ObservableCollection<WorkflowTabDefinition>();
             Scripts = data.scripts ?? new ScriptCollection();
             Presets = data.presets ?? new Dictionary<Guid, List<GroupPreset>>();
             GlobalPresets = data.globalPresets ?? new ObservableCollection<GlobalPreset>();
             NodeConnectionSnapshots = data.nodeConnectionSnapshots ?? new Dictionary<string, JObject>();
+            AttachedFullWorkflow = data.attachedFullWorkflow;
+            AttachedFullWorkflowName = data.attachedFullWorkflowName;
 
             // --- НАЧАЛО МИГРАЦИИ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ---
             if (LoadedApi != null)
