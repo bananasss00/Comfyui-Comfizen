@@ -158,6 +158,7 @@ namespace Comfizen
         public ICommand GoToGroupCommand { get; }
         public ICommand CompareSelectedImagesCommand { get; }
         public ICommand DeleteSelectedQueueItemCommand { get; }
+        public ICommand DuplicateTabCommand { get; }
         
         /// <summary>
         /// A transient UI state indicating whether the queue control panel is undocked.
@@ -494,6 +495,8 @@ namespace Comfizen
                     }
                 }
             }, param => param is QueueItemViewModel);
+            
+            DuplicateTabCommand = new AsyncRelayCommand(DuplicateTabAsync, p => p is WorkflowTabViewModel);
             
             FilteredPendingQueueItemsView = CollectionViewSource.GetDefaultView(PendingQueueItems);
             FilteredPendingQueueItemsView.Filter = FilterQueueItems;
@@ -2674,7 +2677,7 @@ namespace Comfizen
                         window.Show();
                     }
                 }
-                
+        
                 if (UndockedQueueWindow != null)
                 {
                     if (isFullScreen)
@@ -2687,6 +2690,37 @@ namespace Comfizen
                     }
                 }
             }
+        }
+        
+        private async Task DuplicateTabAsync(object parameter)
+        {
+            if (parameter is not WorkflowTabViewModel sourceTab) return;
+
+            // Save the current state of complex controls (like InpaintEditor) into the workflow object
+            await sourceTab.WorkflowInputsController.PrepareForSessionSaveAsync();
+
+            var workflowClone = sourceTab.Workflow.Clone();
+            var newHeader = $"{sourceTab.Header} (copy)";
+
+            // Ensure the new header is unique among open tabs
+            int counter = 1;
+            string finalHeader = newHeader;
+            while (OpenTabs.Any(t => t.Header == finalHeader))
+            {
+                finalHeader = $"{newHeader} {++counter}";
+            }
+
+            var newVirtualTab = new WorkflowTabViewModel(
+                workflowClone,
+                finalHeader,
+                _comfyuiModel,
+                _settings,
+                _modelService,
+                _sessionManager
+            );
+
+            OpenTabs.Add(newVirtualTab);
+            SelectedTab = newVirtualTab;
         }
     }
 }

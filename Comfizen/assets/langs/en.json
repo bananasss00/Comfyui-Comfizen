@@ -441,5 +441,6 @@
   "Gallery_SaveAsWebp": "Save as WebP",
   "Gallery_SaveFormat": "Save",
   "Gallery_SaveFormatAs": "Save As...",
-  "Gallery_SaveGridElements": "Save Grid Elements"
+  "Gallery_SaveGridElements": "Save Grid Elements",
+  "ContextMenu_DuplicateTab": "Duplicate Tab"
 }

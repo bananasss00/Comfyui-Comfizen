@@ -156,6 +156,9 @@
                                     <MenuItem Header="{local:Translate ContextMenu_RenameWorkflow}"
                                               Command="{Binding PlacementTarget.Tag.RenameWorkflowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding}" />
+                                    <MenuItem Header="{local:Translate ContextMenu_DuplicateTab}"
+                                              Command="{Binding PlacementTarget.Tag.DuplicateTabCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}" />
                                     <MenuItem Header="{local:Translate ContextMenu_DeleteWorkflow}"
                                               Command="{Binding PlacementTarget.Tag.DeleteWorkflowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding}" />
