@@ -2272,9 +2272,8 @@
                     </ContentControl.Style>
                 </ContentControl>
             </DataTemplate>
-
             <DataTemplate x:Key="MarkdownTemplate" DataType="{x:Type local:MarkdownFieldViewModel}">
-                <local:MarkdownDisplay MarkdownText="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                <local:MarkdownDisplay MarkdownText="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
                                        MaxDisplayLines="{Binding MaxDisplayLines}" />
             </DataTemplate>
 

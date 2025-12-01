@@ -98,10 +98,14 @@ namespace Comfizen
                 {
                     MarkdownText = modifiedText;
                 }
+        
+                // Manually update the binding source to trigger property changes in the ViewModel
+                var be = GetBindingExpression(MarkdownTextProperty);
+                be?.UpdateSource();
             }
             catch (Exception ex)
             {
-                Logger.Log(ex, "Failed to normalize markdown links.");
+                Logger.Log(ex, "Failed to process markdown on lost focus.");
             }
 
             Viewer.Visibility = Visibility.Visible;
