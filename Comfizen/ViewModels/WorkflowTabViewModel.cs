@@ -42,8 +42,8 @@ namespace Comfizen
             {
                 if (IsVirtual)
                 {
-                    // For virtual tabs (from imported images), just show the header.
-                    return Header;
+                    // NEW: Provide a specific tooltip for virtual tabs.
+                    return string.Format(LocalizationService.Instance["Tab_VirtualTooltip"], Header);
                 }
                 try
                 {

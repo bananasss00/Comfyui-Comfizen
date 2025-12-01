@@ -442,5 +442,6 @@
   "Gallery_SaveFormat": "Save",
   "Gallery_SaveFormatAs": "Save As...",
   "Gallery_SaveGridElements": "Save Grid Elements",
-  "ContextMenu_DuplicateTab": "Duplicate Tab"
+  "ContextMenu_DuplicateTab": "Duplicate Tab",
+  "Tab_VirtualTooltip": "Virtual Workflow (not saved to a file): {0}"
 }

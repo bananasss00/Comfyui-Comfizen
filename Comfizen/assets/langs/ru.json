@@ -441,5 +441,6 @@
   "Gallery_SaveFormat": "Сохранить",
   "Gallery_SaveFormatAs": "Сохранить как...",
   "Gallery_SaveGridElements": "Сохранить элементы грида",
-  "ContextMenu_DuplicateTab": "Дублировать вкладку"
+  "ContextMenu_DuplicateTab": "Дублировать вкладку",
+  "Tab_VirtualTooltip": "Виртуальный воркфлоу (не сохранен в файл): {0}"
 }
