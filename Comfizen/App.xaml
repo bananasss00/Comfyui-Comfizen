@@ -2608,6 +2608,7 @@
                             <Button Content="🎲" 
                                     Style="{StaticResource IconButton}" 
                                     Width="30" Height="30"
+                                    FontFamily="Segoe UI Emoji"
                                     ToolTip="{local:Translate Tab_RandomizeAllSeeds}"
                                     Command="{Binding SelectedTab.WorkflowInputsController.GlobalControls.RandomizeAllSeedsCommand}"/>
                                 
