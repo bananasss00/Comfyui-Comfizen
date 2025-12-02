@@ -2624,8 +2624,8 @@
                                 ToolTip="{local:Translate QueueManager_Title}" />
 
                         <ToggleButton x:Name="XyGridToggleButton"
-                                      Content="XY"
-                                      FontWeight="Bold"
+                                      Content="&#xE80A;"
+                                      FontFamily="Segoe MDL2 Assets"
                                       IsChecked="{Binding SelectedTab.WorkflowInputsController.IsXyGridPopupOpen, Mode=TwoWay}"
                                       ToolTip="{local:Translate XYGrid_Title}"
                                       Margin="0,0,10,0">
