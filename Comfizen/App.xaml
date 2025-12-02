@@ -2413,11 +2413,29 @@
                                         </Border.ToolTip>
                                     </Border>
                                     
+                                    <Button Content="🎲" 
+                                            Width="24" Height="24" 
+                                            Margin="5,0,0,0"
+                                            FontFamily="Segoe UI Emoji"
+                                            ToolTip="{local:Translate Seed_RandomizeTooltip}"
+                                            Command="{Binding RandomizeCommand}"
+                                            CommandParameter="{Binding}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Type}" Value="Seed">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+
                                     <TextBlock Margin="5,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Type}" Value="Seed"><Setter Property="Text" Value="🎲"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding Type}" Value="WildcardSupportPrompt"><Setter Property="Text" Value="💡"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding Type}" Value="FilePath"><Setter Property="Text" Value="📜"/></DataTrigger>
                                                 </Style.Triggers>

@@ -3145,6 +3145,7 @@ namespace Comfizen
     public class SeedFieldViewModel : InputFieldViewModel
     {
         private readonly WorkflowField _field;
+        public ICommand RandomizeCommand { get; }
         public string Value
         {
             get
@@ -3205,6 +3206,13 @@ namespace Comfizen
             long max = field.MaxSeedValue ?? long.MaxValue;
             MinValue = field.AllowNegativeSeed ? -max : 0;
             MaxValue = max;
+            RandomizeCommand = new RelayCommand(_ => Randomize());
+        }
+        
+        private void Randomize()
+        {
+            var newValue = Utils.GenerateSeed(MinValue, MaxValue);
+            Value = newValue.ToString();
         }
         
         public override void RefreshValue()
