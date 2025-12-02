@@ -2164,7 +2164,7 @@ namespace Comfizen
             try
             {
                 var taskPrompt = JObject.Parse(item.Task.JsonPromptForApi);
-                var originalApiPrompt = item.TemplatePrompt; // Use the snapshot from the queue item
+                var originalApiPrompt = item.Task.OriginTab.Workflow.OriginalApi;
 
                 var details = GenerateComparisonDetails(taskPrompt, originalApiPrompt, item.Task.OriginTab);
                 foreach (var detail in details)
