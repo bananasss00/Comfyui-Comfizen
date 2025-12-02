@@ -346,6 +346,55 @@ namespace Comfizen
         [JsonIgnore] 
         public bool IsShuttingDown { get; set; } = false;
         
+        private List<QueueItemDetailViewModel> GenerateComparisonDetails(JObject taskPrompt, JObject originalApiPrompt, WorkflowTabViewModel originTab)
+        {
+            var details = new List<QueueItemDetailViewModel>();
+            if (taskPrompt == null || originalApiPrompt == null || originTab == null) return details;
+
+            try
+            {
+                var allFields = originTab.Workflow.Groups
+                    .SelectMany(g => g.Tabs)
+                    .SelectMany(t => t.Fields);
+
+                // Use SelectTokens for a deep search, which is more robust
+                foreach (var taskToken in taskPrompt.SelectTokens("..*").OfType<JValue>())
+                {
+                    var path = taskToken.Path;
+                    var templateToken = originalApiPrompt.SelectToken(path);
+
+                    if (templateToken is JValue && !Utils.AreJTokensEquivalent(taskToken, templateToken))
+                    {
+                        var field = allFields.FirstOrDefault(f => f.Path == path);
+                        var detail = new QueueItemDetailViewModel
+                        {
+                            FieldPath = path,
+                            DisplayName = field?.Name ?? path.Split('.').Last(),
+                            NodeTitle = field?.NodeTitle,
+                            NodeType = field?.NodeType
+                        };
+                        
+                        string newValueString = taskToken.ToString(Formatting.None).Trim('"');
+                        if (newValueString.Length > 1000 && (newValueString.StartsWith("iVBOR") || newValueString.StartsWith("/9j/") || newValueString.StartsWith("UklG")))
+                        {
+                            detail.NewValue = string.Format(LocalizationService.Instance["TextField_Base64Placeholder"], newValueString.Length / 1024);
+                        }
+                        else
+                        {
+                            detail.NewValue = newValueString;
+                        }
+                        
+                        details.Add(detail);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to generate comparison details.");
+            }
+            return details;
+        }
+        
         public MainViewModel()
         {
             _settingsService = SettingsService.Instance;
@@ -1825,6 +1874,10 @@ namespace Comfizen
                                 }
 
                                 io.Prompt = task.FullWorkflowStateJson;
+                                
+                                var originalApiForDetails = task.OriginTab.Workflow.OriginalApi;
+                                io.GenerationDetails.AddRange(GenerateComparisonDetails(promptForTask, originalApiForDetails, task.OriginTab));
+                                
                                 if (task.OriginTab?.Workflow.LoadedApi?[io.NodeId] is JObject nodeData)
                                 {
                                     io.NodeTitle = nodeData["_meta"]?["title"]?.ToString() ?? "Untitled";
@@ -2111,44 +2164,12 @@ namespace Comfizen
             try
             {
                 var taskPrompt = JObject.Parse(item.Task.JsonPromptForApi);
-                var originalApiPrompt = item.Task.OriginTab.Workflow.OriginalApi;
+                var originalApiPrompt = item.TemplatePrompt; // Use the snapshot from the queue item
 
-                if (taskPrompt == null || originalApiPrompt == null) return;
-
-                var allFields = item.Task.OriginTab.Workflow.Groups
-                .SelectMany(g => g.Tabs)
-                .SelectMany(t => t.Fields);
-
-                // Use SelectTokens for a deep search, which is more robust
-                foreach (var taskToken in taskPrompt.SelectTokens("..*").OfType<JValue>())
+                var details = GenerateComparisonDetails(taskPrompt, originalApiPrompt, item.Task.OriginTab);
+                foreach (var detail in details)
                 {
-                    var path = taskToken.Path;
-                    var templateToken = originalApiPrompt.SelectToken(path);
-
-                    if (templateToken is JValue && !Utils.AreJTokensEquivalent(taskToken, templateToken))
-                    {
-                        var field = allFields.FirstOrDefault(f => f.Path == path);
-                        var detail = new QueueItemDetailViewModel
-                        {
-                            FieldPath = path,
-                            DisplayName = field?.Name ?? path.Split('.').Last(),
-                            NewValue = taskToken.ToString(Formatting.None).Trim('"'),
-                            NodeTitle = field?.NodeTitle,
-                            NodeType = field?.NodeType
-                        };
-                        
-                        string newValueString = taskToken.ToString(Formatting.None).Trim('"');
-                        if (newValueString.Length > 1000 && (newValueString.StartsWith("iVBOR") || newValueString.StartsWith("/9j/") || newValueString.StartsWith("UklG")))
-                        {
-                            detail.NewValue = string.Format(LocalizationService.Instance["TextField_Base64Placeholder"], newValueString.Length / 1024);
-                        }
-                        else
-                        {
-                            detail.NewValue = newValueString;
-                        }
-                        
-                        item.Details.Add(detail);
-                    }
+                    item.Details.Add(detail);
                 }
             }
             catch (Exception ex)

@@ -97,7 +97,7 @@
 
                     <!-- Separator in the middle -->
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="10,0" />
-
+ 
                     <!-- Global App Buttons -->
                     <Button Content="&#xE710;" Style="{StaticResource IconButton}"
                             Command="{Binding OpenConstructorCommand}"
@@ -1833,22 +1833,48 @@
                                                 Width="{Binding ElementName=ThumbnailSizeSlider, Path=Value}"
                                                 Height="{Binding ElementName=ThumbnailSizeSlider, Path=Value}">
                                             <Border.ToolTip>
-                                                <ToolTip>
-                                                    <TextBlock>
-                                                            <Run
-                                                                Text="{Binding NodeTitle, Mode=OneWay, StringFormat='Node: {0}'}"
-                                                                FontWeight="Bold" />
-                                                            <Run
-                                                                Text="{Binding NodeId, Mode=OneWay, StringFormat=' ({0})'}"
-                                                                FontWeight="Bold" />
-                                                            <LineBreak />
-                                                            <Run
-                                                                Text="{Binding NodeType, Mode=OneWay, StringFormat='Type: {0}'}"
-                                                                Foreground="{StaticResource TextSecondaryBrush}" />
-                                                            <LineBreak />
-                                                            <Run
-                                                                Text="{Binding FileName, Mode=OneWay, StringFormat='File: {0}'}" />
-                                                    </TextBlock>
+                                                <ToolTip MaxWidth="400">
+                                                    <StackPanel>
+                                                        <TextBlock>
+                                                            <Run Text="{Binding NodeTitle, Mode=OneWay, StringFormat='Node: {0}'}" FontWeight="Bold"/>
+                                                            <Run Text="{Binding NodeId, Mode=OneWay, StringFormat=' ({0})'}" FontWeight="Bold"/>
+                                                            <LineBreak/>
+                                                            <Run Text="{Binding NodeType, Mode=OneWay, StringFormat='Type: {0}'}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                            <LineBreak/>
+                                                            <Run Text="{Binding FileName, Mode=OneWay, StringFormat='File: {0}'}"/>
+                                                        </TextBlock>
+
+                                                        <StackPanel Margin="0,8,0,0">
+                                                            <StackPanel.Style>
+                                                                <Style TargetType="StackPanel">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding GenerationDetails.Count, Converter={StaticResource CountToBooleanConverter}}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </StackPanel.Style>
+                                                            
+                                                            <Separator/>
+                                                            <TextBlock Text="{local:Translate Gallery_Tooltip_Parameters}" FontWeight="Bold" Margin="0,5,0,5"/>
+                                                            <ItemsControl ItemsSource="{Binding GenerationDetails}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate DataType="{x:Type local:QueueItemDetailViewModel}">
+                                                                        <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis">
+                                                                            <TextBlock.ToolTip>
+                                                                                <ToolTip>
+                                                                                    <TextBlock Text="{Binding NewValue}" MaxWidth="500" TextWrapping="Wrap" />
+                                                                                </ToolTip>
+                                                                            </TextBlock.ToolTip>
+                                                                            <Run Text="{Binding DisplayName}" FontWeight="SemiBold"/>:
+                                                                            <Run Text="{Binding NewValue}" Foreground="#E6DB74" />
+                                                                        </TextBlock>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </StackPanel>
+                                                    </StackPanel>
                                                 </ToolTip>
                                             </Border.ToolTip>
                                             <Grid>

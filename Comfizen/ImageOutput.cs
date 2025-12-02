@@ -1,5 +1,6 @@
 ﻿using PropertyChanged;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -53,6 +54,12 @@ namespace Comfizen
         public bool IsSaved { get; set; }
         public string NodeTitle { get; set; }
         public string NodeType { get; set; }
+        
+        /// <summary>
+        /// Stores a list of parameters that were different from the base workflow at generation time.
+        /// </summary>
+        [JsonIgnore]
+        public List<QueueItemDetailViewModel> GenerationDetails { get; set; } = new List<QueueItemDetailViewModel>();
         
         /// <summary>
         /// A 64-bit perceptual hash of the image, used for similarity comparison.
