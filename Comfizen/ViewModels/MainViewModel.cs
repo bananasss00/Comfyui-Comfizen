@@ -911,6 +911,8 @@ namespace Comfizen
                 _sessionManager,
                 gridConfig // Pass grid config directly here
             );
+            
+            newTab.WorkflowInputsController.SelectedSeedControl = SeedControl.Randomize;
 
             OpenTabs.Add(newTab);
             SelectedTab = newTab;
@@ -2745,7 +2747,9 @@ namespace Comfizen
                 _modelService,
                 _sessionManager
             );
-
+            
+            newVirtualTab.WorkflowInputsController.SelectedSeedControl = SeedControl.Randomize;
+            
             OpenTabs.Add(newVirtualTab);
             SelectedTab = newVirtualTab;
         }
