@@ -237,7 +237,8 @@ public class WorkflowInputsController : INotifyPropertyChanged
             ApplyGlobalPreset,       // Argument 1: Apply
             GetCurrentGlobalState,   // Argument 2: Get State (Callback defined below)
             SaveGlobalPreset,        // Argument 3: Save
-            DeleteGlobalPreset       // Argument 4: Delete
+            DeleteGlobalPreset,      // Argument 4: Delete
+            () => _seedViewModels    // Argument 5: Get Seed VMs
         );
         
 

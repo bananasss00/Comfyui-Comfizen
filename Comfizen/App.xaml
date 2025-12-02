@@ -2605,12 +2605,16 @@
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
-                            <TextBlock Text="🎲" FontSize="14" VerticalAlignment="Center"
-                                       Margin="0,0,5,0" ToolTip="{local:Translate Tab_SeedControl}" />
+                            <Button Content="🎲" 
+                                    Style="{StaticResource IconButton}" 
+                                    Width="30" Height="30"
+                                    ToolTip="{local:Translate Tab_RandomizeAllSeeds}"
+                                    Command="{Binding SelectedTab.WorkflowInputsController.GlobalControls.RandomizeAllSeedsCommand}"/>
+                                
                             <ComboBox x:Name="SeedControlComboBox"
                                       ItemsSource="{Binding SeedControlEnumValues}"
                                       SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedSeedControl}"
-                                      MinWidth="100" />
+                                      MinWidth="100" Margin="5,0,0,0"/>
                         </StackPanel>
 
                         <Button Content="&#xE945;" Style="{StaticResource IconButton}"

@@ -630,6 +630,7 @@ namespace Comfizen
         public ICommand StartUpdatePresetCommand { get; }
         public ICommand SavePresetCommand { get; }
         public ICommand CancelSavePresetCommand { get; }
+        public ICommand RandomizeAllSeedsCommand { get; }
         
         private readonly Action<GlobalPreset> _applyPresetAction;
         private readonly Func<Dictionary<Guid, List<string>>> _getCurrentStateCallback;
@@ -654,18 +655,22 @@ namespace Comfizen
         private List<WorkflowGroupViewModel> _allAvailableGroups = new();
         public ObservableCollection<GlobalPresetConfigurationItem> PresetConfigurationItems { get; } = new();
         
+        private readonly Func<IEnumerable<SeedFieldViewModel>> _getAllSeedViewModels;
+
         public GlobalControlsViewModel(
             Workflow workflow,
             Action<GlobalPreset> applyPresetAction, 
             Func<Dictionary<Guid, List<string>>> getCurrentStateCallback,
             Action<GlobalPreset> saveCallback,
-            Action<GlobalPreset> deleteCallback)
+            Action<GlobalPreset> deleteCallback,
+            Func<IEnumerable<SeedFieldViewModel>> getAllSeedViewModels)
         {
             _workflow = workflow;
             _applyPresetAction = applyPresetAction;
             _getCurrentStateCallback = getCurrentStateCallback;
             _saveCallback = saveCallback;
             _deleteCallback = deleteCallback;
+            _getAllSeedViewModels = getAllSeedViewModels;
             
             CancelSavePresetCommand = new RelayCommand(_ => IsSavePresetPopupOpen = false);
             
@@ -734,6 +739,7 @@ namespace Comfizen
             });
 
             SavePresetCommand = new RelayCommand(_ => SaveChanges(), _ => !string.IsNullOrWhiteSpace(NewPresetName));
+            RandomizeAllSeedsCommand = new RelayCommand(_ => RandomizeAllSeeds());
             
             // Initialize View
             FilteredGlobalPresetsView = CollectionViewSource.GetDefaultView(GlobalPresets);
@@ -756,6 +762,30 @@ namespace Comfizen
             };
             
             PopulateCategoriesAndTags();
+        }
+        
+        private void RandomizeAllSeeds()
+        {
+            // Randomize the main wildcard seed if it's not locked
+            if (!IsSeedLocked)
+            {
+                WildcardSeed = Utils.GenerateSeed(0, 4294967295L);
+            }
+        
+            // Get all seed fields from the controller
+            var allSeeds = _getAllSeedViewModels?.Invoke();
+            if (allSeeds == null) return;
+        
+            // Randomize each unlocked seed field
+            foreach (var seedVm in allSeeds)
+            {
+                if (!seedVm.IsLocked)
+                {
+                    var newValue = Utils.GenerateSeed(seedVm.MinValue, seedVm.MaxValue);
+                    // The setter for Value in SeedFieldViewModel already handles string conversion.
+                    seedVm.Value = newValue.ToString();
+                }
+            }
         }
         
         public void UpdateAvailableGroups(IEnumerable<WorkflowGroupViewModel> groups)
@@ -1779,7 +1809,7 @@ namespace Comfizen
                 // --- END OF FIX 2 ---
             };
             
-            LoadPresets();
+            // LoadPresets();
             PopulateFieldsForPresetFilter();
             
             ApplyPresetCommand = new RelayCommand(p => ApplyPreset(p as GroupPresetViewModel));
