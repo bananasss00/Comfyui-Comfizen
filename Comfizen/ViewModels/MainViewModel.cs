@@ -756,7 +756,7 @@ namespace Comfizen
             }
         }
         
-        private async Task ImportQueueAsync(object obj)
+       private async Task ImportQueueAsync(object obj)
         {
             var dialog = new OpenFileDialog
             {
@@ -779,6 +779,20 @@ namespace Comfizen
                     MessageBox.Show("The selected file is empty or invalid.", "Import Queue", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
+
+                // START OF CHANGE: Reset queue state before importing
+                // This prevents a stale cancellation flag from a previous action (like "Clear Queue")
+                // from immediately clearing the newly imported tasks.
+                if (_cancellationRequested || (PendingQueueItems.Count == 0 && !_isProcessing))
+                {
+                    CompletedTasks = 0;
+                    TotalTasks = 0;
+                    CurrentProgress = 0;
+                    _queueStopwatch.Restart();
+                    EstimatedTimeRemaining = null;
+                }
+                _cancellationRequested = false;
+                // END OF CHANGE
 
                 int importedCount = 0;
                 foreach (var st in loadedTasks)
