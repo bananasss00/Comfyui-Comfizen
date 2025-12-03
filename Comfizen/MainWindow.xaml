@@ -1418,145 +1418,170 @@
                             </TabControl.ItemTemplate>
                             <TabControl.ContentTemplate>
                                 <DataTemplate>
-                                    <ScrollViewer x:Name="ControlsScrollViewer" VerticalScrollBarVisibility="Auto"
-                                                  HorizontalScrollBarVisibility="Disabled"
-                                                  PreviewMouseWheel="ControlsScrollViewer_PreviewMouseWheel">
-                                        <ItemsControl ItemsSource="{Binding Groups}" Margin="0,5,0,0">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
-                                                    <ContentControl>
-                                                        <ContentControl.Style>
-                                                            <Style TargetType="ContentControl">
-                                                                <Setter Property="Visibility" Value="Visible" />
-                                                                <Style.Triggers>
-                                                                    <!-- ADD: This trigger hides the group from the main list when it's undocked -->
-                                                                    <DataTrigger Binding="{Binding IsUndocked}"
-                                                                        Value="True">
-                                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </ContentControl.Style>
+                                    <DockPanel>
+                                        <!-- NEW BANNER -->
+                                        <Border DockPanel.Dock="Top"
+                                                Background="{StaticResource PrimaryAccentBrush}"
+                                                CornerRadius="3"
+                                                Padding="8,5"
+                                                Margin="5,5,5,0"
+                                                Visibility="{Binding DataContext.SelectedTab.IsFromQueue, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{local:Translate Queue_EditingTaskBanner}"
+                                                           FontWeight="Bold"
+                                                           VerticalAlignment="Center"/>
+                                                <Button Grid.Column="1"
+                                                        Content="{local:Translate Queue_UpdateTask}"
+                                                        Command="{Binding DataContext.UpdateQueueItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        Background="{StaticResource SuccessBrush}"
+                                                        ToolTip="Apply changes to the original task in the queue and close this tab"/>
+                                            </Grid>
+                                        </Border>
+                                        
+                                        <ScrollViewer x:Name="ControlsScrollViewer" VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      PreviewMouseWheel="ControlsScrollViewer_PreviewMouseWheel">
+                                            <ItemsControl ItemsSource="{Binding Groups}" Margin="0,5,0,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type local:WorkflowGroupViewModel}">
+                                                        <ContentControl>
+                                                            <ContentControl.Style>
+                                                                <Style TargetType="ContentControl">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                    <Style.Triggers>
+                                                                        <!-- ADD: This trigger hides the group from the main list when it's undocked -->
+                                                                        <DataTrigger Binding="{Binding IsUndocked}"
+                                                                            Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </ContentControl.Style>
 
-                                                        <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
-                                                                  Margin="5">
-                                                        <Expander.Header>
-                                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" />
-                                                        </Expander.Header>
-                                                        <Expander.Template>
-                                                <ControlTemplate TargetType="Expander">
-                                                                    <Border BorderBrush="{TemplateBinding BorderBrush}"
-                                                                            BorderThickness="{TemplateBinding BorderThickness}"
-                                                                            CornerRadius="3" Background="Transparent">
-                                                        <DockPanel>
-                                                                            <ToggleButton DockPanel.Dock="Top"
-                                                                                IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
-                                                                                OverridesDefaultStyle="True"
-                                                                                Content="{TemplateBinding Header}"
-                                                                                ContentTemplate="{TemplateBinding HeaderTemplate}">
-                                                                <ToggleButton.Template>
-                                                                                    <ControlTemplate
-                                                                                        TargetType="ToggleButton">
-                                                                        <Grid>
-                                                                                            <Border
-                                                                                                Background="{StaticResource TertiaryBackground}"
-                                                                                                CornerRadius="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource ExpanderCornerRadiusConverter}}" />
-                                                                                            <Border
-                                                                                                CornerRadius="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource ExpanderCornerRadiusConverter}}"
-                                                                                                Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}">
-                                                                                <Border.Style>
-                                                                                                    <Style
-                                                                                                        TargetType="Border">
-                                                                                                        <Setter
-                                                                                                            Property="Opacity"
-                                                                                                            Value="0.2" />
-                                                                                        <Style.Triggers>
-                                                                                                            <DataTrigger
-                                                                                                                Binding="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}}"
-                                                                                                                Value="{x:Null}">
-                                                                                                                <Setter
-                                                                                                                    Property="Opacity"
-                                                                                                                    Value="0" />
-                                                                                            </DataTrigger>
-                                                                                        </Style.Triggers>
-                                                                                    </Style>
-                                                                                </Border.Style>
-                                                                            </Border>
-                                                                            <Border Padding="8">
-                                                                                <Grid>
-                                                                                    <Grid.ColumnDefinitions>
-                                                                                                        <ColumnDefinition
-                                                                                                            Width="Auto" />
-                                                                                                        <ColumnDefinition
-                                                                                                            Width="*" />
-                                                                                                        <ColumnDefinition
-                                                                                                            Width="Auto" />
-                                                                                    </Grid.ColumnDefinitions>
+                                                            <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
+                                                                      Margin="5">
+                                                            <Expander.Header>
+                                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" />
+                                                            </Expander.Header>
+                                                            <Expander.Template>
+                                                    <ControlTemplate TargetType="Expander">
+                                                                        <Border BorderBrush="{TemplateBinding BorderBrush}"
+                                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                                CornerRadius="3" Background="Transparent">
+                                                            <DockPanel>
+                                                                                <ToggleButton DockPanel.Dock="Top"
+                                                                                    IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                                    OverridesDefaultStyle="True"
+                                                                                    Content="{TemplateBinding Header}"
+                                                                                    ContentTemplate="{TemplateBinding HeaderTemplate}">
+                                                                    <ToggleButton.Template>
+                                                                                        <ControlTemplate
+                                                                                            TargetType="ToggleButton">
+                                                                            <Grid>
+                                                                                                <Border
+                                                                                                    Background="{StaticResource TertiaryBackground}"
+                                                                                                    CornerRadius="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource ExpanderCornerRadiusConverter}}" />
+                                                                                                <Border
+                                                                                                    CornerRadius="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource ExpanderCornerRadiusConverter}}"
+                                                                                                    Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}">
+                                                                                    <Border.Style>
+                                                                                                        <Style
+                                                                                                            TargetType="Border">
+                                                                                                            <Setter
+                                                                                                                Property="Opacity"
+                                                                                                                Value="0.2" />
+                                                                                            <Style.Triggers>
+                                                                                                                <DataTrigger
+                                                                                                                    Binding="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}}"
+                                                                                                                    Value="{x:Null}">
+                                                                                                                    <Setter
+                                                                                                                        Property="Opacity"
+                                                                                                                        Value="0" />
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </Border.Style>
+                                                                                </Border>
+                                                                                <Border Padding="8">
+                                                                                    <Grid>
+                                                                                        <Grid.ColumnDefinitions>
+                                                                                                            <ColumnDefinition
+                                                                                                                Width="Auto" />
+                                                                                                            <ColumnDefinition
+                                                                                                                Width="*" />
+                                                                                                            <ColumnDefinition
+                                                                                                                Width="Auto" />
+                                                                                        </Grid.ColumnDefinitions>
 
-                                                                                                    <StackPanel
-                                                                                                        Grid.Column="0"
-                                                                                                        Orientation="Horizontal">
-                                                                                                        <TextBlock
-                                                                                                            x:Name="Arrow"
-                                                                                                            Text="▶"
-                                                                                                            VerticalAlignment="Center"
-                                                                                                            Margin="0,0,5,0" />
-                                                                                                        <ContentPresenter
-                                                                                                            SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"
-                                                                                                            RecognizesAccessKey="True" />
-                                                                                    </StackPanel>
+                                                                                                        <StackPanel
+                                                                                                            Grid.Column="0"
+                                                                                                            Orientation="Horizontal">
+                                                                                                            <TextBlock
+                                                                                                                x:Name="Arrow"
+                                                                                                                Text="▶"
+                                                                                                                VerticalAlignment="Center"
+                                                                                                                Margin="0,0,5,0" />
+                                                                                                            <ContentPresenter
+                                                                                                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"
+                                                                                                                RecognizesAccessKey="True" />
+                                                                                        </StackPanel>
 
-                                                                                                    <StackPanel
-                                                                                                        Grid.Column="2"
-                                                                                                        Orientation="Horizontal"
-                                                                                        HorizontalAlignment="Right"
-                                                                                        Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}"
-                                                                                                        MouseLeftButtonDown="StopRoutedEventPropagation"
-                                                                                                        MouseLeftButtonUp="StopRoutedEventPropagation"
-                                                                                                        ButtonBase.Click="StopRoutedEventPropagation"
-                                                                                                        ToggleButton.Checked="StopRoutedEventPropagation"
-                                                                                                        ToggleButton.Unchecked="StopRoutedEventPropagation">
+                                                                                                        <StackPanel
+                                                                                                            Grid.Column="2"
+                                                                                                            Orientation="Horizontal"
+                                                                                            HorizontalAlignment="Right"
+                                                                                            Visibility="{Binding Fields.Count, Converter={StaticResource TaskCountToVisibilityConverter}}"
+                                                                                                            MouseLeftButtonDown="StopRoutedEventPropagation"
+                                                                                                            MouseLeftButtonUp="StopRoutedEventPropagation"
+                                                                                                            ButtonBase.Click="StopRoutedEventPropagation"
+                                                                                                            ToggleButton.Checked="StopRoutedEventPropagation"
+                                                                                                            ToggleButton.Unchecked="StopRoutedEventPropagation">
 
-                                                                                                        <ContentPresenter
-                                                                                                            Content="{Binding}"
-                                                                                            ContentTemplate="{StaticResource GroupHeaderPresetControls}"
-                                                                                            VerticalAlignment="Center"
-                                                                                            MaxWidth="400"/> 
-    
-                                                                                        <Grid>
-                                                                                            <ToggleButton x:Name="MoreOptionsButton"
-                                                                                                Style="{StaticResource IconToggleButton}"
-                                                                                                Content="&#xE712;"
-                                                                                                Width="24" Height="24" Margin="5,0,0,0"
-                                                                                                ToolTip="{local:Translate ContextMenu_MoreOptions}"
-                                                                                                Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"/>
-    
-                                                                                            <Popup IsOpen="{Binding IsChecked, ElementName=MoreOptionsButton, Mode=TwoWay}"
-                                                                                                PlacementTarget="{Binding ElementName=MoreOptionsButton}"
-                                                                                                Placement="Bottom"
-                                                                                                StaysOpen="False"
-                                                                                                AllowsTransparency="True">
+                                                                                                            <ContentPresenter
+                                                                                                                Content="{Binding}"
+                                                                                                ContentTemplate="{StaticResource GroupHeaderPresetControls}"
+                                                                                                VerticalAlignment="Center"
+                                                                                                MaxWidth="400"/> 
         
-                                                                                                <Border DataContext="{Binding DataContext, ElementName=MoreOptionsButton}"
-                                                                                                    Background="{StaticResource SecondaryBackground}"
-                                                                                                    BorderBrush="{StaticResource TertiaryBackground}"
-                                                                                                    BorderThickness="1"
-                                                                                                    CornerRadius="3"
-                                                                                                    Margin="0,2,0,0">
+                                                                                            <Grid>
+                                                                                                <ToggleButton x:Name="MoreOptionsButton"
+                                                                                                    Style="{StaticResource IconToggleButton}"
+                                                                                                    Content="&#xE712;"
+                                                                                                    Width="24" Height="24" Margin="5,0,0,0"
+                                                                                                    ToolTip="{local:Translate ContextMenu_MoreOptions}"
+                                                                                                    Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"/>
+        
+                                                                                                <Popup IsOpen="{Binding IsChecked, ElementName=MoreOptionsButton, Mode=TwoWay}"
+                                                                                                    PlacementTarget="{Binding ElementName=MoreOptionsButton}"
+                                                                                                    Placement="Bottom"
+                                                                                                    StaysOpen="False"
+                                                                                                    AllowsTransparency="True">
             
-                                                                                                    <StackPanel>
-                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ExportPresets}"
-                                                                                                            Command="{Binding ExportPresetsCommand}" />
-                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ImportPresets}"
-                                                                                                            Command="{Binding ImportPresetsCommand}" />
+                                                                                                    <Border DataContext="{Binding DataContext, ElementName=MoreOptionsButton}"
+                                                                                                        Background="{StaticResource SecondaryBackground}"
+                                                                                                        BorderBrush="{StaticResource TertiaryBackground}"
+                                                                                                        BorderThickness="1"
+                                                                                                        CornerRadius="3"
+                                                                                                        Margin="0,2,0,0">
                 
-                                                                                                        <Separator />
-                                                                                                        
-                                                                                                        <MenuItem Header="{local:Translate ContextMenu_ClearPresets}"
-                                                                                                            Command="{Binding ClearGroupPresetsCommand}"/>
-                                                                                                    </StackPanel>
-                                                                                                </Border>
-                                                                                            </Popup>
+                                                                                                        <StackPanel>
+                                                                                                            <MenuItem Header="{local:Translate ContextMenu_ExportPresets}"
+                                                                                                                Command="{Binding ExportPresetsCommand}" />
+                                                                                                            <MenuItem Header="{local:Translate ContextMenu_ImportPresets}"
+                                                                                                                Command="{Binding ImportPresetsCommand}" />
+                    
+                                                                                                            <Separator />
+                                                                                                            
+                                                                                                            <MenuItem Header="{local:Translate ContextMenu_ClearPresets}"
+                                                                                                                Command="{Binding ClearGroupPresetsCommand}"/>
+                                                                                                        </StackPanel>
+                                                                                                    </Border>
+                                                                                                </Popup>
                                                                                                         </Grid>
                                                                                                         
                                                                                                         <Button
@@ -1569,100 +1594,101 @@
                                                                                             ToolTip="Undock Group"
                                                                                                             Margin="5,0,0,0" />
 
-                                                                                    </StackPanel>
-                                                                                </Grid>
-                                                                            </Border>
-                                                                        </Grid>
-                                                                        <ControlTemplate.Triggers>
-                                                                                            <Trigger
-                                                                                                Property="IsChecked"
-                                                                                                Value="True">
-                                                                                                <Setter
-                                                                                                    TargetName="Arrow"
-                                                                                                    Property="Text"
-                                                                                                    Value="▼" />
-                                                                            </Trigger>
-                                                                        </ControlTemplate.Triggers>
-                                                                    </ControlTemplate>
-                                                                </ToggleButton.Template>
-                                                            </ToggleButton>
+                                                                                        </StackPanel>
+                                                                                    </Grid>
+                                                                                </Border>
+                                                                            </Grid>
+                                                                            <ControlTemplate.Triggers>
+                                                                                                <Trigger
+                                                                                                    Property="IsChecked"
+                                                                                                    Value="True">
+                                                                                                    <Setter
+                                                                                                        TargetName="Arrow"
+                                                                                                        Property="Text"
+                                                                                                        Value="▼" />
+                                                                                </Trigger>
+                                                                            </ControlTemplate.Triggers>
+                                                                        </ControlTemplate>
+                                                                    </ToggleButton.Template>
+                                                                </ToggleButton>
 
-                                                                            <Grid x:Name="ContentSite"
-                                                                                DockPanel.Dock="Bottom"
-                                                                                Visibility="Collapsed">
-                                                                                <Border Opacity="0.2"
-                                                                                    Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}" />
-                                                                                <ContentPresenter
-                                                                                    ContentSource="Content" Margin="8" />
-                                                            </Grid>
-                                                        </DockPanel>
-                                                    </Border>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsExpanded" Value="True">
-                                                                            <Setter TargetName="ContentSite"
-                                                                                Property="Visibility" Value="Visible" />
-                                                        </Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Expander.Template>
-                                                <ContentControl Content="{Binding}">
-                                                                <ContentControl.Resources>
-                                                                    <DataTemplate x:Key="SingleTabViewTemplate">
-                                                                        <ContentPresenter Content="{Binding Tabs[0]}">
-                                                                            <ContentPresenter.ContentTemplate>
-                                                                                <DataTemplate>
-                                                                                    <ItemsControl ItemsSource="{Binding Fields}" Padding="8" ItemTemplate="{StaticResource FieldDataTemplate}"/>
-                                                                                </DataTemplate>
-                                                                            </ContentPresenter.ContentTemplate>
-                                                                        </ContentPresenter>
-                                                                    </DataTemplate>
+                                                                                <Grid x:Name="ContentSite"
+                                                                                    DockPanel.Dock="Bottom"
+                                                                                    Visibility="Collapsed">
+                                                                                    <Border Opacity="0.2"
+                                                                                        Background="{Binding DataContext.HighlightColor, RelativeSource={RelativeSource AncestorType=Expander}, Converter={StaticResource HexToBrushConverter}}" />
+                                                                                    <ContentPresenter
+                                                                                        ContentSource="Content" Margin="8" />
+                                                                </Grid>
+                                                            </DockPanel>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsExpanded" Value="True">
+                                                                                <Setter TargetName="ContentSite"
+                                                                                    Property="Visibility" Value="Visible" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Expander.Template>
+                                                    <ContentControl Content="{Binding}">
+                                                                    <ContentControl.Resources>
+                                                                        <DataTemplate x:Key="SingleTabViewTemplate">
+                                                                            <ContentPresenter Content="{Binding Tabs[0]}">
+                                                                                <ContentPresenter.ContentTemplate>
+                                                                                    <DataTemplate>
+                                                                                        <ItemsControl ItemsSource="{Binding Fields}" Padding="8" ItemTemplate="{StaticResource FieldDataTemplate}"/>
+                                                                                    </DataTemplate>
+                                                                                </ContentPresenter.ContentTemplate>
+                                                                            </ContentPresenter>
+                                                                        </DataTemplate>
 
-                                                                    <DataTemplate x:Key="MultiTabViewTemplate">
-                                                                        <TabControl ItemsSource="{Binding Tabs}"
-                                                                            SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
-                                                                            ItemContainerStyle="{StaticResource GroupInternalTabItemStyle}"
-                                                                            Style="{StaticResource GroupInternalTabControlStyle}">
-                                                                            <TabControl.ItemTemplate>
-                                                                                <DataTemplate
-                                                                                    DataType="{x:Type local:WorkflowGroupTabViewModel}">
-                                                                                    <!-- The Tab Header is now just the text, clean and simple -->
-                                                                                    <TextBlock Text="{Binding Name}"
-                                                                                        HorizontalAlignment="Center"
-                                                                                        Margin="0,0,0,2" />
-                                                                                </DataTemplate>
-                                                                            </TabControl.ItemTemplate>
-                                                                            <TabControl.ContentTemplate>
-                                                                                <DataTemplate
-                                                                                    DataType="{x:Type local:WorkflowGroupTabViewModel}">
-                                                                                    <ItemsControl
-                                                                                        ItemsSource="{Binding Fields}"
-                                                                                        ItemTemplate="{StaticResource FieldDataTemplate}" />
-                                                                                </DataTemplate>
-                                                                            </TabControl.ContentTemplate>
-                                                                        </TabControl>
-                                                                    </DataTemplate>
-                                                                </ContentControl.Resources>
-                                                                <ContentControl.Style>
-                                                                    <Style TargetType="ContentControl">
-                                                                        <Setter Property="ContentTemplate"
-                                                                            Value="{StaticResource SingleTabViewTemplate}" />
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger
-                                                                                Binding="{Binding Tabs.Count, Converter={StaticResource IsGreaterThanConverter}, ConverterParameter=1}"
-                                                                                Value="True">
-                                                                                <Setter Property="ContentTemplate"
-                                                                                    Value="{StaticResource MultiTabViewTemplate}" />
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </ContentControl.Style>
+                                                                        <DataTemplate x:Key="MultiTabViewTemplate">
+                                                                            <TabControl ItemsSource="{Binding Tabs}"
+                                                                                SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
+                                                                                ItemContainerStyle="{StaticResource GroupInternalTabItemStyle}"
+                                                                                Style="{StaticResource GroupInternalTabControlStyle}">
+                                                                                <TabControl.ItemTemplate>
+                                                                                    <DataTemplate
+                                                                                        DataType="{x:Type local:WorkflowGroupTabViewModel}">
+                                                                                        <!-- The Tab Header is now just the text, clean and simple -->
+                                                                                        <TextBlock Text="{Binding Name}"
+                                                                                            HorizontalAlignment="Center"
+                                                                                            Margin="0,0,0,2" />
+                                                                                    </DataTemplate>
+                                                                                </TabControl.ItemTemplate>
+                                                                                <TabControl.ContentTemplate>
+                                                                                    <DataTemplate
+                                                                                        DataType="{x:Type local:WorkflowGroupTabViewModel}">
+                                                                                        <ItemsControl
+                                                                                            ItemsSource="{Binding Fields}"
+                                                                                            ItemTemplate="{StaticResource FieldDataTemplate}" />
+                                                                                    </DataTemplate>
+                                                                                </TabControl.ContentTemplate>
+                                                                            </TabControl>
+                                                                        </DataTemplate>
+                                                                    </ContentControl.Resources>
+                                                                    <ContentControl.Style>
+                                                                        <Style TargetType="ContentControl">
+                                                                            <Setter Property="ContentTemplate"
+                                                                                Value="{StaticResource SingleTabViewTemplate}" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger
+                                                                                    Binding="{Binding Tabs.Count, Converter={StaticResource IsGreaterThanConverter}, ConverterParameter=1}"
+                                                                                    Value="True">
+                                                                                    <Setter Property="ContentTemplate"
+                                                                                        Value="{StaticResource MultiTabViewTemplate}" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </ContentControl.Style>
+                                                                </ContentControl>
+                                                            </Expander>
                                                             </ContentControl>
-                                                        </Expander>
-                                                        </ContentControl>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </DockPanel>
                                 </DataTemplate>
                             </TabControl.ContentTemplate>
                         </TabControl>
@@ -2177,63 +2203,109 @@
                         Visibility="{Binding IsQueueManagerVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <DockPanel>
                         <DockPanel.Resources>
-                            <DataTemplate x:Key="QueueItemTemplate" DataType="{x:Type local:QueueItemViewModel}">
-                                <StackPanel>
-                                    <Border x:Name="DropIndicatorBefore" Height="2"
-                                            Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1"
-                                            Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False" />
-                                    <Border Background="{StaticResource PrimaryBackground}" CornerRadius="3"
-                                            BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="1"
-                                            Margin="0,2" Padding="8">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
+                                
+                <DataTemplate x:Key="QueueItemTemplate" DataType="{x:Type local:QueueItemViewModel}">
+                    <StackPanel>
+                        <Border x:Name="DropIndicatorBefore" Height="2"
+                                Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1"
+                                Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False" />
+                        
+                        <Border x:Name="ItemBorder" CornerRadius="3"
+                                Margin="0,2" Padding="8"
+                                BorderBrush="{StaticResource TertiaryBackground}"
+                                BorderThickness="1">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <!-- FIX: Цвет фона задаем здесь, чтобы триггеры могли его менять -->
+                                    <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
+                                    
+                                    <Style.Triggers>
+                                        <!-- 1. ВЫДЕЛЕНИЕ (IsSelected) -->
+                                        <!-- Берем IsSelected у родительского ListBoxItem -->
+                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                            <Setter Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <!-- Полупрозрачный синий фон -->
+                                            <Setter Property="Background" Value="#40007ACC"/> 
+                                        </DataTrigger>
 
-                                            <Grid Grid.Row="0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
+                                        <!-- 2. РЕДАКТИРОВАНИЕ (EditingQueueItem) -->
+                                        <!-- Используем Tag родительского ListBoxItem, куда мы положили MainViewModel -->
+                                        <DataTrigger Value="True">
+                                            <DataTrigger.Binding>
+                                                <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                                    <Binding /> <!-- Текущий QueueItemViewModel -->
+                                                    <!-- Путь к EditingQueueItem через Tag контейнера -->
+                                                    <Binding Path="Tag.EditingQueueItem" RelativeSource="{RelativeSource AncestorType=ListBoxItem}"/>
+                                                </MultiBinding>
+                                            </DataTrigger.Binding>
+                                            <Setter Property="BorderBrush" Value="{StaticResource SuccessBrush}"/>
+                                            <Setter Property="BorderThickness" Value="2"/>
+                                            <!-- Полупрозрачный зеленый фон -->
+                                            <Setter Property="Background" Value="#402ECC71"/> 
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
 
-                                                <TextBlock Grid.Column="0" FontWeight="Bold" VerticalAlignment="Center">
-                                                    <Run Text="{Binding DisplayIndex, StringFormat='{}{0}: '}" />
-                                                    <Run Text="{Binding WorkflowName, Mode=OneWay}" />
-                                                </TextBlock>
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                                                <Button Grid.Column="1" Content="&#xE74D;"
-                                                        Style="{StaticResource IconButton}"
-                                                        Width="20" Height="20"
-                                                        ToolTip="{local:Translate QueueManager_DeleteItem}"
-                                                        Command="{Binding DataContext.DeleteSelectedQueueItemCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                        CommandParameter="{Binding}" />
-                                            </Grid>
+                                    <TextBlock Grid.Column="0" FontWeight="Bold" VerticalAlignment="Center">
+                                        <Run Text="{Binding DisplayIndex, StringFormat='{}{0}: '}" />
+                                        <Run Text="{Binding WorkflowName, Mode=OneWay}" />
+                                    </TextBlock>
 
-                                            <ItemsControl Grid.Row="1" ItemsSource="{Binding Details}" Margin="0,5,0,0">
-                                                <ItemsControl.Style>
-                                                    <Style TargetType="ItemsControl">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger
-                                                                Binding="{Binding Details.Count, Converter={StaticResource CountToBooleanConverter}}"
-                                                                Value="True">
-                                                                <Setter Property="Visibility" Value="Visible" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </ItemsControl.Style>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate DataType="{x:Type local:QueueItemDetailViewModel}">
-                                                        <TextBlock FontSize="11"
-                                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                                   TextTrimming="CharacterEllipsis">
-                                                            <TextBlock.ToolTip>
-                                                                <ToolTip>
-                                                                    <TextBlock Text="{Binding NewValue}" MaxWidth="500"
-                                                                               TextWrapping="Wrap" />
-                                                                </ToolTip>
-                                                            </TextBlock.ToolTip>
+                                    <Button Grid.Column="1" Content="&#xE70F;"
+                                            Style="{StaticResource IconButton}"
+                                            Width="20" Height="20"
+                                            ToolTip="Edit Task"
+                                            Command="{Binding DataContext.LoadQueueItemAsVirtualTabCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                            CommandParameter="{Binding}" />
+
+                                    <Button Grid.Column="2" Content="&#xE74D;"
+                                            Style="{StaticResource IconButton}"
+                                            Width="20" Height="20"
+                                            ToolTip="{local:Translate QueueManager_DeleteItem}"
+                                            Command="{Binding DataContext.DeleteSelectedQueueItemCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                            CommandParameter="{Binding}"
+                                            Margin="2,0,0,0"/>
+                                </Grid>
+
+                                <ItemsControl Grid.Row="1" ItemsSource="{Binding Details}" Margin="0,5,0,0">
+                                    <ItemsControl.Style>
+                                        <Style TargetType="ItemsControl">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger
+                                                    Binding="{Binding Details.Count, Converter={StaticResource CountToBooleanConverter}}"
+                                                    Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ItemsControl.Style>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type local:QueueItemDetailViewModel}">
+                                            <TextBlock FontSize="11"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       TextTrimming="CharacterEllipsis">
+                                                <TextBlock.ToolTip>
+                                                    <ToolTip>
+                                                        <TextBlock Text="{Binding NewValue}" MaxWidth="500"
+                                                                   TextWrapping="Wrap" />
+                                                    </ToolTip>
+                                                </TextBlock.ToolTip>
                                                             <Run Text="{Binding DisplayName}" FontWeight="SemiBold">
                                                                 <Run.ToolTip>
                                                                     <ToolTip>
@@ -2254,17 +2326,17 @@
                                                             </Run>
                                                             :
                                                             <Run Text="{Binding NewValue}" Foreground="#E6DB74" />
-                                                        </TextBlock>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </Grid>
-                                    </Border>
-                                    <Border x:Name="DropIndicatorAfter" Height="2"
-                                            Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1"
-                                            Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False" />
-                                </StackPanel>
-                            </DataTemplate>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+                        </Border>
+                        <Border x:Name="DropIndicatorAfter" Height="2"
+                                Background="{StaticResource PrimaryAccentBrush}" CornerRadius="1"
+                                Margin="0,1" Visibility="Collapsed" IsHitTestVisible="False" />
+                    </StackPanel>
+                </DataTemplate>
                         </DockPanel.Resources>
 
                         <Border DockPanel.Dock="Top" Padding="8,5" Background="{StaticResource TertiaryBackground}">
@@ -2282,6 +2354,17 @@
                         <TextBox DockPanel.Dock="Top" Text="{Binding QueueSearchText, UpdateSourceTrigger=PropertyChanged}" 
                                  Margin="5"
                                  local:TextBoxExtensions.PlaceholderText="Search queue..."/>
+
+                        <Border DockPanel.Dock="Bottom" Padding="5" BorderBrush="{StaticResource TertiaryBackground}" BorderThickness="0,1,0,0">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="&#xE74E;" Style="{StaticResource IconButton}"
+                                        Command="{Binding SaveQueueCommand}" Margin="0,0,5,0"
+                                        ToolTip="{local:Translate Tab_SaveQueue}" />
+                                <Button Content="&#xE8B5;" Style="{StaticResource IconButton}"
+                                        Command="{Binding ImportQueueCommand}"
+                                        ToolTip="{local:Translate Tab_ImportQueue}" />
+                            </StackPanel>
+                        </Border>
 
                         <ScrollViewer x:Name="QueueScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                       Margin="5">
@@ -2335,7 +2418,7 @@
                                 </Border>
 
                                 <!-- ListBox for Pending Tasks -->
-                                <ListBox ItemsSource="{Binding FilteredPendingQueueItemsView}"
+                                <ListBox x:Name="QueueListBox" ItemsSource="{Binding FilteredPendingQueueItemsView}"
                                          SelectedItem="{Binding SelectedQueueItem}"
                                          Background="{StaticResource TertiaryBackground}" BorderThickness="0"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -2344,8 +2427,13 @@
                                     <ListBox.ItemContainerStyle>
                                         <Style TargetType="ListBoxItem">
                                             <Setter Property="AllowDrop" Value="True" />
-                                            <EventSetter Event="PreviewMouseLeftButtonDown"
-                                                         Handler="QueueItem_PreviewMouseLeftButtonDown" />
+                                            <!-- Важно: растягиваем контент, чтобы рамка была во всю ширину -->
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        
+                                            <!-- FIX: Передаем DataContext (MainViewModel) в Tag для легкого доступа из шаблона -->
+                                            <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ListBox}}" />
+        
+                                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="QueueItem_PreviewMouseLeftButtonDown" />
                                             <EventSetter Event="MouseMove" Handler="QueueItem_MouseMove" />
                                             <EventSetter Event="Drop" Handler="QueueItem_Drop" />
                                             <EventSetter Event="DragOver" Handler="QueueItem_DragOver" />
@@ -2357,17 +2445,6 @@
                                                     </ControlTemplate>
                                                 </Setter.Value>
                                             </Setter>
-                                            <Style.Triggers>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter Property="Effect">
-                                                        <Setter.Value>
-                                                            <DropShadowEffect ShadowDepth="0"
-                                                                              Color="{Binding Source={StaticResource PrimaryAccentBrush}, Path=Color}"
-                                                                              BlurRadius="8" Opacity="0.8" />
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Trigger>
-                                            </Style.Triggers>
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                 </ListBox>

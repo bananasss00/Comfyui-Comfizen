@@ -97,8 +97,11 @@ namespace Comfizen
 
                 _selectedTab = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedTab)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EditingQueueItem)));
             }
         }
+        
+        public QueueItemViewModel EditingQueueItem => SelectedTab?.IsFromQueue == true ? SelectedTab.QueueItemSource : null;
         
         public ObservableCollection<string> Workflows { get; set; } = new();
         
@@ -159,6 +162,10 @@ namespace Comfizen
         public ICommand CompareSelectedImagesCommand { get; }
         public ICommand DeleteSelectedQueueItemCommand { get; }
         public ICommand DuplicateTabCommand { get; }
+        
+        public ICommand LoadQueueItemAsVirtualTabCommand { get; }
+        public ICommand UpdateQueueItemCommand { get; }
+        
         public ICommand SaveQueueCommand { get; }
         public ICommand ImportQueueCommand { get; }
         
@@ -514,7 +521,7 @@ namespace Comfizen
                 }
             }, o => o is WorkflowTabViewModel tab && tab.Workflow.BlockedNodeIds.Any());
             
-            TogglePauseQueueCommand = new RelayCommand(_ => IsQueuePaused = !IsQueuePaused, _ => _isProcessing);
+            TogglePauseQueueCommand = new RelayCommand(_ => IsQueuePaused = !IsQueuePaused);
             
             OpenGroupNavigationCommand = new RelayCommand(_ =>
             {
@@ -546,6 +553,9 @@ namespace Comfizen
                     }
                 }
             }, param => param is QueueItemViewModel);
+            
+            LoadQueueItemAsVirtualTabCommand = new AsyncRelayCommand(LoadQueueItemAsVirtualTabAsync, p => p is QueueItemViewModel);
+            UpdateQueueItemCommand = new AsyncRelayCommand(UpdateQueueItemAsync, _ => SelectedTab != null && SelectedTab.IsVirtual && SelectedTab.IsFromQueue);
             
             DuplicateTabCommand = new AsyncRelayCommand(DuplicateTabAsync, p => p is WorkflowTabViewModel);
             
@@ -694,6 +704,137 @@ namespace Comfizen
             }, p => p is WorkflowTabViewModel tab && !tab.IsVirtual);
         }
         
+        private async Task LoadQueueItemAsVirtualTabAsync(object parameter)
+        {
+            if (parameter is not QueueItemViewModel queueItemVm) return;
+
+            try
+            {
+                var data = JObject.Parse(queueItemVm.Task.FullWorkflowStateJson);
+        
+                var promptData = data["prompt"] as JObject;
+                var uiDefinition = data["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
+                var scripts = data["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
+                var tabs = data["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
+                var presets = data["presets"]?.ToObject<Dictionary<Guid, List<GroupPreset>>>() ?? new Dictionary<Guid, List<GroupPreset>>();
+                var nodeConnectionSnapshots = data["nodeConnectionSnapshots"]?.ToObject<Dictionary<string, JObject>>() ?? new Dictionary<string, JObject>();
+                var globalPresets = data["globalPresets"]?.ToObject<ObservableCollection<GlobalPreset>>() ?? new ObservableCollection<GlobalPreset>();
+                var advancedPromptOriginalTexts = data["advancedPromptOriginalTexts"]?.ToObject<Dictionary<string, string>>();
+                var attachedFullWorkflow = data["attachedFullWorkflow"] as JObject;
+                var attachedFullWorkflowName = data["attachedFullWorkflowName"]?.ToString();
+        
+                if (promptData == null || uiDefinition == null)
+                {
+                    MessageBox.Show("The queue item's workflow data is invalid.", "Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                PatchPromptWithOriginalTexts(promptData, advancedPromptOriginalTexts);
+
+                var importedWorkflow = new Workflow();
+                importedWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets, nodeConnectionSnapshots, globalPresets, attachedFullWorkflow, attachedFullWorkflowName);
+
+                var header = $"[Queue] {queueItemVm.WorkflowName}";
+        
+                var newTab = new WorkflowTabViewModel(
+                    importedWorkflow, 
+                    header,
+                    _comfyuiModel, 
+                    _settings, 
+                    _modelService, 
+                    _sessionManager
+                );
+
+                newTab.QueueItemSource = queueItemVm;
+
+                OpenTabs.Add(newTab);
+                SelectedTab = newTab;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to load workflow from queue item.");
+                MessageBox.Show($"Error loading workflow from queue: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task UpdateQueueItemAsync(object parameter)
+        {
+            var tab = SelectedTab;
+            var queueItem = tab?.QueueItemSource;
+            if (tab == null || queueItem == null) return;
+
+            try
+            {
+                // Use the helper to generate new task data from the virtual tab's current state
+                var newTaskData = await CreateSinglePromptTaskFromTab(tab);
+        
+                // Update the original task in the queue item
+                queueItem.Task.JsonPromptForApi = newTaskData.JsonPromptForApi;
+                queueItem.Task.FullWorkflowStateJson = newTaskData.FullWorkflowStateJson;
+        
+                // Recalculate and update the details displayed in the UI
+                PopulateQueueItemDetails(queueItem);
+        
+                Logger.LogToConsole($"Updated task '{queueItem.WorkflowName}' (Index: {queueItem.DisplayIndex}) in the queue.");
+
+                // Close the virtual tab
+                CloseTab(tab);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to update queue item.");
+                MessageBox.Show($"Failed to update queue item: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<PromptTask> CreateSinglePromptTaskFromTab(WorkflowTabViewModel tab)
+        {
+            var controller = tab.WorkflowInputsController;
+            var apiPromptForTask = tab.Workflow.JsonClone();
+    
+            // This part is from CreatePromptTasks
+            var advancedPromptOriginalTexts = new Dictionary<string, string>();
+            if (controller.WildcardPropertyPaths != null)
+            {
+                foreach (var path in controller.WildcardPropertyPaths)
+                {
+                    var prop = Utils.GetJsonPropertyByPath(apiPromptForTask, path);
+                    if (prop != null && prop.Value.Type == JTokenType.String)
+                    {
+                        advancedPromptOriginalTexts[path] = prop.Value.ToObject<string>();
+                    }
+                }
+            }
+
+            // Process fields like wildcards, inpaint, etc.
+            await controller.ProcessSpecialFieldsAsync(apiPromptForTask);
+            // Trigger the hook for final modifications
+            tab.ExecuteHook("on_before_prompt_queue", apiPromptForTask);
+
+            var fullStateForThisTask = new
+            {
+                prompt = apiPromptForTask,
+                promptTemplate = tab.Workflow.Groups,
+                scripts = (tab.Workflow.Scripts.Hooks.Any() || tab.Workflow.Scripts.Actions.Any()) ? tab.Workflow.Scripts : null,
+                tabs = tab.Workflow.Tabs.Any() ? tab.Workflow.Tabs : null,
+                presets = tab.Workflow.Presets.Any() ? tab.Workflow.Presets : null,
+                globalPresets = tab.Workflow.GlobalPresets.Any() ? tab.Workflow.GlobalPresets : null,
+                nodeConnectionSnapshots = tab.Workflow.NodeConnectionSnapshots.Any() ? tab.Workflow.NodeConnectionSnapshots : null,
+                advancedPromptOriginalTexts = advancedPromptOriginalTexts.Any() ? advancedPromptOriginalTexts : null,
+                attachedFullWorkflow = tab.Workflow.AttachedFullWorkflow,
+                attachedFullWorkflowName = tab.Workflow.AttachedFullWorkflowName
+            };
+
+            string fullWorkflowStateJsonForThisTask = JsonConvert.SerializeObject(fullStateForThisTask, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore, Formatting = Formatting.None });
+    
+            return new PromptTask
+            {
+                JsonPromptForApi = apiPromptForTask.ToString(),
+                FullWorkflowStateJson = fullWorkflowStateJsonForThisTask,
+                OriginTab = tab // Keep origin tab reference
+            };
+        }
+        
         private async Task SaveQueueAsync(object obj)
         {
             var dialog = new SaveFileDialog
@@ -778,6 +919,11 @@ namespace Comfizen
                 {
                     MessageBox.Show("The selected file is empty or invalid.", "Import Queue", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
+                }
+                
+                if (PendingQueueItems.Count == 0 && _currentTask == null)
+                {
+                    IsQueuePaused = true;
                 }
 
                 // START OF CHANGE: Reset queue state before importing
@@ -2747,6 +2893,8 @@ namespace Comfizen
                 var loadedTasks = JsonConvert.DeserializeObject<List<SerializablePromptTask>>(json);
 
                 if (loadedTasks == null || !loadedTasks.Any()) return;
+                
+                IsQueuePaused = true;
 
                 foreach (var st in loadedTasks)
                 {

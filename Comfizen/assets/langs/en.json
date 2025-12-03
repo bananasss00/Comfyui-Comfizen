@@ -321,6 +321,8 @@
   "QueueManager_OriginalValue": "Original Value",
   "QueueManager_NewValue": "New Value",
   "QueueManager_DeleteItem": "Delete from Queue",
+  "Queue_EditingTaskBanner": "Editing task from queue:",
+  "Queue_UpdateTask": "Update Task",
   "ContextMenu_RenameWorkflow": "Rename Workflow",
   "ContextMenu_DeleteWorkflow": "Delete Workflow",
   "ContextMenu_ExportState": "Export Current State",

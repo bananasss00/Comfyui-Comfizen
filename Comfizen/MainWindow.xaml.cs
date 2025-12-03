@@ -123,6 +123,28 @@ namespace Comfizen
             }
         }
         
+        private void MainViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.EditingQueueItem))
+            {
+                var viewModel = DataContext as MainViewModel;
+                if (viewModel?.EditingQueueItem != null)
+                {
+                    // Use Dispatcher to ensure the UI has updated the binding before we scroll
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        // Access the listbox directly by name
+                        if (QueueListBox != null)
+                        {
+                            QueueListBox.ScrollIntoView(viewModel.EditingQueueItem);
+                    
+                            // Optional: If you want to also SELECT the item in the list when it becomes the editing item
+                            // QueueListBox.SelectedItem = viewModel.EditingQueueItem;
+                        }
+                    }), DispatcherPriority.ContextIdle);
+                }
+            }
+        }
         
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
@@ -130,6 +152,7 @@ namespace Comfizen
             {
                 vm.FullScreen.PropertyChanged += FullScreen_PropertyChanged;
                 vm.ImageProcessing.PropertyChanged += ImageProcessing_PropertyChanged;
+                vm.PropertyChanged += MainViewModel_PropertyChanged;
                 
                 var settings = vm.Settings;
 
@@ -435,6 +458,8 @@ namespace Comfizen
         private async void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             if (DataContext is not MainViewModel viewModel) return;
+            
+            viewModel.PropertyChanged -= MainViewModel_PropertyChanged;
             
             // If we are already in the process of shutting down, just let it close.
             if (viewModel.IsShuttingDown)

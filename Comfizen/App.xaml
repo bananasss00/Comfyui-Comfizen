@@ -2635,12 +2635,7 @@
                                       SelectedItem="{Binding SelectedTab.WorkflowInputsController.SelectedSeedControl}"
                                       MinWidth="100" Margin="5,0,0,0"/>
                         </StackPanel>
-
-                        <Button Content="&#xE945;" Style="{StaticResource IconButton}"
-                                Command="{Binding ToggleQueueManagerCommand}"
-                                Margin="0,0,10,0"
-                                ToolTip="{local:Translate QueueManager_Title}" />
-
+                        
                         <ToggleButton x:Name="XyGridToggleButton"
                                       Content="&#xE80A;"
                                       FontFamily="Segoe MDL2 Assets"
@@ -3041,59 +3036,57 @@
                             <Border Grid.Column="0" BorderBrush="{StaticResource TertiaryBackground}"
                                     BorderThickness="1" CornerRadius="3" Height="30">
                                 <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
 
-                                    <Button Grid.Column="0"
-                                            Content="{local:Translate Tab_Queue}"
-                                            Background="{StaticResource SuccessBrush}"
-                                            Command="{Binding QueueCommand}"
-                                            BorderThickness="0"
-                                            Padding="10,0">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="3,0,0,3">
-                                                    <ContentPresenter HorizontalAlignment="Center"
-                                                                      VerticalAlignment="Center" />
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
+                                        <Button Grid.Column="0"
+                                                Content="{local:Translate Tab_Queue}"
+                                                Background="{StaticResource SuccessBrush}"
+                                                Command="{Binding QueueCommand}"
+                                                BorderThickness="0"
+                                                Padding="10,0">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="3,0,0,3">
+                                                        <ContentPresenter HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center" />
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
 
-                                    <Border Grid.Column="1" Width="1" Background="{StaticResource TertiaryBackground}" />
-
-                                    <ToggleButton Grid.Column="1" Margin="1,0,0,0"
-                                                  Content="&#xE8EE;"
-                                                  FontFamily="Segoe MDL2 Assets"
-                                                  Style="{StaticResource IconToggleButton}"
-                                                  ToolTip="{local:Translate Tab_ToggleInfiniteQueue}"
-                                                  IsChecked="{Binding IsInfiniteQueueEnabled, Mode=TwoWay}">
-                                        <ToggleButton.Template>
-                                            <ControlTemplate TargetType="ToggleButton">
-                                                <Border x:Name="Bg" Background="{TemplateBinding Background}"
-                                                        CornerRadius="0,3,3,0">
-                                                    <TextBlock Text="{TemplateBinding Content}"
-                                                               FontFamily="{TemplateBinding FontFamily}"
-                                                               VerticalAlignment="Center" HorizontalAlignment="Center"
-                                                               Foreground="{TemplateBinding Foreground}" />
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Bg" Property="Background"
-                                                                Value="{StaticResource TertiaryBackground}" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Bg" Property="Background"
-                                                                Value="{StaticResource PrimaryAccentBrush}" />
-                                                        <Setter Property="Foreground" Value="White" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </ToggleButton.Template>
-                                    </ToggleButton>
-                                </Grid>
+                                        <ToggleButton Grid.Column="1" Margin="1,0,0,0"
+                                                      Content="&#xE8EE;"
+                                                      FontFamily="Segoe MDL2 Assets"
+                                                      Style="{StaticResource IconToggleButton}"
+                                                      ToolTip="{local:Translate Tab_ToggleInfiniteQueue}"
+                                                      IsChecked="{Binding IsInfiniteQueueEnabled, Mode=TwoWay}">
+                                            <ToggleButton.Template>
+                                                <ControlTemplate TargetType="ToggleButton">
+                                                    <Border x:Name="Bg" Background="{TemplateBinding Background}"
+                                                            CornerRadius="0,3,3,0">
+                                                        <TextBlock Text="{TemplateBinding Content}"
+                                                                   FontFamily="{TemplateBinding FontFamily}"
+                                                                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                                   Foreground="{TemplateBinding Foreground}" />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Bg" Property="Background"
+                                                                    Value="{StaticResource TertiaryBackground}" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter TargetName="Bg" Property="Background"
+                                                                    Value="{StaticResource PrimaryAccentBrush}" />
+                                                            <Setter Property="Foreground" Value="White" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </ToggleButton.Template>
+                                        </ToggleButton>
+                                    </Grid>
                             </Border>
 
                             <xctk:IntegerUpDown Grid.Column="1" Margin="5,0,0,0"
@@ -3104,14 +3097,11 @@
                                                 Width="60" />
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
-                                <Button Content="&#xE74E;" Style="{StaticResource IconButton}"
-                                        Command="{Binding SaveQueueCommand}" Margin="0,0,5,0"
-                                        ToolTip="Save current queue to file" />
-                                <Button Content="&#xE8B5;" Style="{StaticResource IconButton}"
-                                        Command="{Binding ImportQueueCommand}"
-                                        ToolTip="Import queue from file" />
+                                <Button Content="&#xE945;" Style="{StaticResource IconButton}"
+                                        Command="{Binding ToggleQueueManagerCommand}" Margin="0,0,5,0"
+                                        ToolTip="{local:Translate QueueManager_Title}" />
                                 <ToggleButton Command="{Binding TogglePauseQueueCommand}"
-                                              IsChecked="{Binding IsQueuePaused, Mode=OneWay}" Margin="5,0,5,0">
+                                              IsChecked="{Binding IsQueuePaused, Mode=OneWay}" Margin="0,0,5,0">
                                     <ToggleButton.Style>
                                         <Style TargetType="ToggleButton" BasedOn="{StaticResource IconToggleButton}">
                                             <Setter Property="Content" Value="&#xE769;" />

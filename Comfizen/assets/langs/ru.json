@@ -320,6 +320,8 @@
   "QueueManager_OriginalValue": "Оригинал",
   "QueueManager_NewValue": "Новое значение",
   "QueueManager_DeleteItem": "Удалить из очереди",
+  "Queue_EditingTaskBanner": "Редактирование задачи из очереди:",
+  "Queue_UpdateTask": "Обновить задачу",
   "ContextMenu_RenameWorkflow": "Переименовать процесс",
   "ContextMenu_DeleteWorkflow": "Удалить процесс",
   "ContextMenu_ExportState": "Экспортировать текущее состояние",

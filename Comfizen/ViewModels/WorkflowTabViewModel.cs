@@ -66,6 +66,12 @@ namespace Comfizen
         
         [JsonIgnore]
         public bool IsVirtual => string.IsNullOrEmpty(FilePath);
+        
+        [JsonIgnore]
+        public QueueItemViewModel QueueItemSource { get; set; }
+    
+        [JsonIgnore]
+        public bool IsFromQueue => QueueItemSource != null;
 
         public event PropertyChangedEventHandler PropertyChanged;
         
