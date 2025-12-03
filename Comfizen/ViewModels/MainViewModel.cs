@@ -159,6 +159,8 @@ namespace Comfizen
         public ICommand CompareSelectedImagesCommand { get; }
         public ICommand DeleteSelectedQueueItemCommand { get; }
         public ICommand DuplicateTabCommand { get; }
+        public ICommand SaveQueueCommand { get; }
+        public ICommand ImportQueueCommand { get; }
         
         /// <summary>
         /// A transient UI state indicating whether the queue control panel is undocked.
@@ -680,6 +682,9 @@ namespace Comfizen
             
             ToggleUndockQueueControlsCommand = new RelayCommand(_ => ToggleUndockQueueControls());
             
+            SaveQueueCommand = new AsyncRelayCommand(SaveQueueAsync, _ => _isProcessing || PendingQueueItems.Any());
+            ImportQueueCommand = new AsyncRelayCommand(ImportQueueAsync);
+            
             RenameWorkflowCommand = new RelayCommand(p => {
                 if (p is WorkflowTabViewModel tab)
                 {
@@ -687,6 +692,135 @@ namespace Comfizen
                     tab.IsRenaming = true; 
                 }
             }, p => p is WorkflowTabViewModel tab && !tab.IsVirtual);
+        }
+        
+        private async Task SaveQueueAsync(object obj)
+        {
+            var dialog = new SaveFileDialog
+            {
+                FileName = "queue.json",
+                Filter = "JSON File (*.json)|*.json",
+                Title = "Save Queue"
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            try
+            {
+                var queueToSave = new List<SerializablePromptTask>();
+                // Add the currently executing task first, if it exists
+                if (_currentTask != null)
+                {
+                    queueToSave.Add(new SerializablePromptTask
+                    {
+                        JsonPromptForApi = _currentTask.JsonPromptForApi,
+                        FullWorkflowStateJson = _currentTask.FullWorkflowStateJson,
+                        OriginTabFilePath = !_currentTask.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, _currentTask.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
+                        IsGridTask = _currentTask.IsGridTask,
+                        XValue = _currentTask.XValue,
+                        YValue = _currentTask.YValue,
+                        GridConfig = _currentTask.GridConfig
+                    });
+                }
+        
+                // Add all pending tasks
+                queueToSave.AddRange(PendingQueueItems.Select(vm => new SerializablePromptTask
+                {
+                    JsonPromptForApi = vm.Task.JsonPromptForApi,
+                    FullWorkflowStateJson = vm.Task.FullWorkflowStateJson,
+                    OriginTabFilePath = !vm.Task.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, vm.Task.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
+                    IsGridTask = vm.Task.IsGridTask,
+                    XValue = vm.Task.XValue,
+                    YValue = vm.Task.YValue,
+                    GridConfig = vm.Task.GridConfig
+                }));
+
+                if (!queueToSave.Any())
+                {
+                    MessageBox.Show("Queue is empty. Nothing to save.", "Save Queue", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var json = JsonConvert.SerializeObject(queueToSave, Formatting.Indented);
+                await File.WriteAllTextAsync(dialog.FileName, json);
+        
+                Logger.LogToConsole($"Successfully saved {queueToSave.Count} tasks to '{dialog.FileName}'.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to save queue to file.");
+                MessageBox.Show($"Failed to save queue: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        private async Task ImportQueueAsync(object obj)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "JSON File (*.json)|*.json",
+                Title = "Import Queue"
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            try
+            {
+                var json = await File.ReadAllTextAsync(dialog.FileName);
+                var loadedTasks = JsonConvert.DeserializeObject<List<SerializablePromptTask>>(json);
+
+                if (loadedTasks == null || !loadedTasks.Any())
+                {
+                    MessageBox.Show("The selected file is empty or invalid.", "Import Queue", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                int importedCount = 0;
+                foreach (var st in loadedTasks)
+                {
+                    // Find the origin tab by its file path
+                    var originTab = OpenTabs.FirstOrDefault(t => !t.IsVirtual && Path.GetRelativePath(Workflow.WorkflowsDir, t.FilePath).Replace(Path.DirectorySeparatorChar, '/') == st.OriginTabFilePath);
+                    if (originTab != null)
+                    {
+                        var task = new PromptTask
+                        {
+                            JsonPromptForApi = st.JsonPromptForApi,
+                            FullWorkflowStateJson = st.FullWorkflowStateJson,
+                            OriginTab = originTab,
+                            IsGridTask = st.IsGridTask,
+                            XValue = st.XValue,
+                            YValue = st.YValue,
+                            GridConfig = st.GridConfig
+                        };
+
+                        EnqueueTaskInternal(task, originTab.Workflow.JsonClone());
+                        importedCount++;
+                    }
+                    else
+                    {
+                        Logger.Log($"Skipping task from imported queue: Origin workflow '{st.OriginTabFilePath}' is not open.", LogLevel.Warning);
+                    }
+                }
+        
+                if (importedCount > 0)
+                {
+                    Logger.LogToConsole($"Successfully imported {importedCount} tasks from '{dialog.FileName}'.");
+                }
+                else
+                {
+                    MessageBox.Show("No tasks were imported. Ensure the required workflow tabs are open.", "Import Queue", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex, "Failed to import queue from file.");
+                MessageBox.Show($"Failed to import queue: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         
         /// <summary>

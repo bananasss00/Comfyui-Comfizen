@@ -3104,8 +3104,14 @@
                                                 Width="60" />
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
+                                <Button Content="&#xE74E;" Style="{StaticResource IconButton}"
+                                        Command="{Binding SaveQueueCommand}" Margin="0,0,5,0"
+                                        ToolTip="Save current queue to file" />
+                                <Button Content="&#xE8B5;" Style="{StaticResource IconButton}"
+                                        Command="{Binding ImportQueueCommand}"
+                                        ToolTip="Import queue from file" />
                                 <ToggleButton Command="{Binding TogglePauseQueueCommand}"
-                                              IsChecked="{Binding IsQueuePaused, Mode=OneWay}" Margin="0,0,5,0">
+                                              IsChecked="{Binding IsQueuePaused, Mode=OneWay}" Margin="5,0,5,0">
                                     <ToggleButton.Style>
                                         <Style TargetType="ToggleButton" BasedOn="{StaticResource IconToggleButton}">
                                             <Setter Property="Content" Value="&#xE769;" />
