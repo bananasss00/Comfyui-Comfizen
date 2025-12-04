@@ -458,5 +458,8 @@
   "UIConstructor_ConfirmAttachmentRemovalTitle": "Confirm Removal",
   "UIConstructor_ConfirmAttachmentRemovalMessage": "Are you sure you want to remove the attached workflow file?",
   "Toolbar_SaveChangesTooltip": "Save current values to the workflow file",
-  "Toolbar_ExportStateTooltip": "Export current state for ComfyUI"
+  "Toolbar_ExportStateTooltip": "Export current state for ComfyUI",
+  "UIConstructor_PreserveValuesTitle": "Preserve Values?",
+  "UIConstructor_PreserveValuesMessage": "Do you want to attempt to preserve current widget values after replacing the API?\n\nIf 'Yes', the program will try to transfer settings from the old process to the new one for matching fields.",
+  "UIConstructor_RestoredValuesMessage": "Successfully restored {0} values."
 }

@@ -457,5 +457,8 @@
   "UIConstructor_ConfirmAttachmentRemovalTitle": "Подтвердите удаление",
   "UIConstructor_ConfirmAttachmentRemovalMessage": "Вы уверены, что хотите удалить прикрепленный файл рабочего процесса?",
   "Toolbar_SaveChangesTooltip": "Сохранить текущие значения в файл воркфлоу",
-  "Toolbar_ExportStateTooltip": "Экспортировать текущее состояние для ComfyUI"
+  "Toolbar_ExportStateTooltip": "Экспортировать текущее состояние для ComfyUI",
+  "UIConstructor_PreserveValuesTitle": "Сохранить значения?",
+  "UIConstructor_PreserveValuesMessage": "Вы хотите попытаться сохранить текущие значения виджетов после замены API?\n\nЕсли нажать 'Да', программа попытается перенести настройки из старого процесса в новый для совпадающих полей.",
+  "UIConstructor_RestoredValuesMessage": "Успешно восстановлено значений: {0}."
 }

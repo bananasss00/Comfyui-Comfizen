@@ -1463,31 +1463,25 @@ namespace Comfizen
 
         private void LoadApiWorkflow()
         {
-            // Check if we need to warn the user before clearing snapshots
-            if (Workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields).Any(f => f.Type == FieldType.NodeBypass))
-            {
-                var confirmation = MessageBox.Show(
-                    LocalizationService.Instance["UIConstructor_ConfirmApiReplaceMessage"],
-                    LocalizationService.Instance["UIConstructor_ConfirmApiReplaceTitle"],
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-                
-                if (confirmation != MessageBoxResult.Yes)
-                {
-                    return; // User cancelled the operation
-                }
-            }
-            
             var dialog = new OpenFileDialog { Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*" };
             if (dialog.ShowDialog() == true)
             {
-                Workflow.NodeConnectionSnapshots.Clear(); // This is now safe
-                Workflow.LoadApiWorkflow(dialog.FileName);
-                UpdateAvailableFields();
-                UpdateWorkflowNodesList();
-                ValidateFieldPaths();
-                _apiWasReplaced = true;
-                RefreshBypassNodeFields();
+                try
+                {
+                    var jsonContent = File.ReadAllText(dialog.FileName);
+                    var apiJson = JObject.Parse(jsonContent);
+            
+                    // Centralized logic call
+                    ReplaceApiWorkflow(apiJson);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        string.Format(LocalizationService.Instance["MainVM_ImportGenericError"], ex.Message),
+                        LocalizationService.Instance["MainVM_ImportErrorTitle"],
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
             }
             RefreshActionNames();
         }
@@ -1498,7 +1492,9 @@ namespace Comfizen
         /// <param name="apiJson">The JObject of the new API definition.</param>
         public void ReplaceApiWorkflow(JObject apiJson)
         {
-            // 1. Check for bypass fields warning (existing logic)
+            if (apiJson == null) return;
+
+            // 1. Bypass Logic Warning (Existing)
             if (Workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields).Any(f => f.Type == FieldType.NodeBypass))
             {
                 var confirmation = MessageBox.Show(
@@ -1513,16 +1509,20 @@ namespace Comfizen
                 }
             }
 
-            // 2. Ask user if they want to preserve current values
-            bool preserveValues = MessageBox.Show(
-                "Do you want to attempt to preserve current widget values?",
-                "Preserve State",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+            // 2. Smart Merge: Ask user to preserve values
+            var preserveResult = MessageBox.Show(
+                LocalizationService.Instance["UIConstructor_PreserveValuesMessage"],
+                LocalizationService.Instance["UIConstructor_PreserveValuesTitle"],
+                MessageBoxButton.YesNoCancel, 
+                MessageBoxImage.Question);
 
+            if (preserveResult == MessageBoxResult.Cancel) return;
+
+            bool shouldPreserve = preserveResult == MessageBoxResult.Yes;
             Dictionary<string, JToken> savedValues = new Dictionary<string, JToken>();
 
-            // 3. Snapshot current values before replacement
-            if (preserveValues && Workflow.LoadedApi != null)
+            // 3. Snapshot current values if requested
+            if (shouldPreserve && Workflow.LoadedApi != null)
             {
                 // Iterate through all fields currently defined in the UI
                 foreach (var group in Workflow.Groups)
@@ -1552,7 +1552,7 @@ namespace Comfizen
             _apiWasReplaced = true;
 
             // 5. Restore values into the NEW LoadedApi
-            if (preserveValues && savedValues.Count > 0)
+            if (shouldPreserve && savedValues.Count > 0)
             {
                 int restoredCount = 0;
                 foreach (var kvp in savedValues)
@@ -1563,20 +1563,23 @@ namespace Comfizen
                     // Try to find the same path in the NEW API
                     var newProp = Utils.GetJsonPropertyByPath(Workflow.LoadedApi, path);
                     
-                    // Only restore if the property exists and types are compatible
+                    // Only restore if the property exists
                     if (newProp != null)
                     {
-                        // Optional: Check if types match to avoid crashing on changed node types
-                        if (newProp.Value.Type == value.Type || 
-                           (newProp.Value.Type == JTokenType.Float && value.Type == JTokenType.Integer) ||
-                           (newProp.Value.Type == JTokenType.Integer && value.Type == JTokenType.Float))
+                        // Basic type compatibility check to prevent errors if node types changed
+                        bool isCompatible = (newProp.Value.Type == value.Type) ||
+                                            (newProp.Value.Type == JTokenType.Float && value.Type == JTokenType.Integer) ||
+                                            (newProp.Value.Type == JTokenType.Integer && value.Type == JTokenType.Float);
+
+                        if (isCompatible)
                         {
                             newProp.Value = value;
                             restoredCount++;
                         }
                     }
                 }
-                Logger.LogToConsole($"Restored values for {restoredCount} widgets after API replacement.");
+                
+                Logger.LogToConsole(string.Format(LocalizationService.Instance["UIConstructor_RestoredValuesMessage"], restoredCount));
             }
 
             // 6. Refresh UI elements
@@ -1586,6 +1589,12 @@ namespace Comfizen
             UpdateExistingFieldMetadata();
             RefreshActionNames();
             RefreshBypassNodeFields();
+            
+            MessageBox.Show(
+                LocalizationService.Instance["UIConstructor_ApiReplacedSuccess"],
+                LocalizationService.Instance["UIConstructor_ApiReplacedTitle"],
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
         
         /// <summary>
@@ -3781,18 +3790,13 @@ namespace Comfizen
                         var jsonContent = File.ReadAllText(filePath);
                         var apiJson = JObject.Parse(jsonContent);
 
-                        // Heuristic check to ensure it's not a full Comfizen workflow.
+                        // Check if it's a raw API file (not a full Comfizen workflow)
                         if (apiJson["prompt"] == null || apiJson["promptTemplate"] == null)
                         {
-                            // english: Get the ViewModel and replace the API of the current workflow.
                             if (DataContext is UIConstructorView vm)
                             {
+                                // Centralized logic call
                                 vm.ReplaceApiWorkflow(apiJson);
-                                MessageBox.Show(
-                                    LocalizationService.Instance["UIConstructor_ApiReplacedSuccess"],
-                                    LocalizationService.Instance["UIConstructor_ApiReplacedTitle"],
-                                    MessageBoxButton.OK,
-                                    MessageBoxImage.Information);
                             }
                         }
                     }
