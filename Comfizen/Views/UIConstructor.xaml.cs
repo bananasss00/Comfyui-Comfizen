@@ -1498,7 +1498,7 @@ namespace Comfizen
         /// <param name="apiJson">The JObject of the new API definition.</param>
         public void ReplaceApiWorkflow(JObject apiJson)
         {
-            // Check if we need to warn the user before clearing snapshots
+            // 1. Check for bypass fields warning (existing logic)
             if (Workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields).Any(f => f.Type == FieldType.NodeBypass))
             {
                 var confirmation = MessageBox.Show(
@@ -1509,15 +1509,77 @@ namespace Comfizen
 
                 if (confirmation != MessageBoxResult.Yes)
                 {
-                    return; // User cancelled the operation
+                    return;
                 }
             }
 
-            Workflow.NodeConnectionSnapshots.Clear(); // This is now safe
+            // 2. Ask user if they want to preserve current values
+            bool preserveValues = MessageBox.Show(
+                "Do you want to attempt to preserve current widget values?",
+                "Preserve State",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+
+            Dictionary<string, JToken> savedValues = new Dictionary<string, JToken>();
+
+            // 3. Snapshot current values before replacement
+            if (preserveValues && Workflow.LoadedApi != null)
+            {
+                // Iterate through all fields currently defined in the UI
+                foreach (var group in Workflow.Groups)
+                {
+                    foreach (var tab in group.Tabs)
+                    {
+                        foreach (var field in tab.Fields)
+                        {
+                            // Skip virtual fields
+                            if (string.IsNullOrEmpty(field.Path) || field.Path.StartsWith("virtual_")) continue;
+
+                            // Try to get the current value from the OLD LoadedApi
+                            var prop = Utils.GetJsonPropertyByPath(Workflow.LoadedApi, field.Path);
+                            if (prop != null)
+                            {
+                                // Save a deep clone of the value
+                                savedValues[field.Path] = prop.Value.DeepClone();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Perform the replacement
+            Workflow.NodeConnectionSnapshots.Clear();
             Workflow.LoadApiWorkflow(apiJson);
             _apiWasReplaced = true;
-    
-            // Refresh all UI elements that depend on the API.
+
+            // 5. Restore values into the NEW LoadedApi
+            if (preserveValues && savedValues.Count > 0)
+            {
+                int restoredCount = 0;
+                foreach (var kvp in savedValues)
+                {
+                    var path = kvp.Key;
+                    var value = kvp.Value;
+
+                    // Try to find the same path in the NEW API
+                    var newProp = Utils.GetJsonPropertyByPath(Workflow.LoadedApi, path);
+                    
+                    // Only restore if the property exists and types are compatible
+                    if (newProp != null)
+                    {
+                        // Optional: Check if types match to avoid crashing on changed node types
+                        if (newProp.Value.Type == value.Type || 
+                           (newProp.Value.Type == JTokenType.Float && value.Type == JTokenType.Integer) ||
+                           (newProp.Value.Type == JTokenType.Integer && value.Type == JTokenType.Float))
+                        {
+                            newProp.Value = value;
+                            restoredCount++;
+                        }
+                    }
+                }
+                Logger.LogToConsole($"Restored values for {restoredCount} widgets after API replacement.");
+            }
+
+            // 6. Refresh UI elements
             UpdateAvailableFields();
             UpdateWorkflowNodesList();
             ValidateFieldPaths();
