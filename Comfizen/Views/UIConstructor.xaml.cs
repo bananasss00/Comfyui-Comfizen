@@ -1509,36 +1509,37 @@ namespace Comfizen
                 }
             }
 
-            // 2. Smart Merge: Ask user to preserve values
-            var preserveResult = MessageBox.Show(
-                LocalizationService.Instance["UIConstructor_PreserveValuesMessage"],
-                LocalizationService.Instance["UIConstructor_PreserveValuesTitle"],
-                MessageBoxButton.YesNoCancel, 
-                MessageBoxImage.Question);
+            bool shouldPreserve = false;
+            bool workflowExist = Workflow.LoadedApi != null;
+            if (workflowExist)
+            {
+                var preserveResult = MessageBox.Show(
+                    LocalizationService.Instance["UIConstructor_PreserveValuesMessage"],
+                    LocalizationService.Instance["UIConstructor_PreserveValuesTitle"],
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
 
-            if (preserveResult == MessageBoxResult.Cancel) return;
+                if (preserveResult == MessageBoxResult.Cancel) return;
 
-            bool shouldPreserve = preserveResult == MessageBoxResult.Yes;
+                shouldPreserve = preserveResult == MessageBoxResult.Yes;
+            }
+
             Dictionary<string, JToken> savedValues = new Dictionary<string, JToken>();
 
             // 3. Snapshot current values if requested
-            if (shouldPreserve && Workflow.LoadedApi != null)
+            if (shouldPreserve && workflowExist)
             {
-                // Iterate through all fields currently defined in the UI
                 foreach (var group in Workflow.Groups)
                 {
                     foreach (var tab in group.Tabs)
                     {
                         foreach (var field in tab.Fields)
                         {
-                            // Skip virtual fields
                             if (string.IsNullOrEmpty(field.Path) || field.Path.StartsWith("virtual_")) continue;
 
-                            // Try to get the current value from the OLD LoadedApi
                             var prop = Utils.GetJsonPropertyByPath(Workflow.LoadedApi, field.Path);
                             if (prop != null)
                             {
-                                // Save a deep clone of the value
                                 savedValues[field.Path] = prop.Value.DeepClone();
                             }
                         }
@@ -1560,13 +1561,11 @@ namespace Comfizen
                     var path = kvp.Key;
                     var value = kvp.Value;
 
-                    // Try to find the same path in the NEW API
                     var newProp = Utils.GetJsonPropertyByPath(Workflow.LoadedApi, path);
                     
-                    // Only restore if the property exists
                     if (newProp != null)
                     {
-                        // Basic type compatibility check to prevent errors if node types changed
+                        // Basic type compatibility check
                         bool isCompatible = (newProp.Value.Type == value.Type) ||
                                             (newProp.Value.Type == JTokenType.Float && value.Type == JTokenType.Integer) ||
                                             (newProp.Value.Type == JTokenType.Integer && value.Type == JTokenType.Float);
@@ -1589,12 +1588,15 @@ namespace Comfizen
             UpdateExistingFieldMetadata();
             RefreshActionNames();
             RefreshBypassNodeFields();
-            
-            MessageBox.Show(
-                LocalizationService.Instance["UIConstructor_ApiReplacedSuccess"],
-                LocalizationService.Instance["UIConstructor_ApiReplacedTitle"],
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+
+            if (workflowExist)
+            {
+                MessageBox.Show(
+                    LocalizationService.Instance["UIConstructor_ApiReplacedSuccess"],
+                    LocalizationService.Instance["UIConstructor_ApiReplacedTitle"],
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
         }
         
         /// <summary>
