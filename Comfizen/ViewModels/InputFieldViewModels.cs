@@ -3243,38 +3243,32 @@ namespace Comfizen
             }
             set
             {
-                // 1. Calculate the value snapped to the step
-                var step = StepValue;
-                if (step <= 0) step = 1e-9; // Protect against division by zero
-                var snappedValue = System.Math.Round((value - MinValue) / step) * step + MinValue;
-
-                // 2. Create a JToken of the correct type (Integer or Float)
+                // --- START OF CHANGE: Remove snapping to step logic ---
+                // We allow any value entered by the user. The Slider UI control 
+                // will handle snapping visually, but the text input remains precise.
+                
                 JToken newValueToken;
                 if (Type == FieldType.SliderInt)
                 {
-                    // For integer sliders, round to the nearest whole number.
-                    var intValue = Convert.ToInt64(System.Math.Round(snappedValue));
+                    // For integer sliders, we must ensure it's a whole number.
+                    var intValue = Convert.ToInt64(Math.Round(value));
                     newValueToken = new JValue(intValue);
                 }
                 else // SliderFloat
                 {
-                    // For float sliders, round to the specified precision.
-                    var precision = _field.Precision ?? 2;
-                    var roundedFloatValue = System.Math.Round(snappedValue, precision);
-                    newValueToken = new JValue(roundedFloatValue);
+                    // For float sliders, use the exact value provided (e.g. from manual text input).
+                    // We bypass the Precision setting here to allow custom fine-tuning.
+                    newValueToken = new JValue(value);
                 }
         
-                // 3. Update the underlying JObject and notify the UI only if the value has actually changed.
-                // This prevents infinite update loops.
                 if (!JToken.DeepEquals(Property.Value, newValueToken))
                 {
                     Property.Value = newValueToken;
             
-                    // Notify the UI that both the raw value and the formatted text have changed.
-                    // WPF will automatically update the slider's position to the final value.
                     OnPropertyChanged(nameof(Value));
                     OnPropertyChanged(nameof(FormattedValue));
                 }
+                // --- END OF CHANGE ---
             }
         }
 

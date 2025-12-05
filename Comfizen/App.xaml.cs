@@ -965,21 +965,31 @@ namespace Comfizen
         {
             if (sender is not Slider slider || !slider.IsMouseCaptured || e.LeftButton != MouseButtonState.Pressed) return;
 
-            // Recalculate and update the value as the mouse moves.
+            // 1. Считаем "сырое" значение по позиции курсора
             Point position = e.GetPosition(slider);
-            double newValue = (position.X / slider.ActualWidth) * (slider.Maximum - slider.Minimum) + slider.Minimum;
-    
-            // Clamp the value to stay within the slider's Minimum and Maximum bounds.
-            if (newValue < slider.Minimum)
+            double rawValue = (position.X / slider.ActualWidth) * (slider.Maximum - slider.Minimum) + slider.Minimum;
+
+            // 2. Реализуем "прилипание" к шагу (Step/SmallChange)
+            double step = slider.SmallChange;
+            if (step > 0)
             {
-                newValue = slider.Minimum;
-            }
-            else if (newValue > slider.Maximum)
-            {
-                newValue = slider.Maximum;
+                // Округляем до ближайшего шага
+                double snappedValue = Math.Round((rawValue - slider.Minimum) / step) * step + slider.Minimum;
+                
+                // Для SliderInt убедимся, что это целое число
+                if (slider.DataContext is SliderFieldViewModel vm && vm.Type == FieldType.SliderInt)
+                {
+                    snappedValue = Math.Round(snappedValue);
+                }
+                
+                rawValue = snappedValue;
             }
 
-            slider.Value = newValue;
+            // 3. Ограничиваем Min/Max
+            if (rawValue < slider.Minimum) rawValue = slider.Minimum;
+            if (rawValue > slider.Maximum) rawValue = slider.Maximum;
+
+            slider.Value = rawValue;
         }
 
         /// <summary>

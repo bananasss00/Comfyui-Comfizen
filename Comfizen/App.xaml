@@ -1992,7 +1992,7 @@
                             </TextBlock.Style>
                         </TextBlock>
                         <TextBox x:Name="ValueTextBox" 
-                                 Text="{Binding Value, StringFormat={}{0:G}, UpdateSourceTrigger=Explicit}"
+                                 Text="{Binding Value, StringFormat={}{0:0.######}, UpdateSourceTrigger=Explicit}"
                                  Visibility="Collapsed"
                                  LostFocus="ValueTextBox_LostFocus"
                                  KeyDown="ValueTextBox_KeyDown"/>
