@@ -3008,7 +3008,30 @@ namespace Comfizen
     }
 
     // --- Конкретные реализации ---
+    
+    public class FilePreviewItem
+    {
+        public string FullPath { get; set; }
+        public string FileName => System.IO.Path.GetFileName(FullPath);
+        public bool Exists { get; set; }
+        public bool IsImage { get; set; }
+        public bool IsVideo { get; set; }
+        public bool IsOther => Exists && !IsImage && !IsVideo;
 
+        public FilePreviewItem(string path)
+        {
+            FullPath = path.Trim().Replace("\"", ""); // Clean quotes if present
+            Exists = File.Exists(FullPath);
+
+            if (Exists)
+            {
+                var ext = System.IO.Path.GetExtension(FullPath).ToLowerInvariant();
+                IsImage = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".webp", ".gif" }.Contains(ext);
+                IsVideo = new[] { ".mp4", ".mov", ".avi", ".mkv", ".webm" }.Contains(ext);
+            }
+        }
+    }
+    
     public class TextFieldViewModel : InputFieldViewModel
     {
         public string Value
@@ -3045,11 +3068,9 @@ namespace Comfizen
                 if (value == null)
                 {
                     Property.Value = "";
-                    return;
                 }
-
                 // Attempt to parse the string as a double.
-                if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out double numericValue))
+                else if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out double numericValue))
                 {
                     // Check for non-canonical forms that indicate the user is still typing or wants to preserve formatting.
                     // Case 1: Ends with a decimal separator (e.g., "123.").
@@ -3080,6 +3101,9 @@ namespace Comfizen
                     // If it's not a valid number at all, store it as a string.
                     Property.Value = new JValue(value);
                 }
+                
+                OnPropertyChanged(nameof(Value));
+                UpdatePreviewItems();
             }
         }
         
@@ -3112,15 +3136,105 @@ namespace Comfizen
             Property.Value = new JValue(base64String);
             OnPropertyChanged(nameof(Value));
         }
+        
+        private ObservableCollection<FilePreviewItem> _previewItems;
+        public ObservableCollection<FilePreviewItem> PreviewItems
+        {
+            get
+            {
+                if (_previewItems == null) UpdatePreviewItems();
+                return _previewItems;
+            }
+            set 
+            {
+                _previewItems = value;
+                OnPropertyChanged(nameof(PreviewItems));
+            }
+        }
 
+        public ICommand OpenInExplorerCommand { get; }
+        public ICommand RefreshPreviewCommand { get; }
+
+        // Triggered when text changes
+        public bool IsPreviewVisible
+        {
+            get
+            {
+                // Если пусто - скрываем всегда
+                if (string.IsNullOrWhiteSpace(Value)) return false;
+
+                // Для типа FilePath: показываем всегда (если не пусто), 
+                // даже если файл не найден (чтобы видеть статус [Missing])
+                if (Type == FieldType.FilePath) return true;
+
+                // Для типа Any: показываем ТОЛЬКО если найден хотя бы один существующий файл
+                // (PreviewItems заполняется в UpdatePreviewItems)
+                if (Type == FieldType.Any)
+                {
+                    // Проверяем, есть ли в списке хоть один существующий файл
+                    return PreviewItems != null && PreviewItems.Any(item => item.Exists);
+                }
+
+                return false;
+            }
+        }
+
+        // 2. Обновляем метод UpdatePreviewItems
+        private void UpdatePreviewItems()
+        {
+            var list = new ObservableCollection<FilePreviewItem>();
+            if (!string.IsNullOrWhiteSpace(Value))
+            {
+                // Разбиваем по переносам строк, запятым, и удаляем кавычки
+                var paths = Value.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var rawPath in paths)
+                {
+                    // Очистка пути от кавычек, если они есть
+                    var cleanPath = rawPath.Trim().Trim('"');
+                    if (string.IsNullOrWhiteSpace(cleanPath)) continue;
+                    
+                    list.Add(new FilePreviewItem(cleanPath));
+                }
+            }
+            PreviewItems = list;
+            
+            // ВАЖНО: Уведомляем UI, что видимость кнопки могла измениться
+            OnPropertyChanged(nameof(IsPreviewVisible));
+        }
+        
+        private void OpenInExplorer(string path)
+        {
+            if (File.Exists(path))
+            {
+                try
+                {
+                    // Opens explorer with file selected
+                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, $"Failed to open explorer for: {path}");
+                }
+            }
+        }
+        
         public TextFieldViewModel(WorkflowField field, JProperty property, string nodeTitle = null, string nodeType = null) : base(field, property, nodeTitle, nodeType)
         {
             Type = field.Type;
+            
+            OpenInExplorerCommand = new RelayCommand(p =>
+            {
+                if (p is string path) OpenInExplorer(path);
+            });
+            
+            // Re-parse when popup opens
+            RefreshPreviewCommand = new RelayCommand(_ => UpdatePreviewItems());
         }
         
         public override void RefreshValue()
         {
             OnPropertyChanged(nameof(Value));
+            UpdatePreviewItems(); 
         }
     }
 

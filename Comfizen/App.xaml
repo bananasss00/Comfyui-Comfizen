@@ -1866,9 +1866,36 @@
                     </StackPanel>
                 </Grid>
             </DataTemplate>
-
+            
+            <Style x:Key="OverlayIconToggleButtonStyle" TargetType="ToggleButton">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Width" Value="24"/>
+                <Setter Property="Height" Value="24"/>
+                <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="3">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{StaticResource TertiaryBackground}"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                    </Trigger>
+                    <Trigger Property="IsChecked" Value="True">
+                        <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+                        <Setter Property="Foreground" Value="White"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+                
             <DataTemplate x:Key="AnyTypeTemplate" DataType="{x:Type local:TextFieldViewModel}">
-                <!-- WRAP IN GRID TO OVERLAY BUTTONS -->
                 <Grid>
                     <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                              AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="100"
@@ -1876,19 +1903,124 @@
                              PreviewDragOver="TextBox_PreviewDragOver"
                              Drop="TextBox_Drop"
                              PreviewKeyDown="TextBox_PreviewKeyDown"
-                             x:Name="AnyTypeTextBox" Padding="5,5,28,5"/>
-                    <!-- UNDO/REDO BUTTONS -->
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
-                                Visibility="{Binding Source={x:Static local:SettingsService.Instance}, Path=Settings.ShowUndoRedoButtons, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <Button Content="&#xE7A7;" Style="{StaticResource IconFontOverlayButton}"
-                                Command="ApplicationCommands.Undo" CommandTarget="{Binding ElementName=AnyTypeTextBox}"
-                                ToolTip="{local:Translate Toolbar_Undo}"/>
-                        <Button Content="&#xE7A6;" Style="{StaticResource IconFontOverlayButton}"
-                                Command="ApplicationCommands.Redo" CommandTarget="{Binding ElementName=AnyTypeTextBox}"
-                                ToolTip="{local:Translate Toolbar_Redo}"/>
+                             x:Name="AnyTypeTextBox" 
+                             Padding="5,5,55,5"/>
+
+                    <!-- RIGHT-SIDE BUTTONS STACK -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0">
+                        
+                        <!-- PREVIEW BUTTON (EYE) -->
+                        <ToggleButton x:Name="PreviewToggle"
+                                      Style="{StaticResource OverlayIconToggleButtonStyle}"
+                                      Content="&#xE7B3;" 
+                                      ToolTip="Preview Files / Open Explorer"
+                                      Command="{Binding RefreshPreviewCommand}"
+                                      Width="24" Height="24"
+                                      Margin="0,0,2,0">
+                            <ToggleButton.Visibility>
+                                <!-- По умолчанию скрыто -->
+                                <Binding Path="IsPreviewVisible" Converter="{StaticResource BooleanToVisibilityConverter}"/>
+                            </ToggleButton.Visibility>
+                        </ToggleButton>
+
+                        <Popup IsOpen="{Binding IsChecked, ElementName=PreviewToggle, Mode=TwoWay}"
+                               StaysOpen="False"
+                               PlacementTarget="{Binding ElementName=AnyTypeTextBox}"
+                               Placement="Bottom"
+                               AllowsTransparency="True"
+                               PopupAnimation="Slide">
+                            <Border Background="{StaticResource SecondaryBackground}"
+                                    BorderBrush="{StaticResource TertiaryBackground}"
+                                    BorderThickness="1"
+                                    CornerRadius="3"
+                                    Padding="5"
+                                    MaxHeight="400"
+                                    Width="{Binding ActualWidth, ElementName=AnyTypeTextBox}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding PreviewItems}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:FilePreviewItem}">
+                                                <Border Margin="0,0,0,5" Padding="5" Background="{StaticResource PrimaryBackground}" CornerRadius="3">
+                                                    <StackPanel>
+                                                        <!-- Header: Filename + Status -->
+                                                        <Grid Margin="0,0,0,5">
+                                                            <TextBlock Text="{Binding FileName}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="[Missing]" Foreground="{StaticResource ErrorBrush}" HorizontalAlignment="Right"
+                                                                       Visibility="{Binding Exists, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=invert}"/>
+                                                        </Grid>
+
+                                                        <!-- IMAGE PREVIEW -->
+                                                        <Image Source="{Binding FullPath}" Stretch="Uniform" MaxHeight="200"
+                                                               Visibility="{Binding IsImage, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                               RenderOptions.BitmapScalingMode="Fant">
+                                                            <Image.ToolTip>
+                                                                <Image Source="{Binding FullPath}" MaxHeight="500"/>
+                                                            </Image.ToolTip>
+                                                        </Image>
+
+                                                        <!-- VIDEO PREVIEW -->
+                                                        <MediaElement Source="{Binding FullPath}" LoadedBehavior="Play" UnloadedBehavior="Stop" IsMuted="True"
+                                                                      Stretch="Uniform" MaxHeight="200"
+                                                                      Visibility="{Binding IsVideo, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                            <MediaElement.ToolTip>
+                                                                <ToolTip>
+                                                                    <MediaElement Source="{Binding FullPath}" LoadedBehavior="Play" UnloadedBehavior="Stop" IsMuted="True" 
+                                                                        Stretch="Uniform" MaxHeight="500" />
+                                                                </ToolTip>
+                                                            </MediaElement.ToolTip>
+                                                        </MediaElement>
+
+                                                        <!-- OPEN IN EXPLORER BUTTON -->
+                                                        <Button Content="Open in Explorer"
+                                                                Command="{Binding DataContext.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding FullPath}"
+                                                                Style="{StaticResource TextButtonStyle}"
+                                                                FontSize="11"
+                                                                Margin="0,5,0,0"
+                                                                Visibility="{Binding Exists, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+
+                        <!-- UNDO/REDO BUTTONS -->
+                        <!-- Логика видимости: (GlobalSetting=True) И (IsPreviewVisible=False) -->
+                        <StackPanel Orientation="Horizontal">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <!-- По умолчанию: берем настройку из Settings -->
+                                    <Setter Property="Visibility" Value="{Binding Source={x:Static local:SettingsService.Instance}, Path=Settings.ShowUndoRedoButtons, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    <Style.Triggers>
+                                        <!-- Если кнопка превью видна -> скрываем Undo/Redo -->
+                                        <DataTrigger Binding="{Binding IsPreviewVisible}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <!-- Если глобальная настройка выключена -> скрываем в любом случае (это уже делает Setter выше, но триггер надежнее перекрывает) -->
+                                        <DataTrigger Binding="{Binding Source={x:Static local:SettingsService.Instance}, Path=Settings.ShowUndoRedoButtons}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            
+                            <Button Content="&#xE7A7;" Style="{StaticResource IconFontOverlayButton}"
+                                    Command="ApplicationCommands.Undo" CommandTarget="{Binding ElementName=AnyTypeTextBox}"
+                                    ToolTip="{local:Translate Toolbar_Undo}"/>
+                            <Button Content="&#xE7A6;" Style="{StaticResource IconFontOverlayButton}"
+                                    Command="ApplicationCommands.Redo" CommandTarget="{Binding ElementName=AnyTypeTextBox}"
+                                    ToolTip="{local:Translate Toolbar_Redo}"/>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </DataTemplate>
+
+  
+
+  
 
                 
             <DataTemplate x:Key="WildcardTemplate" DataType="{x:Type local:TextFieldViewModel}">
