@@ -1809,7 +1809,7 @@ namespace Comfizen
                 // --- END OF FIX 2 ---
             };
             
-            // LoadPresets();
+            LoadPresets();
             PopulateFieldsForPresetFilter();
             
             ApplyPresetCommand = new RelayCommand(p => ApplyPreset(p as GroupPresetViewModel));
@@ -2311,11 +2311,13 @@ namespace Comfizen
         
         public void LoadPresets()
         {
-            var hadPresetsBefore = AllPresets.Any(); // Check state before modification
+            var hadPresetsBefore = AllPresets.Any();
 
             AllPresets.Clear();
             
             var fieldLookup = new Dictionary<string, InputFieldViewModel>();
+            
+            // 1. Сценарий главного окна: Ищем поля во ViewModel
             foreach (var tab in Tabs)
             {
                 foreach (var field in tab.Fields)
@@ -2323,6 +2325,24 @@ namespace Comfizen
                     if (!string.IsNullOrEmpty(field.Path) && !fieldLookup.ContainsKey(field.Path))
                     {
                         fieldLookup[field.Path] = field;
+                    }
+                }
+            }
+
+            // 2. Сценарий Дизайнера (UIConstructor): ViewModel полей пуст, берем из Модели
+            if (fieldLookup.Count == 0)
+            {
+                foreach (var tabModel in _model.Tabs)
+                {
+                    foreach (var fieldModel in tabModel.Fields)
+                    {
+                        if (!string.IsNullOrEmpty(fieldModel.Path) && !fieldLookup.ContainsKey(fieldModel.Path))
+                        {
+                            // Создаем временную ViewModel-обертку для генератора тултипов.
+                            // JProperty передаем null, так как в дизайнере нам нужны только метаданные (Имя, Путь).
+                            // Тип поля не важен для отображения текста, используем TextFieldViewModel как универсальный контейнер.
+                            fieldLookup[fieldModel.Path] = new TextFieldViewModel(fieldModel, null);
+                        }
                     }
                 }
             }

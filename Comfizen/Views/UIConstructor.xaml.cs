@@ -1738,6 +1738,11 @@ namespace Comfizen
 
         private void SaveWorkflow(Window window)
         {
+            foreach (var groupVm in AllGroupViewModels)
+            {
+                RefreshPresetsForGroup(groupVm);
+            }
+            
             var workflowFullPath = Path.Combine(Workflow.WorkflowsDir, NewWorkflowName + ".json");
             
             var saveType = _apiWasReplaced ? WorkflowSaveType.ApiReplaced : WorkflowSaveType.LayoutOnly;
@@ -2059,7 +2064,15 @@ namespace Comfizen
                 }
             }
         }
-
+        
+        public void RefreshPresetsForGroup(WorkflowGroupViewModel groupVm)
+        {
+            if (groupVm != null)
+            {
+                groupVm.LoadPresets();
+            }
+        }
+        
         private void UpdateAvailableFields()
         {
             if (!Workflow.IsLoaded)
