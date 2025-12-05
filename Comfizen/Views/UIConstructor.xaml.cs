@@ -3735,14 +3735,38 @@ namespace Comfizen
         private void ClosePopupOnClick(object sender, RoutedEventArgs e)
         {
             var element = sender as DependencyObject;
+            
             while (element != null)
             {
-                if (element is Popup popup)
+                if (element is System.Windows.Controls.Primitives.Popup popup)
                 {
                     popup.IsOpen = false;
                     return;
                 }
-                element = LogicalTreeHelper.GetParent(element);
+                
+                var logicalParent = LogicalTreeHelper.GetParent(element);
+                
+                if (logicalParent == null)
+                {
+                    if (element is Visual || element is System.Windows.Media.Media3D.Visual3D)
+                    {
+                        element = VisualTreeHelper.GetParent(element);
+                    }
+                    else
+                    {
+                        element = null;
+                    }
+                }
+                else
+                {
+                    element = logicalParent;
+                }
+                
+                if (element is FrameworkElement fe && fe.Parent is System.Windows.Controls.Primitives.Popup parentPopup)
+                {
+                    parentPopup.IsOpen = false;
+                    return;
+                }
             }
         }
 
