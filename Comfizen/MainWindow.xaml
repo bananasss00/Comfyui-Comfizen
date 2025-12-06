@@ -2786,7 +2786,36 @@
         </Grid>
 
         <local:SliderCompareView DataContext="{Binding SliderCompare}" Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="99" />
-
+        
+        <Popup x:Name="GlobalPresetDeleteConfirmationPopup"
+               DataContext="{Binding SelectedTab.WorkflowInputsController.GlobalControls}"
+               IsOpen="{Binding IsDeleteConfirmationOpen, Mode=TwoWay}"
+               StaysOpen="False"
+               Placement="Center"
+               AllowsTransparency="True"
+               Panel.ZIndex="100">
+            <Border Background="{StaticResource SecondaryBackground}"
+                    BorderBrush="{StaticResource PrimaryAccentBrush}"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    MinWidth="350"
+                    Padding="15">
+                <StackPanel>
+                    <TextBlock Text="{local:Translate GlobalPresets_DeleteConfirmTitle}" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+                    <TextBlock Text="{Binding DeleteConfirmationMessage}" TextWrapping="Wrap" Margin="0,0,0,15"/>
+                
+                    <CheckBox IsChecked="{Binding ShouldDeleteSubPresets, Mode=TwoWay}" Margin="0,0,0,20">
+                        <TextBlock Text="{Binding DeleteSubPresetsMessage}" TextWrapping="Wrap"/>
+                    </CheckBox>
+                
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="{local:Translate GlobalPresets_Cancel}" Command="{Binding CancelDeletionCommand}" IsCancel="True" Margin="0,0,10,0"/>
+                        <Button Content="{local:Translate GlobalPresets_Confirm}" Command="{Binding ConfirmDeletePresetCommand}" IsDefault="True" Background="{StaticResource ErrorBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Popup>
+        
         <Popup x:Name="GroupNavigationPopup"
                IsOpen="{Binding IsGroupNavigationPopupOpen}"
                StaysOpen="False"

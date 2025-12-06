@@ -461,5 +461,10 @@
   "Toolbar_ExportStateTooltip": "Export current state for ComfyUI",
   "UIConstructor_PreserveValuesTitle": "Preserve Values?",
   "UIConstructor_PreserveValuesMessage": "Do you want to attempt to preserve current widget values after replacing the API?\n\nIf 'Yes', the program will try to transfer settings from the old process to the new one for matching fields.",
-  "UIConstructor_RestoredValuesMessage": "Successfully restored {0} values."
+  "UIConstructor_RestoredValuesMessage": "Successfully restored {0} values.",
+  "GlobalPresets_DeleteConfirmMessage": "Are you sure you want to permanently delete the global preset '{0}'?",
+  "GlobalPresets_DeleteConfirmTitle": "Confirm Deletion",
+  "GlobalPresets_DeleteAssociatedPresets": "Also delete associated group presets ({0} items)",
+  "GlobalPresets_Confirm": "Delete",
+  "GlobalPresets_Cancel": "Cancel"
 }

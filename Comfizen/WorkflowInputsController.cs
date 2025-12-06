@@ -400,28 +400,39 @@ public class WorkflowInputsController : INotifyPropertyChanged
         PresetsModifiedInGroup?.Invoke();
     }
 
-    private void DeleteGlobalPreset(GlobalPreset presetToDelete)
+    private void DeleteGlobalPreset(GlobalPreset presetToDelete, bool deleteSubPresets)
     {
-        bool proceed = !_settings.ShowPresetDeleteConfirmation ||
-                       (MessageBox.Show(
-                           string.Format(LocalizationService.Instance["Presets_DeleteConfirmMessage"], presetToDelete.Name),
-                           LocalizationService.Instance["Presets_DeleteConfirmTitle"],
-                           MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
-
-        if (!proceed) return;
-
         var existing = _workflow.GlobalPresets.FirstOrDefault(p => p.Name == presetToDelete.Name);
-        if (existing != null)
+        if (existing == null) return;
+
+        if (deleteSubPresets)
         {
-            _workflow.GlobalPresets.Remove(existing);
-            
-            if (GlobalControls.GlobalPresets.Contains(presetToDelete))
+            var allGroupVms = TabLayoouts.SelectMany(t => t.Groups).ToList();
+            foreach (var groupState in presetToDelete.GroupStates)
             {
-                GlobalControls.GlobalPresets.Remove(presetToDelete);
+                var groupId = groupState.Key;
+                var groupPresetNames = groupState.Value;
+
+                var groupVm = allGroupVms.FirstOrDefault(g => g.Id == groupId);
+                if (groupVm == null) continue;
+
+                foreach (var presetName in groupPresetNames)
+                {
+                    // This will find and remove the preset from the workflow definition
+                    // and also update the group's internal preset list.
+                    groupVm.DeletePreset(presetName);
+                }
             }
-            
-            PresetsModifiedInGroup?.Invoke();
         }
+        
+        _workflow.GlobalPresets.Remove(existing);
+        
+        if (GlobalControls.GlobalPresets.Contains(presetToDelete))
+        {
+            GlobalControls.GlobalPresets.Remove(presetToDelete);
+        }
+        
+        PresetsModifiedInGroup?.Invoke();
     }
     
     /// <summary>

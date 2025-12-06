@@ -460,5 +460,10 @@
   "Toolbar_ExportStateTooltip": "Экспортировать текущее состояние для ComfyUI",
   "UIConstructor_PreserveValuesTitle": "Сохранить значения?",
   "UIConstructor_PreserveValuesMessage": "Вы хотите попытаться сохранить текущие значения виджетов после замены API?\n\nЕсли нажать 'Да', программа попытается перенести настройки из старого процесса в новый для совпадающих полей.",
-  "UIConstructor_RestoredValuesMessage": "Успешно восстановлено значений: {0}."
+  "UIConstructor_RestoredValuesMessage": "Успешно восстановлено значений: {0}.",
+  "GlobalPresets_DeleteConfirmMessage": "Вы уверены, что хотите навсегда удалить глобальный пресет '{0}'?",
+  "GlobalPresets_DeleteConfirmTitle": "Подтверждение удаления",
+  "GlobalPresets_DeleteAssociatedPresets": "Также удалить связанные пресеты групп ({0} шт.)",
+  "GlobalPresets_Confirm": "Удалить",
+  "GlobalPresets_Cancel": "Отмена"
 }

@@ -407,6 +407,40 @@ namespace Comfizen
         public string NewPresetDescription { get; set; }
         public string NewPresetCategory { get; set; }
         public ObservableCollection<string> NewPresetTags { get; set; } = new ObservableCollection<string>();
+        
+        private bool _isDeleteConfirmationOpen;
+        public bool IsDeleteConfirmationOpen
+        {
+            get => _isDeleteConfirmationOpen;
+            set
+            {
+                if (_isDeleteConfirmationOpen == value) return;
+                _isDeleteConfirmationOpen = value;
+                OnPropertyChanged(nameof(IsDeleteConfirmationOpen));
+                if (!value)
+                {
+                    // Reset on close
+                    PresetForDeletion = null;
+                    ShouldDeleteSubPresets = false;
+                }
+            }
+        }
+        public GlobalPreset PresetForDeletion { get; set; }
+        public bool ShouldDeleteSubPresets { get; set; }
+    
+        public string DeleteConfirmationMessage => PresetForDeletion == null 
+            ? "" 
+            : string.Format(LocalizationService.Instance["GlobalPresets_DeleteConfirmMessage"], PresetForDeletion.Name);
+        
+        public string DeleteSubPresetsMessage
+        {
+            get
+            {
+                if (PresetForDeletion == null) return "";
+                int count = PresetForDeletion.GroupStates.Values.Sum(list => list.Count);
+                return string.Format(LocalizationService.Instance["GlobalPresets_DeleteAssociatedPresets"], count);
+            }
+        }
 
         public ICommand ClearFiltersCommand { get; }
         public ICommand ToggleFavoriteCommand { get; }
@@ -417,10 +451,13 @@ namespace Comfizen
         public ICommand CancelSavePresetCommand { get; }
         public ICommand RandomizeAllSeedsCommand { get; }
         
+        public ICommand ConfirmDeletePresetCommand { get; }
+        public ICommand CancelDeletePresetCommand { get; }
+        
         private readonly Action<GlobalPreset> _applyPresetAction;
         private readonly Func<Dictionary<Guid, List<string>>> _getCurrentStateCallback;
         private readonly Action<GlobalPreset> _saveCallback;
-        private readonly Action<GlobalPreset> _deleteCallback;
+        private readonly Action<GlobalPreset, bool> _deleteCallback;
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string name)
@@ -447,7 +484,7 @@ namespace Comfizen
             Action<GlobalPreset> applyPresetAction, 
             Func<Dictionary<Guid, List<string>>> getCurrentStateCallback,
             Action<GlobalPreset> saveCallback,
-            Action<GlobalPreset> deleteCallback,
+            Action<GlobalPreset, bool> deleteCallback,
             Func<IEnumerable<SeedFieldViewModel>> getAllSeedViewModels)
         {
             _workflow = workflow;
@@ -501,7 +538,10 @@ namespace Comfizen
             {
                 if (p is GlobalPreset preset)
                 {
-                     _deleteCallback(preset);
+                    PresetForDeletion = preset;
+                    OnPropertyChanged(nameof(DeleteConfirmationMessage));
+                    OnPropertyChanged(nameof(DeleteSubPresetsMessage));
+                    IsDeleteConfirmationOpen = true;
                 }
             });
             
@@ -522,9 +562,23 @@ namespace Comfizen
                     IsPresetPanelOpen = false;
                 }
             });
-
+            
             SavePresetCommand = new RelayCommand(_ => SaveChanges(), _ => !string.IsNullOrWhiteSpace(NewPresetName));
             RandomizeAllSeedsCommand = new RelayCommand(_ => RandomizeAllSeeds());
+            
+            ConfirmDeletePresetCommand = new RelayCommand(_ =>
+            {
+                if (PresetForDeletion != null)
+                {
+                    _deleteCallback?.Invoke(PresetForDeletion, ShouldDeleteSubPresets);
+                }
+                IsDeleteConfirmationOpen = false;
+            });
+
+            CancelDeletePresetCommand = new RelayCommand(_ =>
+            {
+                IsDeleteConfirmationOpen = false;
+            });
             
             // Initialize View
             FilteredGlobalPresetsView = CollectionViewSource.GetDefaultView(GlobalPresets);
@@ -2462,7 +2516,7 @@ namespace Comfizen
             PresetsModified?.Invoke();
         }
 
-        private void DeletePreset(string presetName)
+        public void DeletePreset(string presetName)
         {
             if (_workflow.Presets.TryGetValue(Id, out var presets))
             {
@@ -2475,7 +2529,7 @@ namespace Comfizen
                 }
 
                 LoadPresets(); // This reloads AllPresets and rebuilds ActiveLayers
-            PresetsModified?.Invoke();
+                PresetsModified?.Invoke();
             }
         }
 
