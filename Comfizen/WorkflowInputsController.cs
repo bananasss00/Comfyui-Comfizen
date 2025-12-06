@@ -205,9 +205,6 @@ public class WorkflowInputsController : INotifyPropertyChanged
     
     public ICommand AddValueToGridCommand { get; }
     
-    public GlobalPresetEditorViewModel GlobalPresetEditor { get; set; }
-    public bool IsGlobalPresetEditorOpen { get; set; }
-
     public ICommand AddPresetValueToGridCommand { get; }
     public ICommand AddGlobalPresetValueToGridCommand { get; }
     
@@ -240,9 +237,6 @@ public class WorkflowInputsController : INotifyPropertyChanged
             DeleteGlobalPreset,      // Argument 4: Delete
             () => _seedViewModels    // Argument 5: Get Seed VMs
         );
-        
-
-        GlobalControls.OpenGlobalPresetEditorCommand = new RelayCommand(_ => OpenGlobalPresetEditor());
         
         this.PropertyChanged += (s, e) => {
             if (e.PropertyName == nameof(SelectedXSource))
@@ -390,22 +384,6 @@ public class WorkflowInputsController : INotifyPropertyChanged
                 prop.Value = valuePair.Value.DeepClone();
             }
         }
-    }
-    
-    private void OpenGlobalPresetEditor()
-    {
-        var allGroups = TabLayoouts.SelectMany(t => t.Groups).ToList();
-    
-        GlobalPresetEditor = new GlobalPresetEditorViewModel(
-            _workflow.GlobalPresets,
-            allGroups,
-            SaveGlobalPreset,
-            DeleteGlobalPreset,
-            GetCurrentGlobalState // Use the same helper
-        );
-
-        GlobalPresetEditor.LoadCurrentStateIntoEditor();
-        IsGlobalPresetEditorOpen = true;
     }
 
     private void SaveGlobalPreset(GlobalPreset presetToSave)
