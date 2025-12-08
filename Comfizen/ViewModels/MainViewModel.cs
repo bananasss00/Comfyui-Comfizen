@@ -1991,9 +1991,16 @@ namespace Comfizen
                 OriginTab = originTab
             };
 
-            // Dispatch the critical part (modifying collections and starting the processor) to the UI thread.
-            // CORRECTED: Pass the true OriginalApi, not a clone of the current state.
-            Application.Current.Dispatcher.Invoke(() => EnqueueTaskInternal(task, originTab.Workflow.OriginalApi));
+            // --- START OF FIX: Use the same logic as in the main Queue method ---
+            var originalApiForTask = originTab.IsVirtual
+                ? originTab.Workflow.JsonClone()
+                : originTab.Workflow.OriginalApi;
+        
+            if (originalApiForTask == null) originalApiForTask = originTab.Workflow.JsonClone();
+            // --- END OF FIX ---
+
+            // Dispatch with the correct baseline
+            Application.Current.Dispatcher.Invoke(() => EnqueueTaskInternal(task, originalApiForTask));
         }
         
         /// <summary>
@@ -2020,14 +2027,27 @@ namespace Comfizen
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
     
-            // CORRECTED: Use the unmodified OriginalApi as the baseline for comparison.
-            var originalApiPrompt = SelectedTab.Workflow.OriginalApi;
+            // --- START OF FIX: Define the correct baseline for comparison ---
+            var originalApiPrompt = SelectedTab.IsVirtual 
+                ? SelectedTab.Workflow.JsonClone() // For virtual tabs, the current state is the baseline.
+                : SelectedTab.Workflow.OriginalApi;  // For real tabs, the file state is the baseline.
+
+            // Safety fallback: if for any reason the baseline is null, use the current state to prevent skipping the task.
+            if (originalApiPrompt == null)
+            {
+                originalApiPrompt = SelectedTab.Workflow.JsonClone();
+                if (originalApiPrompt == null)
+                {
+                    MessageBox.Show("Cannot queue task: workflow data is missing.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+            // --- END OF FIX ---
 
             SelectedTab.ExecuteHook("on_queue_start", SelectedTab.Workflow.LoadedApi);
 
             var promptTasks = await CreatePromptTasks(SelectedTab);
             if (promptTasks.Count == 0) return;
-
             if (_cancellationRequested || (PendingQueueItems.Count == 0 && !_isProcessing))
             {
                 CompletedTasks = 0;
@@ -2041,7 +2061,7 @@ namespace Comfizen
             foreach (var task in promptTasks)
             {
                 var queueItem = new QueueItemViewModel(task, SelectedTab.Header, originalApiPrompt);
-                PopulateQueueItemDetails(queueItem); // No longer needs the second argument
+                PopulateQueueItemDetails(queueItem);
                 PendingQueueItems.Add(queueItem);
             }
             TotalTasks += promptTasks.Count;
