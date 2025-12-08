@@ -953,24 +953,23 @@ namespace Comfizen
                         continue;
                     }
 
-                    // --- START OF CHANGE: Populate placeholder workflow with UI definition ---
+                    // --- START OF REWORKED LOGIC: Fully initialize the placeholder workflow ---
                     var fullState = JObject.Parse(st.FullWorkflowStateJson);
+                    var promptData = fullState["prompt"] as JObject;
                     var uiDefinition = fullState["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
+                    var scripts = fullState["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
+                    var tabs = fullState["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
+                    var presets = fullState["presets"]?.ToObject<Dictionary<Guid, List<GroupPreset>>>() ?? new Dictionary<Guid, List<GroupPreset>>();
+                    var nodeConnectionSnapshots = fullState["nodeConnectionSnapshots"]?.ToObject<Dictionary<string, JObject>>() ?? new Dictionary<string, JObject>();
+                    var globalPresets = fullState["globalPresets"]?.ToObject<ObservableCollection<GlobalPreset>>() ?? new ObservableCollection<GlobalPreset>();
 
-                    // Create a placeholder OriginTab so features like "Load as virtual tab" still work.
                     var placeholderWorkflow = new Workflow();
-                    if (uiDefinition != null)
-                    {
-                        // This is the key step: we load the UI groups into our placeholder.
-                        foreach (var group in uiDefinition)
-                        {
-                            placeholderWorkflow.Groups.Add(group);
-                        }
-                    }
-                    // --- END OF CHANGE ---
+                    // Use the dedicated method to load all data, including the crucial API prompt.
+                    placeholderWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets, nodeConnectionSnapshots, globalPresets, null, null);
+                    // --- END OF REWORKED LOGIC ---
 
                     var placeholderOriginTab = new WorkflowTabViewModel(
-                        placeholderWorkflow, // Pass the now-populated workflow
+                        placeholderWorkflow,
                         st.WorkflowName,
                         _comfyuiModel,
                         _settings,
@@ -989,7 +988,6 @@ namespace Comfizen
                         GridConfig = st.GridConfig
                     };
 
-                    // The original prompt is now loaded directly from the queue file
                     var originalApi = JObject.Parse(st.OriginalApiPromptJson);
                     EnqueueTaskInternal(task, originalApi);
                     importedCount++;
@@ -2937,31 +2935,30 @@ namespace Comfizen
                         continue;
                     }
 
-                    // --- START OF CHANGE: Populate placeholder workflow with UI definition ---
+                    // --- START OF REWORKED LOGIC: Fully initialize the placeholder workflow ---
                     var fullState = JObject.Parse(st.FullWorkflowStateJson);
+                    var promptData = fullState["prompt"] as JObject;
                     var uiDefinition = fullState["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
+                    var scripts = fullState["scripts"]?.ToObject<ScriptCollection>() ?? new ScriptCollection();
+                    var tabs = fullState["tabs"]?.ToObject<ObservableCollection<WorkflowTabDefinition>>() ?? new ObservableCollection<WorkflowTabDefinition>();
+                    var presets = fullState["presets"]?.ToObject<Dictionary<Guid, List<GroupPreset>>>() ?? new Dictionary<Guid, List<GroupPreset>>();
+                    var nodeConnectionSnapshots = fullState["nodeConnectionSnapshots"]?.ToObject<Dictionary<string, JObject>>() ?? new Dictionary<string, JObject>();
+                    var globalPresets = fullState["globalPresets"]?.ToObject<ObservableCollection<GlobalPreset>>() ?? new ObservableCollection<GlobalPreset>();
 
-                    // Create a placeholder OriginTab
                     var placeholderWorkflow = new Workflow();
-                    if (uiDefinition != null)
-                    {
-                        // This is the key step: we load the UI groups into our placeholder.
-                        foreach (var group in uiDefinition)
-                        {
-                            placeholderWorkflow.Groups.Add(group);
-                        }
-                    }
-                    // --- END OF CHANGE ---
-        
+                    // Use the dedicated method to load all data, including the crucial API prompt.
+                    placeholderWorkflow.SetWorkflowData(promptData, uiDefinition, scripts, tabs, presets, nodeConnectionSnapshots, globalPresets, null, null);
+                    // --- END OF REWORKED LOGIC ---
+                    
                     var placeholderOriginTab = new WorkflowTabViewModel(
-                        placeholderWorkflow, // Pass the now-populated workflow
+                        placeholderWorkflow,
                         st.WorkflowName,
                         _comfyuiModel,
                         _settings,
                         _modelService,
                         _sessionManager
                     );
-        
+                    
                     var task = new PromptTask
                     {
                         JsonPromptForApi = st.JsonPromptForApi,
