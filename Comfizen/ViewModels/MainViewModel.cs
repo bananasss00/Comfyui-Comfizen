@@ -40,7 +40,9 @@ namespace Comfizen
     {
         public string JsonPromptForApi { get; set; }
         public string FullWorkflowStateJson { get; set; }
-        public string OriginTabFilePath { get; set; } // Store path instead of the whole ViewModel
+        // REMOVED: public string OriginTabFilePath { get; set; } // Store path instead of the whole ViewModel
+        public string WorkflowName { get; set; } // ADDED: Store the display name of the workflow
+        public string OriginalApiPromptJson { get; set; } // ADDED: Store the original API prompt for comparison
         public bool IsGridTask { get; set; }
         public string XValue { get; set; }
         public string YValue { get; set; }
@@ -859,20 +861,22 @@ namespace Comfizen
                     {
                         JsonPromptForApi = _currentTask.JsonPromptForApi,
                         FullWorkflowStateJson = _currentTask.FullWorkflowStateJson,
-                        OriginTabFilePath = !_currentTask.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, _currentTask.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
+                        WorkflowName = _currentTask.OriginTab.Header, // Use Header as workflow name
+                        OriginalApiPromptJson = _currentTask.OriginTab.Workflow.OriginalApi?.ToString(Formatting.None),
                         IsGridTask = _currentTask.IsGridTask,
                         XValue = _currentTask.XValue,
                         YValue = _currentTask.YValue,
                         GridConfig = _currentTask.GridConfig
                     });
                 }
-        
+
                 // Add all pending tasks
                 queueToSave.AddRange(PendingQueueItems.Select(vm => new SerializablePromptTask
                 {
                     JsonPromptForApi = vm.Task.JsonPromptForApi,
                     FullWorkflowStateJson = vm.Task.FullWorkflowStateJson,
-                    OriginTabFilePath = !vm.Task.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, vm.Task.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
+                    WorkflowName = vm.WorkflowName, // Use the name stored in the queue item
+                    OriginalApiPromptJson = vm.TemplatePrompt?.ToString(Formatting.None),
                     IsGridTask = vm.Task.IsGridTask,
                     XValue = vm.Task.XValue,
                     YValue = vm.Task.YValue,
@@ -943,37 +947,61 @@ namespace Comfizen
                 int importedCount = 0;
                 foreach (var st in loadedTasks)
                 {
-                    // Find the origin tab by its file path
-                    var originTab = OpenTabs.FirstOrDefault(t => !t.IsVirtual && Path.GetRelativePath(Workflow.WorkflowsDir, t.FilePath).Replace(Path.DirectorySeparatorChar, '/') == st.OriginTabFilePath);
-                    if (originTab != null)
+                    if (string.IsNullOrEmpty(st.OriginalApiPromptJson))
                     {
-                        var task = new PromptTask
-                        {
-                            JsonPromptForApi = st.JsonPromptForApi,
-                            FullWorkflowStateJson = st.FullWorkflowStateJson,
-                            OriginTab = originTab,
-                            IsGridTask = st.IsGridTask,
-                            XValue = st.XValue,
-                            YValue = st.YValue,
-                            GridConfig = st.GridConfig
-                        };
+                        Logger.Log($"Skipping task from imported queue: Task '{st.WorkflowName}' is missing original prompt data and cannot be processed.", LogLevel.Warning);
+                        continue;
+                    }
 
-                        EnqueueTaskInternal(task, originTab.Workflow.JsonClone());
-                        importedCount++;
-                    }
-                    else
+                    // --- START OF CHANGE: Populate placeholder workflow with UI definition ---
+                    var fullState = JObject.Parse(st.FullWorkflowStateJson);
+                    var uiDefinition = fullState["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
+
+                    // Create a placeholder OriginTab so features like "Load as virtual tab" still work.
+                    var placeholderWorkflow = new Workflow();
+                    if (uiDefinition != null)
                     {
-                        Logger.Log($"Skipping task from imported queue: Origin workflow '{st.OriginTabFilePath}' is not open.", LogLevel.Warning);
+                        // This is the key step: we load the UI groups into our placeholder.
+                        foreach (var group in uiDefinition)
+                        {
+                            placeholderWorkflow.Groups.Add(group);
+                        }
                     }
+                    // --- END OF CHANGE ---
+
+                    var placeholderOriginTab = new WorkflowTabViewModel(
+                        placeholderWorkflow, // Pass the now-populated workflow
+                        st.WorkflowName,
+                        _comfyuiModel,
+                        _settings,
+                        _modelService,
+                        _sessionManager
+                    );
+
+                    var task = new PromptTask
+                    {
+                        JsonPromptForApi = st.JsonPromptForApi,
+                        FullWorkflowStateJson = st.FullWorkflowStateJson,
+                        OriginTab = placeholderOriginTab, // Use the placeholder
+                        IsGridTask = st.IsGridTask,
+                        XValue = st.XValue,
+                        YValue = st.YValue,
+                        GridConfig = st.GridConfig
+                    };
+
+                    // The original prompt is now loaded directly from the queue file
+                    var originalApi = JObject.Parse(st.OriginalApiPromptJson);
+                    EnqueueTaskInternal(task, originalApi);
+                    importedCount++;
                 }
-        
+
                 if (importedCount > 0)
                 {
                     Logger.LogToConsole($"Successfully imported {importedCount} tasks from '{dialog.FileName}'.");
                 }
                 else
                 {
-                    MessageBox.Show("No tasks were imported. Ensure the required workflow tabs are open.", "Import Queue", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("No tasks were imported. The queue file might be empty or contain invalid tasks.", "Import Queue", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
@@ -1966,16 +1994,17 @@ namespace Comfizen
             };
 
             // Dispatch the critical part (modifying collections and starting the processor) to the UI thread.
-            Application.Current.Dispatcher.Invoke(() => EnqueueTaskInternal(task, originTab.Workflow.JsonClone()));
+            // CORRECTED: Pass the true OriginalApi, not a clone of the current state.
+            Application.Current.Dispatcher.Invoke(() => EnqueueTaskInternal(task, originTab.Workflow.OriginalApi));
         }
         
         /// <summary>
         /// The internal implementation for enqueuing a task. This method MUST be called on the UI thread.
         /// </summary>
-        private void EnqueueTaskInternal(PromptTask task, JObject templatePrompt)
+        private void EnqueueTaskInternal(PromptTask task, JObject originalApiPrompt)
         {
-            var queueItem = new QueueItemViewModel(task, task.OriginTab.Header, templatePrompt);
-            PopulateQueueItemDetails(queueItem);
+            var queueItem = new QueueItemViewModel(task, task.OriginTab.Header, originalApiPrompt);
+            PopulateQueueItemDetails(queueItem); // No longer needs the second argument
             PendingQueueItems.Add(queueItem);
             TotalTasks++;
 
@@ -1992,14 +2021,15 @@ namespace Comfizen
         private async Task Queue(object o)
         {
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
-            
-            var templatePrompt = SelectedTab.Workflow.JsonClone();
-        
+    
+            // CORRECTED: Use the unmodified OriginalApi as the baseline for comparison.
+            var originalApiPrompt = SelectedTab.Workflow.OriginalApi;
+
             SelectedTab.ExecuteHook("on_queue_start", SelectedTab.Workflow.LoadedApi);
-        
+
             var promptTasks = await CreatePromptTasks(SelectedTab);
             if (promptTasks.Count == 0) return;
-        
+
             if (_cancellationRequested || (PendingQueueItems.Count == 0 && !_isProcessing))
             {
                 CompletedTasks = 0;
@@ -2009,15 +2039,15 @@ namespace Comfizen
                 EstimatedTimeRemaining = null; // Clear previous ETA
             }
             _cancellationRequested = false;
-    
+
             foreach (var task in promptTasks)
             {
-                var queueItem = new QueueItemViewModel(task, SelectedTab.Header, templatePrompt);
-                PopulateQueueItemDetails(queueItem);
+                var queueItem = new QueueItemViewModel(task, SelectedTab.Header, originalApiPrompt);
+                PopulateQueueItemDetails(queueItem); // No longer needs the second argument
                 PendingQueueItems.Add(queueItem);
             }
             TotalTasks += promptTasks.Count;
-    
+
             bool needsProcessing = false;
             lock (_processingLock)
             {
@@ -2460,7 +2490,8 @@ namespace Comfizen
             try
             {
                 var taskPrompt = JObject.Parse(item.Task.JsonPromptForApi);
-                var originalApiPrompt = item.Task.OriginTab.Workflow.OriginalApi;
+                // CORRECTED: The QueueItemViewModel now holds the true original state in its TemplatePrompt property.
+                var originalApiPrompt = item.TemplatePrompt; 
 
                 var details = GenerateComparisonDetails(taskPrompt, originalApiPrompt, item.Task.OriginTab);
                 foreach (var detail in details)
@@ -2766,7 +2797,8 @@ namespace Comfizen
                 {
                     JsonPromptForApi = _currentTask.JsonPromptForApi,
                     FullWorkflowStateJson = _currentTask.FullWorkflowStateJson,
-                    OriginTabFilePath = !_currentTask.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, _currentTask.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
+                    WorkflowName = _currentTask.OriginTab.Header,
+                    OriginalApiPromptJson = _currentTask.OriginTab.Workflow.OriginalApi?.ToString(Formatting.None),
                     IsGridTask = _currentTask.IsGridTask,
                     XValue = _currentTask.XValue,
                     YValue = _currentTask.YValue,
@@ -2778,7 +2810,8 @@ namespace Comfizen
             {
                 JsonPromptForApi = vm.Task.JsonPromptForApi,
                 FullWorkflowStateJson = vm.Task.FullWorkflowStateJson,
-                OriginTabFilePath = !vm.Task.OriginTab.IsVirtual ? Path.GetRelativePath(Workflow.WorkflowsDir, vm.Task.OriginTab.FilePath).Replace(Path.DirectorySeparatorChar, '/') : null,
+                WorkflowName = vm.WorkflowName,
+                OriginalApiPromptJson = vm.TemplatePrompt?.ToString(Formatting.None),
                 IsGridTask = vm.Task.IsGridTask,
                 XValue = vm.Task.XValue,
                 YValue = vm.Task.YValue,
@@ -2893,28 +2926,55 @@ namespace Comfizen
                 var loadedTasks = JsonConvert.DeserializeObject<List<SerializablePromptTask>>(json);
 
                 if (loadedTasks == null || !loadedTasks.Any()) return;
-                
+
                 IsQueuePaused = true;
 
                 foreach (var st in loadedTasks)
                 {
-                    // Find the origin tab by its file path
-                    var originTab = OpenTabs.FirstOrDefault(t => !t.IsVirtual && Path.GetRelativePath(Workflow.WorkflowsDir, t.FilePath).Replace(Path.DirectorySeparatorChar, '/') == st.OriginTabFilePath);
-                    if (originTab != null)
+                    if (string.IsNullOrEmpty(st.OriginalApiPromptJson))
                     {
-                        var task = new PromptTask
-                        {
-                            JsonPromptForApi = st.JsonPromptForApi,
-                            FullWorkflowStateJson = st.FullWorkflowStateJson,
-                            OriginTab = originTab,
-                            IsGridTask = st.IsGridTask,
-                            XValue = st.XValue,
-                            YValue = st.YValue,
-                            GridConfig = st.GridConfig
-                        };
-
-                        EnqueueTaskInternal(task, originTab.Workflow.JsonClone());
+                        Logger.Log($"Skipping task from persisted queue: Task '{st.WorkflowName}' is missing original prompt data.", LogLevel.Warning);
+                        continue;
                     }
+
+                    // --- START OF CHANGE: Populate placeholder workflow with UI definition ---
+                    var fullState = JObject.Parse(st.FullWorkflowStateJson);
+                    var uiDefinition = fullState["promptTemplate"]?.ToObject<ObservableCollection<WorkflowGroup>>();
+
+                    // Create a placeholder OriginTab
+                    var placeholderWorkflow = new Workflow();
+                    if (uiDefinition != null)
+                    {
+                        // This is the key step: we load the UI groups into our placeholder.
+                        foreach (var group in uiDefinition)
+                        {
+                            placeholderWorkflow.Groups.Add(group);
+                        }
+                    }
+                    // --- END OF CHANGE ---
+        
+                    var placeholderOriginTab = new WorkflowTabViewModel(
+                        placeholderWorkflow, // Pass the now-populated workflow
+                        st.WorkflowName,
+                        _comfyuiModel,
+                        _settings,
+                        _modelService,
+                        _sessionManager
+                    );
+        
+                    var task = new PromptTask
+                    {
+                        JsonPromptForApi = st.JsonPromptForApi,
+                        FullWorkflowStateJson = st.FullWorkflowStateJson,
+                        OriginTab = placeholderOriginTab,
+                        IsGridTask = st.IsGridTask,
+                        XValue = st.XValue,
+                        YValue = st.YValue,
+                        GridConfig = st.GridConfig
+                    };
+
+                    var originalApi = JObject.Parse(st.OriginalApiPromptJson);
+                    EnqueueTaskInternal(task, originalApi);
                 }
 
                 if (PendingQueueItems.Any())
@@ -2934,7 +2994,6 @@ namespace Comfizen
                 }
             }
         }
-        // --- END OF CHANGE ---
         
         /// <summary>
         /// Handles the import of a raw ComfyUI API JSON file by opening the UI Constructor.
