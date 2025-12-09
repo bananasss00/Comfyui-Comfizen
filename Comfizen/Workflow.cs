@@ -443,7 +443,15 @@ namespace Comfizen
 
             return inputs;
         }
-
+        
+        public void CommitCurrentStateAsOriginal()
+        {
+            if (LoadedApi != null)
+            {
+                OriginalApi = LoadedApi.DeepClone() as JObject;
+            }
+        }
+        
         public void LoadWorkflow(string fileName)
         {
             var jsonString = File.ReadAllText(fileName);

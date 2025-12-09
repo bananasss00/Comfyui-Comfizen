@@ -1992,9 +1992,7 @@ namespace Comfizen
             };
 
             // --- START OF FIX: Use the same logic as in the main Queue method ---
-            var originalApiForTask = originTab.IsVirtual
-                ? originTab.Workflow.JsonClone()
-                : originTab.Workflow.OriginalApi;
+            var originalApiForTask = originTab.Workflow.OriginalApi ?? originTab.Workflow.JsonClone();
         
             if (originalApiForTask == null) originalApiForTask = originTab.Workflow.JsonClone();
             // --- END OF FIX ---
@@ -2028,19 +2026,12 @@ namespace Comfizen
             if (SelectedTab == null || !SelectedTab.Workflow.IsLoaded) return;
     
             // --- START OF FIX: Define the correct baseline for comparison ---
-            var originalApiPrompt = SelectedTab.IsVirtual 
-                ? SelectedTab.Workflow.JsonClone() // For virtual tabs, the current state is the baseline.
-                : SelectedTab.Workflow.OriginalApi;  // For real tabs, the file state is the baseline.
+            var originalApiPrompt = SelectedTab.Workflow.OriginalApi;  // For real tabs, the file state is the baseline.
 
             // Safety fallback: if for any reason the baseline is null, use the current state to prevent skipping the task.
             if (originalApiPrompt == null)
             {
                 originalApiPrompt = SelectedTab.Workflow.JsonClone();
-                if (originalApiPrompt == null)
-                {
-                    MessageBox.Show("Cannot queue task: workflow data is missing.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
             }
             // --- END OF FIX ---
 
@@ -3101,6 +3092,7 @@ namespace Comfizen
             await sourceTab.WorkflowInputsController.PrepareForSessionSaveAsync();
 
             var workflowClone = sourceTab.Workflow.Clone();
+            workflowClone.CommitCurrentStateAsOriginal();
             var newHeader = $"{sourceTab.Header} (copy)";
 
             // Ensure the new header is unique among open tabs
