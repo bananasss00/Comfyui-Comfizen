@@ -677,6 +677,31 @@ public class WorkflowInputsController : INotifyPropertyChanged
             _objectInfo = null;
         }
 
+        // --- START OF FIX: Restore connections from snapshots before processing fields ---
+        // Если мы загрузили workflow, в котором были активны байпасы (связи удалены из JSON),
+        // нам нужно восстановить их в LoadedApi используя сохраненные снапшоты.
+        // Иначе последующая логика (см. ниже блок NodeBypass) перезапишет валидные снапшоты
+        // пустыми данными из "сломанного" LoadedApi.
+        if (_workflow.LoadedApi != null && _workflow.NodeConnectionSnapshots != null && _workflow.NodeConnectionSnapshots.Any())
+        {
+            foreach (var kvp in _workflow.NodeConnectionSnapshots)
+            {
+                var nodeId = kvp.Key;
+                var originalConnections = kvp.Value;
+
+                // Проверяем, существует ли нода в текущем графе
+                if (_workflow.LoadedApi[nodeId] is JObject node && node["inputs"] is JObject currentInputs)
+                {
+                    // Восстанавливаем связи. DeepClone важен, чтобы не повредить данные в snapshots.
+                    currentInputs.Merge(originalConnections.DeepClone(), new JsonMergeSettings 
+                    { 
+                        MergeArrayHandling = MergeArrayHandling.Replace 
+                    });
+                }
+            }
+        }
+        // --- END OF FIX ---
+
         _hasWildcardFields = _workflow.Groups.SelectMany(g => g.Tabs).SelectMany(t => t.Fields)
             .Any(f => f.Type == FieldType.WildcardSupportPrompt);
         GlobalControls.IsSeedSectionVisible = _hasWildcardFields;
