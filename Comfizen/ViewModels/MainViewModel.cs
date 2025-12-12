@@ -1115,6 +1115,9 @@ namespace Comfizen
 
         private void HandleHighPriorityLog(LogLevel level)
         {
+            // Ignore Warnings, open only on Error or Critical
+            if (level < LogLevel.Error) return;
+            
             // This method can be called from a background thread, so we dispatch the UI update.
             Application.Current.Dispatcher.Invoke(() =>
             {
