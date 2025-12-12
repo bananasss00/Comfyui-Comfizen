@@ -32,6 +32,12 @@ namespace Comfizen
         public AdvancedPromptEditor()
         {
             InitializeComponent();
+            
+            // --- FIX START: Prevent auto-scrolling on focus ---
+            // This prevents the parent ScrollViewer from jumping when clicking a token
+            // inside this control, ensuring the click lands on the correct element.
+            this.RequestBringIntoView += (s, e) => e.Handled = true;
+            // --- FIX END ---
         }
 
         #region DependencyProperty for PromptText
