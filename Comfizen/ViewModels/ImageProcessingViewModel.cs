@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PropertyChanged;
 
@@ -182,10 +183,12 @@ namespace Comfizen
                 
                 // NEW: Read the embedded grid elements directly from the prompt metadata
                 var gridElementsToken = compositePrompt["grid_elements"];
+                var baseWorkflowJson = compositePrompt["workflow"] as JObject;
+                var gridConfig = compositePrompt["grid_config"] as JObject;
 
-                if (gridElementsToken == null)
+                if (gridElementsToken == null || baseWorkflowJson == null || gridConfig == null)
                 {
-                    MessageBox.Show("This grid image does not contain embedded element data and cannot be saved this way.", "Missing Data", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("This grid image is missing embedded data and cannot be saved element-wise.", "Missing Data", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -195,6 +198,22 @@ namespace Comfizen
 
                 foreach (var cell in gridElements)
                 {
+                    // --- START OF FIX: Reconstruct the specific workflow for this cell ---
+                    JObject cellWorkflow = baseWorkflowJson.DeepClone() as JObject;
+                    
+                    // Apply X Value
+                    ApplyGridValueToWorkflow(cellWorkflow, gridConfig, "X", cell.XValue);
+                    
+                    // Apply Y Value
+                    ApplyGridValueToWorkflow(cellWorkflow, gridConfig, "Y", cell.YValue);
+
+                    // Re-embed the grid config into the cell's workflow so the new image is also aware it was part of a grid (optional but useful)
+                    // Or keep it clean. Let's keep it clean as a standard workflow.
+                    
+                    // Serialize the modified workflow to be embedded in the file
+                    string cellPromptJson = cellWorkflow.ToString(Formatting.None);
+                    // --- END OF FIX ---
+
                     foreach (var element in cell.ImageOutputs)
                     {
                         var safeFileName = Utils.CreateSafeFilenameForGrid(element.FileName, cell.XValue, cell.YValue);
@@ -203,23 +222,132 @@ namespace Comfizen
 
                         if (fileType == FileType.Video)
                         {
-                            await _comfyuiModel.SaveVideoFileAsync(Settings.SavedImagesDirectory, safeFileName, element.ImageBytes, null);
+                            await _comfyuiModel.SaveVideoFileAsync(Settings.SavedImagesDirectory, safeFileName, element.ImageBytes, cellPromptJson);
                         }
                         else
                         {
-                            await _comfyuiModel.SaveImageFileAsync(Settings.SavedImagesDirectory, safeFileName, element.ImageBytes, null, Settings);
+                            await _comfyuiModel.SaveImageFileAsync(Settings.SavedImagesDirectory, safeFileName, element.ImageBytes, cellPromptJson, Settings);
                         }
                     }
                 }
                 
                 Logger.Log("Finished saving all grid elements.", LogLevel.Info);
-                MessageBox.Show("All grid elements have been successfully saved.", "Save Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("All grid elements have been successfully saved with their specific metadata.", "Save Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
                 Logger.Log(ex, "Failed to save grid elements.");
                 MessageBox.Show($"An error occurred while saving grid elements: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+        
+        /// <summary>
+        /// Applies a specific grid axis value (X or Y) to the workflow JSON object.
+        /// Handles Fields, Presets, and Global Presets.
+        /// </summary>
+        private void ApplyGridValueToWorkflow(JObject workflowContainer, JObject gridConfig, string axis, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return;
+
+            string identifier = gridConfig[$"{axis}AxisIdentifier"]?.ToString();
+            string sourceType = gridConfig[$"{axis}AxisSourceType"]?.ToString(); // "Field", "PresetGroup", "GlobalPreset"
+
+            if (string.IsNullOrEmpty(identifier) || string.IsNullOrEmpty(sourceType)) return;
+
+            var promptJson = workflowContainer["prompt"] as JObject;
+            if (promptJson == null) return;
+
+            if (sourceType == "Field")
+            {
+                // Identifier is the path (e.g., "3.inputs.steps")
+                var prop = Utils.GetJsonPropertyByPath(promptJson, identifier);
+                if (prop != null)
+                {
+                    prop.Value = ConvertValueToJToken(value);
+                }
+            }
+            else if (sourceType == "PresetGroup")
+            {
+                // Identifier is the Group ID (Guid)
+                var presetsDict = workflowContainer["presets"]?.ToObject<Dictionary<Guid, List<GroupPreset>>>();
+                if (presetsDict != null && Guid.TryParse(identifier, out var groupId) && presetsDict.TryGetValue(groupId, out var groupPresets))
+                {
+                    var preset = groupPresets.FirstOrDefault(p => p.Name == value);
+                    if (preset != null)
+                    {
+                        ApplyPresetToJObject(promptJson, preset, groupPresets);
+                    }
+                }
+            }
+            else if (sourceType == "GlobalPreset")
+            {
+                // Identifier is likely "global"
+                var globalPresets = workflowContainer["globalPresets"]?.ToObject<List<GlobalPreset>>();
+                if (globalPresets != null)
+                {
+                    var preset = globalPresets.FirstOrDefault(p => p.Name == value);
+                    if (preset != null)
+                    {
+                        // To apply a global preset, we need access to ALL group presets
+                        var allPresetsDict = workflowContainer["presets"]?.ToObject<Dictionary<Guid, List<GroupPreset>>>() ?? new Dictionary<Guid, List<GroupPreset>>();
+                        
+                        foreach (var groupState in preset.GroupStates)
+                        {
+                            if (allPresetsDict.TryGetValue(groupState.Key, out var groupPresets))
+                            {
+                                foreach (var presetName in groupState.Value)
+                                {
+                                    var gp = groupPresets.FirstOrDefault(p => p.Name == presetName);
+                                    if (gp != null)
+                                    {
+                                        ApplyPresetToJObject(promptJson, gp, groupPresets);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyPresetToJObject(JObject prompt, GroupPreset preset, List<GroupPreset> allGroupPresets)
+        {
+            if (preset.IsLayout)
+            {
+                foreach (var snippetName in preset.SnippetNames ?? new List<string>())
+                {
+                    var snippet = allGroupPresets.FirstOrDefault(p => p.Name == snippetName);
+                    if (snippet != null)
+                    {
+                        foreach (var kvp in snippet.Values)
+                        {
+                            var prop = Utils.GetJsonPropertyByPath(prompt, kvp.Key);
+                            if (prop != null) prop.Value = kvp.Value.DeepClone();
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (var kvp in preset.Values)
+                {
+                    var prop = Utils.GetJsonPropertyByPath(prompt, kvp.Key);
+                    if (prop != null) prop.Value = kvp.Value.DeepClone();
+                }
+            }
+        }
+
+        private JToken ConvertValueToJToken(string stringValue)
+        {
+            // Simple robust conversion
+            if (long.TryParse(stringValue, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long lVal)) return new JValue(lVal);
+            if (double.TryParse(stringValue, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dVal)) return new JValue(dVal);
+            
+            var lower = stringValue.Trim().ToLowerInvariant();
+            if (lower == "true" || lower == "yes" || lower == "on") return new JValue(true);
+            if (lower == "false" || lower == "no" || lower == "off") return new JValue(false);
+
+            return new JValue(stringValue);
         }
         
         private async Task SaveItemsAsync(List<ImageOutput> itemsToSave, string targetDirectory, ImageSaveFormat? formatOverride = null)
