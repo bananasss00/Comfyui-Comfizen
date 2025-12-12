@@ -950,10 +950,28 @@ namespace Comfizen
             // Capture the mouse to receive MouseMove events even if the cursor leaves the slider.
             slider.CaptureMouse();
         
-            // Calculate and set the new value based on the click position.
+            // 1. Calculate raw value based on click position
             Point position = e.GetPosition(slider);
-            double newValue = (position.X / slider.ActualWidth) * (slider.Maximum - slider.Minimum) + slider.Minimum;
-            slider.Value = newValue;
+            double rawValue = (position.X / slider.ActualWidth) * (slider.Maximum - slider.Minimum) + slider.Minimum;
+
+            // Apply Step/SmallChange logic to click ---
+            double step = slider.SmallChange;
+            if (step > 0)
+            {
+                double snappedValue = Math.Round((rawValue - slider.Minimum) / step) * step + slider.Minimum;
+                
+                if (slider.DataContext is SliderFieldViewModel vm && vm.Type == FieldType.SliderInt)
+                {
+                    snappedValue = Math.Round(snappedValue);
+                }
+                
+                rawValue = snappedValue;
+            }
+            
+            if (rawValue < slider.Minimum) rawValue = slider.Minimum;
+            if (rawValue > slider.Maximum) rawValue = slider.Maximum;
+
+            slider.Value = rawValue;
         
             e.Handled = true;
         }
